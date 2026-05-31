@@ -2,39 +2,36 @@
   "schema_version": "1.0",
   "cell_id": "proxmox-cell-a",
   "declared_at": "2026-05-31T00:00:00Z",
-  "notes": "Primary homelab cell — single Proxmox node with four managed VMs",
-
+  "notes": "Primary homelab cell \u00e2\u20ac\u201d single Proxmox node with four managed VMs",
   "host_identity": {
     "hostname": "pve01",
     "fqdn": "pve01.internal",
     "proxmox_version": "8.1.3"
   },
-
   "vm_defaults": {
     "timezone": "Australia/Melbourne",
     "initial_user": "ubuntu",
     "workspace_base_path": "/opt"
   },
-
   "storage_config": {
     "snippets": "local:snippets",
     "isos": "local:iso",
     "vm_disks": "local-zfs"
   },
-
   "keepass_config": {
     "root_path": "Infrastructure",
     "database_hint": null
   },
-
   "network_topology": {
     "management_cidr": "192.168.1.0/24",
     "gateway": "192.168.1.1",
-    "nameservers": ["192.168.1.1", "8.8.8.8"],
+    "nameservers": [
+      "192.168.1.1",
+      "8.8.8.8"
+    ],
     "search_domain": "internal",
     "interface_name": "ens18"
   },
-
   "vms": [
     {
       "vmid": 100,
@@ -55,7 +52,11 @@
       "initial_user": "ubuntu",
       "ssh_key_reference": "infra-bootstrap-deploy-key",
       "password_reference": "vm-100-password",
-      "extra_packages": ["python3-venv", "ansible-core", "jq"],
+      "extra_packages": [
+        "python3-venv",
+        "ansible-core",
+        "jq"
+      ],
       "workspace_path": "/opt/infra",
       "notes": null
     },
@@ -78,7 +79,10 @@
       "initial_user": "ubuntu",
       "ssh_key_reference": "forgejo-deploy-key",
       "password_reference": "vm-101-password",
-      "extra_packages": ["ca-certificates", "gnupg"],
+      "extra_packages": [
+        "ca-certificates",
+        "gnupg"
+      ],
       "workspace_path": null,
       "notes": null
     },
@@ -124,12 +128,14 @@
       "initial_user": "ubuntu",
       "ssh_key_reference": "assessment-engine-deploy-key",
       "password_reference": "vm-103-password",
-      "extra_packages": ["python3-venv", "jq"],
+      "extra_packages": [
+        "python3-venv",
+        "jq"
+      ],
       "workspace_path": "/opt/assessment",
       "notes": null
     }
   ],
-
   "base_images": [
     {
       "name": "ubuntu-2204-base",
@@ -137,11 +143,15 @@
       "source_url": "https://releases.ubuntu.com/22.04/ubuntu-22.04.4-live-server-amd64.iso",
       "checksum": "sha256:45f873de9f8cb637345d6e66a583762730bbea30277ef7b32c9c3bd6700a32b2",
       "created_at": "2026-04-01T10:00:00Z",
-      "included_packages": ["python3", "qemu-guest-agent", "openssh-server", "cloud-init"],
+      "included_packages": [
+        "python3",
+        "qemu-guest-agent",
+        "openssh-server",
+        "cloud-init"
+      ],
       "notes": null
     }
   ],
-
   "templates": [
     {
       "name": "ubuntu-2204-base",
@@ -149,10 +159,9 @@
       "proxmox_template_id": 9000,
       "created_at": "2026-04-01T11:00:00Z",
       "additional_packages": [],
-      "build_notes": "Minimal base template — no additional packages beyond ISO defaults"
+      "build_notes": "Minimal base template \u00e2\u20ac\u201d no additional packages beyond ISO defaults"
     }
   ],
-
   "provenance_records": [
     {
       "vmid": 101,
@@ -171,27 +180,35 @@
       "notes": null
     }
   ],
-
   "secrets": [
     {
       "id": "pve01-root-password",
-      "description": "Proxmox host root password",
-      "keepass_path": "Infrastructure/proxmox/pve01-root",
+      "description": "Proxmox host root password (pve01)",
+      "keepass_path": "Infrastructure/pve01/root-password",
       "owning_cell": "proxmox-cell-a",
       "secret_type": "password",
-      "required_by": ["host:pve01"],
-      "required_for": ["ssh-access", "pve-api-auth"],
+      "required_by": [
+        "host:pve01"
+      ],
+      "required_for": [
+        "ssh-access",
+        "pve-api-auth"
+      ],
       "rotation_schedule": "annually",
-      "recovery_path": "Contact primary operator for out-of-band access to KeePass backup"
+      "recovery_path": null
     },
     {
-      "id": "pve01-api-token",
-      "description": "Proxmox API token for OpenTofu provider",
-      "keepass_path": "Infrastructure/proxmox/pve01-tofu-token",
+      "id": "pve01-api-token-tofu",
+      "description": "Proxmox API token for OpenTofu (pve01)",
+      "keepass_path": "Infrastructure/pve01/api-token-tofu",
       "owning_cell": "proxmox-cell-a",
       "secret_type": "api-token",
-      "required_by": ["host:pve01"],
-      "required_for": ["opentofu-execution"],
+      "required_by": [
+        "host:pve01"
+      ],
+      "required_for": [
+        "opentofu-execution"
+      ],
       "rotation_schedule": "annually",
       "recovery_path": null
     },
@@ -201,8 +218,27 @@
       "keepass_path": "Infrastructure/ssh/deploy-keys/infra-bootstrap",
       "owning_cell": "proxmox-cell-a",
       "secret_type": "ssh-private-key",
-      "required_by": ["vm:infra-bootstrap"],
-      "required_for": ["ansible-execution"],
+      "required_by": [
+        "vm:infra-bootstrap"
+      ],
+      "required_for": [
+        "ansible-execution"
+      ],
+      "rotation_schedule": null,
+      "recovery_path": null
+    },
+    {
+      "id": "vm-infra-bootstrap-password",
+      "description": "Initial OS user password for infra-bootstrap (VM 100)",
+      "keepass_path": "Infrastructure/vms/100-infra-bootstrap/password",
+      "owning_cell": "proxmox-cell-a",
+      "secret_type": "password",
+      "required_by": [
+        "vm:infra-bootstrap"
+      ],
+      "required_for": [
+        "first-boot-access"
+      ],
       "rotation_schedule": null,
       "recovery_path": null
     },
@@ -212,46 +248,91 @@
       "keepass_path": "Infrastructure/ssh/deploy-keys/forgejo",
       "owning_cell": "proxmox-cell-a",
       "secret_type": "ssh-private-key",
-      "required_by": ["vm:forgejo"],
-      "required_for": ["ansible-execution"],
+      "required_by": [
+        "vm:forgejo"
+      ],
+      "required_for": [
+        "ansible-execution"
+      ],
       "rotation_schedule": null,
       "recovery_path": null
     },
     {
-      "id": "vm-100-password",
-      "description": "Initial OS user password for infra-bootstrap VM",
-      "keepass_path": "Infrastructure/vms/vm-100-ubuntu-password",
+      "id": "vm-forgejo-password",
+      "description": "Initial OS user password for forgejo (VM 101)",
+      "keepass_path": "Infrastructure/vms/101-forgejo/password",
       "owning_cell": "proxmox-cell-a",
       "secret_type": "password",
-      "required_by": ["vm:infra-bootstrap"],
-      "required_for": ["first-boot-access"],
+      "required_by": [
+        "vm:forgejo"
+      ],
+      "required_for": [
+        "first-boot-access"
+      ],
       "rotation_schedule": null,
       "recovery_path": null
     },
     {
-      "id": "vm-101-password",
-      "description": "Initial OS user password for forgejo VM",
-      "keepass_path": "Infrastructure/vms/vm-101-ubuntu-password",
+      "id": "inventory-deploy-key",
+      "description": "SSH deploy key for inventory VM",
+      "keepass_path": "Infrastructure/ssh/deploy-keys/inventory",
       "owning_cell": "proxmox-cell-a",
-      "secret_type": "password",
-      "required_by": ["vm:forgejo"],
-      "required_for": ["first-boot-access"],
+      "secret_type": "ssh-private-key",
+      "required_by": [
+        "vm:inventory"
+      ],
+      "required_for": [
+        "ansible-execution"
+      ],
       "rotation_schedule": null,
       "recovery_path": null
     },
     {
-      "id": "forgejo-admin-password",
-      "description": "Forgejo administrator account password",
-      "keepass_path": "Infrastructure/forgejo/admin-password",
+      "id": "vm-inventory-password",
+      "description": "Initial OS user password for inventory (VM 102)",
+      "keepass_path": "Infrastructure/vms/102-inventory/password",
       "owning_cell": "proxmox-cell-a",
       "secret_type": "password",
-      "required_by": ["vm:forgejo"],
-      "required_for": ["post-restore-validation", "service-administration"],
-      "rotation_schedule": "annually",
+      "required_by": [
+        "vm:inventory"
+      ],
+      "required_for": [
+        "first-boot-access"
+      ],
+      "rotation_schedule": null,
+      "recovery_path": null
+    },
+    {
+      "id": "assessment-engine-deploy-key",
+      "description": "SSH deploy key for assessment-engine VM",
+      "keepass_path": "Infrastructure/ssh/deploy-keys/assessment-engine",
+      "owning_cell": "proxmox-cell-a",
+      "secret_type": "ssh-private-key",
+      "required_by": [
+        "vm:assessment-engine"
+      ],
+      "required_for": [
+        "ansible-execution"
+      ],
+      "rotation_schedule": null,
+      "recovery_path": null
+    },
+    {
+      "id": "vm-assessment-engine-password",
+      "description": "Initial OS user password for assessment-engine (VM 103)",
+      "keepass_path": "Infrastructure/vms/103-assessment-engine/password",
+      "owning_cell": "proxmox-cell-a",
+      "secret_type": "password",
+      "required_by": [
+        "vm:assessment-engine"
+      ],
+      "required_for": [
+        "first-boot-access"
+      ],
+      "rotation_schedule": null,
       "recovery_path": null
     }
   ],
-
   "dns_registry": [
     {
       "hostname": "pve01.internal",
@@ -289,7 +370,6 @@
       "notes": null
     }
   ],
-
   "service_contracts": [
     {
       "service": "forgejo",
@@ -316,9 +396,14 @@
           "critical": true
         }
       ],
-      "startup_after": ["postgresql"],
+      "startup_after": [
+        "postgresql"
+      ],
       "backup_job": "pbs-daily-vms",
-      "secret_references": ["forgejo-admin-password", "forgejo-deploy-key"],
+      "secret_references": [
+        "forgejo-admin-password",
+        "forgejo-deploy-key"
+      ],
       "owner": "infrastructure"
     },
     {
@@ -340,13 +425,16 @@
           "critical": true
         }
       ],
-      "startup_after": ["forgejo"],
+      "startup_after": [
+        "forgejo"
+      ],
       "backup_job": "pbs-daily-vms",
-      "secret_references": ["assessment-engine-deploy-key"],
+      "secret_references": [
+        "assessment-engine-deploy-key"
+      ],
       "owner": "infrastructure"
     }
   ],
-
   "hardware_requirements": {
     "vtx_required": true,
     "iommu_required": false,
@@ -354,9 +442,8 @@
     "minimum_ram_gb": 32,
     "minimum_cores": 4,
     "minimum_storage_gb": 500,
-    "notes": "iommu not required — no PCI passthrough in this deployment"
+    "notes": "iommu not required \u00e2\u20ac\u201d no PCI passthrough in this deployment"
   },
-
   "first_boot_order": [
     "infra-bootstrap",
     "forgejo",

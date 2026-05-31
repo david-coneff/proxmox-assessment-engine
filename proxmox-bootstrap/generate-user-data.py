@@ -58,17 +58,30 @@ BASE_PACKAGES = [
 ]
 
 
-def _ssh_key_placeholder(vm: dict, secrets: list, keepass_root: str) -> str:
-    """Build the SSH authorized_keys placeholder comment for a VM."""
+_PUBKEY_DIR = Path(__file__).parent / "ssh" / "public-keys"
+
+
+def _resolve_ssh_public_key(vm: dict, secrets: list, keepass_root: str) -> str:
+    """
+    Resolve the SSH authorized_keys line for a VM.
+
+    Resolution order:
+      1. ssh/public-keys/{vmname}.pub — actual key file (populated by setup-secrets.py)
+      2. POPULATE placeholder with KeePass reference (for manual setup)
+    """
+    pub_key_file = _PUBKEY_DIR / f"{vm['name']}.pub"
+    if pub_key_file.exists():
+        content = pub_key_file.read_text(encoding="utf-8").strip()
+        if content:
+            return content  # actual ed25519 public key
+
+    # Fall back to placeholder
     ref_id = vm.get("ssh_key_reference")
     if not ref_id:
         return "POPULATE: SSH public key for this VM"
-
-    # Find the KeePass path for this secret reference
     secret = next((s for s in secrets if s["id"] == ref_id), None)
     if secret:
         return f"POPULATE: SSH public key — KeePass: {secret['keepass_path']}"
-    # Fallback: construct path from convention
     return f"POPULATE: SSH public key — KeePass: {keepass_root}/ssh/deploy-keys/{vm['name']}"
 
 
@@ -113,7 +126,7 @@ def generate_user_data(
     pw_secret = next((s for s in secrets if s["id"] == pw_ref), None) if pw_ref else None
     pw_keepass = pw_secret["keepass_path"] if pw_secret else f"{keepass_root}/vms/{name}-password"
 
-    ssh_placeholder = _ssh_key_placeholder(vm, secrets, keepass_root)
+    ssh_placeholder = _resolve_ssh_public_key(vm, secrets, keepass_root)
 
     # Packages: base + role-specific extras
     packages = list(BASE_PACKAGES)
@@ -134,6 +147,15 @@ def generate_user_data(
 
     runcmd_block = "\n".join(runcmd_lines)
 
+    using_placeholder = ssh_placeholder.startswith("POPULATE:")
+    populate_note = (
+        "#\n"
+        "# BEFORE UPLOADING: replace the POPULATE placeholder in ssh_authorized_keys\n"
+        "# with the actual SSH public key for this VM."
+        if using_placeholder else
+        "# SSH public key embedded from ssh/public-keys/{}.pub".format(name)
+    )
+
     return f"""\
 #cloud-config
 # user-data - {name}
@@ -148,9 +170,7 @@ def generate_user_data(
 # Host:   {host_identity.get('hostname', 'unknown')}
 # KeePass (initial password): {pw_keepass}
 # Generated: {generated_at}
-#
-# BEFORE UPLOADING: replace the POPULATE placeholder in ssh_authorized_keys
-# with the actual SSH public key for this VM.
+{populate_note}
 
 hostname: {name}
 fqdn: {fqdn}
