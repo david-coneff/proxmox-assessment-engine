@@ -1,6 +1,6 @@
 # Recovery Documentation Generation Report
 
-Generated:        2026-05-31T13:26:26Z
+Generated:        2026-05-31 14:09:51 UTC (2026-05-31 08:09:51 MDT)
 Mode:             recovery
 Assessment tier:  2
 Assessment date:  2026-05-29T02:05:00Z

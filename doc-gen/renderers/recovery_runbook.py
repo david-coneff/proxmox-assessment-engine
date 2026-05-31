@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from runbook import RunbookBuilder
+from timestamps import format_doc_timestamp_from_iso
 
 SCORE_SYMBOLS = {
     "GREEN":   "✓ GREEN",
@@ -120,7 +121,8 @@ def build_recovery_runbook(
     hostname = _get(manifest, "host.hostname") or "unknown"
     pve_ver  = _get(manifest, "host.proxmox_version") or "unknown"
     collected = manifest.get("collected_at", "unknown")
-    generated = generation_meta.get("generated_at", "unknown")
+    _gen_iso  = generation_meta.get("generated_at", "")
+    generated = format_doc_timestamp_from_iso(_gen_iso) if _gen_iso else generation_meta.get("generated_at_display", "unknown")
     gateway   = _get(manifest, "network.default_gateway") or "unknown"
     dns_list  = ", ".join(_get(manifest, "network.dns_servers") or []) or "unknown"
 

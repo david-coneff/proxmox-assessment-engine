@@ -10,6 +10,9 @@ Produces:
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+from timestamps import format_doc_timestamp_from_iso
 from typing import Optional
 
 SCORE_ICON = {
@@ -78,7 +81,8 @@ def build_readiness_report_md(
     node_map = graph.node_map()
     hostname    = manifest.get("host", {}).get("hostname", "unknown")
     collected   = manifest.get("collected_at", "unknown")
-    generated   = generation_meta.get("generated_at", "unknown")
+    _gen_iso    = generation_meta.get("generated_at", "")
+    generated   = format_doc_timestamp_from_iso(_gen_iso) if _gen_iso else "unknown"
     all_gaps    = sorted(
         [g for c in readiness.components for g in c.gaps],
         key=lambda g: (GAP_PRIORITY.get(g.severity, 9), g.component_id)

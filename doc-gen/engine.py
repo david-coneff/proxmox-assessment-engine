@@ -27,6 +27,7 @@ sys.path.insert(0, str(REPO_ROOT / "doc-gen" / "renderers"))
 sys.path.insert(0, str(REPO_ROOT / "data-model"))
 
 from drift import compute_drift
+from timestamps import format_doc_timestamp, format_doc_timestamp_from_iso, now_utc_iso
 
 
 def _load_history_snapshot(tier: int) -> tuple[dict | None, str | None]:
@@ -249,7 +250,8 @@ def _resolve_fields(manifest: dict) -> tuple[dict, dict]:
 
     collected_at = manifest.get("collected_at", "unknown")
     meta = {
-        "generated_at":    datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at":         now_utc_iso(),
+        "generated_at_display": format_doc_timestamp(),
         "collected_at":    collected_at,
         "tier":            manifest.get("assessment_tier", 1),
         "template_version": "bootstrap-v1.0",
@@ -272,7 +274,7 @@ def _write_generation_report(out_dir: Path, manifest: dict,
     lines = [
         "# Documentation Generation Report",
         "",
-        f"Generated:        {meta['generated_at']}",
+        f"Generated:        {meta.get('generated_at_display', meta['generated_at'])}",
         f"Mode:             bootstrap",
         f"Assessment tier:  {meta['tier']}",
         f"Assessment date:  {meta['collected_at']}",
@@ -480,7 +482,8 @@ def run_recovery(args):
 
     collected_at = manifest.get("collected_at", "unknown")
     generation_meta = {
-        "generated_at":    datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at":         now_utc_iso(),
+        "generated_at_display": format_doc_timestamp(),
         "collected_at":    collected_at,
         "tier":            tier,
         "template_version": "recovery-v1.0",
@@ -547,7 +550,7 @@ def _write_recovery_report(out_dir, manifest, graph, readiness, meta):
     lines = [
         "# Recovery Documentation Generation Report",
         "",
-        f"Generated:        {meta['generated_at']}",
+        f"Generated:        {meta.get('generated_at_display', meta['generated_at'])}",
         f"Mode:             recovery",
         f"Assessment tier:  {meta['tier']}",
         f"Assessment date:  {meta['collected_at']}",
