@@ -184,8 +184,204 @@
           "type": ["string", "null"],
           "description": "Override workspace directory for this VM's runcmd. If null, uses vm_defaults.workspace_base_path + VM name."
         },
+        "containers": {
+          "type": "array",
+          "description": "Containerized applications running on this VM. Populated during init and updated by Tier 2 assessment.",
+          "items": { "$ref": "#/definitions/container_declaration" }
+        },
         "notes": {
           "type": ["string", "null"]
+        }
+      }
+    },
+
+    "container_declaration": {
+      "type": "object",
+      "description": "Declared configuration for a containerized application. Records everything needed to deterministically re-setup the container on a restored system.",
+      "required": ["name", "runtime", "image"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Container name, e.g. postgresql or forgejo-app"
+        },
+        "runtime": {
+          "type": "string",
+          "enum": ["podman", "docker", "podman-compose", "docker-compose"],
+          "description": "Container runtime used to manage this container"
+        },
+        "image": {
+          "type": "string",
+          "description": "Full image reference including registry, e.g. registry.hub.docker.com/library/postgres"
+        },
+        "image_tag": {
+          "type": ["string", "null"],
+          "description": "Image tag, informational only. Tags can move; the digest is the stable reference."
+        },
+        "image_digest": {
+          "type": ["string", "null"],
+          "description": "SHA256 digest of the image, e.g. sha256:abc123... Pinning this guarantees the exact image bytes regardless of tag reassignment. Populated by Tier 2 assessment at deployment time."
+        },
+        "compose_file": {
+          "$ref": "#/definitions/compose_file_reference",
+          "description": "Reference to the compose or Quadlet file in Forgejo. The file content is not stored here — only the reference and hash for verification."
+        },
+        "ports": {
+          "type": "array",
+          "description": "Port bindings declared for this container",
+          "items": {
+            "type": "object",
+            "required": ["host_port", "container_port", "protocol"],
+            "properties": {
+              "host_port":      { "type": "integer" },
+              "container_port": { "type": "integer" },
+              "protocol":       { "type": "string", "enum": ["tcp", "udp"] }
+            }
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "description": "Volume mount declarations for this container",
+          "items": { "$ref": "#/definitions/volume_mount" }
+        },
+        "data_volumes": {
+          "type": "array",
+          "description": "Subset of volumes that contain persistent data and require backup. These are what PBS or rclone protects.",
+          "items": { "$ref": "#/definitions/data_volume" }
+        },
+        "networks": {
+          "type": "array",
+          "description": "Network attachments for this container",
+          "items": {
+            "type": "object",
+            "required": ["network_name"],
+            "properties": {
+              "network_name": { "type": "string" },
+              "alias":        { "type": ["string", "null"],
+                                "description": "Hostname alias for this container inside the network" }
+            }
+          }
+        },
+        "env_vars": {
+          "type": ["object", "null"],
+          "description": "Non-secret environment variables. Key-value pairs stored in plain text. Secret values go in secret_references instead.",
+          "additionalProperties": { "type": "string" }
+        },
+        "secret_references": {
+          "type": "array",
+          "description": "Secret Registry IDs for environment variables that contain secrets",
+          "items": { "type": "string" }
+        },
+        "minimum_capability": {
+          "$ref": "#/definitions/container_minimum_capability",
+          "description": "Minimum hardware resources this container requires to run"
+        },
+        "startup_after": {
+          "type": "array",
+          "description": "Names of other containers or services that must be running before this container starts",
+          "items": { "type": "string" }
+        },
+        "health_check": {
+          "type": ["string", "null"],
+          "description": "Command to verify the container is healthy after start, e.g. 'curl -sf http://localhost:3000/api/healthz'"
+        },
+        "notes": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+
+    "compose_file_reference": {
+      "type": ["object", "null"],
+      "description": "Reference to a compose or Quadlet file stored in Forgejo. The file content is version-controlled in Forgejo; only the reference is stored here.",
+      "properties": {
+        "forgejo_repo_url": {
+          "type": "string",
+          "description": "Forgejo repository URL, e.g. https://forgejo.internal/infra/proxmox-bootstrap"
+        },
+        "file_path": {
+          "type": "string",
+          "description": "Path within the repo, e.g. containers/forgejo/compose.yaml"
+        },
+        "commit_hash": {
+          "type": ["string", "null"],
+          "description": "Git commit hash at time of last deployment"
+        },
+        "file_digest": {
+          "type": ["string", "null"],
+          "description": "SHA256 of the file content at time of last deployment, for change detection"
+        }
+      }
+    },
+
+    "volume_mount": {
+      "type": "object",
+      "required": ["host_path", "container_path"],
+      "properties": {
+        "host_path":       { "type": "string", "description": "Absolute path on the VM host filesystem" },
+        "container_path":  { "type": "string", "description": "Absolute path inside the container" },
+        "options":         { "type": ["string", "null"],
+                             "description": "Mount options, e.g. ro (read-only) or Z (SELinux relabel)" },
+        "volume_name":     { "type": ["string", "null"],
+                             "description": "Logical name for this volume, used in backup archive filenames" }
+      }
+    },
+
+    "data_volume": {
+      "type": "object",
+      "description": "A volume that contains persistent data and requires external backup. Corresponds to a volume_mount entry.",
+      "required": ["volume_name", "host_path", "backup_method"],
+      "properties": {
+        "volume_name": {
+          "type": "string",
+          "description": "Logical name used in backup archive filenames, e.g. forgejo-repos or postgresql-data"
+        },
+        "host_path": {
+          "type": "string",
+          "description": "Absolute path on the VM host filesystem where this data lives"
+        },
+        "backup_method": {
+          "type": "string",
+          "enum": ["pbs", "rclone", "encrypted-archive"],
+          "description": "How this volume is backed up. pbs: covered by full VM PBS backup. rclone: per-volume rclone to remote. encrypted-archive: per-volume GPG archive."
+        },
+        "backup_schedule": {
+          "type": ["string", "null"],
+          "description": "Cron expression for backup schedule if backup_method is rclone or encrypted-archive. For PBS, schedule is managed by PBS itself."
+        },
+        "backup_destination": {
+          "type": ["string", "null"],
+          "description": "Destination for rclone or encrypted-archive backups, e.g. gdrive:/backups/cell-id/volumes. Not used for PBS."
+        },
+        "retention_count": {
+          "type": ["integer", "null"],
+          "description": "Number of volume archives to retain (rclone/encrypted-archive only)"
+        },
+        "pbs_job": {
+          "type": ["string", "null"],
+          "description": "PBS backup job ID if backup_method is pbs, e.g. pbs-daily-vms"
+        },
+        "estimated_size_gb": {
+          "type": ["number", "null"],
+          "description": "Estimated current size of this volume in GB (informational, updated by Tier 2 assessment)"
+        }
+      }
+    },
+
+    "container_minimum_capability": {
+      "type": "object",
+      "description": "Minimum hardware resources required to run this container. Used by the compatibility checker to validate the restored system has sufficient capacity.",
+      "properties": {
+        "ram_mb": {
+          "type": ["integer", "null"],
+          "description": "Minimum RAM in MB required for this container"
+        },
+        "cpu_cores": {
+          "type": ["number", "null"],
+          "description": "Minimum CPU cores (fractional allowed, e.g. 0.5)"
+        },
+        "disk_gb": {
+          "type": ["number", "null"],
+          "description": "Minimum free disk space in GB required on the volume host path"
         }
       }
     },

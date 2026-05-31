@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "container-state-schema",
+  "title": "Container State",
+  "description": "Schema for the observed container state collected by Tier 2 assessment. Records what containers are actually running, their actual image digests, volume mounts, resource usage, and compose file hashes. Feeds the container compatibility checker on restore.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "cell_id",
+    "vmid",
+    "vm_name",
+    "collected_at",
+    "container_runtime",
+    "containers",
+    "compose_files",
+    "collection_errors"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "cell_id": {
+      "type": "string",
+      "description": "Stable unique identity of the Infrastructure Cell"
+    },
+    "vmid": {
+      "type": "integer",
+      "description": "Proxmox VM ID of the host running these containers"
+    },
+    "vm_name": {
+      "type": "string",
+      "description": "VM name as configured in Proxmox"
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when this container state was collected"
+    },
+    "container_runtime": {
+      "type": ["string", "null"],
+      "enum": ["podman", "docker", "podman-compose", "docker-compose", null],
+      "description": "Primary container runtime detected on this VM. null if no runtime found."
+    },
+    "containers": {
+      "type": "array",
+      "description": "Observed container instances on this VM",
+      "items": { "$ref": "#/definitions/observed_container" }
+    },
+    "compose_files": {
+      "type": "array",
+      "description": "Compose or Quadlet files detected on this VM, with their current content hashes",
+      "items": { "$ref": "#/definitions/observed_compose_file" }
+    },
+    "collection_errors": {
+      "type": "array",
+      "description": "Errors encountered during container state collection",
+      "items": { "type": "string" }
+    }
+  },
+
+  "definitions": {
+
+    "observed_container": {
+      "type": "object",
+      "required": ["name", "status", "image"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Container name as reported by the runtime"
+        },
+        "container_id": {
+          "type": ["string", "null"],
+          "description": "Container ID (short form), e.g. a3f7b2c1d4e5"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["running", "stopped", "exited", "paused", "unknown"],
+          "description": "Current container status"
+        },
+        "image": {
+          "type": "string",
+          "description": "Full image reference as reported by the runtime"
+        },
+        "image_digest": {
+          "type": ["string", "null"],
+          "description": "SHA256 digest of the running image. Collected via 'podman inspect' or 'docker inspect'. Null if runtime did not report it."
+        },
+        "image_tag": {
+          "type": ["string", "null"],
+          "description": "Image tag in use. May differ from declared tag if image was pulled more recently."
+        },
+        "declared_digest": {
+          "type": ["string", "null"],
+          "description": "The image digest declared in bootstrap-state for this container. Used for drift detection: if observed != declared, the image has changed."
+        },
+        "digest_drift": {
+          "type": "boolean",
+          "description": "True if observed image_digest differs from declared_digest"
+        },
+        "ports": {
+          "type": "array",
+          "description": "Observed port bindings",
+          "items": {
+            "type": "object",
+            "required": ["host_port", "container_port", "protocol"],
+            "properties": {
+              "host_port":      { "type": "integer" },
+              "container_port": { "type": "integer" },
+              "protocol":       { "type": "string" }
+            }
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "description": "Observed volume mounts",
+          "items": {
+            "type": "object",
+            "required": ["host_path", "container_path"],
+            "properties": {
+              "host_path":      { "type": "string" },
+              "container_path": { "type": "string" },
+              "mode":           { "type": ["string", "null"] }
+            }
+          }
+        },
+        "networks": {
+          "type": "array",
+          "description": "Networks this container is attached to",
+          "items": {
+            "type": "object",
+            "required": ["network_name"],
+            "properties": {
+              "network_name": { "type": "string" },
+              "ip_address":   { "type": ["string", "null"] },
+              "aliases":      { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "resource_usage": {
+          "$ref": "#/definitions/container_resource_usage"
+        },
+        "env_vars": {
+          "type": ["object", "null"],
+          "description": "Non-secret environment variables observed at collection time. Secret values are not collected.",
+          "additionalProperties": { "type": "string" }
+        },
+        "uptime_seconds": {
+          "type": ["integer", "null"],
+          "description": "Container uptime in seconds at collection time"
+        },
+        "restart_count": {
+          "type": ["integer", "null"],
+          "description": "Number of times this container has been restarted"
+        },
+        "health_status": {
+          "type": ["string", "null"],
+          "enum": ["healthy", "unhealthy", "starting", "none", null],
+          "description": "Container health check status if configured"
+        },
+        "in_bootstrap_state": {
+          "type": "boolean",
+          "description": "True if a corresponding container_declaration exists in bootstrap-state.json"
+        },
+        "compose_file_drift": {
+          "type": "boolean",
+          "description": "True if the compose file on disk differs from the declared file digest in bootstrap-state"
+        }
+      }
+    },
+
+    "observed_compose_file": {
+      "type": "object",
+      "required": ["file_path", "file_digest"],
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "description": "Absolute path to the compose or Quadlet file on the VM filesystem"
+        },
+        "file_digest": {
+          "type": "string",
+          "description": "SHA256 of the current file content"
+        },
+        "declared_digest": {
+          "type": ["string", "null"],
+          "description": "The file digest declared in bootstrap-state. Used for drift detection."
+        },
+        "drift": {
+          "type": "boolean",
+          "description": "True if current file_digest differs from declared_digest"
+        },
+        "last_modified": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "File last-modified timestamp"
+        }
+      }
+    },
+
+    "container_resource_usage": {
+      "type": "object",
+      "description": "Observed resource usage for a running container at collection time",
+      "properties": {
+        "cpu_percent": {
+          "type": ["number", "null"],
+          "description": "CPU utilisation as a percentage at collection time"
+        },
+        "ram_usage_mb": {
+          "type": ["number", "null"],
+          "description": "RAM currently in use by this container in MB"
+        },
+        "ram_limit_mb": {
+          "type": ["number", "null"],
+          "description": "RAM limit configured for this container in MB. null if no limit."
+        },
+        "disk_usage_gb": {
+          "type": ["number", "null"],
+          "description": "Total disk used by this container's writable layer and named volumes in GB"
+        }
+      }
+    }
+  }
+}

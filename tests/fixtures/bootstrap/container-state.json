@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "cell_id": "proxmox-cell-a",
+  "vmid": 101,
+  "vm_name": "forgejo",
+  "collected_at": "2026-05-29T02:05:00Z",
+  "container_runtime": "podman-compose",
+  "containers": [
+    {
+      "name": "forgejo-app",
+      "container_id": "a3f7b2c1d4e5",
+      "status": "running",
+      "image": "codeberg.org/forgejo/forgejo",
+      "image_digest": "sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc123",
+      "image_tag": "7.0",
+      "declared_digest": "sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc123",
+      "digest_drift": false,
+      "ports": [
+        { "host_port": 3000, "container_port": 3000, "protocol": "tcp" },
+        { "host_port": 22,   "container_port": 22,   "protocol": "tcp" }
+      ],
+      "volumes": [
+        { "host_path": "/opt/forgejo/data", "container_path": "/data", "mode": "Z" }
+      ],
+      "networks": [
+        { "network_name": "forgejo-net", "ip_address": "10.88.0.2", "aliases": ["forgejo"] }
+      ],
+      "resource_usage": {
+        "cpu_percent": 0.5,
+        "ram_usage_mb": 256,
+        "ram_limit_mb": 1024,
+        "disk_usage_gb": 2.3
+      },
+      "env_vars": {
+        "FORGEJO__database__DB_TYPE": "sqlite3",
+        "FORGEJO__server__DOMAIN": "forgejo.internal"
+      },
+      "uptime_seconds": 86400,
+      "restart_count": 0,
+      "health_status": "healthy",
+      "in_bootstrap_state": true,
+      "compose_file_drift": false
+    },
+    {
+      "name": "postgresql",
+      "container_id": "b4c8d1e2f3a6",
+      "status": "running",
+      "image": "registry.hub.docker.com/library/postgres",
+      "image_digest": "sha256:def456abc123def456abc123def456abc123def456abc123def456abc123def456",
+      "image_tag": "15-alpine",
+      "declared_digest": "sha256:def456abc123def456abc123def456abc123def456abc123def456abc123def456",
+      "digest_drift": false,
+      "ports": [],
+      "volumes": [
+        { "host_path": "/opt/forgejo/postgresql", "container_path": "/var/lib/postgresql/data", "mode": "Z" }
+      ],
+      "networks": [
+        { "network_name": "forgejo-net", "ip_address": "10.88.0.3", "aliases": ["db"] }
+      ],
+      "resource_usage": {
+        "cpu_percent": 0.2,
+        "ram_usage_mb": 128,
+        "ram_limit_mb": 512,
+        "disk_usage_gb": 0.8
+      },
+      "env_vars": {
+        "POSTGRES_DB": "forgejo"
+      },
+      "uptime_seconds": 86400,
+      "restart_count": 0,
+      "health_status": "healthy",
+      "in_bootstrap_state": true,
+      "compose_file_drift": false
+    }
+  ],
+  "compose_files": [
+    {
+      "file_path": "/opt/forgejo/compose.yaml",
+      "file_digest": "sha256:111222333444555666777888999aaa111222333444555666777888999aaa111222",
+      "declared_digest": "sha256:111222333444555666777888999aaa111222333444555666777888999aaa111222",
+      "drift": false,
+      "last_modified": "2026-04-15T12:00:00Z"
+    }
+  ],
+  "collection_errors": []
+}

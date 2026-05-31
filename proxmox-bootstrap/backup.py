@@ -463,6 +463,132 @@ def git_push_to_remote(
 
 
 # ---------------------------------------------------------------------------
+# Container volume archive naming
+# ---------------------------------------------------------------------------
+
+def volume_archive_filename(
+    cell_id: str,
+    vm_name: str,
+    container_name: str,
+    volume_name: str,
+    dt: datetime | None = None,
+    encrypted: bool = True,
+) -> str:
+    """
+    Generate an archive filename for a container data volume.
+
+    Format:
+      {cell_id}_{vm_name}_{container_name}_{volume_name}_{YYYY-MM-DD_HH_MM_SS}_{hash}.tar.gz[.gpg]
+
+    Example:
+      proxmox-cell-a_forgejo_postgresql_data_2026-05-31_02_00_00_a3f7b2.tar.gz.gpg
+
+    Parameters
+    ----------
+    cell_id : str        Infrastructure Cell identifier
+    vm_name : str        VM name (e.g. 'forgejo')
+    container_name : str Container name (e.g. 'postgresql')
+    volume_name : str    Logical volume name (e.g. 'data') — not the full host path
+    dt : datetime        Timestamp. Defaults to now (UTC).
+    encrypted : bool     If True, appends .gpg to the extension.
+    """
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+    ts = archive_timestamp(dt)
+    payload = f"{cell_id}{vm_name}{container_name}{volume_name}{ts}".encode("utf-8")
+    short_hash = hashlib.sha256(payload).hexdigest()[:6]
+    ext = ".tar.gz.gpg" if encrypted else ".tar.gz"
+    return f"{cell_id}_{vm_name}_{container_name}_{volume_name}_{ts}_{short_hash}{ext}"
+
+
+def pbs_offsite_filename(
+    cell_id: str,
+    vmid: int,
+    vm_name: str,
+    dt: datetime | None = None,
+) -> str:
+    """
+    Generate a filename for a PBS backup chunk synced offsite via rclone.
+
+    PBS manages its own naming internally. This filename is used when syncing
+    PBS backups to external storage (e.g. Google Drive, S3) as a single archive.
+
+    Format:
+      {cell_id}_pbs_vm{vmid}_{vm_name}_{YYYY-MM-DD_HH_MM_SS}_{hash}.tar.zst
+
+    The .zst extension matches PBS's native Zstandard compression format.
+
+    Example:
+      proxmox-cell-a_pbs_vm101_forgejo_2026-05-31_02_00_00_c5d9e2.tar.zst
+    """
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+    ts = archive_timestamp(dt)
+    payload = f"{cell_id}pbs{vmid}{vm_name}{ts}".encode("utf-8")
+    short_hash = hashlib.sha256(payload).hexdigest()[:6]
+    return f"{cell_id}_pbs_vm{vmid}_{vm_name}_{ts}_{short_hash}.tar.zst"
+
+
+def parse_volume_archive_filename(filename: str) -> dict | None:
+    """
+    Parse a volume archive filename back into its components.
+
+    Returns dict with keys: cell_id, vm_name, container_name, volume_name,
+    timestamp_str, short_hash, encrypted.
+    Returns None if filename doesn't match expected pattern.
+
+    Note: cell_id, vm_name, container_name, volume_name must not contain
+    underscores for unambiguous parsing. Use hyphens in names (kebab-case).
+    """
+    stem = filename
+    encrypted = False
+
+    if stem.endswith(".tar.gz.gpg"):
+        stem = stem[:-len(".tar.gz.gpg")]
+        encrypted = True
+    elif stem.endswith(".tar.gz"):
+        stem = stem[:-len(".tar.gz")]
+    else:
+        return None
+
+    # Structure: {cell_id}_{vm_name}_{container_name}_{volume_name}_{date}_{HH}_{MM}_{SS}_{hash}
+    # From right: hash, SS, MM, HH, date, volume_name, container_name, vm_name, cell_id
+    # That's 8 splits from the right → 9 parts
+    parts = stem.rsplit("_", 8)
+    if len(parts) < 9:
+        return None
+
+    short_hash = parts[-1]
+    ss = parts[-2]
+    mm_time = parts[-3]
+    hh = parts[-4]
+    date_str = parts[-5]
+    volume_name = parts[-6]
+    container_name = parts[-7]
+    vm_name = parts[-8]
+    cell_id = "_".join(parts[:-8])
+
+    if len(short_hash) != 6 or not all(c in "0123456789abcdef" for c in short_hash):
+        return None
+
+    try:
+        timestamp_str = f"{date_str}_{hh}_{mm_time}_{ss}"
+        datetime.strptime(timestamp_str, TIMESTAMP_FORMAT)
+    except ValueError:
+        return None
+
+    return {
+        "cell_id": cell_id,
+        "vm_name": vm_name,
+        "container_name": container_name,
+        "volume_name": volume_name,
+        "timestamp_str": timestamp_str,
+        "short_hash": short_hash,
+        "encrypted": encrypted,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Archive listing and retention
 # ---------------------------------------------------------------------------
 
