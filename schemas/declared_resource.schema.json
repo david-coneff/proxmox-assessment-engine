@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/proxmox-assessment-engine/schemas/declared_resource.schema.json",
+  "title": "DeclaredResource",
+  "description": "A single infrastructure resource as declared in an OpenTofu / Terraform state file",
+  "type": "object",
+  "required": ["resource_type", "resource_name", "provider"],
+  "properties": {
+    "resource_type": {
+      "type": "string",
+      "description": "Terraform resource type, e.g. proxmox_vm_qemu, proxmox_lxc, null_resource"
+    },
+    "resource_name": {
+      "type": "string",
+      "description": "Terraform resource name (the label in the HCL block)"
+    },
+    "module": {
+      "type": ["string", "null"],
+      "description": "Module path, e.g. module.vms, or null for root module"
+    },
+    "provider": {
+      "type": "string",
+      "description": "Provider name, e.g. registry.terraform.io/telmate/proxmox"
+    },
+    "instance_index": {
+      "type": ["string", "integer", "null"],
+      "description": "count index or for_each key; null for single instances"
+    },
+    "attributes": {
+      "type": "object",
+      "description": "Normalized subset of resource attributes relevant to infrastructure observation",
+      "properties": {
+        "name": {
+          "type": ["string", "null"],
+          "description": "Human-readable name (vm name, container hostname, etc.)"
+        },
+        "target_node": {
+          "type": ["string", "null"],
+          "description": "Proxmox node this resource is declared to run on"
+        },
+        "vmid": {
+          "type": ["integer", "null"],
+          "description": "Proxmox VMID if declared"
+        },
+        "cores": {
+          "type": ["integer", "null"]
+        },
+        "memory": {
+          "type": ["integer", "null"],
+          "description": "Memory in MB"
+        },
+        "disk_size": {
+          "type": ["string", "null"],
+          "description": "Primary disk size as declared, e.g. '32G'"
+        },
+        "network_interfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "model": {"type": "string"},
+              "bridge": {"type": "string"}
+            }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "description": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "taint": {
+      "type": "boolean",
+      "description": "True if the resource is marked for recreation"
+    },
+    "status": {
+      "type": "string",
+      "description": "Derived status: declared, tainted",
+      "enum": ["declared", "tainted"]
+    }
+  },
+  "additionalProperties": false
+}

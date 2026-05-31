@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/proxmox-assessment-engine/schemas/guest.schema.json",
+  "title": "Guest",
+  "description": "Normalized facts for a single assessed guest (VM, container, or bare-metal host)",
+  "type": "object",
+  "required": ["hostname", "collection_timestamp", "collection_method"],
+  "properties": {
+    "hostname": {
+      "type": "string",
+      "description": "FQDN or short hostname of the guest"
+    },
+    "inventory_name": {
+      "type": "string",
+      "description": "Name as it appears in the Ansible inventory"
+    },
+    "groups": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Ansible inventory groups this host belongs to"
+    },
+    "operating_system": {
+      "type": "object",
+      "description": "Operating system facts",
+      "properties": {
+        "distribution": {"type": "string", "description": "e.g. Debian, Ubuntu, CentOS"},
+        "distribution_version": {"type": "string", "description": "e.g. 12, 22.04"},
+        "distribution_release": {"type": "string", "description": "e.g. bookworm, jammy"},
+        "kernel_version": {"type": "string"},
+        "architecture": {"type": "string"},
+        "family": {"type": "string", "description": "e.g. Debian, RedHat"}
+      }
+    },
+    "ip_addresses": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "All IP addresses (IPv4 and IPv6) observed on the guest"
+    },
+    "cpu_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of virtual CPUs"
+    },
+    "memory_mb": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total memory in megabytes"
+    },
+    "mounted_filesystems": {
+      "type": "array",
+      "description": "Mounted filesystems at collection time",
+      "items": {
+        "type": "object",
+        "properties": {
+          "mount": {"type": "string", "description": "Mount point, e.g. /"},
+          "device": {"type": "string", "description": "Block device or network path"},
+          "fstype": {"type": "string", "description": "e.g. ext4, xfs, tmpfs"},
+          "size_bytes": {"type": "integer"},
+          "used_bytes": {"type": "integer"},
+          "available_bytes": {"type": "integer"}
+        }
+      }
+    },
+    "running_services": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "systemd services currently in the 'running' state"
+    },
+    "enabled_services": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "systemd services set to start at boot"
+    },
+    "docker_containers": {
+      "type": "array",
+      "description": "Docker containers present on the guest",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "image": {"type": "string"},
+          "status": {"type": "string", "description": "running, exited, paused, etc."}
+        }
+      }
+    },
+    "podman_containers": {
+      "type": "array",
+      "description": "Podman containers present on the guest",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "image": {"type": "string"},
+          "status": {"type": "string"}
+        }
+      }
+    },
+    "collection_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp when guest facts were collected"
+    },
+    "collection_method": {
+      "type": "string",
+      "description": "How facts were collected, e.g. ansible-facts, ansible-raw, unreachable"
+    },
+    "provisioning_method": {
+      "type": ["string", "null"],
+      "description": "How the guest was provisioned, e.g. opentofu, manual, ansible"
+    },
+    "configuration_method": {
+      "type": ["string", "null"],
+      "description": "How the guest is configured, e.g. ansible, manual, unknown"
+    },
+    "secret_source": {
+      "type": ["string", "null"],
+      "description": "Name of the secret store used for access (value never stored), e.g. keepassxc, vault"
+    }
+  },
+  "additionalProperties": false
+}

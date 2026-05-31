@@ -1,14 +1,341 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/proxmox-assessment-engine/schemas/assessment.schema.json",
   "title": "Assessment",
+  "description": "Normalized infrastructure assessment snapshot",
   "type": "object",
+  "required": ["schema_version", "timestamp", "hostname"],
   "properties": {
-    "timestamp": {"type":"string"},
-    "hostname": {"type":"string"},
-    "hardware": {"type":"object"},
-    "firmware": {"type":"object"},
-    "storage": {"type":"object"},
-    "network": {"type":"object"},
-    "virtualization": {"type":"object"}
-  }
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version for compatibility tracking",
+      "enum": ["1.0"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of collection"
+    },
+    "hostname": {
+      "type": "string",
+      "description": "Fully qualified hostname of the assessed node"
+    },
+    "collector_version": {
+      "type": "string",
+      "description": "Version of the collector that produced this assessment"
+    },
+    "hardware": {
+      "type": "object",
+      "description": "Physical hardware facts",
+      "properties": {
+        "cpu": {
+          "type": "object",
+          "properties": {
+            "model": {"type": "string"},
+            "vendor": {"type": "string"},
+            "sockets": {"type": "integer", "minimum": 1},
+            "cores_per_socket": {"type": "integer", "minimum": 1},
+            "threads_per_core": {"type": "integer", "minimum": 1},
+            "total_cores": {"type": "integer", "minimum": 1},
+            "total_threads": {"type": "integer", "minimum": 1},
+            "base_freq_mhz": {"type": "number"},
+            "max_freq_mhz": {"type": "number"},
+            "architecture": {"type": "string"},
+            "flags": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "CPU feature flags (e.g. vmx, aes, avx)"
+            }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "properties": {
+            "total_bytes": {"type": "integer", "minimum": 0},
+            "dimms": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slot": {"type": "string"},
+                  "size_bytes": {"type": "integer"},
+                  "type": {"type": "string", "description": "e.g. DDR4, DDR5"},
+                  "speed_mhz": {"type": "integer"},
+                  "manufacturer": {"type": "string"},
+                  "part_number": {"type": "string"},
+                  "ecc": {"type": "boolean"}
+                }
+              }
+            },
+            "ecc_enabled": {"type": "boolean"}
+          }
+        },
+        "system": {
+          "type": "object",
+          "properties": {
+            "manufacturer": {"type": "string"},
+            "product_name": {"type": "string"},
+            "serial_number": {"type": "string"},
+            "uuid": {"type": "string"},
+            "sku": {"type": "string"}
+          }
+        },
+        "baseboard": {
+          "type": "object",
+          "properties": {
+            "manufacturer": {"type": "string"},
+            "product_name": {"type": "string"},
+            "serial_number": {"type": "string"},
+            "version": {"type": "string"}
+          }
+        }
+      }
+    },
+    "firmware": {
+      "type": "object",
+      "description": "Firmware and BIOS facts",
+      "properties": {
+        "bios": {
+          "type": "object",
+          "properties": {
+            "vendor": {"type": "string"},
+            "version": {"type": "string"},
+            "release_date": {"type": "string"},
+            "revision": {"type": "string"}
+          }
+        },
+        "uefi": {"type": "boolean", "description": "True if booted via UEFI"},
+        "secure_boot": {"type": "boolean"}
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage device and pool facts",
+      "properties": {
+        "disks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string", "description": "e.g. sda, nvme0n1"},
+              "model": {"type": "string"},
+              "serial": {"type": "string"},
+              "firmware_rev": {"type": "string"},
+              "size_bytes": {"type": "integer"},
+              "type": {"type": "string", "description": "HDD, SSD, NVMe"},
+              "rotation_rpm": {"type": ["integer", "null"]},
+              "interface": {"type": "string", "description": "e.g. SATA, SAS, NVMe"},
+              "smart_status": {"type": "string", "description": "PASSED, FAILED, UNKNOWN"},
+              "smart_attributes": {
+                "type": "object",
+                "description": "Key SMART attribute name/value pairs"
+              },
+              "wwn": {"type": "string"}
+            }
+          }
+        },
+        "zfs_pools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "state": {"type": "string"},
+              "size_bytes": {"type": "integer"},
+              "alloc_bytes": {"type": "integer"},
+              "free_bytes": {"type": "integer"},
+              "fragmentation_pct": {"type": "number"},
+              "dedup_ratio": {"type": "number"},
+              "health": {"type": "string"},
+              "vdevs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {"type": "string", "description": "e.g. mirror, raidz1, raidz2"},
+                    "devices": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "lvm_volume_groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "size_bytes": {"type": "integer"},
+              "free_bytes": {"type": "integer"},
+              "pv_count": {"type": "integer"},
+              "lv_count": {"type": "integer"}
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "description": "Network interface facts",
+      "properties": {
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "mac": {"type": "string"},
+              "type": {"type": "string", "description": "physical, bond, bridge, vlan, loopback"},
+              "speed_mbps": {"type": ["integer", "null"]},
+              "duplex": {"type": "string"},
+              "mtu": {"type": "integer"},
+              "state": {"type": "string", "description": "UP, DOWN, UNKNOWN"},
+              "addresses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "address": {"type": "string"},
+                    "prefix_len": {"type": "integer"},
+                    "family": {"type": "string", "description": "inet, inet6"}
+                  }
+                }
+              },
+              "driver": {"type": "string"},
+              "bond_members": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "bridge_members": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "vlan_id": {"type": ["integer", "null"]}
+            }
+          }
+        }
+      }
+    },
+    "virtualization": {
+      "type": "object",
+      "description": "Proxmox VE and guest facts",
+      "properties": {
+        "proxmox": {
+          "type": "object",
+          "properties": {
+            "version": {"type": "string"},
+            "kernel": {"type": "string"},
+            "node_name": {"type": "string"},
+            "cluster_name": {"type": ["string", "null"]},
+            "cluster_members": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        },
+        "vms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "vmid": {"type": "integer"},
+              "name": {"type": "string"},
+              "type": {"type": "string", "description": "qemu, lxc"},
+              "status": {"type": "string", "description": "running, stopped, paused"},
+              "cpus": {"type": "integer"},
+              "memory_bytes": {"type": "integer"},
+              "disk_bytes": {"type": "integer"},
+              "template": {"type": "boolean"},
+              "tags": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            }
+          }
+        },
+        "storage_pools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "type": {"type": "string", "description": "dir, zfspool, lvmthin, nfs, cifs"},
+              "content": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "total_bytes": {"type": "integer"},
+              "used_bytes": {"type": "integer"},
+              "enabled": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    "os": {
+      "type": "object",
+      "description": "Operating system facts for the Proxmox node itself",
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "kernel_version": {"type": "string"},
+        "architecture": {"type": "string"},
+        "uptime_seconds": {"type": "integer"}
+      }
+    },
+    "guests": {
+      "type": "array",
+      "description": "Assessed guest hosts (VMs, containers, bare-metal) collected via Ansible",
+      "items": {
+        "$ref": "guest.schema.json"
+      }
+    },
+    "declared_resources": {
+      "type": "array",
+      "description": "Resources as declared in OpenTofu / Terraform state (state_sources.declared layer)",
+      "items": {
+        "$ref": "declared_resource.schema.json"
+      }
+    },
+    "state_sources": {
+      "type": "object",
+      "description": "Metadata about the sources of state for this assessment. Supports future Declared/Configured/Observed comparison.",
+      "properties": {
+        "declared": {
+          "type": "object",
+          "description": "Declared state source (OpenTofu / Terraform).",
+          "properties": {
+            "tool": {"type": ["string", "null"], "description": "e.g. opentofu, terraform"},
+            "state_path": {"type": ["string", "null"], "description": "Path to state file"},
+            "terraform_version": {"type": ["string", "null"]},
+            "serial": {"type": ["integer", "null"], "description": "State file serial number"},
+            "resource_count": {"type": ["integer", "null"]},
+            "collected": {"type": "boolean"}
+          }
+        },
+        "configured": {
+          "type": "object",
+          "description": "Configured state source (e.g. Ansible inventory).",
+          "properties": {
+            "tool": {"type": ["string", "null"], "description": "e.g. ansible"},
+            "inventory_path": {"type": ["string", "null"]},
+            "collected": {"type": "boolean"}
+          }
+        },
+        "observed": {
+          "type": "object",
+          "description": "Observed state source (this engine).",
+          "properties": {
+            "tool": {"type": ["string", "null"], "description": "e.g. proxmox-assessment-engine"},
+            "collected": {"type": "boolean"}
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
 }
