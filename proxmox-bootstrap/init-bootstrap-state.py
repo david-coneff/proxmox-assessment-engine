@@ -485,12 +485,41 @@ def main() -> None:
     print("=" * 60)
     print(f"  Written: {out_path}")
     print()
+
+    # Prompt for external backup setup before listing next steps
+    print("  External backup stores your bootstrap state outside this cell")
+    print("  so it can be retrieved on a fresh Proxmox host before any VM exists.")
+    print("  Without it, recovery requires the operator to recreate bootstrap-state")
+    print("  manually — or have kept a copy elsewhere.")
+    print()
+    try:
+        setup_backup = input("  Set up external backup now? [Y/n]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        setup_backup = "n"
+        print()
+
+    if setup_backup in ("", "y", "yes"):
+        backup_wizard = Path(__file__).parent / "setup-external-backup.py"
+        if backup_wizard.exists():
+            import subprocess
+            subprocess.run(
+                [sys.executable, str(backup_wizard), "--bootstrap", str(out_path)],
+                check=False,
+            )
+        else:
+            print("  setup-external-backup.py not found — run it manually later.")
+    else:
+        print()
+        print("  Skipped. Run python3 setup-external-backup.py at any time to configure.")
+        print()
+
+    print("=" * 60)
     print("  Next steps:")
-    print("  1. Edit bootstrap-state.json — add VMs, secrets, DNS entries")
+    print("  1. python3 setup-secrets.py        generate + store all cell secrets")
     print("  2. python3 generate-network-configs.py")
     print("  3. python3 generate-user-data.py")
-    print("  4. Populate SSH public keys in generated user-data files")
-    print("  5. See SNIPPET-UPLOAD.md for Proxmox upload instructions")
+    print("  4. See SNIPPET-UPLOAD.md           upload snippets to Proxmox storage")
+    print("  5. python3 setup-external-backup.py (if not done above)")
     print("=" * 60)
     print()
 

@@ -46,6 +46,14 @@ Track 3 begins after Phase 18 completes the expanded state model.
 
 ### Phase 6 — Bootstrap State
 
+**6.0 — External Backup Setup and Recovery Runbook Integration**
+- [x] `external_backup` section in bootstrap-state-schema.json
+- [x] `backup.py` — archive naming, GPG encryption, transfer, listing, pruning
+- [x] `setup-external-backup.py` — GitHub or encrypted-archive interactive wizard
+- [x] `init-bootstrap-state.py` — prompts for external backup as part of init flow
+- [x] Recovery runbook Step 0 — pre-populated bootstrap state retrieval commands
+      derived from declared external_backup provider (git clone / rclone + gpg / UNRESOLVED)
+
 **6.1 — Bootstrap State Schema and Repository Structure**
 - [ ] `data-model/bootstrap-state-schema.json` (Cloud-Init, image registry, templates,
       provenance, secret registry, DNS registry, service contracts, hardware requirements)

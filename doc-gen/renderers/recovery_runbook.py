@@ -176,12 +176,86 @@ def build_recovery_runbook(
     rb.body("Complete all items before beginning restore operations.")
     rb.spacer()
 
-    rb.h2("Physical Access")
-    rb.checkbox(f"Physical access to host '{hostname}' confirmed")
-    rb.checkbox("IPMI / out-of-band management accessible (if required)")
+    # ── Step 0: Obtain bootstrap state ─────────────────────────────────
+    rb.h2("Step 0 — Obtain Bootstrap State")
+    rb.body(
+        "Bootstrap state (bootstrap-state.json, Cloud-Init snippets, registries) "
+        "is required before any VM can be provisioned. Retrieve it now, before "
+        "touching the Proxmox host."
+    )
     rb.spacer()
 
-    rb.h2("Credentials")
+    ext_backup = manifest.get("external_backup") or {}
+    provider = ext_backup.get("provider")
+
+    if provider == "github":
+        gh = ext_backup.get("github") or {}
+        repos = gh.get("repos") or {}
+        bootstrap_url = repos.get("bootstrap") or repos.get("infrastructure")
+        deploy_key_ref = gh.get("deploy_key_reference") or "[HUMAN: deploy key ID]"
+        if bootstrap_url:
+            rb.field("Bootstrap repo", bootstrap_url, "AUTO", "")
+            rb.field("Deploy key", deploy_key_ref, "AUTO", "KeePass secret reference")
+            rb.code(f"# On recovery machine — requires SSH key for {deploy_key_ref}")
+            rb.code(f"git clone {bootstrap_url} proxmox-bootstrap")
+            rb.code(f"cd proxmox-bootstrap")
+        else:
+            rb.field("Bootstrap repo", "[HUMAN: GitHub URL not recorded]", "HUMAN",
+                     "Check GitHub account for bootstrap repo")
+        rb.checkbox("Bootstrap repo cloned successfully")
+        rb.checkbox("bootstrap-state.json present and readable")
+
+    elif provider == "encrypted-archive":
+        arch = ext_backup.get("encrypted_archive") or {}
+        dest = arch.get("destination") or "[HUMAN: archive destination not recorded]"
+        dest_type = arch.get("destination_type") or "unknown"
+        passphrase_ref = arch.get("passphrase_reference") or "[HUMAN: passphrase secret ID]"
+        retention = arch.get("retention_count")
+
+        rb.field("Archive destination", dest, "AUTO", "")
+        rb.field("Passphrase", passphrase_ref, "AUTO", "KeePass secret reference")
+        rb.body(
+            f"Archives are named: {{cell_id}}_{{YYYY-MM-DD_HH_MM_SS}}_{{hash}}.tar.gz.gpg  "
+            f"(most recent = newest timestamp). "
+            + (f"Up to {retention} archives are retained." if retention else "")
+        )
+        rb.spacer()
+
+        if dest_type == "rclone":
+            rb.code(f"# List available archives:")
+            rb.code(f"rclone ls {dest}/")
+            rb.code(f"# Download the most recent archive:")
+            rb.code(f"rclone copy {dest}/<latest-archive>.tar.gz.gpg .")
+        elif dest_type == "scp":
+            rb.code(f"# Download the most recent archive:")
+            rb.code(f"scp '{dest}/<latest-archive>.tar.gz.gpg' .")
+        else:
+            rb.field("Archive location", dest, "AUTO", "")
+            rb.body("Copy the most recent archive from the declared destination.")
+
+        rb.code("# Decrypt (passphrase from KeePass at path: " + passphrase_ref + "):")
+        rb.code("gpg --decrypt <archive>.tar.gz.gpg > archive.tar.gz")
+        rb.code("tar xzf archive.tar.gz")
+        rb.checkbox("Archive downloaded and decrypted successfully")
+        rb.checkbox("bootstrap-state.json present and readable")
+
+    else:
+        # No external backup configured
+        rb.field("External backup", "NOT CONFIGURED", "UNRESOLVED",
+                 "No external backup was set up for this cell. "
+                 "bootstrap-state.json must be obtained from another source.")
+        rb.body(
+            "Possible sources: operator's local copy, another cell that held a "
+            "documentation mirror, or manual reconstruction using known values."
+        )
+        rb.checkbox("[HUMAN] bootstrap-state.json obtained from alternative source")
+
+    rb.spacer()
+
+    # ── Credentials ─────────────────────────────────────────────────────
+    rb.h2("Physical Access and Credentials")
+    rb.checkbox(f"Physical access to host '{hostname}' confirmed")
+    rb.checkbox("IPMI / out-of-band management accessible (if required)")
     rb.field("Root password", "[HUMAN] Retrieve from KeePass", "HUMAN",
              "Retrieve root password before starting")
     rb.checkbox("Root password retrieved from KeePass")

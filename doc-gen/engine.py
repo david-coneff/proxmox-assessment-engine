@@ -405,6 +405,24 @@ def run_bootstrap(args):
     print("  Open Bootstrap-Runbook.odt  to follow the step-by-step procedure.")
 
 
+def _load_bootstrap_state(repo_root: Path) -> dict:
+    """
+    Load bootstrap-state.json from the proxmox-bootstrap directory if present.
+    Returns an empty dict if not found — callers treat missing keys as unset.
+    """
+    candidates = [
+        repo_root / "proxmox-bootstrap" / "bootstrap-state.json",
+        repo_root / "tests" / "fixtures" / "bootstrap" / "bootstrap-state.json",
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+    return {}
+
+
 def run_recovery(args):
     print("[doc-gen] Loading manifest...")
     manifest, assessment_id = _load_manifest(args)
@@ -417,6 +435,15 @@ def run_recovery(args):
 
     out_dir = REPO_ROOT / "reports" / f"recovery_{assessment_id}"
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load external_backup config from bootstrap-state (if available) and
+    # merge into manifest so the runbook renderer can emit a pre-populated
+    # Step 0 (how to obtain bootstrap state on a fresh recovery host).
+    bootstrap_state = _load_bootstrap_state(REPO_ROOT)
+    if bootstrap_state.get("external_backup"):
+        manifest["external_backup"] = bootstrap_state["external_backup"]
+        print(f"[doc-gen] External backup provider: "
+              f"{bootstrap_state['external_backup'].get('provider') or 'none'}")
 
     print("[doc-gen] Building dependency graph...")
     sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
