@@ -121,6 +121,57 @@ Talos:  `template: talos-1x-base`
 
 ---
 
+## OS Variant Migration (Automated)
+
+Both migration directions are covered by scripts in `proxmox-bootstrap/` (Milestone 9.T).
+Neither script is built yet — this section describes the intended design.
+
+### Ubuntu → Talos (`migrate-k3s-to-talos.py`)
+
+```
+# Dry-run: see what would happen without making changes
+python3 proxmox-bootstrap/migrate-k3s-to-talos.py --dry-run
+
+# Live migration
+python3 proxmox-bootstrap/migrate-k3s-to-talos.py
+```
+
+Steps the script executes:
+1. Pre-migration checklist (talos template exists, machine config generated, PVC backup current)
+2. Drain k3s node (`kubectl drain`)
+3. Snapshot the Ubuntu VM in Proxmox (rollback point)
+4. Destroy the Ubuntu VM
+5. Provision new VM from `talos-1x-base` template
+6. Apply machine config via `talosctl apply-config`
+7. Wait for node to rejoin cluster; verify all namespaces healthy and Flux reconciled
+8. Update `bootstrap-state.json`: `os_variant`, `provenance_records`, `migration_history`
+9. Commit bootstrap-state.json to repo
+
+If post-migration health check fails, the script automatically restores from the
+pre-migration snapshot, reverts `os_variant`, and records the failed attempt in
+`migration_history`.
+
+### Talos → Ubuntu (`migrate-k3s-to-ubuntu.py`)
+
+```
+python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --dry-run
+python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py
+```
+
+Same step structure as above, reversed: destroys the Talos VM, provisions from
+`ubuntu-2204-base`, applies Cloud-Init snippets and the Ansible `k3s-server` role,
+verifies cluster health, updates `bootstrap-state.json`.
+
+### Shared Safeguards (both directions)
+
+- Refuses to start if current cluster readiness score is RED
+- `--skip-snapshot` flag available for test environments
+- Pre-migration Velero PVC backup checked (ORANGE blocks migration until backup is current)
+- All migration attempts (success and failure) appended to `bootstrap-state.json`
+  `migration_history` array with timestamps, from/to variant, and snapshot VMID
+
+---
+
 ## Recommended Adoption Path
 
 1. **Now (Phase 6–8):** Keep Ubuntu. Complete bootstrap state, service state, and

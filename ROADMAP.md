@@ -161,6 +161,8 @@ Track 3 begins after Phase 18 completes the expanded state model.
 - [ ] 9.8: Playbook existence in readiness scorer
 
 **9.T — Talos Alternative Support** *(optional; activate by setting os_variant: talos)*
+
+*Foundation — build and config tooling:*
 - [ ] 9.T.1: `docs/TALOS-ALTERNATIVE.md` — prerequisites, build procedure for talos-1x-base
         template, talosctl installation, machine config generation, migration checklist
 - [ ] 9.T.2: `proxmox-bootstrap/build-talos-template.sh` — downloads Talos ISO,
@@ -176,6 +178,41 @@ Track 3 begins after Phase 18 completes the expanded state model.
 - [ ] 9.T.7: Recovery runbook — emit Talos-specific reconstruction steps
         (talosctl apply-config instead of Ansible) when os_variant=talos
 - [ ] 9.T.8: Tests for Talos config generator and runbook rendering
+
+*OS transition automation — Ubuntu → Talos:*
+- [ ] 9.T.9: `proxmox-bootstrap/migrate-k3s-to-talos.py` — automated migration script
+        Steps: drain k3s node → snapshot VM → destroy Ubuntu VM → provision Talos VM
+        from talos-1x-base template → apply machine config → verify cluster health →
+        update bootstrap-state.json os_variant + provenance_records → commit to repo
+        Flag: `--dry-run` prints plan without making changes
+        Flag: `--skip-snapshot` for test environments where snapshot overhead is unwanted
+        Guard: refuses to run if cluster health check fails pre-drain (RED readiness)
+- [ ] 9.T.10: Pre-migration checklist validator — confirms all prerequisites before
+        migration begins: talos-1x-base template exists, machine config generated,
+        Velero PVC backup current (ORANGE if any check fails; migration blocked until GREEN)
+- [ ] 9.T.11: Post-migration verifier — confirms k3s node rejoined cluster, all
+        namespaces healthy, Flux reconciliation complete, PVCs reattached;
+        writes migration completion record to bootstrap-state.json provenance_records
+- [ ] 9.T.12: Recovery runbook — "OS Variant Migration" appendix documents the
+        Ubuntu→Talos path with pre/post-migration steps and rollback procedure
+
+*OS transition automation — Talos → Ubuntu:*
+- [ ] 9.T.13: `proxmox-bootstrap/migrate-k3s-to-ubuntu.py` — automated reverse migration
+        Steps: drain k3s node → snapshot VM → destroy Talos VM → provision Ubuntu VM
+        from ubuntu-2204-base template → apply Cloud-Init + Ansible k3s-server role →
+        verify cluster health → update bootstrap-state.json → commit to repo
+        Same flags as 9.T.9 (--dry-run, --skip-snapshot)
+        Guard: refuses to run if cluster health check fails pre-drain
+- [ ] 9.T.14: Shared migration library `proxmox-bootstrap/migrate_k3s_lib.py`
+        Extract common steps from 9.T.9 and 9.T.13: drain, snapshot, VM destroy,
+        health check, provenance record update. Both migration scripts import this.
+- [ ] 9.T.15: Migration state file `bootstrap-state.json migration_history` array
+        Each completed migration appended: from_variant, to_variant, migrated_at,
+        migrated_by, snapshot_vmid (for rollback), pre_migration_k3s_version
+- [ ] 9.T.16: Rollback procedure — if post-migration verifier fails, restore VM from
+        pre-migration snapshot, update os_variant back, re-run health check;
+        rollback outcome appended to migration_history
+- [ ] 9.T.17: Tests for both migration scripts (mock Proxmox API + mock talosctl/ansible)
 
 ### Phase 10 — Operational Documentation
 
