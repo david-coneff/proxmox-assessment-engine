@@ -1,0 +1,81 @@
+---
+# forgejo role — install and configure Forgejo Git service
+# Idempotent: safe to re-run. Service is started/enabled by handler.
+
+- name: Create forgejo system group
+  ansible.builtin.group:
+    name: "{{ forgejo_group }}"
+    system: true
+    state: present
+
+- name: Create forgejo system user
+  ansible.builtin.user:
+    name: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    home: "{{ forgejo_home }}"
+    shell: /bin/bash
+    system: true
+    state: present
+
+- name: Create forgejo directory tree
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0750"
+  loop:
+    - "{{ forgejo_home }}"
+    - "{{ forgejo_data }}"
+    - "{{ forgejo_data }}/repositories"
+    - "{{ forgejo_data }}/log"
+    - /etc/forgejo
+
+- name: Download Forgejo binary
+  ansible.builtin.get_url:
+    url: "https://codeberg.org/forgejo/forgejo/releases/download/v{{ forgejo_version }}/forgejo-{{ forgejo_version }}-linux-amd64"
+    dest: "{{ forgejo_binary }}"
+    mode: "0755"
+    owner: root
+    group: root
+    checksum: "sha256:https://codeberg.org/forgejo/forgejo/releases/download/v{{ forgejo_version }}/forgejo-{{ forgejo_version }}-linux-amd64.sha256"
+  notify: restart forgejo
+
+- name: Deploy app.ini from template
+  ansible.builtin.template:
+    src: app.ini.j2
+    dest: /etc/forgejo/app.ini
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0640"
+  notify: restart forgejo
+
+- name: Deploy forgejo systemd unit
+  ansible.builtin.template:
+    src: forgejo.service.j2
+    dest: /etc/systemd/system/forgejo.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart forgejo
+
+- name: Enable and start forgejo
+  ansible.builtin.systemd:
+    name: forgejo
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Allow forgejo HTTP port through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ forgejo_port | string }}"
+    proto: tcp
+
+- name: Allow forgejo SSH port through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ forgejo_ssh_port | string }}"
+    proto: tcp

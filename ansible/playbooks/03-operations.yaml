@@ -1,0 +1,18 @@
+---
+# Playbook 03-operations — install IaC toolchain on operations VM
+# Requires: 01-common must have run first.
+# Must complete before 04-k3s (ansible playbook for k3s runs from here).
+# Target: pre_k3s group, hosts with vm_role == operations or operations-vm
+
+- name: Install IaC toolchain on operations VM
+  hosts: pre_k3s
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Skip if not an operations VM
+      ansible.builtin.meta: end_host
+      when: vm_role not in ['operations', 'operations-vm']
+
+  roles:
+    - role: operations-vm

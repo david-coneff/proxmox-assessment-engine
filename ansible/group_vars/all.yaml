@@ -1,0 +1,53 @@
+# group_vars/all.yaml — Shared variables for all Ansible plays
+# Source of truth: proxmox-bootstrap/plans/naming-plan.json (generated values)
+#                  proxmox-bootstrap/metadata/ (authoritative intent)
+# Do not hard-code IPs, hostnames, or credentials here.
+# Override per-host variables in host_vars/ if needed.
+
+# ─── Cell Identity ────────────────────────────────────────────────────────────
+cell_id: "{{ lookup('env', 'CELL_ID') | default('proxmox-cell-a') }}"
+search_domain: internal
+
+# ─── Common OS ────────────────────────────────────────────────────────────────
+common_timezone: UTC
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - jq
+  - unattended-upgrades
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# ─── SSH Hardening ────────────────────────────────────────────────────────────
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_port: 22
+
+# ─── Forgejo ──────────────────────────────────────────────────────────────────
+forgejo_version: "7.0.4"
+forgejo_user: git
+forgejo_group: git
+forgejo_home: /opt/forgejo
+forgejo_data: /opt/forgejo/data
+forgejo_port: 3000
+forgejo_ssh_port: 2222
+# forgejo_fqdn is set per-host via inventory fqdn variable
+
+# ─── Operations VM Toolchain ──────────────────────────────────────────────────
+# Versions pinned — update intentionally, not by accident
+opentofu_version: "1.7.3"
+flux_version: "2.3.0"
+kubectl_version: "1.30.2"
+ansible_install_version: "9.5.1"   # pip-installed ansible core
+age_version: "1.2.0"
+sops_version: "3.9.0"
+
+# ─── k3s ──────────────────────────────────────────────────────────────────────
+k3s_version: "v1.30.2+k3s1"
+k3s_config_path: /etc/rancher/k3s/config.yaml
+k3s_install_script_url: https://get.k3s.io

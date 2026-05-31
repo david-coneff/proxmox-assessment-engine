@@ -1,0 +1,12 @@
+---
+# Playbook 01-common — base OS configuration for all VMs
+# Run first. Establishes hostname, timezone, packages, SSH hardening, UFW.
+# Target: all_vms group (every declared VM)
+
+- name: Apply common base configuration to all VMs
+  hosts: all_vms
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: common

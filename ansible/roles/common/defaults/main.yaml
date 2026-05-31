@@ -1,0 +1,19 @@
+---
+# common role defaults — overridable in group_vars/host_vars
+common_timezone: UTC
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - jq
+  - unattended-upgrades
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_port: 22

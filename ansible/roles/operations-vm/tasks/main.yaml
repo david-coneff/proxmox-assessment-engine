@@ -1,0 +1,156 @@
+---
+# operations-vm role — install IaC toolchain
+# Idempotent: version-pinned binaries, idempotent pip installs.
+# This VM is stateless — rebuilt from Ansible on recovery.
+
+- name: Create ops tools directory
+  ansible.builtin.file:
+    path: "{{ ops_tools_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# ─── OpenTofu ─────────────────────────────────────────────────────────────────
+- name: Check OpenTofu version
+  ansible.builtin.command: tofu version
+  register: tofu_check
+  changed_when: false
+  failed_when: false
+
+- name: Download and install OpenTofu
+  when: tofu_check.rc != 0 or opentofu_version not in tofu_check.stdout
+  block:
+    - name: Download OpenTofu archive
+      ansible.builtin.get_url:
+        url: "https://github.com/opentofu/opentofu/releases/download/v{{ opentofu_version }}/tofu_{{ opentofu_version }}_linux_amd64.zip"
+        dest: "/tmp/tofu_{{ opentofu_version }}.zip"
+        mode: "0644"
+
+    - name: Unzip OpenTofu
+      ansible.builtin.unarchive:
+        src: "/tmp/tofu_{{ opentofu_version }}.zip"
+        dest: "{{ ops_bin }}"
+        include: ["tofu"]
+        remote_src: true
+        mode: "0755"
+
+    - name: Remove OpenTofu archive
+      ansible.builtin.file:
+        path: "/tmp/tofu_{{ opentofu_version }}.zip"
+        state: absent
+
+# ─── Flux CLI ─────────────────────────────────────────────────────────────────
+- name: Check Flux CLI version
+  ansible.builtin.command: flux version --client
+  register: flux_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Flux CLI
+  when: flux_check.rc != 0 or flux_version not in flux_check.stdout
+  ansible.builtin.shell: |
+    curl -s https://fluxcd.io/install.sh | FLUX_VERSION={{ flux_version }} bash
+  args:
+    creates: "{{ ops_bin }}/flux"
+
+# ─── kubectl ──────────────────────────────────────────────────────────────────
+- name: Check kubectl version
+  ansible.builtin.command: kubectl version --client --short
+  register: kubectl_check
+  changed_when: false
+  failed_when: false
+
+- name: Download and install kubectl
+  when: kubectl_check.rc != 0 or kubectl_version not in kubectl_check.stdout
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/v{{ kubectl_version }}/bin/linux/amd64/kubectl"
+    dest: "{{ ops_bin }}/kubectl"
+    mode: "0755"
+    owner: root
+    group: root
+
+# ─── age (encryption) ─────────────────────────────────────────────────────────
+- name: Check age version
+  ansible.builtin.command: age --version
+  register: age_check
+  changed_when: false
+  failed_when: false
+
+- name: Download and install age
+  when: age_check.rc != 0 or age_version not in age_check.stdout
+  block:
+    - name: Download age archive
+      ansible.builtin.get_url:
+        url: "https://github.com/FiloSottile/age/releases/download/v{{ age_version }}/age-v{{ age_version }}-linux-amd64.tar.gz"
+        dest: "/tmp/age-{{ age_version }}.tar.gz"
+        mode: "0644"
+
+    - name: Extract age binary
+      ansible.builtin.unarchive:
+        src: "/tmp/age-{{ age_version }}.tar.gz"
+        dest: /tmp
+        remote_src: true
+
+    - name: Install age and age-keygen
+      ansible.builtin.copy:
+        src: "/tmp/age/{{ item }}"
+        dest: "{{ ops_bin }}/{{ item }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+      loop:
+        - age
+        - age-keygen
+
+    - name: Remove age archive
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/age-{{ age_version }}.tar.gz"
+        - /tmp/age
+
+# ─── SOPS ─────────────────────────────────────────────────────────────────────
+- name: Check SOPS version
+  ansible.builtin.command: sops --version
+  register: sops_check
+  changed_when: false
+  failed_when: false
+
+- name: Download and install SOPS
+  when: sops_check.rc != 0 or sops_version not in sops_check.stdout
+  ansible.builtin.get_url:
+    url: "https://github.com/getsops/sops/releases/download/v{{ sops_version }}/sops-v{{ sops_version }}.linux.amd64"
+    dest: "{{ ops_bin }}/sops"
+    mode: "0755"
+    owner: root
+    group: root
+
+# ─── Ansible (pip) ────────────────────────────────────────────────────────────
+- name: Ensure pip3 is installed
+  ansible.builtin.apt:
+    name: python3-pip
+    state: present
+
+- name: Install Ansible via pip (pinned version)
+  ansible.builtin.pip:
+    name: "ansible=={{ ansible_install_version }}"
+    executable: pip3
+    state: present
+
+# ─── Shell convenience ────────────────────────────────────────────────────────
+- name: Add KUBECONFIG to ops user profile
+  ansible.builtin.lineinfile:
+    path: "{{ ops_home }}/.bashrc"
+    line: 'export KUBECONFIG=/home/ubuntu/.kube/config'
+    state: present
+
+- name: Create .kube directory for ops user
+  ansible.builtin.file:
+    path: "{{ ops_home }}/.kube"
+    state: directory
+    owner: "{{ ops_user }}"
+    group: "{{ ops_user }}"
+    mode: "0700"

@@ -1,0 +1,72 @@
+---
+# common role — base OS configuration applied to every VM
+# Idempotent: safe to re-run.
+
+- name: Set hostname from inventory
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Set /etc/hosts entry for this node
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^{{ ansible_host }}\\s"
+    line: "{{ ansible_host }} {{ fqdn }} {{ inventory_hostname }}"
+    state: present
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ common_timezone }}"
+  notify: restart cron
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configure unattended-upgrades for security patches only
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades-cell
+    content: |
+      Unattended-Upgrade::Allowed-Origins {
+        "${distro_id}:${distro_codename}-security";
+      };
+      Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Harden SSH — disable root login and password auth
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    validate: /usr/sbin/sshd -t -f %s
+  loop:
+    - regexp: "^#?PermitRootLogin"
+      line: "PermitRootLogin {{ ssh_permit_root_login }}"
+    - regexp: "^#?PasswordAuthentication"
+      line: "PasswordAuthentication {{ ssh_password_authentication }}"
+    - regexp: "^#?PubkeyAuthentication"
+      line: "PubkeyAuthentication {{ ssh_pubkey_authentication }}"
+  notify: restart sshd
+
+- name: Ensure UFW is installed
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+- name: Allow SSH through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ ssh_port | string }}"
+    proto: tcp
+
+- name: Enable UFW (default deny incoming)
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming

@@ -1,0 +1,18 @@
+[Unit]
+Description=Forgejo — Beyond coding. We Forge.
+After=network.target
+
+[Service]
+Type=simple
+User={{ forgejo_user }}
+Group={{ forgejo_group }}
+WorkingDirectory={{ forgejo_home }}
+ExecStart={{ forgejo_binary }} web --config /etc/forgejo/app.ini
+Restart=always
+RestartSec=5
+Environment=USER={{ forgejo_user }}
+Environment=HOME={{ forgejo_home }}
+Environment=GITEA_WORK_DIR={{ forgejo_data }}
+
+[Install]
+WantedBy=multi-user.target

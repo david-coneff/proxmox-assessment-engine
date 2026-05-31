@@ -1,0 +1,12 @@
+---
+forgejo_version: "7.0.4"
+forgejo_user: git
+forgejo_group: git
+forgejo_home: /opt/forgejo
+forgejo_data: /opt/forgejo/data
+forgejo_port: 3000
+forgejo_ssh_port: 2222
+forgejo_db_type: sqlite3
+forgejo_db_path: "{{ forgejo_data }}/forgejo.db"
+forgejo_log_level: Info
+forgejo_binary: /usr/local/bin/forgejo

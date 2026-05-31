@@ -1,0 +1,11 @@
+---
+opentofu_version: "1.7.3"
+flux_version: "2.3.0"
+kubectl_version: "1.30.2"
+age_version: "1.2.0"
+sops_version: "3.9.0"
+
+ops_user: ubuntu
+ops_home: /home/ubuntu
+ops_bin: /usr/local/bin
+ops_tools_dir: /opt/ops-tools

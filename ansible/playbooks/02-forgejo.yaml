@@ -1,0 +1,18 @@
+---
+# Playbook 02-forgejo — install and configure Forgejo Git service
+# Requires: 01-common must have run first.
+# Must complete before 04-k3s (Flux bootstraps from Forgejo).
+# Target: pre_k3s group, hosts with vm_role == forgejo
+
+- name: Install and configure Forgejo
+  hosts: pre_k3s
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Skip if not a forgejo VM
+      ansible.builtin.meta: end_host
+      when: vm_role != 'forgejo'
+
+  roles:
+    - role: forgejo
