@@ -1,0 +1,85 @@
+#cloud-config
+# base-ubuntu.yaml — Shared base configuration reference
+# Cell: proxmox-cell-a
+#
+# This file documents the common Cloud-Init configuration applied to all
+# Ubuntu VMs in this cell. It is a reference template; each VM's user-data
+# file is self-contained and includes the relevant sections from this base.
+#
+# Cloud-Init does not natively merge multiple snippet files. Each VM's
+# user-data snippet must be complete and self-contained. Use this file as
+# the source of truth for shared configuration decisions.
+#
+# ─────────────────────────────────────────────────────
+# SHARED DECISIONS (replicate these in each VM's file)
+# ─────────────────────────────────────────────────────
+#
+# OS user:          ubuntu
+# Sudo:             NOPASSWD (required for Ansible)
+# Shell:            /bin/bash
+# SSH auth:         key-only (password auth disabled)
+# Package update:   yes (on first boot)
+# Package upgrade:  no (Ansible handles upgrades)
+# Timezone:         Australia/Melbourne  ← SET PER SITE
+# NTP:              systemd-timesyncd (default)
+#
+# Common packages installed on all VMs:
+#   - python3          (required by Ansible)
+#   - python3-pip      (required for some Ansible collections)
+#   - qemu-guest-agent (required for Proxmox backup quiesce and VM status)
+#   - openssh-server   (required for Ansible access)
+#   - git              (required to clone repositories)
+#   - curl             (general utility)
+#
+# ─────────────────────────────────────────────────────
+# SSH PUBLIC KEY PLACEMENT
+# ─────────────────────────────────────────────────────
+#
+# Each VM's user-data file has an ssh_authorized_keys placeholder.
+# The SSH PUBLIC key for each VM's deploy key must be placed there
+# before uploading the snippet to Proxmox storage.
+#
+# The corresponding SSH PRIVATE key is stored in KeePass.
+# The KeePass path for each VM is declared in secret-registry.yaml.
+#
+# Do not store private keys in this repository.
+# Do not store private keys in Cloud-Init snippets.
+
+# ─── REFERENCE TEMPLATE (not deployed directly) ───
+
+hostname: HOSTNAME_PLACEHOLDER
+fqdn: HOSTNAME_PLACEHOLDER.internal
+
+users:
+  - name: ubuntu
+    gecos: Ubuntu
+    groups: [sudo, adm]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - "POPULATE: SSH public key — see secret-registry.yaml for KeePass path"
+
+timezone: Australia/Melbourne
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - python3
+  - python3-pip
+  - qemu-guest-agent
+  - openssh-server
+  - git
+  - curl
+
+runcmd:
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent
+  - sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - systemctl restart sshd
+
+final_message: |
+  Cloud-Init first-boot complete on $HOSTNAME.
+  Ansible can now connect via SSH.
+  Cell: proxmox-cell-a

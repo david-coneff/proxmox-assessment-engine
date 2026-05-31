@@ -1,0 +1,22 @@
+# network-config — assessment-engine
+# Cell:      proxmox-cell-a
+# VM ID:     103
+# Interface: ens18  (VirtIO NIC default in Proxmox)
+# Static IP: 192.168.1.23/24
+# Gateway:   192.168.1.1
+# DNS:       192.168.1.1 (local), 8.8.8.8 (fallback)
+
+version: 2
+ethernets:
+  ens18:
+    dhcp4: false
+    dhcp6: false
+    addresses:
+      - 192.168.1.23/24
+    gateway4: 192.168.1.1
+    nameservers:
+      addresses:
+        - 192.168.1.1
+        - 8.8.8.8
+      search:
+        - internal

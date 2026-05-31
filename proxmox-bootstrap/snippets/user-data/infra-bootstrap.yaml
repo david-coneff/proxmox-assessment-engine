@@ -1,0 +1,54 @@
+#cloud-config
+# infra-bootstrap.yaml — Cloud-Init user-data for infra-bootstrap VM
+# Cell:    proxmox-cell-a
+# VM ID:   100
+# Role:    infra-bootstrap (Ansible controller, OpenTofu executor)
+# IP:      192.168.1.20
+# Secret:  Infrastructure/ssh/deploy-keys/infra-bootstrap  (KeePass — private key)
+#
+# BEFORE UPLOADING: replace the ssh_authorized_keys placeholder with the
+# SSH public key corresponding to the private key at the KeePass path above.
+
+hostname: infra-bootstrap
+fqdn: infra-bootstrap.internal
+
+users:
+  - name: ubuntu
+    gecos: Ubuntu
+    groups: [sudo, adm]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - "POPULATE: SSH public key — KeePass: Infrastructure/ssh/deploy-keys/infra-bootstrap"
+
+timezone: Australia/Melbourne
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - python3
+  - python3-pip
+  - python3-venv
+  - qemu-guest-agent
+  - openssh-server
+  - openssh-client
+  - git
+  - curl
+  - ansible-core
+  - jq
+
+runcmd:
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent
+  - sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - systemctl restart sshd
+  # Create workspace for infrastructure repositories
+  - mkdir -p /opt/infra
+  - chown ubuntu:ubuntu /opt/infra
+
+final_message: |
+  Cloud-Init first-boot complete on infra-bootstrap (192.168.1.20).
+  ansible-core is installed. Connect via SSH and run the site playbook.
+  Cell: proxmox-cell-a

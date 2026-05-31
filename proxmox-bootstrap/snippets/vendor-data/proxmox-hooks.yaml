@@ -1,0 +1,24 @@
+#cloud-config
+# proxmox-hooks.yaml — Proxmox vendor-data snippet
+# Cell:  proxmox-cell-a
+# Used by: infra-bootstrap VM (vendor_data_path declared in bootstrap-state.json)
+#
+# Proxmox vendor-data is injected alongside user-data and network-config.
+# It is processed by Cloud-Init as a second user-data source and merged.
+#
+# This snippet configures Proxmox-specific first-boot behaviour:
+# - Disable cloud-init on subsequent boots (Proxmox re-injects it on each start
+#   unless explicitly disabled; we want it to run only once)
+# - Set the datasource explicitly to prevent probe delays
+# - Ensure the qemu-guest-agent reports readiness correctly
+
+# Disable Cloud-Init after first boot so subsequent VM starts are clean.
+# The systemd service is left installed; only the per-boot trigger is disabled.
+runcmd:
+  - touch /etc/cloud/cloud-init.disabled
+
+# Datasource configuration — tell Cloud-Init it is running inside Proxmox (NoCloud).
+# This eliminates the 2-minute datasource probe timeout on boot.
+datasource_list:
+  - NoCloud
+  - None

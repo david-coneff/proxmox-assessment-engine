@@ -1,0 +1,47 @@
+#cloud-config
+# inventory.yaml — Cloud-Init user-data for inventory VM
+# Cell:    proxmox-cell-a
+# VM ID:   102
+# Role:    inventory (Ansible inventory host)
+# IP:      192.168.1.22
+# Secret:  Infrastructure/ssh/deploy-keys/inventory  (KeePass — private key)
+#
+# BEFORE UPLOADING: replace the ssh_authorized_keys placeholder with the
+# SSH public key corresponding to the private key at the KeePass path above.
+
+hostname: inventory
+fqdn: inventory.internal
+
+users:
+  - name: ubuntu
+    gecos: Ubuntu
+    groups: [sudo, adm]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - "POPULATE: SSH public key — KeePass: Infrastructure/ssh/deploy-keys/inventory"
+
+timezone: Australia/Melbourne
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - python3
+  - python3-pip
+  - qemu-guest-agent
+  - openssh-server
+  - git
+  - curl
+
+runcmd:
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent
+  - sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - systemctl restart sshd
+
+final_message: |
+  Cloud-Init first-boot complete on inventory (192.168.1.22).
+  Ansible will configure the inventory service.
+  Cell: proxmox-cell-a
