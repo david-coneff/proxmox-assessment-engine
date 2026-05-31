@@ -80,6 +80,118 @@ class TestBootstrapStateSchemaStructure(unittest.TestCase):
         self.assertEqual(errors, [])
 
 
+class TestBootstrapStateNewConfigSections(unittest.TestCase):
+    """host_identity, vm_defaults, storage_config, keepass_config are all required."""
+
+    def setUp(self):
+        self.schema = load_schema("bootstrap-state-schema.json")
+        self.fixture = load_fixture("bootstrap-state.json")
+        self.v = SchemaValidator(self.schema)
+
+    def _remove_and_check(self, key: str):
+        bad = deepcopy(self.fixture)
+        del bad[key]
+        errors = self.v.validate(bad)
+        self.assertTrue(any(key in e.path for e in errors),
+                        msg=f"Expected error when {key!r} is missing")
+
+    def test_host_identity_required(self):
+        self._remove_and_check("host_identity")
+
+    def test_vm_defaults_required(self):
+        self._remove_and_check("vm_defaults")
+
+    def test_storage_config_required(self):
+        self._remove_and_check("storage_config")
+
+    def test_keepass_config_required(self):
+        self._remove_and_check("keepass_config")
+
+    def test_host_identity_hostname_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["host_identity"]["hostname"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("hostname" in e.path for e in errors))
+
+    def test_vm_defaults_timezone_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["vm_defaults"]["timezone"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("timezone" in e.path for e in errors))
+
+    def test_vm_defaults_initial_user_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["vm_defaults"]["initial_user"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("initial_user" in e.path for e in errors))
+
+    def test_vm_defaults_workspace_nullable(self):
+        doc = deepcopy(self.fixture)
+        doc["vm_defaults"]["workspace_base_path"] = None
+        errors = self.v.validate(doc)
+        self.assertEqual(errors, [])
+
+    def test_storage_config_snippets_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["storage_config"]["snippets"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("snippets" in e.path for e in errors))
+
+    def test_storage_config_isos_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["storage_config"]["isos"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("isos" in e.path for e in errors))
+
+    def test_storage_config_vm_disks_nullable(self):
+        doc = deepcopy(self.fixture)
+        doc["storage_config"]["vm_disks"] = None
+        errors = self.v.validate(doc)
+        self.assertEqual(errors, [])
+
+    def test_keepass_root_path_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["keepass_config"]["root_path"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("root_path" in e.path for e in errors))
+
+    def test_keepass_database_hint_nullable(self):
+        doc = deepcopy(self.fixture)
+        doc["keepass_config"]["database_hint"] = None
+        errors = self.v.validate(doc)
+        self.assertEqual(errors, [])
+
+    def test_any_timezone_string_valid(self):
+        for tz in ("UTC", "America/New_York", "Europe/London", "Asia/Tokyo"):
+            doc = deepcopy(self.fixture)
+            doc["vm_defaults"]["timezone"] = tz
+            errors = self.v.validate(doc)
+            self.assertEqual(errors, [], msg=f"Timezone {tz!r} should be valid")
+
+    def test_any_storage_path_valid(self):
+        for path in ("local:snippets", "nas-storage:snippets", "ceph-store:snippets"):
+            doc = deepcopy(self.fixture)
+            doc["storage_config"]["snippets"] = path
+            errors = self.v.validate(doc)
+            self.assertEqual(errors, [], msg=f"Storage path {path!r} should be valid")
+
+    def test_extra_packages_in_vm(self):
+        doc = deepcopy(self.fixture)
+        doc["vms"][0]["extra_packages"] = ["htop", "vim"]
+        errors = self.v.validate(doc)
+        self.assertEqual(errors, [])
+
+    def test_workspace_path_in_vm_nullable(self):
+        doc = deepcopy(self.fixture)
+        doc["vms"][0]["workspace_path"] = None
+        errors = self.v.validate(doc)
+        self.assertEqual(errors, [])
+
+    def test_valid_full_fixture(self):
+        errors = self.v.validate(self.fixture)
+        self.assertEqual(errors, [], msg=f"Unexpected errors: {errors}")
+
+
 class TestBootstrapStateNetworkTopology(unittest.TestCase):
     def setUp(self):
         self.schema = load_schema("bootstrap-state-schema.json")

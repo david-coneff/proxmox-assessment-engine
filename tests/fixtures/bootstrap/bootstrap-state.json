@@ -4,6 +4,29 @@
   "declared_at": "2026-05-31T00:00:00Z",
   "notes": "Primary homelab cell — single Proxmox node with four managed VMs",
 
+  "host_identity": {
+    "hostname": "pve01",
+    "fqdn": "pve01.internal",
+    "proxmox_version": "8.1.3"
+  },
+
+  "vm_defaults": {
+    "timezone": "Australia/Melbourne",
+    "initial_user": "ubuntu",
+    "workspace_base_path": "/opt"
+  },
+
+  "storage_config": {
+    "snippets": "local:snippets",
+    "isos": "local:iso",
+    "vm_disks": "local-zfs"
+  },
+
+  "keepass_config": {
+    "root_path": "Infrastructure",
+    "database_hint": null
+  },
+
   "network_topology": {
     "management_cidr": "192.168.1.0/24",
     "gateway": "192.168.1.1",
@@ -32,6 +55,8 @@
       "initial_user": "ubuntu",
       "ssh_key_reference": "infra-bootstrap-deploy-key",
       "password_reference": "vm-100-password",
+      "extra_packages": ["python3-venv", "ansible-core", "jq"],
+      "workspace_path": "/opt/infra",
       "notes": null
     },
     {
@@ -53,6 +78,8 @@
       "initial_user": "ubuntu",
       "ssh_key_reference": "forgejo-deploy-key",
       "password_reference": "vm-101-password",
+      "extra_packages": ["ca-certificates", "gnupg"],
+      "workspace_path": null,
       "notes": null
     },
     {
@@ -74,6 +101,8 @@
       "initial_user": "ubuntu",
       "ssh_key_reference": "inventory-deploy-key",
       "password_reference": "vm-102-password",
+      "extra_packages": [],
+      "workspace_path": null,
       "notes": null
     },
     {
@@ -95,6 +124,8 @@
       "initial_user": "ubuntu",
       "ssh_key_reference": "assessment-engine-deploy-key",
       "password_reference": "vm-103-password",
+      "extra_packages": ["python3-venv", "jq"],
+      "workspace_path": "/opt/assessment",
       "notes": null
     }
   ],

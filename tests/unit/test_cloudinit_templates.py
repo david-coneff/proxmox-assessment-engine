@@ -40,6 +40,17 @@ def _import_generator():
     spec.loader.exec_module(mod)
     return mod
 
+
+def _import_generator_ud():
+    """Import generate-user-data.py via importlib."""
+    spec = importlib.util.spec_from_file_location(
+        "generate_user_data",
+        BOOTSTRAP_REPO / "generate-user-data.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 # ─── Simple YAML parser fallback (stdlib only) ───────────────────────────────
 # The stdlib does not include a YAML parser. We use a minimal line-based
 # checker sufficient to validate the subset of YAML we write: scalars,
@@ -383,6 +394,130 @@ class TestSnippetConsistency(unittest.TestCase):
         self.assertEqual(len(network_files), len(self.fixture["vms"]),
                          msg=f"Expected {len(self.fixture['vms'])} network-config snippets, "
                              f"found {len(network_files)}")
+
+
+class TestUserDataGeneratorConsistency(unittest.TestCase):
+    """
+    Generated user-data snippets must be consistent with bootstrap-state.json.
+    All values that were previously hard-coded must now derive from the manifest.
+    """
+
+    def setUp(self):
+        self.fixture = _load_bootstrap_fixture()
+        self.vm_map = {vm["name"]: vm for vm in self.fixture["vms"]}
+        self.vm_defaults = self.fixture["vm_defaults"]
+        self.network_topo = self.fixture["network_topology"]
+        self.host = self.fixture["host_identity"]
+        self.keepass = self.fixture["keepass_config"]
+
+    def _load_user_data(self, name: str) -> tuple[str, dict]:
+        path = SNIPPETS / "user-data" / f"{name}.yaml"
+        text = path.read_text(encoding="utf-8")
+        data = _parse_yaml_minimal(text)
+        return text, data
+
+    def test_generated_header_present(self):
+        for name in self.vm_map:
+            text, _ = self._load_user_data(name)
+            self.assertIn("GENERATED", text,
+                          msg=f"{name}.yaml missing GENERATED header")
+
+    def test_timezone_from_vm_defaults(self):
+        expected_tz = self.vm_defaults["timezone"]
+        for name in self.vm_map:
+            text, _ = self._load_user_data(name)
+            self.assertIn(f"timezone: {expected_tz}", text,
+                          msg=f"{name}.yaml timezone should be {expected_tz!r} from vm_defaults")
+
+    def test_fqdn_uses_search_domain(self):
+        search_domain = self.network_topo.get("search_domain", "")
+        if not search_domain:
+            self.skipTest("No search_domain in network_topology")
+        for name, vm in self.vm_map.items():
+            text, _ = self._load_user_data(name)
+            expected_fqdn = f"fqdn: {name}.{search_domain}"
+            self.assertIn(expected_fqdn, text,
+                          msg=f"{name}.yaml fqdn should use search_domain {search_domain!r}")
+
+    def test_initial_user_from_bootstrap_state(self):
+        for name, vm in self.vm_map.items():
+            expected_user = vm.get("initial_user") or self.vm_defaults.get("initial_user", "ubuntu")
+            text, _ = self._load_user_data(name)
+            self.assertIn(f"name: {expected_user}", text,
+                          msg=f"{name}.yaml OS username should be {expected_user!r} from bootstrap-state")
+
+    def test_hostname_matches_vm_name(self):
+        for name, vm in self.vm_map.items():
+            text, _ = self._load_user_data(name)
+            self.assertIn(f"hostname: {vm['name']}", text,
+                          msg=f"{name}.yaml hostname should be {vm['name']!r}")
+
+    def test_ip_in_final_message(self):
+        for name, vm in self.vm_map.items():
+            text, _ = self._load_user_data(name)
+            self.assertIn(vm["initial_ip"], text,
+                          msg=f"{name}.yaml final_message should reference {vm['initial_ip']!r}")
+
+    def test_cell_id_in_final_message(self):
+        cell_id = self.fixture["cell_id"]
+        for name in self.vm_map:
+            text, _ = self._load_user_data(name)
+            self.assertIn(cell_id, text,
+                          msg=f"{name}.yaml must reference cell_id {cell_id!r}")
+
+    def test_keepass_root_in_ssh_placeholder(self):
+        kp_root = self.keepass["root_path"]
+        for name in self.vm_map:
+            text, _ = self._load_user_data(name)
+            self.assertIn(kp_root, text,
+                          msg=f"{name}.yaml SSH placeholder should reference KeePass root {kp_root!r}")
+
+    def test_extra_packages_present(self):
+        for name, vm in self.vm_map.items():
+            extra = vm.get("extra_packages", [])
+            if extra:
+                text, _ = self._load_user_data(name)
+                for pkg in extra:
+                    self.assertIn(pkg, text,
+                                  msg=f"{name}.yaml missing extra_package {pkg!r}")
+
+    def test_workspace_path_in_runcmd(self):
+        for name, vm in self.vm_map.items():
+            workspace = vm.get("workspace_path")
+            if workspace is None:
+                base = self.vm_defaults.get("workspace_base_path")
+                if base:
+                    workspace = f"{base}/{name}"
+            if workspace:
+                text, _ = self._load_user_data(name)
+                self.assertIn(workspace, text,
+                              msg=f"{name}.yaml should create workspace {workspace!r} in runcmd")
+
+    def test_different_timezone_changes_output(self):
+        """Changing vm_defaults.timezone must change user-data output."""
+        gen = _import_generator_ud()
+        import copy
+        state = copy.deepcopy(_load_bootstrap_fixture())
+        vm = state["vms"][0]
+
+        kwargs = dict(
+            vm=vm,
+            vm_defaults=state["vm_defaults"],
+            network_topology=state["network_topology"],
+            host_identity=state["host_identity"],
+            keepass_config=state["keepass_config"],
+            secrets=state.get("secrets", []),
+            cell_id=state["cell_id"],
+            generated_at="2026-01-01T00:00:00Z",
+        )
+        state_a = copy.deepcopy(state["vm_defaults"])
+        state_a["timezone"] = "Europe/London"
+        state_b = copy.deepcopy(state["vm_defaults"])
+        state_b["timezone"] = "America/New_York"
+
+        out_a = gen.generate_user_data(**{**kwargs, "vm_defaults": state_a})
+        out_b = gen.generate_user_data(**{**kwargs, "vm_defaults": state_b})
+        self.assertNotEqual(out_a, out_b)
 
 
 class TestNetworkTopologyConsistency(unittest.TestCase):

@@ -469,16 +469,22 @@ def build_bootstrap_runbook(
         rb.warning(w)
     rb.spacer()
 
-    rb.h2("Step 3.1 — Download Ubuntu ISO (if not present)")
+    rb.h2("Step 3.1 — Download Base ISO (if not present)")
+    rb.body("ISO filename and URL come from bootstrap-state.json base_images registry "
+            "(populated in Phase 6). Replace placeholders with values from your images/registry.yaml.")
     rb.code("# On the Proxmox host:")
     rb.code("wget -P /var/lib/vz/template/iso/ \\")
-    rb.code("  https://releases.ubuntu.com/22.04/ubuntu-22.04.4-live-server-amd64.iso")
-    rb.checkbox("Ubuntu ISO available in Proxmox local storage")
+    rb.code("  [BASE_IMAGE_URL]   # source_url from bootstrap-state base_images")
+    rb.field("Base image ISO", "[BASE_IMAGE_ISO]", "HUMAN",
+             "source_iso from bootstrap-state base_images registry")
+    rb.field("ISO storage path", "[ISO_STORAGE]", "HUMAN",
+             "storage_config.isos from bootstrap-state (e.g. local:iso)")
+    rb.checkbox("Base ISO available in Proxmox ISO storage")
     rb.spacer()
 
     rb.h2("Step 3.2 — Create VM")
     rb.body("Run the following on the Proxmox host. "
-            "Replace [VM_IP] and [CIDR_PREFIX] with values from the Decisions section above.")
+            "Replace bracketed placeholders with values from the Decisions section and base_images registry above.")
     rb.code(
         f"qm create {vm_id} \\\n"
         f"  --name infra-bootstrap \\\n"
@@ -486,7 +492,7 @@ def build_bootstrap_runbook(
         f"  --cores {cores} \\\n"
         f"  --net0 virtio,bridge={bridge} \\\n"
         f"  --scsi0 {pool}:{disk_gb} \\\n"
-        f"  --ide2 local:iso/ubuntu-22.04.4-live-server-amd64.iso,media=cdrom \\\n"
+        f"  --ide2 [ISO_STORAGE]/[BASE_IMAGE_ISO],media=cdrom \\\n"
         f"  --boot order=ide2 \\\n"
         f"  --ostype l26 --serial0 socket --vga serial0"
     )

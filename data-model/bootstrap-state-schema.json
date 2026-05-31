@@ -8,6 +8,10 @@
     "schema_version",
     "cell_id",
     "declared_at",
+    "host_identity",
+    "vm_defaults",
+    "storage_config",
+    "keepass_config",
     "network_topology",
     "vms",
     "base_images",
@@ -35,6 +39,26 @@
     },
     "notes": {
       "type": ["string", "null"]
+    },
+
+    "host_identity": {
+      "$ref": "#/definitions/host_identity",
+      "description": "Proxmox host identity — discoverable by Tier 1 assessment or init-bootstrap-state.py"
+    },
+
+    "vm_defaults": {
+      "$ref": "#/definitions/vm_defaults",
+      "description": "Default values applied to all VMs unless overridden per-VM. User input at cell initialization."
+    },
+
+    "storage_config": {
+      "$ref": "#/definitions/storage_config",
+      "description": "Proxmox storage identifiers — discoverable by Tier 1 assessment (pvesm status)"
+    },
+
+    "keepass_config": {
+      "$ref": "#/definitions/keepass_config",
+      "description": "KeePass organizational conventions — user input at cell initialization"
     },
 
     "vms": {
@@ -144,6 +168,15 @@
         "password_reference": {
           "type": ["string", "null"],
           "description": "Secret Registry ID for the initial OS user password"
+        },
+        "extra_packages": {
+          "type": "array",
+          "description": "Role-specific packages added to the base package list for this VM's user-data snippet. Used by generate-user-data.py.",
+          "items": { "type": "string" }
+        },
+        "workspace_path": {
+          "type": ["string", "null"],
+          "description": "Override workspace directory for this VM's runcmd. If null, uses vm_defaults.workspace_base_path + VM name."
         },
         "notes": {
           "type": ["string", "null"]
@@ -459,6 +492,82 @@
         "critical": {
           "type": "boolean",
           "description": "If true, this service cannot start without this dependency"
+        }
+      }
+    },
+
+    "host_identity": {
+      "type": "object",
+      "description": "Identity and role of the Proxmox host. Discoverable by Tier 1 assessment.",
+      "required": ["hostname", "fqdn"],
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "description": "Short hostname of the Proxmox host, e.g. pve01. Discovered by: hostname(1)"
+        },
+        "fqdn": {
+          "type": "string",
+          "description": "Fully-qualified domain name, e.g. pve01.internal. Discovered by: hostname --fqdn"
+        },
+        "proxmox_version": {
+          "type": ["string", "null"],
+          "description": "Proxmox VE version string. Discovered by: pveversion"
+        }
+      }
+    },
+
+    "vm_defaults": {
+      "type": "object",
+      "description": "Default values applied to all VMs. Timezone and workspace path require user input at init; initial_user is the OS image default.",
+      "required": ["timezone", "initial_user"],
+      "properties": {
+        "timezone": {
+          "type": "string",
+          "description": "Timezone for all VMs, e.g. Australia/Melbourne. Discoverable from host: timedatectl or /etc/timezone. User may override."
+        },
+        "initial_user": {
+          "type": "string",
+          "description": "Default OS username created by Cloud-Init. Ubuntu cloud images use 'ubuntu'. Override per-VM in vms[].initial_user."
+        },
+        "workspace_base_path": {
+          "type": ["string", "null"],
+          "description": "Base directory for infrastructure workspaces created by Cloud-Init runcmd, e.g. /opt. Set null to skip workspace creation."
+        }
+      }
+    },
+
+    "storage_config": {
+      "type": "object",
+      "description": "Proxmox storage pool identifiers. Discoverable by Tier 1 assessment via pvesm status.",
+      "required": ["snippets", "isos"],
+      "properties": {
+        "snippets": {
+          "type": "string",
+          "description": "Proxmox storage path for Cloud-Init snippets, e.g. local:snippets. Discovered: pvesm status (storage with snippets content type)"
+        },
+        "isos": {
+          "type": "string",
+          "description": "Proxmox storage path for ISOs, e.g. local:iso. Discovered: pvesm status (storage with iso content type)"
+        },
+        "vm_disks": {
+          "type": ["string", "null"],
+          "description": "Proxmox storage pool for VM disks, e.g. local-zfs or rpool. Discovered: pvesm status (storage with images content type)"
+        }
+      }
+    },
+
+    "keepass_config": {
+      "type": "object",
+      "description": "KeePass organizational conventions. User input at cell initialization — reflects the operator's KeePass database structure.",
+      "required": ["root_path"],
+      "properties": {
+        "root_path": {
+          "type": "string",
+          "description": "Top-level KeePass group path used as prefix for all secrets in this cell, e.g. Infrastructure. All keepass_path values in the secret registry are relative to this root."
+        },
+        "database_hint": {
+          "type": ["string", "null"],
+          "description": "Human-readable hint about which KeePass database file holds this cell's secrets, e.g. homelab.kdbx"
         }
       }
     },
