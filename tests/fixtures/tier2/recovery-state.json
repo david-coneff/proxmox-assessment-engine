@@ -1,37 +1,163 @@
 {
   "schema_version": "1.0",
+  "cell_id": "proxmox-cell-a",
   "generated_at": "2026-05-29T02:10:00Z",
   "assessment_id": "assessment_2026-05-29_02_05_00",
-
   "dependency_graph": {
     "nodes": [
-      {"id": "pve:host",          "type": "host",      "label": "pve01 (Proxmox host)",           "readiness": "GREEN",   "metadata": {}},
-      {"id": "zfs:rpool",         "type": "storage",   "label": "rpool (ZFS mirror, sda+sdb)",    "readiness": "GREEN",   "metadata": {"topology": "mirror", "free_gb": 412.8}},
-      {"id": "vm:infra-bootstrap","type": "vm",        "label": "infra-bootstrap (VM 100)",       "readiness": "GREEN",   "metadata": {"vmid": 100}},
-      {"id": "vm:forgejo",        "type": "vm",        "label": "forgejo (VM 101)",               "readiness": "YELLOW",  "metadata": {"vmid": 101}},
-      {"id": "vm:inventory",      "type": "vm",        "label": "inventory (VM 102)",             "readiness": "GREEN",   "metadata": {"vmid": 102}},
-      {"id": "vm:assessment",     "type": "vm",        "label": "assessment-engine (VM 103)",     "readiness": "GREEN",   "metadata": {"vmid": 103}}
+      {
+        "id": "pve:host",
+        "type": "host",
+        "label": "pve01 (Proxmox host)",
+        "readiness": "GREEN",
+        "metadata": {}
+      },
+      {
+        "id": "zfs:rpool",
+        "type": "storage",
+        "label": "rpool (ZFS mirror, sda+sdb)",
+        "readiness": "GREEN",
+        "metadata": {
+          "topology": "mirror",
+          "free_gb": 412.8
+        }
+      },
+      {
+        "id": "vm:infra-bootstrap",
+        "type": "vm",
+        "label": "infra-bootstrap (VM 100)",
+        "readiness": "GREEN",
+        "metadata": {
+          "vmid": 100
+        }
+      },
+      {
+        "id": "vm:forgejo",
+        "type": "vm",
+        "label": "forgejo (VM 101)",
+        "readiness": "YELLOW",
+        "metadata": {
+          "vmid": 101
+        }
+      },
+      {
+        "id": "vm:inventory",
+        "type": "vm",
+        "label": "inventory (VM 102)",
+        "readiness": "GREEN",
+        "metadata": {
+          "vmid": 102
+        }
+      },
+      {
+        "id": "vm:assessment",
+        "type": "vm",
+        "label": "assessment-engine (VM 103)",
+        "readiness": "GREEN",
+        "metadata": {
+          "vmid": 103
+        }
+      }
     ],
     "edges": [
-      {"from": "vm:infra-bootstrap", "to": "pve:host",   "type": "DEPENDS_ON", "label": "runs on host"},
-      {"from": "vm:forgejo",         "to": "pve:host",   "type": "DEPENDS_ON", "label": "runs on host"},
-      {"from": "vm:inventory",       "to": "pve:host",   "type": "DEPENDS_ON", "label": "runs on host"},
-      {"from": "vm:assessment",      "to": "pve:host",   "type": "DEPENDS_ON", "label": "runs on host"},
-      {"from": "vm:infra-bootstrap", "to": "zfs:rpool",  "type": "STORAGE",    "label": "primary storage"},
-      {"from": "vm:forgejo",         "to": "zfs:rpool",  "type": "STORAGE",    "label": "primary storage"},
-      {"from": "vm:inventory",       "to": "zfs:rpool",  "type": "STORAGE",    "label": "primary storage"},
-      {"from": "vm:assessment",      "to": "zfs:rpool",  "type": "STORAGE",    "label": "primary storage"},
-      {"from": "vm:assessment",      "to": "vm:forgejo", "type": "NETWORK",    "label": "git remote (assessment repos)"},
-      {"from": "vm:inventory",       "to": "vm:forgejo", "type": "NETWORK",    "label": "git remote (inventory repo)"}
+      {
+        "from": "vm:infra-bootstrap",
+        "to": "pve:host",
+        "type": "DEPENDS_ON",
+        "label": "runs on host"
+      },
+      {
+        "from": "vm:forgejo",
+        "to": "pve:host",
+        "type": "DEPENDS_ON",
+        "label": "runs on host"
+      },
+      {
+        "from": "vm:inventory",
+        "to": "pve:host",
+        "type": "DEPENDS_ON",
+        "label": "runs on host"
+      },
+      {
+        "from": "vm:assessment",
+        "to": "pve:host",
+        "type": "DEPENDS_ON",
+        "label": "runs on host"
+      },
+      {
+        "from": "vm:infra-bootstrap",
+        "to": "zfs:rpool",
+        "type": "STORAGE",
+        "label": "primary storage"
+      },
+      {
+        "from": "vm:forgejo",
+        "to": "zfs:rpool",
+        "type": "STORAGE",
+        "label": "primary storage"
+      },
+      {
+        "from": "vm:inventory",
+        "to": "zfs:rpool",
+        "type": "STORAGE",
+        "label": "primary storage"
+      },
+      {
+        "from": "vm:assessment",
+        "to": "zfs:rpool",
+        "type": "STORAGE",
+        "label": "primary storage"
+      },
+      {
+        "from": "vm:assessment",
+        "to": "vm:forgejo",
+        "type": "NETWORK",
+        "label": "git remote (assessment repos)"
+      },
+      {
+        "from": "vm:inventory",
+        "to": "vm:forgejo",
+        "type": "NETWORK",
+        "label": "git remote (inventory repo)"
+      }
     ],
     "restore_waves": [
-      {"wave": 1, "components": ["pve:host"],           "note": "Physical host must come first",            "estimated_minutes": 60},
-      {"wave": 2, "components": ["zfs:rpool"],           "note": "Storage must be available before VMs",     "estimated_minutes": 15},
-      {"wave": 3, "components": ["vm:forgejo"],          "note": "Git infrastructure before dependents",     "estimated_minutes": 20},
-      {"wave": 4, "components": ["vm:infra-bootstrap", "vm:inventory", "vm:assessment"], "note": "Remaining VMs — no mutual dependencies", "estimated_minutes": 30}
+      {
+        "wave": 1,
+        "components": [
+          "pve:host"
+        ],
+        "note": "Physical host must come first",
+        "estimated_minutes": 60
+      },
+      {
+        "wave": 2,
+        "components": [
+          "zfs:rpool"
+        ],
+        "note": "Storage must be available before VMs",
+        "estimated_minutes": 15
+      },
+      {
+        "wave": 3,
+        "components": [
+          "vm:forgejo"
+        ],
+        "note": "Git infrastructure before dependents",
+        "estimated_minutes": 20
+      },
+      {
+        "wave": 4,
+        "components": [
+          "vm:infra-bootstrap",
+          "vm:inventory",
+          "vm:assessment"
+        ],
+        "note": "Remaining VMs \u00e2\u20ac\u201d no mutual dependencies",
+        "estimated_minutes": 30
+      }
     ]
   },
-
   "readiness_report": {
     "overall_score": "YELLOW",
     "overall_score_reason": "forgejo VM backup age exceeds threshold",
@@ -123,7 +249,9 @@
         "gaps": []
       }
     ],
-    "single_points_of_failure": ["zfs:rpool"],
+    "single_points_of_failure": [
+      "zfs:rpool"
+    ],
     "recovery_blockers": []
   }
 }

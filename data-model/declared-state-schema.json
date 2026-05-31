@@ -4,54 +4,132 @@
   "title": "Declared State",
   "description": "Schema for OpenTofu/Terraform IaC state collected by Tier 2 assessment",
   "type": "object",
-  "required": ["schema_version", "collected_at"],
+  "required": [
+    "schema_version",
+    "cell_id",
+    "collected_at"
+  ],
   "properties": {
-    "schema_version": { "type": "string" },
-    "collected_at":   { "type": "string", "format": "date-time" },
-
+    "schema_version": {
+      "type": "string"
+    },
+    "cell_id": {
+      "type": "string",
+      "description": "Stable unique identity of the Infrastructure Cell this data belongs to. Set via CELL_ID environment variable or --cell-id argument. Defaults to 'unknown' if not configured."
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "tofu_workspaces": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "path"],
+        "required": [
+          "name",
+          "path"
+        ],
         "properties": {
-          "name":          { "type": "string" },
-          "path":          { "type": "string" },
-          "backend_type":  { "type": ["string", "null"] },
-          "resource_count":{ "type": ["integer", "null"] },
-          "last_apply_at": { "type": ["string", "null"] },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "backend_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource_count": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "last_apply_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "resources": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["type", "name"],
+              "required": [
+                "type",
+                "name"
+              ],
               "properties": {
-                "type":       { "type": "string" },
-                "name":       { "type": "string" },
-                "provider":   { "type": ["string", "null"] },
-                "depends_on": { "type": "array", "items": { "type": "string" } },
-                "attributes": { "type": "object" }
+                "type": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "depends_on": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "attributes": {
+                  "type": "object"
+                }
               }
             }
           },
-          "outputs": { "type": "object" },
-          "variables": { "type": "object" }
+          "outputs": {
+            "type": "object"
+          },
+          "variables": {
+            "type": "object"
+          }
         }
       }
     },
-
     "repositories": {
       "type": "array",
       "description": "IaC repositories discovered in Forgejo",
       "items": {
         "type": "object",
-        "required": ["name", "url"],
+        "required": [
+          "name",
+          "url"
+        ],
         "properties": {
-          "name":          { "type": "string" },
-          "url":           { "type": "string" },
-          "default_branch":{ "type": ["string", "null"] },
-          "last_commit_at":{ "type": ["string", "null"] },
-          "workspace_path":{ "type": ["string", "null"] }
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "default_branch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_commit_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workspace_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     }

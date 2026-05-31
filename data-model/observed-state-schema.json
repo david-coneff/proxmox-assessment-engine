@@ -6,6 +6,7 @@
   "type": "object",
   "required": [
     "schema_version",
+    "cell_id",
     "assessment_tier",
     "collected_at",
     "host",
@@ -26,6 +27,10 @@
         "1.0",
         "2.0"
       ]
+    },
+    "cell_id": {
+      "type": "string",
+      "description": "Stable unique identity of the Infrastructure Cell this data belongs to. Set via CELL_ID environment variable or --cell-id argument. Defaults to 'unknown' if not configured."
     },
     "assessment_tier": {
       "type": "integer",

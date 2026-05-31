@@ -213,6 +213,7 @@ class TestDeclaredStateSchema(unittest.TestCase):
     def test_minimal_valid_instance(self):
         instance = {
             "schema_version": "1.0",
+            "cell_id": "proxmox-cell-a",
             "collected_at": "2026-05-29T02:00:00Z",
             "tofu_workspaces": [],
             "repositories": []
@@ -223,6 +224,7 @@ class TestDeclaredStateSchema(unittest.TestCase):
     def test_workspace_with_resources(self):
         instance = {
             "schema_version": "1.0",
+            "cell_id": "proxmox-cell-a",
             "collected_at": "2026-05-29T02:00:00Z",
             "tofu_workspaces": [
                 {
@@ -258,6 +260,7 @@ class TestConfiguredStateSchema(unittest.TestCase):
     def test_minimal_valid_instance(self):
         instance = {
             "schema_version": "1.0",
+            "cell_id": "proxmox-cell-a",
             "collected_at": "2026-05-29T02:00:00Z"
         }
         errors = self.validator.validate(instance)
@@ -266,6 +269,7 @@ class TestConfiguredStateSchema(unittest.TestCase):
     def test_full_ansible_inventory(self):
         instance = {
             "schema_version": "1.0",
+            "cell_id": "proxmox-cell-a",
             "collected_at": "2026-05-29T02:00:00Z",
             "ansible_inventory": {
                 "inventory_path": "/opt/inventory/hosts.yaml",

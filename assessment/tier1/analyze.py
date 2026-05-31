@@ -698,8 +698,13 @@ def build_manifest(outdir: Path) -> dict:
         if line.strip():
             collection_warnings.append({"collector": "bootstrap", "message": line.strip()})
 
+    # cell_id: from --cell-id arg, CELL_ID env var, or 'unknown'.
+    # Set before deployment via: export CELL_ID=proxmox-cell-a
+    cell_id = os.environ.get("CELL_ID", "unknown")
+
     manifest = {
         "schema_version": "1.0",
+        "cell_id": cell_id,
         "assessment_tier": 1,
         "collected_at": parse_collected_at(outdir),
         "host": parse_host(outdir, collection_errors),
@@ -718,11 +723,20 @@ def build_manifest(outdir: Path) -> dict:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: python3 {sys.argv[0]} <collector_output_dir>", file=sys.stderr)
+    args = sys.argv[1:]
+
+    # Optional: --cell-id <id> overrides CELL_ID env var
+    if "--cell-id" in args:
+        idx = args.index("--cell-id")
+        os.environ["CELL_ID"] = args[idx + 1]
+        args = args[:idx] + args[idx + 2:]
+
+    if not args:
+        print(f"Usage: python3 {sys.argv[0]} <collector_output_dir> [--cell-id <id>]",
+              file=sys.stderr)
         sys.exit(1)
 
-    outdir = Path(sys.argv[1])
+    outdir = Path(args[0])
     if not outdir.is_dir():
         print(f"Error: {outdir} is not a directory", file=sys.stderr)
         sys.exit(1)

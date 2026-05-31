@@ -4,25 +4,58 @@
   "title": "Configured State",
   "description": "Schema for Ansible inventory and configuration metadata collected by Tier 2 assessment",
   "type": "object",
-  "required": ["schema_version", "collected_at"],
+  "required": [
+    "schema_version",
+    "cell_id",
+    "collected_at"
+  ],
   "properties": {
-    "schema_version": { "type": "string" },
-    "collected_at":   { "type": "string", "format": "date-time" },
-
+    "schema_version": {
+      "type": "string"
+    },
+    "cell_id": {
+      "type": "string",
+      "description": "Stable unique identity of the Infrastructure Cell this data belongs to. Set via CELL_ID environment variable or --cell-id argument. Defaults to 'unknown' if not configured."
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "ansible_inventory": {
       "type": "object",
       "properties": {
-        "inventory_path": { "type": ["string", "null"] },
+        "inventory_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "hosts": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["name"],
+            "required": [
+              "name"
+            ],
             "properties": {
-              "name":       { "type": "string" },
-              "address":    { "type": ["string", "null"] },
-              "groups":     { "type": "array", "items": { "type": "string" } },
-              "variables":  { "type": "object" }
+              "name": {
+                "type": "string"
+              },
+              "address": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "groups": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "variables": {
+                "type": "object"
+              }
             }
           }
         },
@@ -30,44 +63,99 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["name"],
+            "required": [
+              "name"
+            ],
             "properties": {
-              "name":       { "type": "string" },
-              "hosts":      { "type": "array", "items": { "type": "string" } },
-              "children":   { "type": "array", "items": { "type": "string" } },
-              "variables":  { "type": "object" }
+              "name": {
+                "type": "string"
+              },
+              "hosts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "children": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "variables": {
+                "type": "object"
+              }
             }
           }
         }
       }
     },
-
     "role_assignments": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["playbook", "hosts"],
+        "required": [
+          "playbook",
+          "hosts"
+        ],
         "properties": {
-          "playbook": { "type": "string" },
-          "hosts":    { "type": "string", "description": "host or group pattern" },
-          "roles":    { "type": "array", "items": { "type": "string" } },
-          "tags":     { "type": "array", "items": { "type": "string" } }
+          "playbook": {
+            "type": "string"
+          },
+          "hosts": {
+            "type": "string",
+            "description": "host or group pattern"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       }
     },
-
     "repositories": {
       "type": "array",
       "description": "Ansible/inventory repositories discovered in Forgejo",
       "items": {
         "type": "object",
-        "required": ["name", "url"],
+        "required": [
+          "name",
+          "url"
+        ],
         "properties": {
-          "name":           { "type": "string" },
-          "url":            { "type": "string" },
-          "default_branch": { "type": ["string", "null"] },
-          "last_commit_at": { "type": ["string", "null"] },
-          "repo_type":      { "type": ["string", "null"], "description": "ansible, inventory, mixed" }
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "default_branch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_commit_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "repo_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ansible, inventory, mixed"
+          }
         }
       }
     }

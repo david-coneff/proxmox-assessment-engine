@@ -1,5 +1,6 @@
 {
   "schema_version": "2.0",
+  "cell_id": "proxmox-cell-a",
   "assessment_tier": 2,
   "collected_at": "2026-05-29T02:05:00Z",
   "host": {

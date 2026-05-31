@@ -22,5 +22,6 @@
     }
   ],
   "latest_tier1_id": "bootstrap_2026-05-01_10_00_00",
-  "latest_tier2_id": "assessment_2026-05-29_02_05_00"
+  "latest_tier2_id": "assessment_2026-05-29_02_05_00",
+  "cell_id": "proxmox-cell-a"
 }

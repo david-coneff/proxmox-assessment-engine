@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
+  "cell_id": "proxmox-cell-a",
   "assessment_tier": 1,
   "collected_at": "2026-05-30T14:23:00Z",
-
   "host": {
     "hostname": "pve01",
     "fqdn": "pve01.internal",
@@ -11,7 +11,6 @@
     "kernel_version": "6.8.4-2-pve",
     "timezone": "UTC"
   },
-
   "cpu": {
     "model": "Intel(R) Core(TM) i9-13900K",
     "architecture": "x86_64",
@@ -21,14 +20,12 @@
     "total_threads": 48,
     "virtualization": "VT-x"
   },
-
   "memory": {
     "total_gb": 64,
     "available_gb": 61.2,
     "swap_total_gb": 0,
     "numa_nodes": 1
   },
-
   "storage": {
     "block_devices": [
       {
@@ -57,7 +54,10 @@
         "topology": "mirror",
         "total_gb": 916.4,
         "free_gb": 810.1,
-        "devices": ["sda", "sdb"]
+        "devices": [
+          "sda",
+          "sdb"
+        ]
       }
     ],
     "pve_storage": [
@@ -67,7 +67,11 @@
         "path": "/var/lib/vz",
         "total_gb": 50.0,
         "free_gb": 44.1,
-        "content": ["iso", "backup", "template"],
+        "content": [
+          "iso",
+          "backup",
+          "template"
+        ],
         "active": true
       },
       {
@@ -76,19 +80,24 @@
         "path": null,
         "total_gb": 810.1,
         "free_gb": 810.1,
-        "content": ["rootdir", "images"],
+        "content": [
+          "rootdir",
+          "images"
+        ],
         "active": true
       }
     ]
   },
-
   "network": {
     "interfaces": [
       {
         "name": "lo",
         "mac": null,
         "state": "UNKNOWN",
-        "addresses": ["127.0.0.1/8", "::1/128"],
+        "addresses": [
+          "127.0.0.1/8",
+          "::1/128"
+        ],
         "mtu": 65536
       },
       {
@@ -102,39 +111,69 @@
         "name": "vmbr0",
         "mac": "aa:bb:cc:dd:ee:01",
         "state": "UP",
-        "addresses": ["192.168.1.10/24"],
+        "addresses": [
+          "192.168.1.10/24"
+        ],
         "mtu": 1500
       }
     ],
     "bridges": [
       {
         "name": "vmbr0",
-        "ports": ["enp2s0"],
-        "addresses": ["192.168.1.10/24"],
+        "ports": [
+          "enp2s0"
+        ],
+        "addresses": [
+          "192.168.1.10/24"
+        ],
         "vlan_aware": false,
         "comment": "LAN bridge"
       }
     ],
     "vlans": [],
     "default_gateway": "192.168.1.1",
-    "dns_servers": ["1.1.1.1", "8.8.8.8"],
-    "dns_search": ["internal"]
+    "dns_servers": [
+      "1.1.1.1",
+      "8.8.8.8"
+    ],
+    "dns_search": [
+      "internal"
+    ]
   },
-
   "vms": [],
   "containers": [],
-
   "software": {
     "installed_packages": [
-      {"name": "git", "version": "1:2.39.2-1+b2"},
-      {"name": "python3", "version": "3.11.2-1+b1"},
-      {"name": "curl", "version": "7.88.1-10+deb12u5"},
-      {"name": "wget", "version": "1.21.3-1+b2"},
-      {"name": "openssh-server", "version": "1:9.2p1-2+deb12u3"}
+      {
+        "name": "git",
+        "version": "1:2.39.2-1+b2"
+      },
+      {
+        "name": "python3",
+        "version": "3.11.2-1+b1"
+      },
+      {
+        "name": "curl",
+        "version": "7.88.1-10+deb12u5"
+      },
+      {
+        "name": "wget",
+        "version": "1.21.3-1+b2"
+      },
+      {
+        "name": "openssh-server",
+        "version": "1:9.2p1-2+deb12u3"
+      }
     ],
     "running_services": [
-      "pveproxy", "pvedaemon", "pvestatd", "pvescheduler",
-      "corosync", "ssh", "networking", "cron"
+      "pveproxy",
+      "pvedaemon",
+      "pvestatd",
+      "pvescheduler",
+      "corosync",
+      "ssh",
+      "networking",
+      "cron"
     ],
     "automation_readiness": {
       "git": true,
@@ -145,7 +184,6 @@
       "wget": true
     }
   },
-
   "collection_errors": [],
   "collection_warnings": [
     {
