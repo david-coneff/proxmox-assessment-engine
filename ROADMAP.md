@@ -98,11 +98,16 @@ Track 3 begins after Phase 18 completes the expanded state model.
 - [ ] Template rebuild playbook format (Phase 9)
 
 **6.7 — Tier 2 Bootstrap State Collector**
-- [ ] `proxmox-bootstrap/collect-tier2.py` — SSH collector for provenance_records, templates, base_images
-- [ ] `--dry-run` flag; merge-only logic (never overwrites existing manual entries)
-- [ ] Cloud-Init snippet comparison (deployed vs. repository)
-- [ ] Integration into Tier 2 manifest
-- [ ] Tests (~30 in test_tier2_collector.py)
+- [x] `proxmox-bootstrap/collect_tier2.py` — SSH collector library (parse_qm_list,
+      parse_qm_config, collect_templates, collect_provenance_records, merge_into_state)
+- [x] `proxmox-bootstrap/collect-tier2.py` — CLI entry point (--host, --user, --port,
+      --key, --state, --dry-run, --verbose)
+- [x] `proxmox-bootstrap/TIER2-COLLECTION.md` — runbook: prerequisites, usage, merge
+      behaviour, ISO name inference, post-collection steps, troubleshooting
+- [x] `--dry-run` flag; merge-only logic (never overwrites existing manual entries)
+- [x] Tests — 54 tests in test_tier2_collector.py
+- [ ] Cloud-Init snippet comparison (deployed vs. repository) — deferred to 6.8
+- [ ] Integration into Tier 2 manifest — deferred to 6.8
 
 **6.8 — Bootstrap Documentation Update**
 - [ ] Bootstrap Workbook Stage 02: template creation from registry
