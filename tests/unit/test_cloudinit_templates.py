@@ -22,10 +22,23 @@ try:
 except ImportError:
     HAS_YAML = False
 
+import importlib.util
+
 REPO_ROOT = Path(__file__).parent.parent.parent
 BOOTSTRAP_REPO = REPO_ROOT / "proxmox-bootstrap"
 SNIPPETS = BOOTSTRAP_REPO / "snippets"
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "bootstrap"
+
+
+def _import_generator():
+    """Import generate-network-configs.py (hyphenated filename) via importlib."""
+    spec = importlib.util.spec_from_file_location(
+        "generate_network_configs",
+        BOOTSTRAP_REPO / "generate-network-configs.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 # ─── Simple YAML parser fallback (stdlib only) ───────────────────────────────
 # The stdlib does not include a YAML parser. We use a minimal line-based
@@ -370,6 +383,186 @@ class TestSnippetConsistency(unittest.TestCase):
         self.assertEqual(len(network_files), len(self.fixture["vms"]),
                          msg=f"Expected {len(self.fixture['vms'])} network-config snippets, "
                              f"found {len(network_files)}")
+
+
+class TestNetworkTopologyConsistency(unittest.TestCase):
+    """
+    Network-config snippets must be consistent with bootstrap-state network_topology.
+    Gateway, nameservers, and interface must match — only the per-VM IP differs.
+    """
+
+    def setUp(self):
+        self.fixture = _load_bootstrap_fixture()
+        self.topo = self.fixture["network_topology"]
+
+    def test_network_topology_declared_in_fixture(self):
+        self.assertIn("network_topology", self.fixture)
+        topo = self.fixture["network_topology"]
+        for key in ("management_cidr", "gateway", "nameservers", "interface_name"):
+            self.assertIn(key, topo, msg=f"network_topology missing required key: {key}")
+
+    def test_management_cidr_is_cidr_notation(self):
+        cidr = self.topo["management_cidr"]
+        self.assertIn("/", cidr, msg="management_cidr must be in CIDR notation, e.g. 192.168.1.0/24")
+        parts = cidr.split("/")
+        self.assertEqual(len(parts), 2)
+        self.assertTrue(parts[1].isdigit(), msg="CIDR prefix must be numeric")
+
+    def test_gateway_present_in_all_network_configs(self):
+        expected_gw = self.topo["gateway"]
+        for vm in self.fixture["vms"]:
+            path = BOOTSTRAP_REPO / vm["cloudinit"]["network_config_path"]
+            if path.exists():
+                text = path.read_text(encoding="utf-8")
+                self.assertIn(expected_gw, text,
+                              msg=f"{vm['name']}: network-config gateway should be {expected_gw!r}")
+
+    def test_nameservers_present_in_all_network_configs(self):
+        for ns in self.topo["nameservers"]:
+            for vm in self.fixture["vms"]:
+                path = BOOTSTRAP_REPO / vm["cloudinit"]["network_config_path"]
+                if path.exists():
+                    text = path.read_text(encoding="utf-8")
+                    self.assertIn(ns, text,
+                                  msg=f"{vm['name']}: network-config missing nameserver {ns!r}")
+
+    def test_interface_name_in_all_network_configs(self):
+        expected_iface = self.topo["interface_name"]
+        for vm in self.fixture["vms"]:
+            path = BOOTSTRAP_REPO / vm["cloudinit"]["network_config_path"]
+            if path.exists():
+                text = path.read_text(encoding="utf-8")
+                self.assertIn(f"{expected_iface}:", text,
+                              msg=f"{vm['name']}: network-config must declare interface {expected_iface!r}")
+
+    def test_generated_header_present(self):
+        """All network-config files must carry the GENERATED marker."""
+        for vm in self.fixture["vms"]:
+            path = BOOTSTRAP_REPO / vm["cloudinit"]["network_config_path"]
+            if path.exists():
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("GENERATED", text,
+                              msg=f"{vm['name']}: network-config missing GENERATED header")
+                self.assertIn("DO NOT EDIT MANUALLY", text,
+                              msg=f"{vm['name']}: network-config missing DO NOT EDIT warning")
+
+    def test_prefix_derived_from_cidr(self):
+        """The subnet prefix from management_cidr must appear in each network-config."""
+        cidr = self.topo["management_cidr"]
+        prefix = "/" + cidr.split("/")[1]
+        for vm in self.fixture["vms"]:
+            path = BOOTSTRAP_REPO / vm["cloudinit"]["network_config_path"]
+            if path.exists():
+                text = path.read_text(encoding="utf-8")
+                # The generated file should have IP/prefix, e.g. 192.168.1.20/24
+                expected = vm["initial_ip"] + prefix
+                self.assertIn(expected, text,
+                              msg=f"{vm['name']}: expected {expected!r} in network-config addresses")
+
+
+class TestNetworkConfigGenerator(unittest.TestCase):
+    """Tests for generate-network-configs.py generator."""
+
+    def setUp(self):
+        self.fixture_path = FIXTURES / "bootstrap-state.json"
+        with open(self.fixture_path) as f:
+            self.fixture = json.load(f)
+
+    def test_generator_script_exists(self):
+        gen = BOOTSTRAP_REPO / "generate-network-configs.py"
+        self.assertTrue(gen.exists(), msg="generate-network-configs.py must exist")
+
+    def test_generator_is_importable(self):
+        """The generator module must import cleanly."""
+        gen = _import_generator()
+        self.assertTrue(hasattr(gen, "run"))
+        self.assertTrue(hasattr(gen, "generate_network_config"))
+
+    def test_generator_produces_correct_ip(self):
+        """Generator output must contain each VM's initial_ip."""
+        gen = _import_generator()
+        topo = self.fixture["network_topology"]
+        prefix = "/" + topo["management_cidr"].split("/")[1]
+
+        for vm in self.fixture["vms"]:
+            content = gen.generate_network_config(
+                vm_name=vm["name"],
+                vmid=vm["vmid"],
+                cell_id=self.fixture["cell_id"],
+                ip=vm["initial_ip"],
+                prefix=prefix,
+                gateway=topo["gateway"],
+                nameservers=topo["nameservers"],
+                search_domain=topo.get("search_domain"),
+                interface=topo["interface_name"],
+                generated_at="2026-01-01T00:00:00Z",
+            )
+            self.assertIn(vm["initial_ip"] + prefix, content,
+                          msg=f"{vm['name']}: generated content missing IP+prefix")
+            self.assertIn(topo["gateway"], content)
+            self.assertIn(topo["interface_name"] + ":", content)
+
+    def test_generator_produces_generated_header(self):
+        gen = _import_generator()
+        topo = self.fixture["network_topology"]
+        prefix = "/" + topo["management_cidr"].split("/")[1]
+        vm = self.fixture["vms"][0]
+        content = gen.generate_network_config(
+            vm_name=vm["name"], vmid=vm["vmid"],
+            cell_id=self.fixture["cell_id"],
+            ip=vm["initial_ip"], prefix=prefix,
+            gateway=topo["gateway"], nameservers=topo["nameservers"],
+            search_domain=topo.get("search_domain"),
+            interface=topo["interface_name"],
+            generated_at="2026-01-01T00:00:00Z",
+        )
+        self.assertIn("GENERATED", content)
+        self.assertIn("DO NOT EDIT MANUALLY", content)
+
+    def test_generator_run_writes_files(self):
+        """run() must write one file per VM to the output directory."""
+        import tempfile
+        gen = _import_generator()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir)
+            written = gen.run(self.fixture_path, out)
+            self.assertEqual(len(written), len(self.fixture["vms"]))
+            for vm in self.fixture["vms"]:
+                expected = out / f"{vm['name']}.yaml"
+                self.assertTrue(expected.exists(),
+                                msg=f"Expected {expected} to be written")
+
+    def test_generator_run_dry_run_writes_nothing(self):
+        """dry_run=True must not write any files."""
+        import tempfile
+        gen = _import_generator()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir)
+            gen.run(self.fixture_path, out, dry_run=True)
+            written = list(out.glob("*.yaml"))
+            self.assertEqual(written, [],
+                             msg="dry-run mode must not write any files")
+
+    def test_generator_different_topology_produces_different_output(self):
+        """Changing network_topology must change the generated output."""
+        gen = _import_generator()
+        topo = self.fixture["network_topology"]
+        prefix = "/" + topo["management_cidr"].split("/")[1]
+        vm = self.fixture["vms"][0]
+
+        kwargs = dict(
+            vm_name=vm["name"], vmid=vm["vmid"],
+            cell_id=self.fixture["cell_id"],
+            ip=vm["initial_ip"], prefix=prefix,
+            nameservers=topo["nameservers"],
+            search_domain=topo.get("search_domain"),
+            interface=topo["interface_name"],
+            generated_at="2026-01-01T00:00:00Z",
+        )
+        out_a = gen.generate_network_config(gateway="10.0.0.1", **kwargs)
+        out_b = gen.generate_network_config(gateway="172.16.0.1", **kwargs)
+        self.assertNotEqual(out_a, out_b,
+                            msg="Different gateways must produce different output")
 
 
 class TestSnippetUploadDocExists(unittest.TestCase):

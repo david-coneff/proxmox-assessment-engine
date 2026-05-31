@@ -5,6 +5,10 @@ Cell: proxmox-cell-a
 This document describes how to prepare and upload Cloud-Init snippets to Proxmox
 snippet storage so they can be referenced by VMs via the `cicustom` parameter.
 
+**Network configuration values (gateway, subnet, nameservers, interface) are declared
+once in `bootstrap-state.json` under `network_topology`. Do not edit the
+`snippets/network-config/` files directly — regenerate them instead (Step 1 below).**
+
 ---
 
 ## Prerequisites
@@ -18,7 +22,33 @@ snippet storage so they can be referenced by VMs via the `cicustom` parameter.
 
 ---
 
-## Step 1 — Populate SSH Public Keys
+## Step 1 — Regenerate Network-Config Snippets
+
+If this is a new deployment or you have changed `network_topology` or any VM IP
+in `bootstrap-state.json`, regenerate the network-config snippets before uploading:
+
+```bash
+# From the proxmox-bootstrap/ directory:
+python3 generate-network-configs.py --bootstrap bootstrap-state.json
+
+# Or from the repository root:
+python3 proxmox-bootstrap/generate-network-configs.py --bootstrap proxmox-bootstrap/bootstrap-state.json
+```
+
+This reads `network_topology` (gateway, CIDR, nameservers, interface) and each VM's
+`initial_ip` from `bootstrap-state.json` and writes all `snippets/network-config/*.yaml`
+files. The generated files carry a `# GENERATED` header — do not edit them manually.
+
+To preview without writing files:
+```bash
+python3 generate-network-configs.py --dry-run
+```
+
+Commit the regenerated files before uploading to Proxmox.
+
+---
+
+## Step 2 — Populate SSH Public Keys
 
 Before uploading, replace the `POPULATE:` placeholder in each user-data file with
 the actual SSH public key for that VM.
@@ -49,7 +79,7 @@ snippet file. The SSH *private* key remains in KeePass and is never stored here.
 
 ---
 
-## Step 2 — Upload Snippets to Proxmox
+## Step 3 — Upload Snippets to Proxmox
 
 ### Option A — Direct SCP (simplest)
 
@@ -84,7 +114,7 @@ Datacenter → Storage → local → Content → Upload → select file → set 
 
 ---
 
-## Step 3 — Verify Upload
+## Step 4 — Verify Upload
 
 After uploading, verify all snippets are present on the Proxmox host:
 
@@ -121,7 +151,7 @@ If you rename files on upload, update the `network_config_path` entries in
 
 ---
 
-## Step 4 — Reference Snippets in VM Configuration
+## Step 5 — Reference Snippets in VM Configuration
 
 Snippets are referenced in OpenTofu VM resource definitions via the `cicustom`
 attribute, or manually via `qm set`:
@@ -152,7 +182,7 @@ qm set 100 --cicustom "user=local:snippets/infra-bootstrap.yaml,network=local:sn
 
 ---
 
-## Step 5 — Record Hashes in Bootstrap State
+## Step 6 — Record Hashes in Bootstrap State
 
 After uploading, record the SHA-256 hash of each uploaded file in `bootstrap-state.json`
 under each VM's `cloudinit.user_data_hash` and `cloudinit.network_config_hash` fields.

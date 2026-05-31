@@ -4,6 +4,14 @@
   "declared_at": "2026-05-31T00:00:00Z",
   "notes": "Primary homelab cell — single Proxmox node with four managed VMs",
 
+  "network_topology": {
+    "management_cidr": "192.168.1.0/24",
+    "gateway": "192.168.1.1",
+    "nameservers": ["192.168.1.1", "8.8.8.8"],
+    "search_domain": "internal",
+    "interface_name": "ens18"
+  },
+
   "vms": [
     {
       "vmid": 100,

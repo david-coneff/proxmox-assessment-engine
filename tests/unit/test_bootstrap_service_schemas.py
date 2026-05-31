@@ -80,6 +80,75 @@ class TestBootstrapStateSchemaStructure(unittest.TestCase):
         self.assertEqual(errors, [])
 
 
+class TestBootstrapStateNetworkTopology(unittest.TestCase):
+    def setUp(self):
+        self.schema = load_schema("bootstrap-state-schema.json")
+        self.fixture = load_fixture("bootstrap-state.json")
+        self.v = SchemaValidator(self.schema)
+
+    def test_network_topology_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["network_topology"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("network_topology" in e.path for e in errors))
+
+    def test_management_cidr_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["network_topology"]["management_cidr"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("management_cidr" in e.path for e in errors))
+
+    def test_gateway_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["network_topology"]["gateway"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("gateway" in e.path for e in errors))
+
+    def test_nameservers_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["network_topology"]["nameservers"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("nameservers" in e.path for e in errors))
+
+    def test_interface_name_required(self):
+        bad = deepcopy(self.fixture)
+        del bad["network_topology"]["interface_name"]
+        errors = self.v.validate(bad)
+        self.assertTrue(any("interface_name" in e.path for e in errors))
+
+    def test_search_domain_nullable(self):
+        doc = deepcopy(self.fixture)
+        doc["network_topology"]["search_domain"] = None
+        errors = self.v.validate(doc)
+        self.assertEqual(errors, [])
+
+    def test_different_cidr_valid(self):
+        """Any CIDR notation should be accepted — not locked to a specific subnet."""
+        for cidr in ("10.0.0.0/8", "172.16.0.0/12", "192.168.50.0/24", "10.10.10.0/24"):
+            doc = deepcopy(self.fixture)
+            doc["network_topology"]["management_cidr"] = cidr
+            errors = self.v.validate(doc)
+            self.assertEqual(errors, [], msg=f"CIDR {cidr!r} should be valid")
+
+    def test_different_gateway_valid(self):
+        """Any gateway string is accepted — not locked to a specific IP."""
+        for gw in ("192.168.50.1", "10.0.0.1", "172.16.1.1"):
+            doc = deepcopy(self.fixture)
+            doc["network_topology"]["gateway"] = gw
+            errors = self.v.validate(doc)
+            self.assertEqual(errors, [], msg=f"Gateway {gw!r} should be valid")
+
+    def test_multiple_nameservers_valid(self):
+        doc = deepcopy(self.fixture)
+        doc["network_topology"]["nameservers"] = ["10.0.0.1", "1.1.1.1", "8.8.8.8"]
+        errors = self.v.validate(doc)
+        self.assertEqual(errors, [])
+
+    def test_valid_fixture_passes(self):
+        errors = self.v.validate(self.fixture)
+        self.assertEqual(errors, [], msg=f"Unexpected errors: {errors}")
+
+
 class TestBootstrapStateVmBootstrap(unittest.TestCase):
     def setUp(self):
         self.schema = load_schema("bootstrap-state-schema.json")
