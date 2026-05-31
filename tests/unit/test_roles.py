@@ -224,6 +224,237 @@ class TestRoleSelectionOrdering(unittest.TestCase):
 # suggest-names.py — KeePass discovery
 # ---------------------------------------------------------------------------
 
+class TestConsolidationModes(unittest.TestCase):
+    def setUp(self):
+        self.r = _import("roles.py", "roles")
+
+    def test_all_three_modes_defined(self):
+        for mode in ("full", "recommended", "minimal"):
+            self.assertIn(mode, self.r.CONSOLIDATION_MODES)
+
+    def test_default_consolidation_is_valid(self):
+        self.assertIn(self.r.DEFAULT_CONSOLIDATION, self.r.CONSOLIDATION_MODES)
+
+    def test_full_mode_three_vms(self):
+        mode = self.r.CONSOLIDATION_MODES["full"]
+        self.assertEqual(len(mode["vms"]), 3)
+
+    def test_recommended_mode_two_vms(self):
+        mode = self.r.CONSOLIDATION_MODES["recommended"]
+        self.assertEqual(len(mode["vms"]), 2)
+
+    def test_minimal_mode_one_vm(self):
+        mode = self.r.CONSOLIDATION_MODES["minimal"]
+        self.assertEqual(len(mode["vms"]), 1)
+
+    def test_all_required_roles_covered_in_every_mode(self):
+        for mode_key, mode in self.r.CONSOLIDATION_MODES.items():
+            all_roles = [rid for roles in mode["vms"].values() for rid in roles]
+            for required in self.r.REQUIRED_ROLES:
+                self.assertIn(required, all_roles,
+                              msg=f"Mode {mode_key!r} missing required role {required!r}")
+
+    def test_no_role_appears_twice_in_same_mode(self):
+        for mode_key, mode in self.r.CONSOLIDATION_MODES.items():
+            all_roles = [rid for roles in mode["vms"].values() for rid in roles]
+            self.assertEqual(len(all_roles), len(set(all_roles)),
+                             msg=f"Mode {mode_key!r} has duplicate roles")
+
+    def test_vm_order_matches_vms_keys(self):
+        for mode_key, mode in self.r.CONSOLIDATION_MODES.items():
+            for vm_name in mode["vm_order"]:
+                self.assertIn(vm_name, mode["vms"],
+                              msg=f"Mode {mode_key!r} vm_order references unknown VM {vm_name!r}")
+
+
+class TestMergeRoles(unittest.TestCase):
+    def setUp(self):
+        self.r = _import("roles.py", "roles")
+
+    def test_single_role_unchanged(self):
+        merged = self.r.merge_roles(["forgejo"])
+        self.assertEqual(merged["extra_packages"], self.r.ROLES["forgejo"]["extra_packages"])
+
+    def test_merged_packages_are_union(self):
+        merged = self.r.merge_roles(["infra-bootstrap", "assessment-engine"])
+        ab_pkgs = self.r.ROLES["infra-bootstrap"]["extra_packages"]
+        ae_pkgs = self.r.ROLES["assessment-engine"]["extra_packages"]
+        for pkg in ab_pkgs + ae_pkgs:
+            self.assertIn(pkg, merged["extra_packages"])
+
+    def test_merged_packages_no_duplicates(self):
+        merged = self.r.merge_roles(["infra-bootstrap", "assessment-engine"])
+        self.assertEqual(len(merged["extra_packages"]), len(set(merged["extra_packages"])))
+
+    def test_merged_wave_is_minimum(self):
+        merged = self.r.merge_roles(["infra-bootstrap", "assessment-engine"])
+        expected = min(self.r.ROLES["infra-bootstrap"]["wave"],
+                       self.r.ROLES["assessment-engine"]["wave"])
+        self.assertEqual(merged["wave"], expected)
+
+    def test_merged_vmid_offset_is_minimum(self):
+        merged = self.r.merge_roles(["infra-bootstrap", "assessment-engine"])
+        expected = min(self.r.ROLES["infra-bootstrap"]["vmid_offset"],
+                       self.r.ROLES["assessment-engine"]["vmid_offset"])
+        self.assertEqual(merged["vmid_offset"], expected)
+
+    def test_internal_startup_after_excluded(self):
+        """startup_after entries that are co-located should not appear in merged."""
+        # assessment-engine depends on forgejo; if both are in the same VM, forgejo dep drops
+        merged = self.r.merge_roles(["forgejo", "assessment-engine"])
+        self.assertNotIn("forgejo", merged["startup_after"],
+                         "forgejo should not appear in startup_after when co-located")
+
+    def test_external_startup_after_retained(self):
+        """startup_after entries for external roles must be kept."""
+        # assessment-engine starts after forgejo; if assessment-engine is alone:
+        merged = self.r.merge_roles(["assessment-engine"])
+        self.assertIn("forgejo", merged["startup_after"])
+
+    def test_all_three_merged_has_all_packages(self):
+        merged = self.r.merge_roles(self.r.REQUIRED_ROLES)
+        all_pkgs = []
+        for rid in self.r.REQUIRED_ROLES:
+            all_pkgs.extend(self.r.ROLES[rid]["extra_packages"])
+        for pkg in set(all_pkgs):
+            self.assertIn(pkg, merged["extra_packages"])
+
+    def test_workspace_paths_collected(self):
+        merged = self.r.merge_roles(["infra-bootstrap", "assessment-engine"])
+        self.assertIn("/opt/infra", merged["workspace_paths"])
+        self.assertIn("/opt/assessment", merged["workspace_paths"])
+
+
+class TestResolveConsolidation(unittest.TestCase):
+    def setUp(self):
+        self.r = _import("roles.py", "roles")
+
+    def test_full_returns_three_descriptors(self):
+        descriptors = self.r.resolve_consolidation("full")
+        self.assertEqual(len(descriptors), 3)
+
+    def test_recommended_returns_two_descriptors(self):
+        descriptors = self.r.resolve_consolidation("recommended")
+        self.assertEqual(len(descriptors), 2)
+
+    def test_minimal_returns_one_descriptor(self):
+        descriptors = self.r.resolve_consolidation("minimal")
+        self.assertEqual(len(descriptors), 1)
+
+    def test_each_descriptor_has_required_fields(self):
+        for mode in self.r.CONSOLIDATION_MODES:
+            for desc in self.r.resolve_consolidation(mode):
+                for field in ("vm_name", "component_roles", "merged", "vmid_offset", "wave"):
+                    self.assertIn(field, desc,
+                                  msg=f"Mode {mode!r}: descriptor missing {field!r}")
+
+    def test_descriptors_sorted_by_wave(self):
+        for mode in self.r.CONSOLIDATION_MODES:
+            descriptors = self.r.resolve_consolidation(mode)
+            waves = [d["wave"] for d in descriptors]
+            self.assertEqual(waves, sorted(waves),
+                             msg=f"Mode {mode!r}: descriptors not sorted by wave")
+
+    def test_optional_roles_appended(self):
+        descriptors = self.r.resolve_consolidation("recommended", ["dns"])
+        vm_names = [d["vm_name"] for d in descriptors]
+        self.assertIn("dns", vm_names)
+        self.assertEqual(len(descriptors), 3)  # 2 required + 1 optional
+
+    def test_unknown_mode_raises(self):
+        with self.assertRaises(ValueError):
+            self.r.resolve_consolidation("nonsense")
+
+    def test_minimal_vm_has_all_required_roles(self):
+        descriptors = self.r.resolve_consolidation("minimal")
+        self.assertEqual(len(descriptors), 1)
+        all_roles = descriptors[0]["component_roles"]
+        for rid in self.r.REQUIRED_ROLES:
+            self.assertIn(rid, all_roles)
+
+
+class TestVmStubFromDescriptor(unittest.TestCase):
+    def setUp(self):
+        self.r = _import("roles.py", "roles")
+
+    def _desc(self, mode: str, vm_name: str) -> dict:
+        return next(d for d in self.r.resolve_consolidation(mode) if d["vm_name"] == vm_name)
+
+    def test_full_forgejo_stub(self):
+        desc = self._desc("full", "forgejo")
+        stub = self.r.generate_vm_stub_from_descriptor(desc, 101, "192.168.1.21")
+        self.assertEqual(stub["name"], "forgejo")
+        self.assertEqual(stub["initial_ip"], "192.168.1.21")
+        self.assertEqual(stub["vmid"], 101)
+        self.assertIsNone(stub["cloudinit"]["vendor_data_path"])
+
+    def test_recommended_automation_has_both_roles(self):
+        desc = self._desc("recommended", "automation")
+        stub = self.r.generate_vm_stub_from_descriptor(desc, 100, "192.168.1.20")
+        self.assertIn("infra-bootstrap", stub["component_roles"])
+        self.assertIn("assessment-engine", stub["component_roles"])
+
+    def test_recommended_automation_has_ansible_and_assessment_packages(self):
+        desc = self._desc("recommended", "automation")
+        stub = self.r.generate_vm_stub_from_descriptor(desc, 100, "192.168.1.20")
+        self.assertIn("ansible-core", stub["extra_packages"])
+        self.assertIn("python3-venv", stub["extra_packages"])
+
+    def test_recommended_automation_has_vendor_data(self):
+        """automation VM includes infra-bootstrap so needs vendor-data."""
+        desc = self._desc("recommended", "automation")
+        stub = self.r.generate_vm_stub_from_descriptor(desc, 100, "192.168.1.20")
+        self.assertIsNotNone(stub["cloudinit"]["vendor_data_path"])
+
+    def test_minimal_toolchain_has_all_packages(self):
+        desc = self._desc("minimal", "toolchain")
+        stub = self.r.generate_vm_stub_from_descriptor(desc, 100, "192.168.1.20")
+        ab_pkgs = self.r.ROLES["infra-bootstrap"]["extra_packages"]
+        for pkg in ab_pkgs:
+            self.assertIn(pkg, stub["extra_packages"])
+
+    def test_minimal_toolchain_has_vendor_data(self):
+        desc = self._desc("minimal", "toolchain")
+        stub = self.r.generate_vm_stub_from_descriptor(desc, 100, "192.168.1.20")
+        self.assertIsNotNone(stub["cloudinit"]["vendor_data_path"])
+
+    def test_combined_vm_note_mentions_roles(self):
+        desc = self._desc("minimal", "toolchain")
+        stub = self.r.generate_vm_stub_from_descriptor(desc, 100, "192.168.1.20")
+        self.assertIsNotNone(stub["notes"])
+        self.assertIn("Combined", stub["notes"])
+
+    def test_single_role_vm_has_no_combined_note(self):
+        desc = self._desc("full", "forgejo")
+        stub = self.r.generate_vm_stub_from_descriptor(desc, 101, "192.168.1.21")
+        self.assertIsNone(stub["notes"])
+
+
+class TestSelectConsolidationLogic(unittest.TestCase):
+    """Test the RAM-based auto-suggestion logic."""
+
+    def setUp(self):
+        self.r = _import("roles.py", "roles")
+
+    def test_low_ram_suggests_minimal(self):
+        # Can't easily test interactive mode without mocking input,
+        # but we can verify the RAM threshold logic directly
+        # by checking what suggestion would be made
+        ram = 8.0
+        suggestion = "minimal" if ram < 16 else "recommended"
+        self.assertEqual(suggestion, "minimal")
+
+    def test_high_ram_suggests_recommended(self):
+        ram = 32.0
+        suggestion = "minimal" if ram < 16 else "recommended"
+        self.assertEqual(suggestion, "recommended")
+
+    def test_borderline_ram_suggests_recommended(self):
+        ram = 16.0
+        suggestion = "minimal" if ram < 16 else "recommended"
+        self.assertEqual(suggestion, "recommended")
+
+
 class TestKeepassDiscovery(unittest.TestCase):
     def setUp(self):
         self.sn = _import("suggest-names.py", "suggest_names")

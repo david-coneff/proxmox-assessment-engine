@@ -292,18 +292,41 @@ def build_bootstrap_state(non_interactive: bool = False) -> dict:
     print()
 
     # --- Infrastructure role selection ---
-    selected_roles = roles_mod.select_roles_interactive(non_interactive)
+    selected_optional = roles_mod.select_roles_interactive(non_interactive)
+    optional_only = [r for r in selected_optional if not roles_mod.ROLES[r]["required"]]
+
+    # --- Consolidation mode ---
+    # Pass discovered RAM so the wizard can auto-suggest minimal/recommended
+    discovered_ram = None
+    try:
+        import re
+        mem_info = Path("/proc/meminfo")
+        if mem_info.exists():
+            text = mem_info.read_text()
+            m = re.search(r"MemTotal:\s+(\d+) kB", text)
+            if m:
+                discovered_ram = int(m.group(1)) / 1024 / 1024
+    except Exception:
+        pass
+
+    consolidation = roles_mod.select_consolidation_interactive(
+        total_ram_gb=discovered_ram,
+        non_interactive=non_interactive,
+    )
+    descriptors = roles_mod.resolve_consolidation(consolidation, optional_only)
 
     # --- VM IP assignment ---
+    print()
     print("--- VM IP Assignment ---")
-    vm_names = [roles_mod.ROLES[r]["default_hostname"] for r in selected_roles]
+    vm_names = [d["vm_name"] for d in descriptors]
     vmid_base = 100
     if cidr and "/" in cidr:
         ip_suggestions = sn.suggest_ips(cidr, vm_names)
         host_ip = ip_suggestions["host"]
         print(f"  Suggested host IP:  {host_ip}")
         for name, ip in ip_suggestions["vms"].items():
-            print(f"  Suggested {name:<22} {ip}")
+            roles_label = ", ".join(descriptors[vm_names.index(name)]["component_roles"])
+            print(f"  Suggested {name:<22} {ip}  [{roles_label}]")
         print()
         confirmed_host_ip = _prompt("Proxmox host IP", host_ip, "SUGGESTED", non_interactive)
         vm_ips = {}
@@ -315,52 +338,51 @@ def build_bootstrap_state(non_interactive: bool = False) -> dict:
                   for name in vm_names}
     print()
 
-    # --- Generate VM definitions from roles ---
+    # --- Generate VM definitions from consolidation descriptors ---
     vms = []
-    for role_id in selected_roles:
-        name = roles_mod.ROLES[role_id]["default_hostname"]
-        vmid = roles_mod.vmid_for_role(role_id, vmid_base)
+    for desc in descriptors:
+        name = desc["vm_name"]
+        vmid = vmid_base + desc["vmid_offset"]
         ip = vm_ips.get(name, "POPULATE")
-        vm = roles_mod.generate_vm_stub(role_id, vmid, ip)
-        # Apply vm_defaults overrides
+        vm = roles_mod.generate_vm_stub_from_descriptor(desc, vmid, ip)
         vm["initial_user"] = initial_user
         vm["bridge"] = bridges[0] if bridges else "vmbr0"
         vms.append(vm)
 
-    # --- Generate service contracts from roles ---
+    # --- Generate service contracts from descriptors ---
     service_contracts = []
-    for role_id in selected_roles:
-        name = roles_mod.ROLES[role_id]["default_hostname"]
-        contract = roles_mod.generate_service_contract_stub(role_id, name)
-        if contract:
-            service_contracts.append(contract)
+    for desc in descriptors:
+        for role_id in desc["component_roles"]:
+            contract = roles_mod.generate_service_contract_stub(role_id, desc["vm_name"])
+            if contract:
+                service_contracts.append(contract)
 
-    # --- Generate DNS registry from suggested IPs ---
+    # --- Generate DNS registry ---
     dns_registry = []
     if confirmed_host_ip:
         dns_registry = sn.dns_registry_entries(
             hostname=h_hostname,
             host_ip=confirmed_host_ip,
             search_domain=sd or "internal",
-            vms=[{"name": roles_mod.ROLES[r]["default_hostname"],
-                  "vmid": roles_mod.vmid_for_role(r, vmid_base),
-                  "initial_ip": vm_ips.get(roles_mod.ROLES[r]["default_hostname"], "POPULATE"),
-                  "role": r}
-                 for r in selected_roles],
+            vms=[{"name": d["vm_name"],
+                  "vmid": vmid_base + d["vmid_offset"],
+                  "initial_ip": vm_ips.get(d["vm_name"], "POPULATE"),
+                  "role": "+".join(d["component_roles"])}
+                 for d in descriptors],
         )
 
-    # --- Generate secret registry from naming convention ---
+    # --- Generate secret registry ---
     secret_registry = sn.secret_registry_entries(
         kp_root=kp_root,
         hostname=h_hostname,
         cell_id=cell_id,
-        vms=[{"name": roles_mod.ROLES[r]["default_hostname"],
-              "vmid": roles_mod.vmid_for_role(r, vmid_base),
-              "role": r}
-             for r in selected_roles],
+        vms=[{"name": d["vm_name"],
+              "vmid": vmid_base + d["vmid_offset"],
+              "role": "+".join(d["component_roles"])}
+             for d in descriptors],
     )
 
-    # Show naming convention preview before writing
+    # --- Show naming convention preview ---
     sn.print_preview(
         cell_id=cell_id,
         hostname=h_hostname,
@@ -428,11 +450,8 @@ def build_bootstrap_state(non_interactive: bool = False) -> dict:
             "notes": "Populate after reviewing hardware",
         },
 
-        # Wave-ordered first-boot sequence derived from selected roles
-        "first_boot_order": [
-            roles_mod.ROLES[r]["default_hostname"]
-            for r in sorted(selected_roles, key=lambda r: roles_mod.ROLES[r]["wave"])
-        ],
+        # Wave-ordered first-boot sequence from consolidation descriptors
+        "first_boot_order": [d["vm_name"] for d in descriptors],
     }
 
 

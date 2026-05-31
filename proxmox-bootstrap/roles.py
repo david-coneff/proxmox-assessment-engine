@@ -9,12 +9,23 @@ Defines the minimum set of VM roles required for a cell to:
   - Reproduce itself from repository state after failure
 
 All three REQUIRED roles must be deployed for the self-documentation loop
-to function without operator involvement.
+to function without operator involvement. However, they do not each require a
+separate VM. Consolidation modes control how roles are distributed across VMs:
 
-Optional roles extend capability but are not needed for basic operation.
+  full          3 VMs — one per required role (maximum isolation)
+  recommended   2 VMs — forgejo alone, automation (infra-bootstrap +
+                         assessment-engine) combined  [DEFAULT]
+  minimal       1 VM  — all three roles on one toolchain VM
+
+For a single-node homelab the node itself is the single point of failure
+regardless of VM count. The recommended split gives Forgejo an independent
+lifecycle (upgrade without touching automation tools) while sharing the
+automation VM between the two periodic-runner roles that have the same
+operational pattern and package requirements.
 
 Usage (standalone):
     python3 roles.py                         show catalog
+    python3 roles.py --consolidation         show consolidation modes
     python3 roles.py --required              show required roles only
     python3 roles.py --generate pve01 100    generate VM stub JSON
 
@@ -177,8 +188,245 @@ OPTIONAL_ROLES = [rid for rid, r in ROLES.items() if not r["required"]]
 
 
 # ---------------------------------------------------------------------------
+# Consolidation modes
+# ---------------------------------------------------------------------------
+#
+# A consolidation mode maps logical roles to VM names.
+# Roles sharing the same VM name are deployed together on one machine.
+# The combined VM inherits the union of each role's packages, workspace
+# paths, service ports, and startup_after constraints.
+
+CONSOLIDATION_MODES: dict[str, dict] = {
+
+    "full": {
+        "description": "One VM per required role — maximum lifecycle independence",
+        "detail": (
+            "Each required role runs on its own VM. Forgejo, the Ansible "
+            "controller, and the assessment engine are independently upgradeable, "
+            "restartable, and recoverable. Best for multi-node clusters or when "
+            "operational isolation matters."
+        ),
+        "recommended_for": "Multi-node clusters, production, maximum isolation",
+        "vms": {
+            # vm_name → [role_ids it hosts]
+            "forgejo":           ["forgejo"],
+            "infra-bootstrap":   ["infra-bootstrap"],
+            "assessment-engine": ["assessment-engine"],
+        },
+        "vm_order": ["forgejo", "infra-bootstrap", "assessment-engine"],
+    },
+
+    "recommended": {
+        "description": "2 VMs: forgejo alone + automation (infra-bootstrap & assessment-engine)",
+        "detail": (
+            "Forgejo runs independently (stable persistent service; upgrade "
+            "without touching automation). The infra-bootstrap Ansible controller "
+            "and assessment-engine share one VM — both are periodic-runner tools "
+            "with identical package requirements and the same operational pattern "
+            "(idle most of the time, burst on schedule). "
+            "Best for single-node homelabs with 16 GB+ RAM."
+        ),
+        "recommended_for": "Most homelab setups — single node, 16 GB+ RAM",
+        "vms": {
+            "forgejo":    ["forgejo"],
+            "automation": ["infra-bootstrap", "assessment-engine"],
+        },
+        "vm_order": ["forgejo", "automation"],
+    },
+
+    "minimal": {
+        "description": "1 VM: all required roles on a single toolchain VM",
+        "detail": (
+            "All three roles — Forgejo, Ansible controller, and assessment "
+            "engine — run on one VM. Cloud-Init provisions the VM; Ansible "
+            "configures the services inside it. No bootstrap paradox: the "
+            "controller and the service it manages are the same machine. "
+            "On a single-node Proxmox host the node is the true SPOF regardless "
+            "of VM count, so this saves RAM without meaningful resilience loss. "
+            "Best for development, testing, or RAM-constrained setups (<16 GB)."
+        ),
+        "recommended_for": "Development, RAM-constrained single node (<16 GB RAM)",
+        "vms": {
+            "toolchain": ["forgejo", "infra-bootstrap", "assessment-engine"],
+        },
+        "vm_order": ["toolchain"],
+    },
+}
+
+DEFAULT_CONSOLIDATION = "recommended"
+
+
+# ---------------------------------------------------------------------------
+# Consolidation helpers
+# ---------------------------------------------------------------------------
+
+def merge_roles(role_ids: list[str]) -> dict:
+    """
+    Merge multiple role definitions into a single combined role descriptor.
+
+    Used when two or more roles share a VM. The merged result has:
+      - extra_packages: union (deduplicated, preserving insertion order)
+      - workspace_paths: list of all non-null workspace paths from component roles
+      - service_ports: union from all component roles
+      - startup_after: union of external deps (roles NOT in this combined VM)
+      - wave: minimum wave of all component roles (determines provisioning order)
+      - vmid_offset: minimum vmid_offset of all component roles
+    """
+    packages: list[str] = []
+    workspace_paths: list[str] = []
+    service_ports: list[dict] = []
+    startup_after: list[str] = []
+    waves: list[int] = []
+    offsets: list[int] = []
+    descriptions: list[str] = []
+
+    for rid in role_ids:
+        role = ROLES[rid]
+        waves.append(role["wave"])
+        offsets.append(role["vmid_offset"])
+        descriptions.append(role["description"].split(" — ")[0].split(" -")[0])
+
+        for pkg in role["extra_packages"]:
+            if pkg not in packages:
+                packages.append(pkg)
+
+        if role["workspace_path"] and role["workspace_path"] not in workspace_paths:
+            workspace_paths.append(role["workspace_path"])
+
+        for port in role.get("service_ports", []):
+            if port not in service_ports:
+                service_ports.append(port)
+
+        for dep in role.get("startup_after", []):
+            if dep not in role_ids and dep not in startup_after:
+                # Only keep external deps (not roles merged into the same VM)
+                startup_after.append(dep)
+
+    return {
+        "component_roles": role_ids,
+        "description": " + ".join(descriptions),
+        "wave": min(waves),
+        "vmid_offset": min(offsets),
+        "extra_packages": packages,
+        "workspace_paths": workspace_paths,  # list, not single path
+        "service_ports": service_ports,
+        "startup_after": startup_after,
+    }
+
+
+def resolve_consolidation(
+    mode: str,
+    selected_optional_roles: list[str] | None = None,
+) -> list[dict]:
+    """
+    Resolve a consolidation mode into a list of VM descriptors.
+
+    Each VM descriptor is a dict:
+      {
+        "vm_name":        str,          hostname for this VM
+        "component_roles": [str],       role IDs merged into this VM
+        "merged":         dict,         merged role definition
+        "vmid_offset":    int,
+        "wave":           int,
+      }
+
+    Optional roles (dns, monitoring, pbs, ipam) are always one-role-per-VM
+    and appended after the required VMs.
+    """
+    if mode not in CONSOLIDATION_MODES:
+        raise ValueError(f"Unknown consolidation mode: {mode!r}. "
+                         f"Choose from: {list(CONSOLIDATION_MODES)}")
+
+    config = CONSOLIDATION_MODES[mode]
+    vms: list[dict] = []
+
+    for vm_name in config["vm_order"]:
+        role_ids = config["vms"][vm_name]
+        merged = merge_roles(role_ids)
+        vms.append({
+            "vm_name": vm_name,
+            "component_roles": role_ids,
+            "merged": merged,
+            "vmid_offset": merged["vmid_offset"],
+            "wave": merged["wave"],
+        })
+
+    # Append selected optional roles (always separate VMs)
+    for rid in (selected_optional_roles or []):
+        role = ROLES[rid]
+        merged = merge_roles([rid])
+        vms.append({
+            "vm_name": role["default_hostname"],
+            "component_roles": [rid],
+            "merged": merged,
+            "vmid_offset": role["vmid_offset"],
+            "wave": role["wave"],
+        })
+
+    # Sort by wave
+    vms.sort(key=lambda v: v["wave"])
+    return vms
+
+
+# ---------------------------------------------------------------------------
 # VM definition generation
 # ---------------------------------------------------------------------------
+
+def generate_vm_stub_from_descriptor(
+    descriptor: dict,
+    vmid: int,
+    ip: str,
+    template_name: str = "ubuntu-2204-base",
+) -> dict:
+    """
+    Generate a vm_bootstrap entry from a resolved VM descriptor (from resolve_consolidation).
+    Handles both single-role and combined-role VMs.
+    """
+    vm_name = descriptor["vm_name"]
+    merged = descriptor["merged"]
+    role_ids = descriptor["component_roles"]
+
+    # Primary role for snippet naming (lowest wave in the combined set)
+    primary_role_id = sorted(role_ids, key=lambda r: ROLES[r]["wave"])[0]
+    snippet_base = "snippets"
+
+    # For combined VMs: vendor-data only if infra-bootstrap is one of the roles
+    needs_vendor_data = "infra-bootstrap" in role_ids
+
+    # workspace_paths: use the first if only one; multiple need runcmd generation
+    workspace_paths = merged.get("workspace_paths", [])
+
+    return {
+        "vmid": vmid,
+        "name": vm_name,
+        "role": "+".join(role_ids) if len(role_ids) > 1 else role_ids[0],
+        "component_roles": role_ids,
+        "template_name": template_name,
+        "cloudinit": {
+            "user_data_path": f"{snippet_base}/user-data/{vm_name}.yaml",
+            "user_data_hash": None,
+            "network_config_path": f"{snippet_base}/network-config/{vm_name}.yaml",
+            "network_config_hash": None,
+            "vendor_data_path": (
+                f"{snippet_base}/vendor-data/proxmox-hooks.yaml"
+                if needs_vendor_data else None
+            ),
+            "vendor_data_hash": None,
+        },
+        "initial_ip": ip,
+        "initial_hostname": vm_name,
+        "bridge": "vmbr0",
+        "initial_user": "ubuntu",
+        "ssh_key_reference": f"{vm_name}-deploy-key",
+        "password_reference": f"vm-{vm_name}-password",
+        "extra_packages": list(merged["extra_packages"]),
+        "workspace_path": workspace_paths[0] if len(workspace_paths) == 1 else None,
+        "workspace_paths": workspace_paths,   # all paths for combined VMs
+        "notes": (
+            f"Combined: {', '.join(role_ids)}" if len(role_ids) > 1 else None
+        ),
+    }
+
 
 def generate_vm_stub(
     role_id: str,
@@ -255,6 +503,54 @@ def vmid_for_role(role_id: str, vmid_base: int) -> int:
 # ---------------------------------------------------------------------------
 # Interactive role selection
 # ---------------------------------------------------------------------------
+
+def select_consolidation_interactive(
+    total_ram_gb: float | None = None,
+    non_interactive: bool = False,
+) -> str:
+    """
+    Prompt the operator to choose a consolidation mode.
+    Returns the chosen mode key (e.g. 'recommended').
+    """
+    print()
+    print("─" * 64)
+    print("  VM Consolidation Mode")
+    print("─" * 64)
+    print()
+    print("  All three required roles can be deployed as separate VMs")
+    print("  or combined onto fewer machines.")
+    print()
+
+    for key, mode in CONSOLIDATION_MODES.items():
+        vm_count = len(mode["vms"])
+        default_marker = " [DEFAULT]" if key == DEFAULT_CONSOLIDATION else ""
+        print(f"  {key}{default_marker}")
+        print(f"    {vm_count} VM(s): {', '.join(mode['vms'].keys())}")
+        print(f"    {mode['description']}")
+        print(f"    Best for: {mode['recommended_for']}")
+        print()
+
+    # Auto-suggest based on RAM if available
+    suggestion = DEFAULT_CONSOLIDATION
+    if total_ram_gb is not None:
+        suggestion = "minimal" if total_ram_gb < 16 else "recommended"
+        print(f"  [SUGGESTED based on {total_ram_gb:.0f} GB RAM: {suggestion!r}]")
+        print()
+
+    if non_interactive:
+        print(f"  [non-interactive] Using: {suggestion}")
+        return suggestion
+
+    try:
+        raw = input(f"  Choose consolidation mode [{suggestion}]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return suggestion
+
+    chosen = raw if raw in CONSOLIDATION_MODES else suggestion
+    print(f"  Selected: {chosen} — {CONSOLIDATION_MODES[chosen]['description']}")
+    return chosen
+
 
 def select_roles_interactive(non_interactive: bool = False) -> list[str]:
     """
