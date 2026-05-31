@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-05-31 14:05:41 UTC (2026-05-31 08:05:41 MDT)
+Last updated: 2026-05-31 17:24:59 UTC (2026-05-31 11:24:59 MDT)
 
 ## Active Architecture: v7.0
 
@@ -12,11 +12,11 @@ Seventeen-state model. Six-layer lifecycle. Three assessment tiers. Five depende
 
 ## Next Action
 
-**Implement Milestone 6.3 — Secret Registry reader in doc-gen.**
-Reads `proxmox-bootstrap/secret-registry.yaml`, pre-populates KeePass paths in
-recovery runbook (replaces `[KEEPASS_PATH]` placeholders with actual paths).
-After 6.3: 6.4 DNS Registry reader, then 6.5, 6.6, 6.7, 6.8.
-See docs/SESSION-HANDOFF.md for full context and file locations.
+**Implement Phase 2 — Generators.**
+Create proxmox-bootstrap/generators/: tofu-vars.py, cloud-init-gen.py,
+ansible-inventory-gen.py, k3s-config-gen.py, flux-bootstrap-gen.py.
+All generators read from plans/ (Phase 1 output). Stdlib only.
+See docs/SESSION-HANDOFF.md for full spec.
 
 ## Completed Milestones
 
@@ -31,6 +31,10 @@ See docs/SESSION-HANDOFF.md for full context and file locations.
 | 5.6 | Historical State Integration — drift detection, snapshot index, reproducibility | Complete |
 | Architecture Review | v4.0 — 7-state model, 6-layer lifecycle, Cloud-Init as first-class | Complete |
 | Architecture Review | v5.0 — 17-state model, federation, digital twin, 5 dependency graphs | Complete |
+| Architecture Review | v6.0 — k3s, Flux CD, four intelligence phases | Complete |
+| Architecture Review | v7.0 — Assessment Engine, 5 scores (ACS/RRS/DCS/CRS/OSS), 12-phase roadmap | Complete |
+| Phase 0 | Metadata Model — 10 authoritative YAML files + validator | Complete |
+| Phase 1 | Bootstrap Intelligence — discovery, 4 planners, 2 validators | Complete |
 | 6.0 | External backup (GitHub/encrypted-archive), recovery runbook Step 0, init wizard prompt | Complete |
 | 6.1 | Bootstrap State and Service State schemas (cell_id, network_topology, external_backup, containers) | Complete |
 | 6.2 | Cloud-Init Template Library — generated snippets, generate-network-configs.py, generate-user-data.py | Complete |
@@ -39,7 +43,7 @@ See docs/SESSION-HANDOFF.md for full context and file locations.
 
 | Milestone | Description |
 |---|---|
-| **6.1** | **Bootstrap State Schema — START HERE** |
+| **Phase 2** | **Generators — START HERE** (tofu-vars, ansible-inventory, k3s-config, flux-bootstrap) |
 | 6.2 | Cloud-Init Template Library |
 | 6.3 | Secret Registry |
 | 6.4 | DNS Registry |
