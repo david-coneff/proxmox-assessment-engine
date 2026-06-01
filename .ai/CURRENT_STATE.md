@@ -63,7 +63,9 @@ See ROADMAP.md Milestone 7.4 for the full spec.
 
 | 1.G (network) | Network profiles — LanNetworkConfig/WanNetworkConfig, suggest_lan/wan (with field revision), validate, migration plan generation (7-step LAN→WAN/4-step WAN→LAN), state serialization, dnsmasq config generator, schema additions, SETUP-GUIDE.html updated (66 tests) | Complete |
 
-**Tests: 1739 total (1735 passed, 4 skipped)**
+| SETUP-GUIDE + manifest | Interactive checklist/notes HTML guide with localStorage persistence, export, import; generate-setup-manifest.py with Markdown and JSON output (37 tests) | Complete |
+
+**Tests: 1776 total (1772 passed, 4 skipped)**
 
 ## Next Milestones
 

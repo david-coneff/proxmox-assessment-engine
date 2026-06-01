@@ -113,9 +113,57 @@
   .badge { display: inline-flex; align-items: center; gap: 5px; background: var(--bg2); border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px; font-size: 0.8em; color: var(--muted); margin: 2px 3px; }
 
   /* ── Expand/collapse all buttons ────────────────────────────────────── */
-  .controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .controls { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
   .ctrl-btn { background: var(--bg2); border: 1px solid var(--border); color: var(--muted); padding: 5px 14px; border-radius: var(--radius); cursor: pointer; font-size: 0.82em; }
   .ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ctrl-btn.export-btn { border-color: var(--green); color: var(--green); }
+  .ctrl-btn.reset-btn  { border-color: var(--red);   color: var(--red); }
+
+  /* ── Progress tracker ───────────────────────────────────────────────── */
+  .progress-bar-wrap { background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 14px; }
+  .progress-label { color: var(--muted); font-size: 0.82em; flex-shrink: 0; }
+  .progress-track { flex: 1; background: var(--bg3); border-radius: 99px; height: 8px; overflow: hidden; }
+  .progress-fill  { height: 100%; background: var(--green); border-radius: 99px;
+    transition: width 0.3s; width: 0%; }
+  .progress-pct   { color: var(--green); font-size: 0.82em; font-weight: 700; flex-shrink: 0; min-width: 36px; }
+
+  /* ── Checklist items ────────────────────────────────────────────────── */
+  .check-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0;
+    cursor: pointer; user-select: none; }
+  .check-row input[type="checkbox"] { margin-top: 2px; accent-color: var(--green);
+    width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+  .check-row .check-label { color: var(--text); font-size: 0.88em; line-height: 1.5; }
+  .check-row.done .check-label { color: var(--muted); text-decoration: line-through; }
+  .checklist { margin: 6px 0 10px 0; }
+
+  /* ── Notes inputs ───────────────────────────────────────────────────── */
+  .note-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .note-label { color: var(--muted); font-size: 0.8em; min-width: 140px; flex-shrink: 0; }
+  .note-input { background: var(--code-bg); border: 1px solid var(--border);
+    color: var(--accent); border-radius: 4px; padding: 3px 8px; font-size: 0.82em;
+    font-family: 'Cascadia Code','Consolas',monospace; flex: 1; min-width: 0;
+    outline: none; }
+  .note-input:focus { border-color: var(--accent); }
+  .note-input.autofill { color: var(--muted); font-style: italic; }
+  .note-input[data-autofilled="true"] { border-style: dashed; color: var(--green); }
+  .auto-badge { font-size: 0.72em; background: #1e3a22; color: var(--green);
+    border-radius: 3px; padding: 1px 5px; flex-shrink: 0; }
+  .notes-section { margin-top: 10px; padding-top: 8px;
+    border-top: 1px dashed var(--border); }
+  .notes-section-title { color: var(--muted); font-size: 0.75em; text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 6px; }
+
+  /* ── Print / export ─────────────────────────────────────────────────── */
+  @media print {
+    body { background: #fff; color: #000; }
+    .controls, .ctrl-btn { display: none !important; }
+    details { display: block !important; }
+    summary::before { display: none; }
+    .note-input { border: 1px solid #ccc; background: #fafafa; color: #000; }
+    .toc a { color: #000; }
+  }
 </style>
 </head>
 <body>
@@ -127,6 +175,16 @@
   <button class="ctrl-btn" onclick="document.querySelectorAll('details').forEach(d=>d.open=true)">⊞ Expand all</button>
   <button class="ctrl-btn" onclick="document.querySelectorAll('details').forEach(d=>d.open=false)">⊟ Collapse all</button>
   <button class="ctrl-btn" onclick="document.querySelectorAll('details.forge,details.spawn,details.phoenix').forEach(d=>d.open=true)">Open package headers</button>
+  <button class="ctrl-btn export-btn" onclick="exportManifest()">📄 Export manifest</button>
+  <button class="ctrl-btn export-btn" onclick="window.print()">🖨 Print</button>
+  <button class="ctrl-btn reset-btn" onclick="if(confirm('Clear all checkboxes and notes?')){localStorage.clear();location.reload();}">↺ Reset</button>
+  <button class="ctrl-btn" onclick="importManifest()">⬆ Import broodforge manifest</button>
+</div>
+<div class="progress-bar-wrap">
+  <span class="progress-label">Setup progress:</span>
+  <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+  <span class="progress-pct" id="prog-pct">0%</span>
+  <span class="progress-label" id="prog-count" style="color:var(--muted)">0 / 0 steps</span>
 </div>
 
 <div class="toc">
@@ -191,13 +249,16 @@
 <summary>📋 Before you begin</summary>
 <div class="detail-body">
 <h4>You will need</h4>
-<ul>
-  <li>A physical host with Proxmox VE installed (bare-metal install from ISO)</li>
-  <li>SSH access as <code>root</code> from your workstation</li>
-  <li>The forge package copied to the host (e.g. via <code>scp</code> or USB)</li>
-  <li>Your domain name and DNS registrar credentials (if using external DNS/DDNS)</li>
-  <li>Your chosen cloud backup provider API key (if using cloud backup)</li>
-</ul>
+<div class="checklist">
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-pre-proxmox"><span class="check-label">Physical host with Proxmox VE installed (bare-metal install from ISO)</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-pre-ssh"><span class="check-label">SSH access as <code>root</code> from your workstation</span></label>
+  <div class="note-row"><span class="note-label">Proxmox host IP:</span><input type="text" class="note-input" data-key="forge-pre-ip" placeholder="e.g. 192.168.1.10"></div>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-pre-pkg"><span class="check-label">Forge package copied to the host (e.g. via <code>scp</code> or USB)</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-pre-domain"><span class="check-label">Domain name ready (if using external DNS/DDNS for WAN profile)</span></label>
+  <div class="note-row"><span class="note-label">Domain name:</span><input type="text" class="note-input" data-key="forge-pre-domain-val" placeholder="e.g. home.example.com (or duckdns subdomain)"></div>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-pre-backup"><span class="check-label">Cloud backup provider API key obtained (if using cloud backup)</span></label>
+  <div class="note-row"><span class="note-label">Backup provider:</span><input type="text" class="note-input" data-key="forge-pre-backup-provider" placeholder="e.g. Backblaze B2, Cloudflare R2, local /mnt/backup"></div>
+</div>
 <h4>Hardware minimums for the broodforge stack</h4>
 <div class="setting-row"><span class="setting-label">RAM</span><span class="setting-desc">≥ 32 GB recommended (16 GB absolute minimum for forge-only stack)</span></div>
 <div class="setting-row"><span class="setting-label">Storage</span><span class="setting-desc">≥ 2 disks for ZFS mirror, or 1 disk (single / stripe, no redundancy)</span></div>
@@ -460,15 +521,37 @@ python3 proxmox-bootstrap/setup-network.py \
 <summary>🚀 Execution phases</summary>
 <div class="detail-body">
 <p>Run <code>bash forge.sh</code>. The forge is resumable — if a phase fails, fix the issue and re-run; completed phases are skipped via checkpoint files.</p>
-<div class="phase-row"><span class="phase-id">phase-00 discover</span><span class="phase-desc">Hardware, network, storage, Proxmox discovery → validated hardware profile. Review output before proceeding.</span></div>
-<div class="phase-row"><span class="phase-id">phase-01 plan</span><span class="phase-desc">Generate forge plan from hardware profile + your configuration mode choices. All settings confirmed here.</span></div>
-<div class="phase-row"><span class="phase-id">phase-02 validate</span><span class="phase-desc">RED findings block the forge. Fix reported issues before proceeding. Common: insufficient RAM, disk naming conflicts, CIDR overlaps.</span></div>
-<div class="phase-row"><span class="phase-id">phase-03 host</span><span class="phase-desc">Hostname, ZFS pool, bridges, apt repos, dnsmasq, Headscale, TLS certificates, KeePass initialisation, Proxmox nag suppression.</span></div>
-<div class="phase-row"><span class="phase-id">phase-04 vms</span><span class="phase-desc">Forgejo + operations VM provisioned via OpenTofu. Cloud-Init first-boot runs; SSH access confirmed before proceeding.</span></div>
-<div class="phase-row"><span class="phase-id">phase-05 k3s</span><span class="phase-desc">k3s single-node cluster deployed on the operations VM or a dedicated server VM. <code>kubectl get nodes</code> shows Ready.</span></div>
-<div class="phase-row"><span class="phase-id">phase-06 gitops</span><span class="phase-desc">Flux CD bootstrapped, pointing at Forgejo. GitOps reconciliation begins. cert-manager + ingress deployed.</span></div>
-<div class="phase-row"><span class="phase-id">phase-07 intelligence</span><span class="phase-desc">Documentation engine + assessment engine deployed as k3s workloads. Platform Health Score (PHS) computed for the first time.</span></div>
-<div class="phase-row"><span class="phase-id">phase-08 verify</span><span class="phase-desc">Full health check: all VMs running, k3s Ready, Flux reconciled, PHS ≥ 80. bootstrap-state.json committed to Forgejo.</span></div>
+<div class="checklist">
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p00"><span class="check-label"><strong>phase-00 discover</strong> — Hardware, network, storage, Proxmox discovery → validated hardware profile. Review output before proceeding.</span></label>
+  <div class="note-row"><span class="note-label">Notes / deviations:</span><input type="text" class="note-input" data-key="forge-p00-note" placeholder="e.g. disk /dev/sda not detected, ran lsblk manually"></div>
+
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p01"><span class="check-label"><strong>phase-01 plan</strong> — Generate forge plan from hardware profile + configuration mode choices. All settings confirmed here.</span></label>
+  <div class="note-row"><span class="note-label">Config mode chosen:</span><input type="text" class="note-input" data-key="forge-p01-mode" placeholder="autonomous / ip-selective / group-manual / full-manual"></div>
+  <div class="note-row"><span class="note-label">Network profile:</span><input type="text" class="note-input" data-key="forge-p01-netprofile" placeholder="lan / wan"></div>
+
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p02"><span class="check-label"><strong>phase-02 validate</strong> — RED findings block the forge. Fix before proceeding. Common: insufficient RAM, disk naming conflicts, CIDR overlaps.</span></label>
+  <div class="note-row"><span class="note-label">Issues found / fixed:</span><input type="text" class="note-input" data-key="forge-p02-note" placeholder="e.g. expanded RAM to 32 GB, no issues"></div>
+
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p03"><span class="check-label"><strong>phase-03 host</strong> — Hostname, ZFS pool, bridges, apt repos, dnsmasq, Headscale, TLS certificates, KeePass initialisation, Proxmox nag suppression.</span></label>
+  <div class="note-row"><span class="note-label">Hostname set:</span><input type="text" class="note-input" data-key="forge-p03-hostname" placeholder="e.g. pve01"></div>
+  <div class="note-row"><span class="note-label">ZFS pool name:</span><input type="text" class="note-input" data-key="forge-p03-pool" placeholder="e.g. rpool"></div>
+  <div class="note-row"><span class="note-label">KeePass path:</span><input type="text" class="note-input" data-key="forge-p03-kdbx" placeholder="e.g. /opt/broodforge/cluster.kdbx"></div>
+  <div class="note-row"><span class="note-label">Root password:</span><input type="text" class="note-input" data-key="forge-p03-rootpw" placeholder="Record in KeePass — do not store in plain text"></div>
+
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p04"><span class="check-label"><strong>phase-04 vms</strong> — Forgejo + operations VM provisioned via OpenTofu. Cloud-Init first-boot runs; SSH access confirmed before proceeding.</span></label>
+  <div class="note-row"><span class="note-label">Forgejo VMID / IP:</span><input type="text" class="note-input" data-key="forge-p04-forgejo" placeholder="e.g. 101 / 192.168.1.21 [auto]" data-autofill="vms.forgejo.vmid_ip"></div>
+
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p05"><span class="check-label"><strong>phase-05 k3s</strong> — k3s single-node cluster deployed. <code>kubectl get nodes</code> shows Ready.</span></label>
+  <div class="note-row"><span class="note-label">k3s server VM IP:</span><input type="text" class="note-input" data-key="forge-p05-k3sip" placeholder="e.g. 192.168.1.30 [auto]" data-autofill="vms.k3s-server-01.ip"></div>
+
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p06"><span class="check-label"><strong>phase-06 gitops</strong> — Flux CD bootstrapped, pointing at Forgejo. GitOps reconciliation begins.</span></label>
+
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p07"><span class="check-label"><strong>phase-07 intelligence</strong> — Documentation engine + assessment engine deployed. Platform Health Score computed for the first time.</span></label>
+  <div class="note-row"><span class="note-label">Initial PHS:</span><input type="text" class="note-input" data-key="forge-p07-phs" placeholder="e.g. 82 (GREEN)"></div>
+
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-p08"><span class="check-label"><strong>phase-08 verify</strong> — Full health check: all VMs running, k3s Ready, Flux reconciled, PHS ≥ 80. bootstrap-state.json committed to Forgejo.</span></label>
+  <div class="note-row"><span class="note-label">Final PHS:</span><input type="text" class="note-input" data-key="forge-p08-phs" placeholder="e.g. 88 (GREEN)"></div>
+</div>
 <div class="tip">After phase-08 the hatchery is operational. Add user applications via GitOps. Spawn broodlings when you're ready to expand.</div>
 </div>
 </details>
@@ -626,16 +709,22 @@ python3 proxmox-bootstrap/setup-network.py \
 <summary>🚀 Execution phases (on the broodling)</summary>
 <div class="detail-body">
 <p>Copy the spawn package to the broodling, then run <code>bash spawn.sh</code>. The spawn is resumable via checkpoint files.</p>
-<div class="phase-row"><span class="phase-id">phase-00a [WAN]</span><span class="phase-desc">Install Tailscale + join hatchery's Headscale tailnet. Skipped in LAN mode.</span></div>
-<div class="phase-row"><span class="phase-id">phase-00 [A] pre-flight</span><span class="phase-desc">Re-scan actual hardware, diff against embedded hardware profile. Disk IDs, NIC MACs, RAM sufficiency, no conflicting pool/bridge names. On mismatch: failure package, exit.</span></div>
-<div class="phase-row"><span class="phase-id">phase-00 [B] host config</span><span class="phase-desc">Hostname + /etc/hosts, bridges, ZFS pool create (disk IDs confirmed by pre-flight), pvesm add, apt repos.</span></div>
-<div class="phase-row"><span class="phase-id">phase-01 proxmox join</span><span class="phase-desc"><code>pvecm add {hatchery_address}</code> — broodling joins Proxmox cluster. Fingerprint verified from spawn manifest.</span></div>
-<div class="phase-row"><span class="phase-id">phase-02 vms</span><span class="phase-desc">OpenTofu apply for disposition-scoped VMs only. Bridge/datastore names from phase-00 must exist.</span></div>
-<div class="phase-row"><span class="phase-id">phase-03 cloud-init</span><span class="phase-desc">Install Cloud-Init snippets → start VMs → poll SSH readiness before proceeding.</span></div>
-<div class="phase-row"><span class="phase-id">phase-04 k3s join</span><span class="phase-desc">Ansible k3s-server or k3s-worker role. Join token from spawn manifest.</span></div>
-<div class="phase-row"><span class="phase-id">phase-05 [conditional]</span><span class="phase-desc">SQLite → embedded etcd HA promotion. Only if this is the 3rd k3s server node. Skipped otherwise.</span></div>
-<div class="phase-row"><span class="phase-id">phase-06 verify</span><span class="phase-desc">Cluster health: all VMs running, all k3s nodes Ready, conflict re-validation vs live state.</span></div>
-<div class="tip">After phase-06: Flux schedules disposition-appropriate workloads automatically. Assessment Engine detects the broodling and scores it against its declared disposition.</div>
+<div class="note-row" style="margin-bottom:8px"><span class="note-label">Broodling hostname:</span><input type="text" class="note-input" data-key="spawn-hostname" placeholder="e.g. pve02 [auto from hatchery]" data-autofill="spawn.hostname"></div>
+<div class="note-row" style="margin-bottom:8px"><span class="note-label">Broodling LAN IP:</span><input type="text" class="note-input" data-key="spawn-lan-ip" placeholder="e.g. 192.168.1.15 [auto-allocated]" data-autofill="spawn.lan_ip"></div>
+<div class="checklist">
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p00a"><span class="check-label"><strong>phase-00a [WAN only]</strong> — Install Tailscale + join Headscale tailnet. Skipped in LAN mode.</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p00A"><span class="check-label"><strong>phase-00 [A] pre-flight</strong> — Re-scan hardware, diff against profile. Disk IDs, NIC MACs, RAM, no conflicting pool/bridge names. On mismatch: failure package exits.</span></label>
+  <div class="note-row"><span class="note-label">Pre-flight result:</span><input type="text" class="note-input" data-key="spawn-p00a-result" placeholder="PASS / FAIL — note any mismatches"></div>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p00B"><span class="check-label"><strong>phase-00 [B] host config</strong> — Hostname, bridges, ZFS pool create, pvesm add, apt repos.</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p01"><span class="check-label"><strong>phase-01</strong> — Joins Proxmox cluster via <code>pvecm add</code>.</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p02"><span class="check-label"><strong>phase-02</strong> — OpenTofu apply for disposition-scoped VMs.</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p03"><span class="check-label"><strong>phase-03</strong> — Cloud-Init snippets installed, VMs started, SSH readiness confirmed.</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p04"><span class="check-label"><strong>phase-04</strong> — k3s join (worker or server role from spawn manifest).</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p05"><span class="check-label"><strong>phase-05 [conditional]</strong> — SQLite → etcd HA promotion (only if 3rd server node).</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p06"><span class="check-label"><strong>phase-06 verify</strong> — Cluster health: all VMs running, all k3s nodes Ready.</span></label>
+  <div class="note-row"><span class="note-label">Final verification:</span><input type="text" class="note-input" data-key="spawn-p06-note" placeholder="e.g. 2/2 nodes Ready, all VMs running"></div>
+</div>
+<div class="tip">After phase-06: Flux schedules workloads; Assessment Engine detects and scores the broodling against its declared disposition.</div>
 </div>
 </details>
 
@@ -805,12 +894,20 @@ ansible-playbook -i inventory/ site.yml --limit {vm_name}</code></pre>
 <summary>🚀 Execution phases</summary>
 <div class="detail-body">
 <p>Run <code>bash phoenix.sh</code>. Resumable via checkpoint files.</p>
-<div class="phase-row"><span class="phase-id">Wave 0   Network</span><span class="phase-desc">Verify bridges. Reconstruct from network-topology.yaml if missing. Verify gateway reachable.</span></div>
-<div class="phase-row"><span class="phase-id">Wave 0.5 Templates</span><span class="phase-desc">Rebuild VM template(s) from base ISO. Required before RECREATE steps in Wave 3. Skipped if no RECREATE VMs.</span></div>
-<div class="phase-row"><span class="phase-id">Wave 1   Storage</span><span class="phase-desc">Import or recreate ZFS pool. Register with Proxmox (<code>pvesm add</code>).</span></div>
-<div class="phase-row"><span class="phase-id">Wave 2   Host config</span><span class="phase-desc">Set hostname / /etc/hosts. Verify Proxmox services running.</span></div>
-<div class="phase-row"><span class="phase-id">Wave 3   VMs</span><span class="phase-desc">RESTORE (qmrestore from PBS) or RECREATE (tofu + ansible) per VM. KeePass gate fires here.</span></div>
-<div class="phase-row"><span class="phase-id">Wave 4   k3s</span><span class="phase-desc">Verify k3s node membership and Flux reconciliation.</span></div>
+<div class="note-row" style="margin-bottom:8px"><span class="note-label">Failed node hostname:</span><input type="text" class="note-input" data-key="phoenix-hostname" placeholder="e.g. pve01 [from phoenix package]" data-autofill="target_node.hostname"></div>
+<div class="note-row" style="margin-bottom:8px"><span class="note-label">Replacement hardware:</span><input type="text" class="note-input" data-key="phoenix-hw" placeholder="e.g. same model / different CPU, 4 disks instead of 2"></div>
+<div class="checklist">
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="phoenix-w0"><span class="check-label"><strong>Wave 0 — Network</strong>: Verify bridges. Reconstruct from network-topology.yaml if missing. Verify gateway reachable.</span></label>
+  <div class="note-row"><span class="note-label">Bridge status:</span><input type="text" class="note-input" data-key="phoenix-w0-note" placeholder="e.g. vmbr0 UP, IP 192.168.1.10 confirmed"></div>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="phoenix-w05"><span class="check-label"><strong>Wave 0.5 — Templates</strong>: Rebuild VM template(s) from base ISO. Skipped if no RECREATE VMs.</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="phoenix-w1"><span class="check-label"><strong>Wave 1 — Storage</strong>: Import or recreate ZFS pool. Register with Proxmox (<code>pvesm add</code>).</span></label>
+  <div class="note-row"><span class="note-label">Pool status:</span><input type="text" class="note-input" data-key="phoenix-w1-note" placeholder="e.g. imported existing / recreated raidz1 on 3 replacement disks"></div>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="phoenix-w2"><span class="check-label"><strong>Wave 2 — Host config</strong>: Set hostname / /etc/hosts. Verify Proxmox services running.</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="phoenix-w3"><span class="check-label"><strong>Wave 3 — VMs</strong>: RESTORE (qmrestore from PBS) or RECREATE (tofu + ansible). KeePass gate fires here.</span></label>
+  <div class="note-row"><span class="note-label">VMs restored:</span><input type="text" class="note-input" data-key="phoenix-w3-note" placeholder="e.g. forgejo 101 RESTORE, infra-bootstrap 100 RECREATE"></div>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="phoenix-w4"><span class="check-label"><strong>Wave 4 — k3s</strong>: Verify k3s node membership and Flux reconciliation.</span></label>
+  <div class="note-row"><span class="note-label">k3s status:</span><input type="text" class="note-input" data-key="phoenix-w4-note" placeholder="e.g. 2/2 nodes Ready, Flux Applied=True"></div>
+</div>
 </div>
 </details>
 
@@ -848,11 +945,162 @@ ansible-playbook -i inventory/ site.yml --limit {vm_name}</code></pre>
 </p>
 
 <script>
-// Keyboard shortcut: Alt+A = expand all, Alt+C = collapse all
+// ── Keyboard shortcuts ───────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.altKey && e.key === 'a') document.querySelectorAll('details').forEach(d=>d.open=true);
   if (e.altKey && e.key === 'c') document.querySelectorAll('details').forEach(d=>d.open=false);
 });
+
+// ── localStorage persistence ─────────────────────────────────────────────
+const LS_PREFIX = 'broodforge-guide-';
+
+function saveCheck(key, checked) {
+  localStorage.setItem(LS_PREFIX + key, checked ? '1' : '0');
+  updateProgress();
+}
+function saveNote(key, value) {
+  localStorage.setItem(LS_PREFIX + 'note-' + key, value);
+}
+
+function restoreAll() {
+  // Restore checkboxes
+  document.querySelectorAll('.step-check').forEach(cb => {
+    const stored = localStorage.getItem(LS_PREFIX + cb.dataset.key);
+    if (stored === '1') {
+      cb.checked = true;
+      cb.closest('.check-row')?.classList.add('done');
+    }
+    cb.addEventListener('change', () => {
+      cb.closest('.check-row')?.classList.toggle('done', cb.checked);
+      saveCheck(cb.dataset.key, cb.checked);
+    });
+  });
+
+  // Restore notes
+  document.querySelectorAll('.note-input').forEach(inp => {
+    const k = inp.dataset.key;
+    if (!k) return;
+    const stored = localStorage.getItem(LS_PREFIX + 'note-' + k);
+    if (stored !== null) inp.value = stored;
+    inp.addEventListener('input', () => saveNote(k, inp.value));
+  });
+
+  updateProgress();
+}
+
+function updateProgress() {
+  const all     = document.querySelectorAll('.step-check');
+  const checked = document.querySelectorAll('.step-check:checked');
+  const pct     = all.length ? Math.round(checked.length / all.length * 100) : 0;
+  const fill    = document.getElementById('prog-fill');
+  const pctEl   = document.getElementById('prog-pct');
+  const countEl = document.getElementById('prog-count');
+  if (fill)   fill.style.width = pct + '%';
+  if (pctEl)  pctEl.textContent = pct + '%';
+  if (countEl) countEl.textContent = `${checked.length} / ${all.length} steps`;
+}
+
+// ── Export manifest ──────────────────────────────────────────────────────
+function exportManifest() {
+  const lines = [
+    '# Broodforge Setup Manifest',
+    `# Exported: ${new Date().toISOString()}`,
+    '# Edit in: docs/SETUP-GUIDE.html (notes persist in browser localStorage)',
+    '',
+  ];
+
+  // Gather all checked steps
+  lines.push('## Completed Steps');
+  document.querySelectorAll('.step-check:checked').forEach(cb => {
+    const label = cb.closest('.check-row')?.querySelector('.check-label')?.textContent?.trim();
+    if (label) lines.push(`- [x] ${label.replace(/\s+/g,' ')}`);
+  });
+  document.querySelectorAll('.step-check:not(:checked)').forEach(cb => {
+    const label = cb.closest('.check-row')?.querySelector('.check-label')?.textContent?.trim();
+    if (label) lines.push(`- [ ] ${label.replace(/\s+/g,' ')}`);
+  });
+
+  lines.push('', '## Recorded Values');
+  document.querySelectorAll('.note-input').forEach(inp => {
+    if (!inp.value.trim()) return;
+    const label = inp.closest('.note-row')?.querySelector('.note-label')?.textContent?.trim() || inp.dataset.key;
+    lines.push(`- **${label}** ${inp.value.trim()}`);
+  });
+
+  lines.push('', '---', '_Generated by Broodforge Setup Guide. Import into broodforge with: generate-setup-manifest.py --import_');
+
+  const blob = new Blob([lines.join('\n')], {type: 'text/markdown'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `broodforge-setup-${new Date().toISOString().slice(0,10)}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Import manifest from broodforge JSON ─────────────────────────────────
+function importManifest() {
+  const inp = document.createElement('input');
+  inp.type  = 'file';
+  inp.accept = '.json,.md';
+  inp.onchange = () => {
+    const file = inp.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        // data: {field_key: value}  — fill matching note-input[data-autofill] fields
+        document.querySelectorAll('[data-autofill]').forEach(el => {
+          const val = _getPath(data, el.dataset.autofill);
+          if (val !== undefined && val !== null) {
+            el.value = String(val);
+            el.dataset.autofilled = 'true';
+            saveNote(el.dataset.key, el.value);
+          }
+        });
+        // Also fill data-key inputs if JSON has matching keys
+        document.querySelectorAll('.note-input[data-key]').forEach(el => {
+          const val = data[el.dataset.key];
+          if (val !== undefined) {
+            el.value = String(val);
+            el.dataset.autofilled = 'true';
+            saveNote(el.dataset.key, el.value);
+          }
+        });
+        alert('Manifest imported. Fields marked in green were filled by broodforge.');
+      } catch {
+        // Try Markdown import (extract bullet values)
+        const text = e.target.result;
+        const lines = text.split('\n');
+        lines.forEach(line => {
+          const m = line.match(/^- \*\*(.+?)\*\*\s+(.+)$/);
+          if (m) {
+            const label = m[1].trim();
+            const value = m[2].trim();
+            // Find matching note input by label text
+            document.querySelectorAll('.note-label').forEach(lbl => {
+              if (lbl.textContent.trim().startsWith(label.replace(':',''))) {
+                const inp2 = lbl.closest('.note-row')?.querySelector('.note-input');
+                if (inp2) { inp2.value = value; inp2.dataset.autofilled='true'; saveNote(inp2.dataset.key, value); }
+              }
+            });
+          }
+        });
+        alert('Markdown manifest imported.');
+      }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+
+function _getPath(obj, path) {
+  return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', restoreAll);
 </script>
 </body>
 </html>
