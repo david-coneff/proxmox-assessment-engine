@@ -567,6 +567,17 @@ class TestRegistryCompletenessScoring(unittest.TestCase):
                     "rto_rpo_violated": [],
                 }
             },
+            # Observability state present — suppresses MISSING_OBSERVABILITY_STATE gap (Phase 16).
+            "observability_state": {
+                "observability_health": {
+                    "overall_status": "HEALTHY",
+                    "prometheus_reachable": True,
+                    "grafana_reachable": True,
+                    "targets_down": 0,
+                    "firing_critical_alerts": 0,
+                    "issues": [],
+                }
+            },
         }
         # Minimal empty graph (no VM nodes, so no per-VM contract gap)
         from dependencies import DependencyGraph
@@ -863,6 +874,17 @@ class TestFixtureIntegration(unittest.TestCase):
                 "jobs_unverified": [],
                 "encryption_keys_missing": [],
                 "rto_rpo_violated": [],
+            }
+        }
+        # Phase 16 — observability state present
+        manifest["observability_state"] = {
+            "observability_health": {
+                "overall_status": "HEALTHY",
+                "prometheus_reachable": True,
+                "grafana_reachable": True,
+                "targets_down": 0,
+                "firing_critical_alerts": 0,
+                "issues": [],
             }
         }
 

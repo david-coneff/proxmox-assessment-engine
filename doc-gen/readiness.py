@@ -1726,6 +1726,85 @@ def _score_data_protection_completeness(manifest: dict) -> list:
     return gaps
 
 
+def _score_observability_completeness(manifest: dict) -> list:
+    """
+    Check observability state completeness (Phase 16.3/16.4).
+
+    NOT_CONFIGURED: no observability_state — gap is YELLOW (optional for homelab).
+    ORANGE: Prometheus down, critical alerts firing.
+    YELLOW: targets down, Grafana unreachable, monitoring degraded.
+    """
+    gaps: list[Gap] = []
+    obs = manifest.get("observability_state")
+
+    if not obs:
+        gaps.append(Gap(
+            component_id="infrastructure:observability",
+            gap_type="MISSING_OBSERVABILITY_STATE",
+            severity="YELLOW",
+            description=(
+                "No observability state collected — Prometheus target status, "
+                "firing alerts, and Grafana dashboard presence are unknown"
+            ),
+            remediation=(
+                "Run proxmox-bootstrap/observability_collector.py with Prometheus/Grafana URLs"
+            ),
+            readiness_impact=(
+                "Cannot assess monitoring coverage or detect active alert conditions "
+                "that may indicate impending failures"
+            ),
+        ))
+        return gaps
+
+    health = obs.get("observability_health") or {}
+    overall = health.get("overall_status") or "UNKNOWN"
+
+    if overall == "NOT_CONFIGURED":
+        gaps.append(Gap(
+            component_id="infrastructure:observability",
+            gap_type="OBSERVABILITY_NOT_CONFIGURED",
+            severity="YELLOW",
+            description="Observability stack (Prometheus/Grafana) not configured",
+            remediation="Deploy Prometheus agent via Flux CD GitOps after forging",
+            readiness_impact=(
+                "Without monitoring, failures may go undetected until they escalate "
+                "to full outages. Reconstruction assessment is less informed."
+            ),
+        ))
+        return gaps
+
+    if overall == "CRITICAL":
+        crit_count = health.get("firing_critical_alerts") or 0
+        issues = health.get("issues") or []
+        gaps.append(Gap(
+            component_id="infrastructure:observability-alerts",
+            gap_type="CRITICAL_ALERTS_FIRING",
+            severity="ORANGE",
+            description=(
+                f"{crit_count} critical alert(s) firing. Issues: "
+                + ("; ".join(issues) if issues else "see observability_state")
+            ),
+            remediation="Investigate firing alerts in Alertmanager / Grafana",
+            readiness_impact="Active critical alerts indicate imminent or ongoing failures",
+        ))
+    elif overall == "DEGRADED":
+        targets_down = health.get("targets_down") or 0
+        issues = health.get("issues") or []
+        gaps.append(Gap(
+            component_id="infrastructure:observability-coverage",
+            gap_type="OBSERVABILITY_DEGRADED",
+            severity="YELLOW",
+            description=(
+                f"Observability degraded: {targets_down} target(s) down. "
+                + ("; ".join(issues) if issues else "")
+            ),
+            remediation="Check Prometheus target status and Grafana connectivity",
+            readiness_impact="Degraded monitoring reduces visibility into system health",
+        ))
+
+    return gaps
+
+
 def score_graph(graph, manifest: dict) -> ReadinessReport:
     """Score all nodes; propagate BLOCKED; identify SPOFs and blockers."""
     backup_inv = BackupInventory(manifest.get("backup_inventory"))
@@ -1798,12 +1877,13 @@ def score_graph(graph, manifest: dict) -> ReadinessReport:
     registry_gaps += _score_disposition_compliance(manifest)
     registry_gaps += _score_reconstruction_drill(manifest)
     registry_gaps += _score_phoenix_playbook_existence(manifest)
-    # Track 2 — Hardware, Platform, Cluster, Storage, Data Protection state
+    # Track 2 — Hardware, Platform, Cluster, Storage, Data Protection, Observability state
     registry_gaps += _score_hardware_state_completeness(manifest)
     registry_gaps += _score_platform_state_completeness(manifest)
     registry_gaps += _score_cluster_state_completeness(manifest)
     registry_gaps += _score_storage_state_completeness(manifest)
     registry_gaps += _score_data_protection_completeness(manifest)
+    registry_gaps += _score_observability_completeness(manifest)
 
     # Overall score — worst of component scores and infrastructure gaps
     overall = "GREEN"

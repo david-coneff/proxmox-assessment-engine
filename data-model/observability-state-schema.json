@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Observability State",
+  "description": "Monitoring stack health and completeness: Prometheus targets, alert rules, Grafana dashboards, and log collection status. Used by Track 2 assessment (Phase 16).",
+  "type": "object",
+  "required": ["schema_version", "cell_id", "collected_at"],
+  "additionalProperties": false,
+  "definitions": {
+    "prometheus_target": {
+      "type": "object",
+      "required": ["job", "instance"],
+      "additionalProperties": true,
+      "properties": {
+        "job":      {"type": "string"},
+        "instance": {"type": "string"},
+        "state":    {"type": ["string", "null"], "description": "up, down, unknown"},
+        "labels":   {"type": "object", "additionalProperties": {"type": "string"}},
+        "last_scrape_duration_ms": {"type": ["number", "null"]},
+        "last_error": {"type": ["string", "null"]}
+      }
+    },
+    "alert_rule": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": true,
+      "properties": {
+        "name":     {"type": "string"},
+        "group":    {"type": ["string", "null"]},
+        "state":    {"type": ["string", "null"], "description": "firing, pending, inactive"},
+        "severity": {"type": ["string", "null"]},
+        "expr":     {"type": ["string", "null"]},
+        "for":      {"type": ["string", "null"]}
+      }
+    },
+    "dashboard_entry": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": true,
+      "properties": {
+        "title": {"type": "string"},
+        "uid":   {"type": ["string", "null"]},
+        "url":   {"type": ["string", "null"]},
+        "tags":  {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "cell_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "collection_errors": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "prometheus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url":            {"type": ["string", "null"]},
+        "version":        {"type": ["string", "null"]},
+        "reachable":      {"type": ["boolean", "null"]},
+        "retention_days": {"type": ["integer", "null"]},
+        "targets":        {"type": "array", "items": {"$ref": "#/definitions/prometheus_target"}},
+        "targets_up":     {"type": ["integer", "null"]},
+        "targets_down":   {"type": ["integer", "null"]},
+        "targets_total":  {"type": ["integer", "null"]}
+      }
+    },
+    "alertmanager": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url":        {"type": ["string", "null"]},
+        "reachable":  {"type": ["boolean", "null"]},
+        "active_alerts": {"type": ["integer", "null"]},
+        "receivers":  {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "alert_rules": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/alert_rule"}
+    },
+    "firing_alerts": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/alert_rule"},
+      "description": "Alert rules currently in firing state."
+    },
+    "grafana": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url":        {"type": ["string", "null"]},
+        "reachable":  {"type": ["boolean", "null"]},
+        "version":    {"type": ["string", "null"]},
+        "dashboards": {"type": "array", "items": {"$ref": "#/definitions/dashboard_entry"}}
+      }
+    },
+    "log_collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool":      {"type": ["string", "null"], "description": "loki, promtail, fluentbit, none"},
+        "reachable": {"type": ["boolean", "null"]},
+        "sources":   {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "observability_health": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "overall_status": {
+          "type": "string",
+          "enum": ["HEALTHY", "DEGRADED", "CRITICAL", "UNKNOWN", "NOT_CONFIGURED"]
+        },
+        "prometheus_reachable":    {"type": ["boolean", "null"]},
+        "grafana_reachable":       {"type": ["boolean", "null"]},
+        "targets_down":            {"type": ["integer", "null"]},
+        "firing_critical_alerts":  {"type": ["integer", "null"]},
+        "issues":                  {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}
