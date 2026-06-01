@@ -565,6 +565,90 @@ def _score_service_contract_completeness(graph, manifest: dict) -> list:
     return gaps
 
 
+def _score_reconstruction_drill(manifest: dict) -> list:
+    """
+    Check reconstruction drill history (Phase 12).
+
+    YELLOW: no drill has ever been performed — recoverability is unvalidated.
+    YELLOW: last drill is > 90 days ago — procedure may be stale.
+    ORANGE: last drill outcome was failed or aborted — known failure mode unresolved.
+    """
+    from datetime import datetime, timezone, timedelta
+    gaps: list[Gap] = []
+    drills = manifest.get("reconstruction_drills") or []
+
+    if not drills:
+        gaps.append(Gap(
+            component_id="infrastructure:reconstruction-drill",
+            gap_type="MISSING_RECONSTRUCTION_DRILL",
+            severity="YELLOW",
+            description=(
+                "No reconstruction drill has been performed — the phoenix playbook "
+                "has not been validated against a live environment"
+            ),
+            remediation=(
+                "Perform a reconstruction drill using "
+                "proxmox-bootstrap/reconstruction-drill.py "
+                "and commit the drill record to Forgejo"
+            ),
+            readiness_impact=(
+                "Actual RTO is unknown; playbook accuracy is unvalidated; "
+                "gaps that only surface during live execution remain hidden"
+            ),
+        ))
+        return gaps
+
+    last = drills[0]
+    outcome    = last.get("outcome", "unknown")
+    started_at = last.get("started_at")
+
+    # Check outcome
+    if outcome in ("failed", "aborted"):
+        gaps.append(Gap(
+            component_id="infrastructure:reconstruction-drill",
+            gap_type="RECONSTRUCTION_DRILL_FAILED",
+            severity="ORANGE",
+            description=(
+                f"Last reconstruction drill outcome: {outcome.upper()} "
+                f"(drill: {last.get('drill_id', '?')})"
+            ),
+            remediation=(
+                "Review drill gaps in bootstrap-state.json reconstruction_drills, "
+                "remediate identified issues, and re-run the drill"
+            ),
+            readiness_impact=(
+                "A failed drill indicates the recovery procedure does not work "
+                "as designed — recovery confidence is low"
+            ),
+        ))
+        return gaps
+
+    # Check recency
+    if started_at:
+        try:
+            drill_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            age_days = (datetime.now(timezone.utc) - drill_dt).days
+            if age_days > 90:
+                gaps.append(Gap(
+                    component_id="infrastructure:reconstruction-drill",
+                    gap_type="STALE_RECONSTRUCTION_DRILL",
+                    severity="YELLOW",
+                    description=(
+                        f"Last reconstruction drill was {age_days} day(s) ago "
+                        f"(recommended: every 90 days)"
+                    ),
+                    remediation="Schedule and perform a reconstruction drill",
+                    readiness_impact=(
+                        "Infrastructure may have changed since the last drill; "
+                        "playbook accuracy is uncertain"
+                    ),
+                ))
+        except (ValueError, TypeError):
+            pass
+
+    return gaps
+
+
 def _score_capacity_model(manifest: dict) -> list:
     """
     Score capacity model completeness and utilization thresholds (Phase 11).
@@ -1214,6 +1298,7 @@ def score_graph(graph, manifest: dict) -> ReadinessReport:
     registry_gaps += _score_backup_config_completeness(manifest)
     registry_gaps += _score_network_topology_completeness(manifest)
     registry_gaps += _score_capacity_model(manifest)
+    registry_gaps += _score_reconstruction_drill(manifest)
     registry_gaps += _score_phoenix_playbook_existence(manifest)
 
     # Overall score — worst of component scores and infrastructure gaps

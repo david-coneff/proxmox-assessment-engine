@@ -1,0 +1,160 @@
+# Reconstruction Drill Guide
+
+**Document created:** 2026-06-01
+**Recommended frequency:** Every 90 days (quarterly)
+
+A reconstruction drill validates that your phoenix playbook accurately describes
+the real recovery procedure, measures actual vs. estimated restoration time, and
+surfaces gaps that only appear during live execution. The drill record is committed
+to Forgejo as auditable evidence of tested recoverability.
+
+---
+
+## Why drill?
+
+The phoenix playbook is generated from bootstrap-state.json — it reflects what the
+system *declares* it looks like, not necessarily how it actually behaves during
+recovery. Hardware differences, dependency ordering issues, and configuration drift
+only reveal themselves when you actually run the procedure.
+
+A drill run against a test environment (cloned VMs, isolated network) catches these
+gaps before a real incident forces you to discover them under time pressure.
+
+---
+
+## Pre-drill checklist
+
+```
+☐ Generate a fresh phoenix playbook from current state:
+    python3 proxmox-bootstrap/phoenix_playbook.py \
+      --state proxmox-bootstrap/bootstrap-state.json \
+      --output reconstruction/
+
+☐ Run readiness report and resolve any RED findings:
+    python3 doc-gen/engine.py --mode recovery \
+      --manifest proxmox-bootstrap/bootstrap-state.json
+
+☐ Ensure PBS backups are current (last successful backup < 24h ago)
+
+☐ Prepare test environment:
+    Option A — Isolated physical host (bare Proxmox, no production data)
+    Option B — Proxmox VE in a VM (nested virtualization, performance limited)
+    Option C — Tabletop walkthrough (paper drill — no live execution)
+
+☐ Notify any affected stakeholders of the drill window
+```
+
+---
+
+## Running the drill
+
+### Option A — Live execution drill (recommended annually)
+
+Execute the phoenix playbook steps against the test environment, measuring time per wave:
+
+```bash
+# Start drill tracking
+python3 proxmox-bootstrap/reconstruction-drill.py \
+  --state proxmox-bootstrap/bootstrap-state.json \
+  --playbook reconstruction/phoenix-playbook-proxmox-cell-a-latest.json \
+  --mode live
+```
+
+The drill coordinator will:
+1. Display each wave's steps
+2. Prompt you to confirm completion or record a failure
+3. Measure actual time per wave
+4. Ask for gaps found during execution
+5. Generate a drill report
+
+### Option B — Tabletop walkthrough drill (recommended quarterly)
+
+Walk through the playbook steps without executing them, identifying:
+- Steps that are ambiguous or unclear
+- Steps that reference resources that may not be available
+- Prerequisites that are not met
+- Time estimates that seem unrealistic
+
+```bash
+python3 proxmox-bootstrap/reconstruction-drill.py \
+  --state proxmox-bootstrap/bootstrap-state.json \
+  --playbook reconstruction/phoenix-playbook-proxmox-cell-a-latest.json \
+  --mode tabletop
+```
+
+---
+
+## Recording drill results manually
+
+If you ran the drill without the coordinator script, record results directly:
+
+```bash
+python3 proxmox-bootstrap/reconstruction-drill.py \
+  --state proxmox-bootstrap/bootstrap-state.json \
+  --record-manual \
+  --outcome success \
+  --actual-minutes 95 \
+  --gaps "Bridge vmbr1 pre-flight step was unclear" \
+  --remediated "Updated network-topology.yaml with explicit bridge description"
+```
+
+---
+
+## After the drill
+
+```
+☐ Review gaps_found in the drill record
+☐ For each gap:
+    - If it affects the playbook: update phoenix_playbook.py generator and re-generate
+    - If it affects bootstrap-state.json: update and commit
+    - If it affects metadata YAML: update and commit
+☐ Re-run readiness report to verify gaps are resolved
+☐ Commit the updated bootstrap-state.json (now includes drill record) to Forgejo
+☐ The Assessment Engine will detect the commit and regenerate documentation
+```
+
+---
+
+## Interpreting the drill report
+
+The drill report compares estimated vs. actual time per wave:
+
+| Accuracy | Interpretation |
+|---|---|
+| 80–120% | Estimates are well-calibrated |
+| 120–150% | Estimates are optimistic — update phoenix_playbook.py |
+| > 150% | Significant underestimation — review wave complexity |
+| < 80% | Estimates are conservative — acceptable |
+
+If outcome is `partial` or `failed`, the recovery readiness score drops to ORANGE
+until a successful drill is recorded. This is intentional: a failed drill is important
+safety information and should not be hidden.
+
+---
+
+## Scheduling quarterly drills
+
+```bash
+# Install a systemd timer for quarterly drill reminders:
+sudo bash proxmox-bootstrap/schedule-reconstruction-drill.sh
+```
+
+The timer sends a journal log reminder every 90 days. It does not automatically
+run the drill — drills require operator involvement by design.
+
+---
+
+## Drill history
+
+All drill records are stored in `bootstrap-state.json` under `reconstruction_drills[]`.
+They are never pruned — the full history is preserved as a permanent audit trail.
+
+To view drill history:
+```bash
+python3 -c "
+import json
+state = json.load(open('proxmox-bootstrap/bootstrap-state.json'))
+for d in state.get('reconstruction_drills', []):
+    print(d['drill_id'], d['outcome'], d.get('total_actual_minutes','?'),'min')
+"
+```

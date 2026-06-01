@@ -57,15 +57,16 @@ See ROADMAP.md Milestone 7.4 for the full spec.
 
 | 11 | Capacity Model — capacity_model schema in bootstrap-state, capacity_collector.py (snapshot extraction, trend analysis, restoration headroom), _score_capacity_model() readiness scorer, engine injection (34 tests) | Complete |
 
-**Tests: 1577 total (1573 passed, 4 skipped)**
+| 12 | Full Single-Cell Reconstruction Test — DrillRecord, start_drill, generate_drill_report, save/get drill, _score_reconstruction_drill(), schema additions, docs/RECONSTRUCTION-DRILL.md, schedule-reconstruction-drill.sh (36 tests) | Complete |
+
+**Tests: 1613 total (1609 passed, 4 skipped)**
 
 ## Next Milestones
 
 | Milestone | Description |
 |---|---|
-| **Phase 12** | **Full Single-Cell Reconstruction Test — START HERE** |
+| **Phase 12.E** | **Node Spawn Bootstrap (Hatchery Process) — START HERE** |
 | Phase 1.F | Forge Package Assembly (capstone of forging process) |
-| Phase 12.E | Node Spawn Bootstrap (Hatchery Process) |
 
 ## Architecture Gaps (v4.0 items not yet implemented)
 

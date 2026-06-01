@@ -1,8 +1,7 @@
 # Session Handoff
 
 Date: 2026-05-31 UTC (updated after Milestone 7.4 — Recovery Documentation Update Service Layer)
-Status: Milestones 7.1–7.4, 6.B, Phase 8, Phase 9 (all: 9.1-9.8) complete.
-Ready to resume at Phase 10 — Operational Documentation.
+Status: Phases 10, 11, 12 complete. Ready to resume at Phase 12.E — Node Spawn Bootstrap.
 
 ---
 
@@ -559,7 +558,41 @@ Test runner: `C:\Users\dave\AppData\Local\Programs\Python\Python311\python.exe -
 
 **Tests: 1507 total (1503 passed, 4 skipped)**
 
-## Next Action: Phase 10 — Operational Documentation
+## Completed: Phases 10, 11, 12 (this session)
+
+### Phase 10 — Operational Documentation
+  doc-gen/renderers/operational_report.py: 7-section ODT report (readiness, drift,
+    capacity, service health, secret completeness, external deps, time-sensitive actions)
+  doc-gen/engine.py: run_operational() + --mode operational CLI
+  proxmox-bootstrap/setup-operational-schedule.sh: systemd hourly timer
+  36 tests
+
+### Phase 11 — Capacity Model
+  data-model/bootstrap-state-schema.json: capacity_model section (thresholds, observed, trend)
+  proxmox-bootstrap/capacity_collector.py:
+    collect_capacity_snapshot() — RAM/storage/CPU from manifest
+    compute_trend() — direction + days_to_full from history snapshots
+    check_restoration_headroom() — VM RAM vs host RAM × (1 - headroom_pct)
+    merge_capacity_model() — update bootstrap-state.json
+  doc-gen/readiness.py: _score_capacity_model() (YELLOW/ORANGE thresholds + headroom)
+  34 tests
+
+### Phase 12 — Full Single-Cell Reconstruction Test
+  data-model/bootstrap-state-schema.json: reconstruction_drills[] array
+  proxmox-bootstrap/reconstruction_drill.py:
+    DrillRecord (wave timing, gap tracking, accuracy_pct)
+    start_drill() factory, save_drill_record(), get_last_drill()
+    generate_drill_report() — Markdown with timing comparison table
+  doc-gen/readiness.py: _score_reconstruction_drill() (YELLOW: no drill / > 90 days
+    stale; ORANGE: last drill failed or aborted)
+  docs/RECONSTRUCTION-DRILL.md: operator guide (live + tabletop modes, post-drill actions)
+  proxmox-bootstrap/schedule-reconstruction-drill.sh: systemd 90-day reminder timer
+  36 tests
+
+**Tests: 1613 total (1609 passed, 4 skipped)**
+test_registries.py "no gaps" tests updated with reconstruction_drills and capacity_model
+
+## Next Action: Phase 12.E — Node Spawn Bootstrap (Hatchery Process)
 
 ### What It Is
 

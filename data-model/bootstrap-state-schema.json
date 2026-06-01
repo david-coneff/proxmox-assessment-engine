@@ -125,6 +125,12 @@
       "description": "Declared capacity thresholds and observed utilization snapshot (Phase 11). Used by readiness scorer to surface capacity risk and verify restoration headroom."
     },
 
+    "reconstruction_drills": {
+      "type": "array",
+      "description": "History of reconstruction drill runs (Phase 12). Each entry records one drill: timing, outcome, gaps found, and what was remediated.",
+      "items": { "$ref": "#/definitions/reconstruction_drill_record" }
+    },
+
     "backup_config": {
       "$ref": "#/definitions/backup_config",
       "description": "Restic + rclone backup configuration (Phase 6.B). Three layers: secrets (KeePass DB, rclone copy — no restic), config (bootstrap state + assessment, encrypted restic), appdata (VM data volumes, encrypted restic, opt-in). Distinct from external_backup (git mirroring)."
@@ -1108,6 +1114,42 @@
             "snapshots_used":       { "type": ["integer", "null"] }
           }
         }
+      }
+    },
+
+    "reconstruction_drill_record": {
+      "type": "object",
+      "required": ["drill_id", "started_at", "outcome"],
+      "description": "A single reconstruction drill run record.",
+      "properties": {
+        "drill_id":              { "type": "string", "description": "{cell_id}_{YYYY-MM-DD_HH_MM_SS}" },
+        "started_at":            { "type": "string", "format": "date-time" },
+        "completed_at":          { "type": ["string", "null"], "format": "date-time" },
+        "playbook_generated_at": { "type": ["string", "null"], "description": "Phoenix playbook used as the reconstruction blueprint" },
+        "outcome": {
+          "type": "string",
+          "enum": ["success", "partial", "failed", "aborted"],
+          "description": "success: all waves completed; partial: some waves succeeded; failed/aborted: did not complete"
+        },
+        "total_estimated_minutes": { "type": ["integer", "null"] },
+        "total_actual_minutes":    { "type": ["integer", "null"] },
+        "wave_timings": {
+          "type": "array",
+          "description": "Per-wave timing comparison",
+          "items": {
+            "type": "object",
+            "properties": {
+              "wave":               { "type": "number" },
+              "name":               { "type": "string" },
+              "estimated_minutes":  { "type": ["integer", "null"] },
+              "actual_minutes":     { "type": ["integer", "null"] },
+              "completed":          { "type": "boolean" }
+            }
+          }
+        },
+        "gaps_found":       { "type": "array", "items": { "type": "string" } },
+        "gaps_remediated":  { "type": "array", "items": { "type": "string" } },
+        "notes":            { "type": ["string", "null"] }
       }
     },
 

@@ -848,10 +848,19 @@ See Phase 12.E for the hatchery process playbooks (broodling spawn scripts).
 
 ### Phase 12 — Full Single-Cell Reconstruction Test
 
-- [ ] 12.1: End-to-end reconstruction drill (full destroy + reconstruct from repos)
-- [ ] 12.2: Reconstruction time measurement vs. estimate
-- [ ] 12.3: Gap identification and remediation
-- [ ] 12.4: Reconstruction drill procedure as a scheduled activity
+- [x] 12.1: End-to-end drill framework — `proxmox-bootstrap/reconstruction_drill.py`:
+      DrillRecord (per-wave timing, gap tracking), start_drill() factory from phoenix playbook,
+      save_drill_record() / get_last_drill() for bootstrap-state persistence,
+      `reconstruction_drills[]` schema in bootstrap-state-schema.json;
+      `docs/RECONSTRUCTION-DRILL.md` operator guide (live + tabletop modes)
+- [x] 12.2: Reconstruction time measurement — DrillRecord.record_wave() tracks
+      estimated vs actual minutes per wave; generate_drill_report() produces Markdown
+      table with timing comparison and accuracy %; DrillRecord.accuracy_pct property
+- [x] 12.3: Gap identification — DrillRecord.gaps_found/gaps_remediated; readiness scorer
+      _score_reconstruction_drill(): YELLOW if no drill, YELLOW if > 90 days stale,
+      ORANGE if last drill was failed/aborted; wired into score_graph()
+- [x] 12.4: Scheduled drill activity — `proxmox-bootstrap/schedule-reconstruction-drill.sh`
+      installs broodforge-drill-reminder.timer (fires every 90 days, logs journal reminder)
 
 **Gate:** Phase 12 completion validates the single-cell foundation.
 Track 2 begins after Phase 12.

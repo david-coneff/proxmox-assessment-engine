@@ -521,6 +521,13 @@ class TestRegistryCompletenessScoring(unittest.TestCase):
                              "ram_total_gb": 32},
                 "trend": {},
             },
+            # Reconstruction drill present — suppresses MISSING_RECONSTRUCTION_DRILL gap.
+            "reconstruction_drills": [{
+                "drill_id": f"proxmox-cell-a_{_now.replace(':', '-').replace('.', '-')}",
+                "started_at": _now, "completed_at": _now,
+                "outcome": "success",
+                "wave_timings": [], "gaps_found": [], "gaps_remediated": [],
+            }],
         }
         # Minimal empty graph (no VM nodes, so no per-VM contract gap)
         from dependencies import DependencyGraph
@@ -776,6 +783,12 @@ class TestFixtureIntegration(unittest.TestCase):
                          "ram_total_gb": 32},
             "trend": {},
         }
+        manifest["reconstruction_drills"] = [{
+            "drill_id": "proxmox-cell-a_drill",
+            "started_at": _now, "completed_at": _now,
+            "outcome": "success",
+            "wave_timings": [], "gaps_found": [], "gaps_remediated": [],
+        }]
 
         graph = dep_mod.build_graph(manifest)
         report = score_graph(graph, manifest)
