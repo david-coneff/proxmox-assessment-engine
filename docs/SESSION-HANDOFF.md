@@ -1,9 +1,8 @@
 # Session Handoff
 
 Date: 2026-05-31 UTC (updated after Milestone 7.4 — Recovery Documentation Update Service Layer)
-Status: Milestones 7.1–7.4, 6.B, Phase 8, Phase 9 (partial: 9.1-9.3, 9.8) complete.
-Ready to resume at Phase 9 continued: Wave 0.5 (template rebuild), per-VM RECREATE steps,
-run-all.sh generator (9.6), playbook validator (9.7).
+Status: Milestones 7.1–7.4, 6.B, Phase 8, Phase 9 (all: 9.1-9.8) complete.
+Ready to resume at Phase 10 — Operational Documentation.
 
 ---
 
@@ -531,19 +530,36 @@ Updateable after forging via `engine.py --set-timezone "Continent/City"` without
 **Tests: 1470 total (1466 passed, 4 skipped)**
 Test runner: `C:\Users\dave\AppData\Local\Programs\Python\Python311\python.exe -m pytest tests/unit/ -q`
 
-## Remaining Phase 9 work for next session (9.4–9.7)
+## Completed: Phase 9 (full) — Phoenix Playbooks (9.4–9.7 additions)
 
-  9.4: Wave 0.5 (template rebuild playbook):
-       Ubuntu path: cloud-init ISO + Ansible k3s-server role
-       Talos path: talosctl gen config + apply (controlled by k3s-cluster.yaml os_variant)
-  9.5: Per-VM reconstruction playbook — RECREATE steps for stateless VMs
-       (VMs where provenance_registry shows tofu_workspace + ansible_commit)
-  9.6: Orchestrated run-all.sh generator — calls waves in order, uses checkpoint
-       library, generates failure package on any step failure
-  9.7: Playbook validator — syntax check + dependency check (all VMIDs unique,
-       all bridges referenced in wave 3+ exist in wave 0, etc.)
+  phoenix_playbook.py additions:
+    _os_variant_for_vm(vm_name) — reads k3s-cluster.yaml os_variant (ubuntu|talos)
+    _wave_05_template_rebuild() — wave=2.5; Ubuntu: download ISO + qm create + qm template;
+      inserted between wave 2 (host) and wave 3 (VMs)
+    _vm_is_stateless(vm) — backup_job==null AND provenance has tofu_workspace → True
+    _wave_3_vms() extended: RECREATE (tofu apply + ansible-playbook) vs RESTORE (qmrestore)
+      based on _vm_is_stateless(); provenance commit references embedded in RECREATE commands
 
-## Next Action: Phase 9 continued — Wave 0.5, per-VM RECREATE, run-all.sh, validator
+  proxmox-bootstrap/phoenix_scripts.py:
+    generate_wave_script(wave, playbook) — bash with set -euo pipefail, checkpoint library
+      stub, per-step is_done check, checkpoint_start/done/failed tracking
+    generate_run_all_sh(playbook) — orchestrating entry point; calls phase-N-*.sh in wave
+      number order; prints validation checklist at completion
+
+  proxmox-bootstrap/phoenix_validator.py:
+    validate_playbook(playbook) → list[{severity, field, message}]
+      ERROR: missing required fields, empty waves, duplicate wave/step IDs, empty commands,
+             invalid scope enum, unknown schema version
+      WARNING: empty identity.vmids / bridge_names / zfs_pool_name, non-ascending waves,
+               non-standard method/on_failure values
+    is_valid(findings) → bool (no ERROR findings)
+    summarise_findings(findings) → human-readable string
+
+  tests/unit/test_phoenix_playbook.py: expanded from 58 → 95 tests
+
+**Tests: 1507 total (1503 passed, 4 skipped)**
+
+## Next Action: Phase 10 — Operational Documentation
 
 ### What It Is
 

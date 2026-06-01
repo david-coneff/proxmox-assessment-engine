@@ -334,8 +334,122 @@ class PhoenixPlaybookGenerator:
             ],
         }
 
+    # ── 9.4 — Wave 0.5: template rebuild ──────────────────────────────────
+
+    def _os_variant_for_vm(self, vm_name: str) -> str:
+        """
+        Read os_variant from k3s-cluster.yaml server_nodes or default to 'ubuntu'.
+        Returns 'ubuntu' | 'talos'.
+        """
+        k3s = self._manifest.get("k3s_cluster") or {}
+        for node_list in (k3s.get("server_nodes") or [], k3s.get("worker_nodes") or []):
+            for node in node_list:
+                if node.get("vm") == vm_name:
+                    return node.get("os_variant", "ubuntu")
+        return "ubuntu"
+
+    def _wave_05_template_rebuild(self) -> dict:
+        """
+        Wave 2.5 — Template rebuild.
+
+        Rebuilds the base Proxmox VM template so that stateless VMs can be
+        cloned from a known-good image. Must run after storage is available
+        (Wave 1) and before VM recreation steps in Wave 3.
+
+        Ubuntu path: download ISO → create VM → install via Cloud-Init → convert to template.
+        Talos path: download Talos ISO → create VM → apply machine config → convert to template.
+        Variant is read from k3s-cluster.yaml server_nodes[].os_variant.
+        """
+        tmpl_reg    = self._manifest.get("templates") or []
+        base_images = self._manifest.get("base_images") or []
+        storage     = self._storage_config()
+
+        # Determine which os_variants are needed
+        vms          = self._vms()
+        needs_ubuntu = any(self._os_variant_for_vm(v.get("name","")) == "ubuntu" for v in vms) \
+                       or not vms   # default: ubuntu
+
+        steps = []
+
+        # ── Ubuntu template rebuild ──────────────────────────────────────
+        if needs_ubuntu:
+            ubuntu_tmpl = next((t for t in tmpl_reg if "ubuntu" in (t.get("name","")).lower()), None)
+            ubuntu_img  = next((i for i in base_images if "ubuntu" in (i.get("name","")).lower()), None)
+            tmpl_id     = (ubuntu_tmpl.get("proxmox_template_id") or 9000) if ubuntu_tmpl else 9000
+            iso_name    = ubuntu_img.get("source_iso", "[UBUNTU_ISO]") if ubuntu_img else "[UBUNTU_ISO]"
+            iso_url     = ubuntu_img.get("source_url", "[UBUNTU_ISO_URL]") if ubuntu_img else "[UBUNTU_ISO_URL]"
+            iso_storage = storage.get("isos", "local:iso")
+
+            steps.append({
+                "id": "2.5.1",
+                "action": f"Rebuild Ubuntu VM template (VMID {tmpl_id})",
+                "commands": [
+                    f"# Download Ubuntu base ISO if not present:",
+                    f"ls {iso_storage.replace(':','/')}/{iso_name} 2>/dev/null ||",
+                    f"  wget -P /var/lib/vz/template/iso/ {iso_url}",
+                    f"",
+                    f"# Create a new VM from the ISO:",
+                    f"qm create {tmpl_id} --name ubuntu-2204-base --memory 2048 --cores 2",
+                    f"  --scsi0 local-zfs:32 --ide2 {iso_storage}/{iso_name},media=cdrom",
+                    f"  --boot order=ide2 --ostype l26 --serial0 socket --vga serial0",
+                    f"",
+                    f"# Install OS via console, then install qemu-guest-agent:",
+                    f"# apt install -y qemu-guest-agent cloud-init && shutdown -h now",
+                    f"",
+                    f"# Convert to template:",
+                    f"qm template {tmpl_id}",
+                ],
+                "validation": [
+                    f"qm list | grep {tmpl_id}  # Expected: template listed",
+                    f"qm config {tmpl_id} | grep template  # Expected: template: 1",
+                ],
+                "method": "RECREATE",
+                "on_failure": "human",
+                "secret_refs": [],
+            })
+
+        return {
+            "wave": 2.5,
+            "name": "Template Rebuild",
+            "description": (
+                "Rebuild Proxmox VM template(s) from base ISO so that stateless VMs "
+                "can be cloned and configured via IaC rather than restored from backup. "
+                "Must complete before Wave 3 RECREATE steps."
+            ),
+            "estimated_minutes": 20,
+            "prerequisites": ["Wave 2 — host configured and storage registered"],
+            "steps": steps,
+        }
+
+    # ── 9.5 — RECREATE vs RESTORE decision ────────────────────────────────
+
+    def _vm_is_stateless(self, vm: dict) -> bool:
+        """
+        Return True if this VM should be RECREATED (from IaC) rather than
+        RESTORED (from PBS backup).
+
+        A VM is stateless if its service contract declares backup_job=null AND
+        provenance shows it was deployed via OpenTofu (has tofu_workspace).
+        Stateless VMs (infra-bootstrap, assessment-engine) hold no persistent data
+        and can be fully rebuilt from the bootstrap repository.
+        """
+        vm_name  = vm.get("name", "")
+        contracts = self._manifest.get("service_contracts") or []
+        contract  = next((c for c in contracts if c.get("vm") == vm_name), None)
+
+        has_no_backup = contract is not None and contract.get("backup_job") is None
+        prov_reg      = self._manifest.get("provenance_registry") or []
+        prov          = next((r for r in prov_reg if r.get("vmid") == vm.get("vmid")), None)
+        has_provenance = prov is not None and bool(prov.get("tofu_workspace"))
+
+        return has_no_backup and has_provenance
+
     def _wave_3_vms(self) -> dict:
-        """Wave 3 — VM restore from PBS backup (identity-preserving)."""
+        """
+        Wave 3 — VM restoration.
+        Each VM is either RESTORED (from PBS backup) or RECREATED (from IaC + Ansible),
+        based on whether it is stateless (9.5).
+        """
         vms   = self._vms()
         steps = []
 
@@ -351,42 +465,79 @@ class PhoenixPlaybookGenerator:
             })
         else:
             for i, vm in enumerate(vms, 1):
-                vmid     = vm.get("vmid", "?")
-                vm_name  = vm.get("name", "unknown")
-                vm_ip    = self._vm_ip(vmid)
+                vmid       = vm.get("vmid", "?")
+                vm_name    = vm.get("name", "unknown")
+                vm_ip      = self._vm_ip(vmid)
+                stateless  = self._vm_is_stateless(vm)
                 provenance = next(
                     (r for r in (self._manifest.get("provenance_registry") or [])
                      if r.get("vmid") == vmid), None
                 )
-                prov_str = ""
-                if provenance:
-                    prov_str = (
-                        f"  # Provenance: deployed {provenance.get('deployed_at','?')} "
-                        f"template={provenance.get('template_name','?')}"
-                    )
 
-                steps.append({
-                    "id": f"3.{i}",
-                    "action": f"Restore VM {vmid} ({vm_name}) from PBS backup",
-                    "commands": [
-                        f"# VM: {vm_name}  VMID: {vmid}  IP: {vm_ip}",
-                        prov_str,
-                        f"# Locate most recent PBS backup:",
-                        f"qmrestore /path/to/backup/{vmid}-latest.vma.zst {vmid} --storage local-zfs",
-                        f"qm start {vmid}",
-                    ],
-                    "validation": [
-                        f"qm status {vmid}  # Expected: status running",
-                        f"ssh ubuntu@{vm_ip}  # Expected: login succeeds",
-                    ],
-                    "method": "RESTORE",
-                    "on_failure": "human",
-                    "secret_refs": [
-                        s for s in (vm.get("ssh_key_reference", ""),
-                                    vm.get("password_reference", ""))
-                        if s
-                    ],
-                })
+                if stateless and provenance:
+                    # RECREATE — rebuild from IaC and Ansible (9.5)
+                    tofu_ws   = provenance.get("tofu_workspace", "opentofu")
+                    ans_c     = (provenance.get("ansible_commit") or "HEAD")[:12]
+                    tmpl_name = provenance.get("template_name", "ubuntu-2204-base")
+                    steps.append({
+                        "id": f"3.{i}",
+                        "action": f"Recreate VM {vmid} ({vm_name}) from IaC — stateless, no PBS restore needed",
+                        "commands": [
+                            f"# VM: {vm_name}  VMID: {vmid}  IP: {vm_ip}",
+                            f"# Method: RECREATE (stateless — tofu_workspace={tofu_ws})",
+                            f"# Template: {tmpl_name}  Ansible commit: {ans_c}",
+                            f"",
+                            f"# Apply OpenTofu to create the VM:",
+                            f"tofu -chdir={tofu_ws}/ apply -target=proxmox_vm_qemu.{vm_name} -auto-approve",
+                            f"",
+                            f"# Wait for Cloud-Init to complete first boot:",
+                            f"sleep 30 && ssh ubuntu@{vm_ip} 'sudo cloud-init status --wait'",
+                            f"",
+                            f"# Configure via Ansible:",
+                            f"ansible-playbook -i inventory/ site.yml --limit {vm_name}",
+                        ],
+                        "validation": [
+                            f"qm status {vmid}  # Expected: status running",
+                            f"ssh ubuntu@{vm_ip}  # Expected: login succeeds",
+                        ],
+                        "method": "RECREATE",
+                        "on_failure": "human",
+                        "secret_refs": [
+                            s for s in (vm.get("ssh_key_reference", ""),
+                                        vm.get("password_reference", ""))
+                            if s
+                        ],
+                    })
+                else:
+                    # RESTORE — from PBS backup (default)
+                    prov_str = ""
+                    if provenance:
+                        prov_str = (
+                            f"  # Provenance: deployed {provenance.get('deployed_at','?')} "
+                            f"template={provenance.get('template_name','?')}"
+                        )
+                    steps.append({
+                        "id": f"3.{i}",
+                        "action": f"Restore VM {vmid} ({vm_name}) from PBS backup",
+                        "commands": [
+                            f"# VM: {vm_name}  VMID: {vmid}  IP: {vm_ip}",
+                            prov_str,
+                            f"# Locate most recent PBS backup:",
+                            f"qmrestore /path/to/backup/{vmid}-latest.vma.zst {vmid} --storage local-zfs",
+                            f"qm start {vmid}",
+                        ],
+                        "validation": [
+                            f"qm status {vmid}  # Expected: status running",
+                            f"ssh ubuntu@{vm_ip}  # Expected: login succeeds",
+                        ],
+                        "method": "RESTORE",
+                        "on_failure": "human",
+                        "secret_refs": [
+                            s for s in (vm.get("ssh_key_reference", ""),
+                                        vm.get("password_reference", ""))
+                            if s
+                        ],
+                    })
 
         return {
             "wave": 3,
@@ -489,7 +640,8 @@ class PhoenixPlaybookGenerator:
             self._wave_0_network(),
             self._wave_1_storage(),
             self._wave_2_host(),
-            self._wave_3_vms(),
+            self._wave_05_template_rebuild(),   # 9.4 — between host config and VM restore
+            self._wave_3_vms(),                 # 9.5 — RESTORE or RECREATE per VM
             self._wave_4_k3s(),
         ]
 

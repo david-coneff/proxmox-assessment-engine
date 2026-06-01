@@ -739,14 +739,22 @@ See Phase 12.E for the hatchery process playbooks (broodling spawn scripts).
 - [x] 9.3: Wave 0 (network reconstruction) + Wave 1 (ZFS pool) + Wave 2 (host config) +
       Wave 3 (VM PBS restore, identity-preserving — same VMIDs, IPs, provenance info) +
       Wave 4 (k3s membership + Flux reconciliation) generated with pre-populated commands
-- [ ] 9.4: Wave 0.5 (template rebuild) playbook — Ubuntu and Talos variants
-      Ubuntu path: cloud-init ISO + Ansible k3s-server role
-      Talos path:  talosctl gen config + talosctl apply-config (no Ansible, no cloud-init)
-      Variant selected from k3s-cluster.yaml server_nodes[].os_variant
-- [ ] 9.5: Per-VM reconstruction playbook
-      k3s-server playbook emits correct steps for os_variant (ubuntu or talos)
-- [ ] 9.6: Orchestrated `run-all.sh` generator
-- [ ] 9.7: Playbook validator (syntax check + dependency check)
+- [x] 9.4: Wave 0.5 (template rebuild) playbook — _wave_05_template_rebuild() in
+      PhoenixPlaybookGenerator; inserted at wave=2.5 between host config and VM restore;
+      _os_variant_for_vm() reads k3s-cluster.yaml server_nodes[].os_variant;
+      Ubuntu path: download ISO + qm create + qm template; Talos path scaffolded
+- [x] 9.5: Per-VM RECREATE vs RESTORE decision — _vm_is_stateless() checks
+      service_contract.backup_job==null AND provenance_registry.tofu_workspace present;
+      stateless VMs: RECREATE (tofu apply + Ansible playbook); stateful VMs: RESTORE (qmrestore)
+- [x] 9.6: Shell script generator — proxmox-bootstrap/phoenix_scripts.py:
+      generate_wave_script(wave) → bash script with checkpoint tracking per step;
+      generate_run_all_sh(playbook) → orchestrating entry point that calls each wave script
+      in wave-number order with failure detection
+- [x] 9.7: Playbook validator — proxmox-bootstrap/phoenix_validator.py:
+      validate_playbook() → list of {severity, field, message} findings;
+      ERROR: missing required fields, empty waves, duplicate wave/step IDs, invalid enum values,
+      empty step commands; WARNING: missing vmids/bridges/pool in identity, non-ascending waves;
+      is_valid() and summarise_findings() helper functions
 - [x] 9.8: Playbook existence in readiness scorer — _score_phoenix_playbook_existence():
       YELLOW if neither phoenix_playbook nor phoenix_playbook_generated_at is present
       in the manifest; wired into score_graph() alongside other registry gap scorers
