@@ -684,7 +684,71 @@ SETUP-GUIDE.html updated:
     migration guide with steps, WAN caveats
   Network section for Spawn: impact of hatchery profile on spawn mode availability
 
-## Next Action: Phase 12.E — Node Spawn Bootstrap (Hatchery Process)
+## Completed this session: Phase 12.E sub-milestones 1, 2, 4, 9, 10
+
+### 12.E.1 — Hatchery State Reader (hatchery_state.py, 37 tests)
+  read_hatchery_state(bootstrap_state, k3s_tokens, fingerprint, now_fn) → SpawnManifest
+  Extracts: reserved VMIDs (vms[] + 9000-9009 template range), reserved IPs
+    (dns_registry + provenance initial_ip), reserved hostnames (fqdn + short forms),
+    Proxmox cluster address (proxmox-host role in dns_registry), k3s server/worker
+    counts from k3s_cluster config, pod/service CIDRs, optional join tokens.
+  SpawnManifest typed wrapper with property accessors.
+  next_vmid_block(manifest, count, start_hint): consecutive non-conflicting VMIDs.
+  next_ip_block(manifest, cidr, count, skip_first): IPs from CIDR avoiding reserved.
+  suggest_hostname(manifest, role, domain): {role}{index:02d} skipping reserved.
+
+### 12.E.2 — Conflict Validator (validate_spawn.py, 31 tests)
+  SpawnProposal: vmids, ips, hostnames, hostname, roles, ram_gb, host_ram_gb
+  SpawnFinding: severity (RED|YELLOW), field, message, proposed, conflicting
+  validate_spawn(manifest, proposal) → list[SpawnFinding]:
+    VMIDs: collision with hatchery, duplicates, < 100, >= 9000, non-integer
+    IPs: collision, duplicates, invalid format, outside management CIDR (YELLOW)
+    Hostnames: collision (by short name), intra-proposal dedup by short name,
+               format advisory (YELLOW), hostname + FQDN of same machine not double-counted
+    Capacity: RAM > host × 0.90 → RED; RAM > host × 0.85 → YELLOW
+    Placement: role not in placement_policy.allowed_roles → YELLOW
+  is_valid(findings): True if no RED. summarise(findings): human-readable.
+
+### 12.E.4 — Spawn Hardware Discovery (spawn_hardware_discovery.py, 34 tests)
+  DiskInfo / NicInfo / HardwareProfile dataclasses
+  HardwareProfile properties: disk_count, usable_disks (≥10GB), ssd_count, hdd_count
+  discover_hardware(host, user, port, key, runner_fn) via injectable SSH:
+    lsblk → DiskInfo list (partitions excluded, ROTA field for SSD detection)
+    ip -j link → NicInfo list (lo/vmbr*/veth/bond* excluded)
+    /proc/meminfo → ram_gb; lscpu → cpu_model/cores; hostname → hostname
+  zfs_topology_for_profile(): stripe/mirror/raidz1/raidz2/raidz3 from usable disk count
+  hardware_profile_to_dict() / dict_to_hardware_profile(): JSON round-trip with derived{}
+
+### 12.E.9 — Bootstrap-state Updater (update_state_after_spawn.py, 21 tests)
+  SpawnResult dataclass: hostname, fqdn, lan_ip, tailnet_ip, VMIDs, IPs, services,
+    execution_mode, k3s_role, vms_deployed, dns_entries, spawned_at, spawn_package_id
+  update_state_after_spawn(state, result, hardware_profile):
+    vms[]: appends new VMs (dedup by VMID)
+    dns_registry[]: appends broodling+VM entries (dedup by IP)
+    provenance_records[]: one per VM (dedup by VMID, notes mention spawn package)
+    spawn_history[]: prepends event (most recent first) with all broodling+disposition info
+  build_spawn_result(spawn_plan, hardware_profile, now_fn): from spawn-plan.json dict
+
+### 12.E.10 — Disposition-aware Assessment Scoring (9 tests)
+  _score_disposition_compliance(manifest): reads spawn_history[].disposition_services,
+    maps service → VM name via service_contracts, checks VM is in broodling's
+    allocated VMIDs (not global running_vms — each broodling scored independently).
+    RED: declared service VM not in broodling's allocated VMs.
+
+**Tests: 1908 total (1904 passed, 4 skipped)**
+
+## Remaining Phase 12.E (next session)
+  12.E.3: Spawn planner (spawn-planner.py) — uses guided_setup.py Session, hatchery_state,
+           validate_spawn; execution mode gate → service selection → spawn-plan.json
+  12.E.5: Spawn IaC and config generator — tfvars, Cloud-Init snippets, Ansible additions
+  12.E.6: Spawn scripts — phase-00 through phase-06 generated from spawn-plan.json
+  12.E.7: Spawn package assembler (assemble-spawn-package.py)
+  12.E.7a: KeePass unlock gate in spawn.sh
+  12.E.8: Spawn workbook (ODS)
+  12.E.11: Spawn scenarios tested
+  12.E.12: Documentation (NODE-SPAWNING.md)
+
+## Next Action: Phase 12.E (continued) — spawn planner (12.E.3)
 
 ### What It Is
 

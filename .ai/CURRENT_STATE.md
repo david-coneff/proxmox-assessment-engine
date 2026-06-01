@@ -65,13 +65,19 @@ See ROADMAP.md Milestone 7.4 for the full spec.
 
 | SETUP-GUIDE + manifest | Interactive checklist/notes HTML guide with localStorage persistence, export, import; generate-setup-manifest.py with Markdown and JSON output (37 tests) | Complete |
 
-**Tests: 1776 total (1772 passed, 4 skipped)**
+| 12.E.1 | Hatchery state reader — SpawnManifest, read_hatchery_state, next_vmid_block, next_ip_block, suggest_hostname (37 tests) | Complete |
+| 12.E.2 | Spawn conflict validator — SpawnProposal, SpawnFinding, validate_spawn, is_valid, summarise (31 tests) | Complete |
+| 12.E.4 | Spawn hardware discovery — HardwareProfile, DiskInfo, NicInfo, parsers, SSH collector, zfs_topology, round-trip serialization (34 tests) | Complete |
+| 12.E.9 | Bootstrap-state updater after spawn — SpawnResult, update_state_after_spawn, build_spawn_result, no-duplicate guards (21 tests) | Complete |
+| 12.E.10 | Disposition-aware assessment scoring — _score_disposition_compliance() RED if declared service VM not on broodling (9 tests) | Complete |
+
+**Tests: 1908 total (1904 passed, 4 skipped)**
 
 ## Next Milestones
 
 | Milestone | Description |
 |---|---|
-| **Phase 12.E** | **Node Spawn Bootstrap (Hatchery Process) — START HERE** |
+| **Phase 12.E (continued)** | **12.E.3 Spawn planner, 12.E.5 IaC generator, 12.E.6 scripts, 12.E.7 assembler, 12.E.8 workbook, 12.E.11 scenarios, 12.E.12 docs — START HERE** |
 | Phase 1.G.4-6 | Wire guided setup into forge, spawn, phoenix |
 | Phase 1.F | Forge Package Assembly (capstone of forging process) |
 

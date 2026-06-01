@@ -1274,7 +1274,7 @@ never needs to ask the operator what is already taken.
       `bootstrap-state.json`; adds provenance records for new VMs; commits to Forgejo.
       Assessment Engine reassessment triggered automatically by Forgejo webhook.
 
-- [ ] 12.E.10: **Disposition-aware assessment scoring** — the Assessment Engine
+- [x] 12.E.10: **Disposition-aware assessment scoring** — the Assessment Engine
       reads `disposition.services` from each host's entry in `bootstrap-state.json`
       and adjusts placement compliance evaluation to match declared intent:
       - Placement compliance is checked per service, per host: is this service

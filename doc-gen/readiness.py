@@ -565,6 +565,73 @@ def _score_service_contract_completeness(graph, manifest: dict) -> list:
     return gaps
 
 
+def _score_disposition_compliance(manifest: dict) -> list:
+    """
+    Score disposition compliance (Phase 12.E.10).
+
+    Each broodling in spawn_history has a declared disposition.services list.
+    The Assessment Engine compares declared disposition against observed running VMs.
+
+    RED:    A service that was in disposition.services is not running.
+    YELLOW: A VM is running that is not in any broodling's declared disposition
+            (undeclared service — may be intentional, advisory only).
+
+    Note: VMs not in any disposition are scored against the hatchery's own
+    service_contracts. Broodlings are scored against their own disposition.
+    """
+    gaps: list[Gap] = []
+    spawn_history = manifest.get("spawn_history") or []
+    if not spawn_history:
+        return gaps   # no broodlings spawned yet — nothing to score
+
+    running_vms = {v.get("name") for v in (manifest.get("vms") or [])
+                   if v.get("status", "running") == "running"
+                   or "status" not in v}
+
+    for event in spawn_history:
+        hostname = event.get("broodling_hostname", "?")
+        declared = set(event.get("disposition_services") or [])
+        excluded = {e.get("service") if isinstance(e, dict) else str(e)
+                    for e in (event.get("disposition_excluded") or [])}
+        vmids    = set(event.get("vmids_allocated") or [])
+
+        if not declared:
+            continue
+
+        # Find which declared services are backed by a running VM on this broodling
+        broodling_vms = {v.get("name") for v in (manifest.get("vms") or [])
+                         if v.get("vmid") in vmids}
+
+        for svc in declared:
+            # Service name expected to have a corresponding VM name or service contract
+            contracts = manifest.get("service_contracts") or []
+            contract  = next((c for c in contracts if c.get("service") == svc), None)
+            vm_name   = contract.get("vm") if contract else svc
+
+            # Check only against this broodling's VMs (not the global running_vms),
+            # because another broodling might run the same-named service independently
+            if vm_name and vm_name not in broodling_vms:
+                gaps.append(Gap(
+                    component_id=f"broodling:{hostname}:{svc}",
+                    gap_type="DISPOSITION_SERVICE_NOT_RUNNING",
+                    severity="RED",
+                    description=(
+                        f"Service '{svc}' is in {hostname}'s disposition but "
+                        f"its VM ('{vm_name}') is not found in running inventory"
+                    ),
+                    remediation=(
+                        f"Start VM '{vm_name}' on {hostname}, or update the "
+                        f"disposition if this service was intentionally removed"
+                    ),
+                    readiness_impact=(
+                        f"Declared broodling capability '{svc}' on {hostname} "
+                        f"is not available — cluster may be under-provisioned"
+                    ),
+                ))
+
+    return gaps
+
+
 def _score_reconstruction_drill(manifest: dict) -> list:
     """
     Check reconstruction drill history (Phase 12).
@@ -1298,6 +1365,7 @@ def score_graph(graph, manifest: dict) -> ReadinessReport:
     registry_gaps += _score_backup_config_completeness(manifest)
     registry_gaps += _score_network_topology_completeness(manifest)
     registry_gaps += _score_capacity_model(manifest)
+    registry_gaps += _score_disposition_compliance(manifest)
     registry_gaps += _score_reconstruction_drill(manifest)
     registry_gaps += _score_phoenix_playbook_existence(manifest)
 
