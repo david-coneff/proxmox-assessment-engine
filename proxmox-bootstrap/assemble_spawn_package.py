@@ -45,6 +45,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+try:
+    from spawn_workbook import build_spawn_workbook
+except ImportError:
+    build_spawn_workbook = None  # type: ignore
+
 
 # ---------------------------------------------------------------------------
 # KeePass unlock gate — 12.E.7a
@@ -167,19 +172,21 @@ def assemble_spawn_package(
     artifacts_dir: Path,
     output_dir: Path,
     kdbx_path: Optional[Path] = None,
+    hardware_profile: Optional[dict] = None,
     now: Optional[datetime] = None,
 ) -> Path:
     """
     Bundle all spawn artifacts into a self-contained tar.gz.
 
     Args:
-        plan:          spawn-plan.json dict
-        manifest:      spawn-manifest.json dict
-        artifacts_dir: directory containing generated artifacts
+        plan:             spawn-plan.json dict
+        manifest:         spawn-manifest.json dict
+        artifacts_dir:    directory containing generated artifacts
           (opentofu/, cloud-init/, ansible/, phase-*.sh, spawn.sh)
-        output_dir:    where to write the package
-        kdbx_path:     optional path to KeePass .kdbx to embed in package
-        now:           injectable datetime for deterministic naming in tests
+        output_dir:       where to write the package
+        kdbx_path:        optional path to KeePass .kdbx to embed in package
+        hardware_profile: optional hardware-profile dict to embed in workbook
+        now:              injectable datetime for deterministic naming in tests
 
     Returns:
         Path to the generated .tar.gz file.
@@ -234,6 +241,16 @@ def assemble_spawn_package(
 
         # Ansible artifacts
         _add_dir(artifacts_dir / "ansible",     "ansible")
+
+        # Spawn workbook (ODS)
+        if build_spawn_workbook is not None:
+            wb_bytes = build_spawn_workbook(plan, hardware_profile)
+            hostname = plan.get("hostname", "broodling")
+            ts       = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d_%H_%M_%S")
+            wb_name  = f"spawn-workbook-{hostname}-{ts}.ods"
+            wb_info  = tarfile.TarInfo(name=wb_name)
+            wb_info.size = len(wb_bytes)
+            tar.addfile(wb_info, io.BytesIO(wb_bytes))
 
         # Optional KeePass database
         if kdbx_path and Path(kdbx_path).exists():
