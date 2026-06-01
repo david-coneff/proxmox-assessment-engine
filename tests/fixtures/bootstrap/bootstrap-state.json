@@ -442,6 +442,65 @@
       "owner": "infrastructure"
     }
   ],
+  "external_dependencies": [
+    {
+      "id": "cloudflare-dns",
+      "name": "Cloudflare DNS",
+      "type": "dns_provider",
+      "endpoint": "https://1.1.1.1/dns-query",
+      "description": "Cloudflare DNS resolver used for external name resolution",
+      "required_by": ["forgejo", "assessment-engine"],
+      "status": "reachable",
+      "last_checked_at": "2026-05-31T00:00:00Z",
+      "certificate": {
+        "expires_at": "2027-03-15T00:00:00Z",
+        "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+        "subject": "cloudflare-dns.com",
+        "sans": ["cloudflare-dns.com", "*.cloudflare-dns.com"],
+        "last_checked_at": "2026-05-31T00:00:00Z",
+        "auto_renew": true
+      },
+      "health_check_url": null,
+      "failover": "8.8.8.8",
+      "notes": null
+    },
+    {
+      "id": "smtp-relay-sendgrid",
+      "name": "SendGrid SMTP Relay",
+      "type": "smtp_relay",
+      "endpoint": "smtp.sendgrid.net:587",
+      "description": "Outbound SMTP relay for Forgejo notifications and alerting",
+      "required_by": ["forgejo"],
+      "status": "reachable",
+      "last_checked_at": "2026-05-31T00:00:00Z",
+      "certificate": null,
+      "health_check_url": null,
+      "failover": null,
+      "notes": "Uses STARTTLS on port 587 with API key authentication"
+    },
+    {
+      "id": "letsencrypt-acme",
+      "name": "Let's Encrypt ACME",
+      "type": "cert_authority",
+      "endpoint": "https://acme-v02.api.letsencrypt.org/directory",
+      "description": "Certificate authority for TLS certificates issued to internal services via cert-manager",
+      "required_by": ["forgejo", "inventory"],
+      "status": "reachable",
+      "last_checked_at": "2026-05-31T00:00:00Z",
+      "certificate": {
+        "expires_at": "2026-06-15T00:00:00Z",
+        "issuer": "R11",
+        "subject": "acme-v02.api.letsencrypt.org",
+        "sans": [],
+        "last_checked_at": "2026-05-31T00:00:00Z",
+        "auto_renew": true
+      },
+      "health_check_url": "https://acme-v02.api.letsencrypt.org/directory",
+      "failover": null,
+      "notes": "ACME HTTP-01 challenges via cert-manager in k3s cluster"
+    }
+  ],
+
   "hardware_requirements": {
     "vtx_required": true,
     "iommu_required": false,

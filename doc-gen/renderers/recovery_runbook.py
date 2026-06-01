@@ -65,6 +65,83 @@ def _resolve_vm_ip(vmid, manifest: dict) -> str:
     return "[VM_IP]"
 
 
+def _get_contract(vm_name: str, manifest: dict) -> dict | None:
+    """Return the service contract for the given VM name, or None."""
+    for c in (manifest.get("service_contracts") or []):
+        if c.get("vm") == vm_name:
+            return c
+    return None
+
+
+def _health_check_cmds(iface: dict, vm_ip: str) -> list[str]:
+    """
+    Generate executable health-check commands from a provided_interface entry.
+
+    Returns a list of command strings (empty if no meaningful check can be derived).
+    SSH interfaces are skipped — SSH reachability is validated in the standard block.
+    """
+    protocol     = (iface.get("protocol") or "").lower()
+    port         = iface.get("port")
+    health_check = iface.get("health_check")
+    url_pattern  = iface.get("url_pattern")
+    host         = vm_ip if vm_ip != "[VM_IP]" else "HOST"
+
+    if protocol == "ssh":
+        return []   # covered by standard validation block
+
+    if protocol == "postgresql":
+        return [
+            f"pg_isready -h {host} -p {port or 5432}",
+            "# Expected: accepting connections",
+        ]
+
+    if protocol in ("smtp", "smtps"):
+        return [
+            f"nc -z -w 5 {host} {port or 25}",
+            "# Expected: connection established (exit 0)",
+        ]
+
+    # HTTP/HTTPS — parse "GET /path" health_check string
+    if health_check and health_check.upper().startswith("GET "):
+        path = health_check[4:].strip()
+        if url_pattern:
+            url = url_pattern.rstrip("/") + path
+        else:
+            scheme = "https" if protocol == "https" else "http"
+            url = f"{scheme}://{host}:{port}{path}"
+        return [
+            f"curl -sf --max-time 10 '{url}'",
+            "# Expected: HTTP 2xx (exit 0)",
+        ]
+
+    # Generic port connectivity
+    if port and vm_ip != "[VM_IP]":
+        return [
+            f"nc -z -w 5 {vm_ip} {port}",
+            f"# Expected: {protocol}:{port} reachable (exit 0)",
+        ]
+
+    return []
+
+
+def _service_restart_cmds(contract: dict, vm_ip: str) -> list[str]:
+    """
+    Generate service restart and status commands for a declared service.
+    Commands assume Ubuntu VM with systemd; issued via SSH from the operator machine.
+    """
+    svc = contract.get("service", "unknown")
+    if vm_ip == "[VM_IP]":
+        prefix = f"ssh ubuntu@[VM_IP_{svc.upper().replace('-','_')}]"
+    else:
+        prefix = f"ssh ubuntu@{vm_ip}"
+    return [
+        f"# Restart and verify service: {svc}",
+        f"{prefix} 'sudo systemctl restart {svc}'",
+        f"{prefix} 'sudo systemctl status --no-pager {svc}'",
+        "# Expected: Active: active (running)",
+    ]
+
+
 def _restore_cmd(node, manifest: dict) -> list[str]:
     """Generate restore commands for a given node based on its type and metadata."""
     cmds = []
@@ -431,6 +508,83 @@ def build_recovery_runbook(
                              f"No provenance record found for {node.label} — "
                              f"cannot verify reconstruction matches original deployment")
 
+            # Service Contract block (VM nodes only)
+            if node.type == "vm":
+                vm_name  = node.metadata.get("name", "")
+                vmid     = node.metadata.get("vmid", "?")
+                vm_ip    = _resolve_vm_ip(vmid, manifest)
+                contract = _get_contract(vm_name, manifest)
+
+                if contract:
+                    svc = contract.get("service", vm_name)
+                    rb.h3(f"Service Contract: {svc}")
+
+                    # -- Provided interfaces & health checks --------------------
+                    provided = contract.get("provided_interfaces") or []
+                    if provided:
+                        rb.body("Provided interfaces:")
+                        for iface in provided:
+                            proto = iface.get("protocol", "?")
+                            port  = iface.get("port", "?")
+                            hc    = iface.get("health_check")
+                            hc_str = f"  health_check: {hc}" if hc else "  no health check"
+                            rb.field(
+                                f"  {proto}:{port}",
+                                hc_str,
+                                "AUTO",
+                            )
+                            for cmd in _health_check_cmds(iface, vm_ip):
+                                rb.code(cmd)
+                        rb.spacer()
+
+                    # -- Required interfaces ------------------------------------
+                    required = contract.get("required_interfaces") or []
+                    if required:
+                        rb.body("Required interfaces (must be healthy before this service starts):")
+                        for req in required:
+                            req_svc      = req.get("service", "?")
+                            req_proto    = req.get("protocol", "?")
+                            req_port     = req.get("port", "?")
+                            req_critical = req.get("critical", False)
+                            severity_str = "CRITICAL" if req_critical else "optional"
+                            rb.field(
+                                f"  {req_svc}  ({req_proto}:{req_port})",
+                                severity_str,
+                                "UNRESOLVED" if req_critical else "AUTO",
+                                f"Verify {req_svc} is reachable before starting {svc}",
+                            )
+                        rb.spacer()
+
+                    # -- Startup ordering --------------------------------------
+                    after = contract.get("startup_after") or []
+                    if after:
+                        rb.note(f"Start after: {', '.join(after)}")
+                        rb.spacer()
+
+                    # -- Restart commands --------------------------------------
+                    rb.body("Service restart commands (run from operator machine):")
+                    for cmd in _service_restart_cmds(contract, vm_ip):
+                        rb.code(cmd)
+                    rb.spacer()
+
+                    # -- Secrets required by this service ----------------------
+                    secret_refs = contract.get("secret_references") or []
+                    if secret_refs:
+                        rb.body(f"Secrets required by {svc}:")
+                        for ref in secret_refs:
+                            rb.field(f"  {ref}", "[retrieve from KeePass]", "HUMAN", "")
+
+                    # -- Contract-level checkboxes ----------------------------
+                    rb.checkbox(f"All required interfaces for {svc} verified reachable")
+                    for iface in provided:
+                        hc_cmds = _health_check_cmds(iface, vm_ip)
+                        if hc_cmds:
+                            proto = iface.get("protocol", "?")
+                            port  = iface.get("port", "")
+                            rb.checkbox(f"Health check passed: {svc} {proto}:{port}")
+                    rb.checkbox(f"Service {svc} running and healthy")
+                    rb.spacer()
+
             rb.field("Restore notes", "[HUMAN] Record any component-specific recovery notes", "HUMAN",
                      f"Notes for: {node.label}")
             rb.spacer()
@@ -514,12 +668,21 @@ def build_recovery_runbook(
         rb.body(f"  {SCORE_SYMBOLS.get(score,'?')}  {node.label}  [{node.type}]  id={node.id}")
 
     rb.h2("All Dependencies (consumer → provider)")
+    rb.body("Edge type legend:")
+    rb.body("  [SERVICE★]   — declared required_interface in service-contracts.yaml")
+    rb.body("  [DEPENDS_ON] — startup ordering (startup_after) or structural dependency")
+    rb.body("  [STORAGE]    — storage pool dependency")
+    rb.body("  [NETWORK]    — network infrastructure dependency")
+    rb.body("  [BACKUP]     — backup relationship")
+    rb.body("  ★ = sourced from declared service contract")
+    rb.spacer()
     for edge in graph.edges:
         from_node = node_map.get(edge.from_id)
         to_node   = node_map.get(edge.to_id)
         fl = from_node.label if from_node else edge.from_id
         tl = to_node.label   if to_node   else edge.to_id
-        rb.body(f"  {fl}  →[{edge.type}]→  {tl}  ({edge.label or ''})")
+        origin = " ★" if edge.type == "SERVICE" else ""
+        rb.body(f"  {fl}  →[{edge.type}{origin}]→  {tl}  ({edge.label or ''})")
 
     rb.spacer()
 
@@ -695,6 +858,215 @@ def build_recovery_runbook(
             "Template registry not available. "
             "Populate base_images and templates in bootstrap-state.json "
             "to enable pre-populated reconstruction steps."
+        )
+
+    # ------------------------------------------------------------------
+    # Appendix G — External Dependencies
+    # ------------------------------------------------------------------
+    rb.h1("Appendix G — External Dependencies")
+    ext_deps = manifest.get("external_dependencies") or []
+    if ext_deps:
+        rb.body(
+            f"External dependencies are services outside the cell boundary that "
+            f"internal services rely on. ({len(ext_deps)} declared)"
+        )
+        rb.spacer()
+
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+
+        for dep in ext_deps:
+            dep_id    = dep.get("id", "unknown")
+            dep_name  = dep.get("name", dep_id)
+            dep_type  = dep.get("type", "other")
+            endpoint  = dep.get("endpoint", "(not set)")
+            status    = dep.get("status", "unknown")
+            req_by    = ", ".join(dep.get("required_by") or []) or "(none declared)"
+            desc      = dep.get("description") or ""
+            failover  = dep.get("failover")
+            notes     = dep.get("notes")
+
+            rb.h2(f"{dep_name}  ({dep_type})")
+            rb.field("ID",          dep_id,   "AUTO", "")
+            rb.field("Endpoint",    endpoint, "AUTO", "")
+            rb.field("Status",      status,   "AUTO" if status != "unknown" else "UNRESOLVED", "")
+            rb.field("Required by", req_by,   "AUTO", "")
+            if desc:
+                rb.body(f"Description: {desc}")
+            if failover:
+                rb.field("Failover",  failover, "AUTO", "fallback if primary endpoint unreachable")
+            if notes:
+                rb.body(f"Notes: {notes}")
+
+            cert = dep.get("certificate")
+            if cert:
+                rb.h3("TLS Certificate")
+                expires_at    = cert.get("expires_at", "(unknown)")
+                issuer        = cert.get("issuer") or "(not recorded)"
+                subject       = cert.get("subject") or "(not recorded)"
+                auto_renew    = cert.get("auto_renew")
+                last_checked  = cert.get("last_checked_at") or dep.get("last_checked_at")
+
+                days_remaining = None
+                try:
+                    exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                    days_remaining = (exp_dt - now).days
+                except (ValueError, TypeError, AttributeError):
+                    pass
+
+                if days_remaining is not None:
+                    if days_remaining <= 7:
+                        sev_str = f"⚠ EXPIRES IN {days_remaining} DAYS — RENEW IMMEDIATELY"
+                        rb.field("Expires at", f"{expires_at}  ({sev_str})", "UNRESOLVED", "")
+                    elif days_remaining <= 30:
+                        sev_str = f"⚠ {days_remaining} days remaining — renewal required"
+                        rb.field("Expires at", f"{expires_at}  ({sev_str})", "HUMAN", "")
+                    elif days_remaining <= 60:
+                        sev_str = f"{days_remaining} days remaining — plan renewal"
+                        rb.field("Expires at", f"{expires_at}  ({sev_str})", "DERIVED", "")
+                    else:
+                        rb.field("Expires at", f"{expires_at}  ({days_remaining} days remaining)", "AUTO", "")
+                else:
+                    rb.field("Expires at", expires_at, "AUTO", "")
+
+                rb.field("Issuer",  issuer,  "AUTO", "")
+                rb.field("Subject", subject, "AUTO", "")
+                if auto_renew is not None:
+                    rb.field("Auto-renew", "Yes" if auto_renew else "No", "AUTO", "")
+                if last_checked:
+                    rb.field("Last checked", last_checked, "AUTO", "")
+
+                sans = cert.get("sans") or []
+                if sans:
+                    rb.body(f"SANs: {', '.join(sans)}")
+
+            rb.spacer()
+
+    else:
+        rb.body(
+            "No external dependencies declared. "
+            "To track certificate expiry and reachability, add external_dependencies "
+            "to bootstrap-state.json."
+        )
+
+    # ------------------------------------------------------------------
+    # Appendix H — Backup Configuration
+    # ------------------------------------------------------------------
+    rb.h1("Appendix H — Backup Configuration")
+    bc = manifest.get("backup_config")
+    if bc:
+        layers_cfg  = bc.get("layers") or {}
+        history     = bc.get("backup_history") or []
+        checkpoint_tag = bc.get("checkpoint_tag", "checkpoint")
+
+        rb.body(
+            "Backup is managed by restic (config/appdata layers) and rclone "
+            "(secrets / KeePass layer). All restic repos use per-backup unique "
+            "encryption keys stored in KeePass."
+        )
+        rb.spacer()
+
+        LAYER_LABELS = {
+            "secrets": "Secrets (KeePass database) — rclone copy, no restic",
+            "config":  "Configuration state — restic, encrypted",
+            "appdata": "Application data volumes — restic, encrypted (opt-in)",
+        }
+
+        for layer_name, layer_label in LAYER_LABELS.items():
+            layer = layers_cfg.get(layer_name) or {}
+            if not layer.get("enabled"):
+                rb.h2(f"{layer_label} [DISABLED]")
+                continue
+
+            rb.h2(layer_label)
+            dests   = layer.get("destinations") or []
+            last_ok = layer.get("last_backup_at")
+            consec  = layer.get("consecutive_all_fail_count", 0)
+
+            if consec >= 2:
+                rb.warning(f"ALL DESTINATIONS FAILED on {consec} consecutive runs — backup chain broken")
+            elif consec == 1:
+                rb.warning("All destinations failed on last run — investigate before next run")
+
+            rb.field("Last successful backup",
+                     last_ok or "NEVER",
+                     "AUTO" if last_ok else "UNRESOLVED", "")
+            rb.field("Consecutive all-fail count", str(consec),
+                     "AUTO" if consec == 0 else ("ORANGE" if consec == 1 else "UNRESOLVED"), "")
+
+            if dests:
+                rb.body(f"Destination chain ({len(dests)} configured):")
+                for i, dest in enumerate(dests, 1):
+                    dest_type = dest.get("type", "?")
+                    dest_id   = dest.get("id", "?")
+                    if layer_name == "secrets":
+                        root = dest.get("kdbx_destination_root", "(not set)")
+                    else:
+                        root = dest.get("restic_repo_root", "(not set)")
+                    rb.body(f"  {i}. [{dest_type}] {dest_id}  —  {root}")
+            else:
+                rb.field("Destinations", "NONE CONFIGURED", "UNRESOLVED",
+                         "Add destinations with setup-backup.py")
+
+            # Recent history for this layer
+            layer_history = [r for r in history if r.get("layer") == layer_name][:3]
+            if layer_history:
+                rb.body("Recent backup runs:")
+                for r in layer_history:
+                    run_at   = r.get("run_at", "?")
+                    set_id   = (r.get("snapshot_set_id") or "?")[:40]
+                    succeeded = len(r.get("destinations_succeeded") or [])
+                    attempted = len(r.get("destinations_attempted") or [])
+                    status = "✓" if succeeded == attempted else f"⚠ {succeeded}/{attempted}"
+                    rb.body(f"  {run_at[:19]}  {status}  {set_id}")
+            rb.spacer()
+
+        # Restore instructions
+        rb.h2("Restore Commands")
+        rb.body("To restore from the most recent backup:")
+        rb.code("# List available snapshot sets:")
+        rb.code("python3 proxmox-bootstrap/restore-from-backup.py \\")
+        rb.code("  --state proxmox-bootstrap/bootstrap-state.json --list")
+        rb.code("")
+        rb.code("# Restore config state (latest):")
+        rb.code("python3 proxmox-bootstrap/restore-from-backup.py \\")
+        rb.code("  --state proxmox-bootstrap/bootstrap-state.json \\")
+        rb.code("  --layer config --latest --target /tmp/restore")
+        rb.code("")
+        rb.code("# Restore a permanent checkpoint:")
+        rb.code("python3 proxmox-bootstrap/restore-from-backup.py \\")
+        rb.code("  --state proxmox-bootstrap/bootstrap-state.json \\")
+        rb.code(f"  --layer config --checkpoint --target /tmp/restore")
+        rb.body("After restore: verify files at /tmp/restore and copy to their "
+                "operational locations.")
+        rb.spacer()
+
+        # KeePass backup note
+        rb.h2("KeePass Database Backup")
+        secrets_cfg  = layers_cfg.get("secrets") or {}
+        secrets_dests = secrets_cfg.get("destinations") or []
+        rb.body(
+            "The KeePass database is backed up as a plain rclone file copy "
+            f"(already AES-256 encrypted — no restic layer). "
+            f"{len(secrets_dests)} destination(s) configured."
+        )
+        rb.body(
+            "To retrieve the KeePass backup: use the rclone credentials from "
+            "forge-manifest.json (stored in the spawn/phoenix package, not in KeePass)."
+        )
+        rb.body(
+            "After retrieving the .kdbx file, open it with the KeePass master password "
+            "to access all restic repo passwords and service credentials."
+        )
+
+    else:
+        rb.body(
+            "Backup not configured. Run proxmox-bootstrap/setup-backup.py to configure "
+            "backup destinations for KeePass DB, configuration state, and application data."
+        )
+        rb.warning(
+            "No backup configured — KeePass database and infrastructure state are "
+            "not protected by external backup. Run setup-backup.py immediately."
         )
 
     return rb.build_odt()

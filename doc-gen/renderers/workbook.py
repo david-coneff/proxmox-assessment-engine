@@ -40,7 +40,7 @@ META_XML = """\
   xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
   office:version="1.2">
   <office:meta>
-    <meta:generator>Assessment Engine doc-gen v1.0</meta:generator>
+    <meta:generator>Broodforge doc-gen v1.0</meta:generator>
   </office:meta>
 </office:document-meta>
 """
@@ -350,6 +350,48 @@ def _get(manifest: dict, path: str, default: Any = None) -> Any:
     return obj
 
 
+def _registry_ip_for_bootstrap_vm(manifest: dict) -> str | None:
+    """
+    Look up the IP for the infra-bootstrap VM from the DNS registry in manifest.
+    Returns the IP string if found, None otherwise.
+    Tries: role "infra-bootstrap", then hostname "infra-bootstrap", then vmid 100.
+    """
+    dns_entries = manifest.get("dns_registry") or []
+    for entry in dns_entries:
+        role = entry.get("role", "")
+        hostname = entry.get("hostname", "")
+        if role == "infra-bootstrap" or hostname.startswith("infra-bootstrap"):
+            ip = entry.get("ip")
+            if ip:
+                return ip
+    # Fallback: vmid 100 is the conventional infra-bootstrap VMID
+    for entry in dns_entries:
+        try:
+            if int(entry.get("vmid", -1)) == 100:
+                ip = entry.get("ip")
+                if ip:
+                    return ip
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def _registry_iso_path(manifest: dict) -> str | None:
+    """
+    Derive the Proxmox ISO path from the template registry and storage config.
+    Returns e.g. "local:iso/ubuntu-22.04.4-live-server-amd64.iso" or None.
+    """
+    base_images = manifest.get("base_images") or []
+    if not base_images:
+        return None
+    source_iso = base_images[0].get("source_iso", "")
+    if not source_iso:
+        return None
+    storage_cfg = manifest.get("bootstrap_state_storage") or manifest.get("storage_config") or {}
+    isos_store  = storage_cfg.get("isos", "local:iso")
+    return f"{isos_store}/{source_iso}"
+
+
 def build_bootstrap_workbook(
     manifest: dict,
     resolved_fields: dict,
@@ -359,6 +401,10 @@ def build_bootstrap_workbook(
     Build the full bootstrap workbook ODS from a resolved field dict.
 
     resolved_fields: {field_id: {"value": ..., "class": ..., "note": ...}}
+
+    If manifest contains dns_registry and base_images/templates (injected by
+    engine.py run_bootstrap() from bootstrap-state.json), Stage 03 VM IP and
+    ISO path fields are pre-populated as AUTO/DERIVED instead of HUMAN.
     """
 
     def r(field_id: str) -> dict:
@@ -372,6 +418,10 @@ def build_bootstrap_workbook(
 
     def cls(field_id: str) -> str:
         return r(field_id).get("class", "UNRESOLVED")
+
+    # Registry lookups for Stage 03 pre-population
+    _bootstrap_ip  = _registry_ip_for_bootstrap_vm(manifest)
+    _iso_path      = _registry_iso_path(manifest)
 
     # ---- Sheet 1: Stage 01 — Host Preparation ----
     s01 = SheetBuilder("Stage 01 — Host Preparation")
@@ -537,11 +587,24 @@ def build_bootstrap_workbook(
     s03.field("Boot Disk Size", v("derived.vm_disk"),         cls("derived.vm_disk"),         note("derived.vm_disk"))
     s03.field("Storage Pool",   v("derived.vm_storage_pool"), cls("derived.vm_storage_pool"), note("derived.vm_storage_pool"))
     s03.field("Network Bridge", v("derived.vm_bridge"),       cls("derived.vm_bridge"),       note("derived.vm_bridge"))
-    s03.human_field("VM IP Address", "Enter static IP. Suggested range: " + v("derived.vm_ip_plan"))
-    s03.human_field("VM Name",       "Enter VM name (default: infra-bootstrap)")
+    if _bootstrap_ip:
+        s03.field("VM IP Address", _bootstrap_ip, "AUTO",
+                  "Pre-populated from DNS registry (bootstrap-state.json dns_registry, "
+                  "role: infra-bootstrap)")
+    else:
+        s03.human_field("VM IP Address",
+                        "Enter static IP. Suggested range: " + v("derived.vm_ip_plan"))
+    s03.human_field("VM Name", "Enter VM name (default: infra-bootstrap)")
 
     s03.section("OS Configuration")
-    s03.human_field("Ubuntu ISO path", "Path to ISO in Proxmox storage, e.g. local:iso/ubuntu-22.04-live-server-amd64.iso")
+    if _iso_path:
+        s03.field("Ubuntu ISO path", _iso_path, "DERIVED",
+                  "Derived from template registry base_images[0].source_iso + "
+                  "storage_config.isos (bootstrap-state.json)")
+    else:
+        s03.human_field("Ubuntu ISO path",
+                        "Path to ISO in Proxmox storage, "
+                        "e.g. local:iso/ubuntu-22.04-live-server-amd64.iso")
     s03.human_field("OS username",     "Initial OS username (e.g. ubuntu)")
     s03.human_field("VM password — KeePass path", "Enter KeePass path for VM password")
 
@@ -567,13 +630,16 @@ def build_bootstrap_workbook(
         f"  --scsi0 {pool}:{disk_gb} \\\n"
         f"  --ostype l26 --serial0 socket --vga serial0"
     )
-    s03.field("qm create command", cmd, "DERIVED",
-              "Parameters derived from assessment. Replace [VM_IP] in cloud-init after creation.")
+    ip_note = (f"VM IP: {_bootstrap_ip} (from DNS registry)"
+               if _bootstrap_ip else "Replace [VM_IP] with assigned IP in cloud-init after creation.")
+    s03.field("qm create command", cmd, "DERIVED", ip_note)
 
     s03.section("Validation Checkpoints")
     s03.human_field("VM created in Proxmox web UI", "Verify VM appears with correct ID and name", is_checkbox=True)
     s03.human_field("VM boots to OS", "Start VM and confirm OS boot completes", is_checkbox=True)
-    s03.human_field("SSH access confirmed", "ssh ubuntu@[VM_IP] — verify login", is_checkbox=True)
+    ssh_target = _bootstrap_ip if _bootstrap_ip else "[VM_IP]"
+    s03.human_field("SSH access confirmed",
+                    f"ssh ubuntu@{ssh_target} — verify login", is_checkbox=True)
     s03.human_field("Internet access from VM", "From VM: ping 1.1.1.1 — verify response", is_checkbox=True)
 
     s03.legend()

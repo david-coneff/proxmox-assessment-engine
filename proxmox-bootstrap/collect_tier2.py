@@ -405,6 +405,43 @@ def _merge_list_by_key(existing: list, incoming: list, key: str) -> tuple[list, 
     return merged, added
 
 
+# ---------------------------------------------------------------------------
+# Service contract coverage reader
+# ---------------------------------------------------------------------------
+
+def check_service_contract_coverage(state: dict, observed_vms: list) -> list:
+    """
+    Read declared service contracts from state and cross-reference against
+    the observed VM list collected from the live Proxmox host.
+
+    Returns a list of coverage gap dicts:
+      {service, vm, issue}  — one entry per declared contract whose VM was
+                               not observed in the running system.
+
+    This is the "service contract reader" step in Tier 2 collection:
+    contracts are declared in bootstrap-state.json (mirrored from
+    proxmox-bootstrap/service-contracts.yaml), and Tier 2 collection
+    compares declarations against observed reality.
+    """
+    contracts = state.get("service_contracts") or []
+    if not contracts:
+        return []
+
+    observed_names = {v.get("name", "") for v in observed_vms}
+    gaps = []
+    for contract in contracts:
+        vm_name = contract.get("vm")
+        svc     = contract.get("service", "?")
+        if vm_name and vm_name not in observed_names:
+            gaps.append({
+                "service": svc,
+                "vm":      vm_name,
+                "issue":   (f"Contract declared for service '{svc}' on VM '{vm_name}', "
+                             f"but that VM was not observed on the Proxmox host"),
+            })
+    return gaps
+
+
 def merge_into_state(state: dict, new_provenance: list, new_templates: list,
                      new_base_images: list) -> tuple[dict, dict]:
     """
@@ -518,6 +555,21 @@ def main(argv=None):
     print(f"[collect-tier2]   Found {len(provenance)} VM(s)")
 
     state = load_state(state_path)
+
+    # Service contract coverage check — read declared contracts from state
+    # and cross-reference against observed VMs before merge.
+    contract_gaps = check_service_contract_coverage(state, provenance)
+    if contract_gaps:
+        print(f"[collect-tier2] Service contract gaps ({len(contract_gaps)}):")
+        for gap in contract_gaps:
+            print(f"  WARNING: {gap['issue']}")
+    elif state.get("service_contracts"):
+        print(f"[collect-tier2] Service contracts: "
+              f"{len(state['service_contracts'])} declared, "
+              f"all VMs observed — OK")
+    else:
+        print("[collect-tier2] Service contracts: none declared in bootstrap-state.json")
+
     updated_state, summary = merge_into_state(state, provenance, templates, base_images)
 
     print(f"[collect-tier2] Merge summary:")
@@ -528,15 +580,41 @@ def main(argv=None):
     print(f"  base_images:        +{summary['base_images_added']} "
           f"({summary['base_images_total']} total)")
 
+    # Build service-state document from declared contracts + observed VMs
+    sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
+    try:
+        from service_state_collector import collect_service_state
+        service_state = collect_service_state(
+            bootstrap_state=state,
+            observed_vms=provenance,
+        )
+        service_state_path = state_path.parent / "service-state.json"
+        n_svc = len(service_state.get("services") or [])
+        print(f"[collect-tier2] Service state: {n_svc} service(s) collected")
+    except Exception as exc:
+        service_state = None
+        service_state_path = None
+        print(f"[collect-tier2] WARNING: service state collection failed: {exc}",
+              file=sys.stderr)
+
     if args.dry_run:
         print("[collect-tier2] --dry-run: would write the following to "
               f"{state_path}:\n")
         print(json.dumps(updated_state, indent=2, ensure_ascii=False))
+        if service_state:
+            print(f"\n[collect-tier2] --dry-run: would write service-state to "
+                  f"{service_state_path}:\n")
+            print(json.dumps(service_state, indent=2, ensure_ascii=False))
         print("\n[collect-tier2] --dry-run: no changes written.")
         return
 
     save_state(state_path, updated_state)
     print(f"[collect-tier2] Written to {state_path}")
+
+    if service_state and service_state_path:
+        save_state(service_state_path, service_state)
+        print(f"[collect-tier2] Service state written to {service_state_path}")
+
     print("[collect-tier2] Done.")
 
 

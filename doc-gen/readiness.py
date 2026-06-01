@@ -507,6 +507,326 @@ def _score_template_registry_completeness(manifest: dict) -> list:
     return gaps
 
 
+def _score_service_contract_completeness(graph, manifest: dict) -> list:
+    """
+    Check that every VM node has a declared service contract.
+
+    A VM without a contract gets a YELLOW gap: its dependencies and health checks
+    are unknown, so the recovery runbook cannot pre-populate restart sequences or
+    verify the service is healthy after reconstruction.
+    """
+    contracts     = manifest.get("service_contracts") or []
+    contracted_vms: set[str] = {c.get("vm") for c in contracts if c.get("vm")}
+
+    if not contracts:
+        # No contracts at all — single gap rather than one per VM
+        return [Gap(
+            component_id="infrastructure:service-contracts",
+            gap_type="MISSING_SERVICE_CONTRACTS",
+            severity="YELLOW",
+            description=(
+                "No service contracts declared — inter-service dependencies, "
+                "health check endpoints, and startup ordering are unknown"
+            ),
+            remediation=(
+                "Populate proxmox-bootstrap/service-contracts.yaml and include "
+                "service_contracts in bootstrap-state.json"
+            ),
+            readiness_impact=(
+                "Recovery runbook cannot pre-populate service restart sequences; "
+                "dependency ordering must be determined manually"
+            ),
+        )]
+
+    gaps: list[Gap] = []
+    for node in graph.nodes:
+        if node.type != "vm":
+            continue
+        vm_name = node.metadata.get("name", "")
+        if not vm_name or vm_name in contracted_vms:
+            continue
+        gaps.append(Gap(
+            component_id=node.id,
+            gap_type="MISSING_SERVICE_CONTRACT",
+            severity="YELLOW",
+            description=(
+                f"No service contract for {node.label} — dependencies and "
+                f"health check are undeclared"
+            ),
+            remediation=(
+                f"Add a service contract for '{vm_name}' in "
+                f"proxmox-bootstrap/service-contracts.yaml"
+            ),
+            readiness_impact=(
+                f"Recovery runbook cannot verify '{vm_name}' is healthy or "
+                f"determine which services depend on it"
+            ),
+        ))
+    return gaps
+
+
+def _score_backup_config_completeness(manifest: dict) -> list:
+    """
+    Score backup configuration completeness.
+
+    RED:    No backup_config, or secrets/config layers have no destinations.
+    RED:    consecutive_all_fail_count >= 2 for any layer (chain is broken).
+    ORANGE: consecutive_all_fail_count == 1, or last backup > 2× schedule interval.
+    YELLOW: No permanent checkpoint exists in history, or last backup > 1× interval.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    gaps: list[Gap] = []
+    bc = manifest.get("backup_config")
+
+    if not bc:
+        gaps.append(Gap(
+            component_id="infrastructure:backup",
+            gap_type="MISSING_BACKUP_CONFIG",
+            severity="RED",
+            description=(
+                "No backup_config declared — KeePass database and configuration state "
+                "are not protected by external backup"
+            ),
+            remediation=(
+                "Run proxmox-bootstrap/setup-backup.py to configure backup destinations"
+            ),
+            readiness_impact=(
+                "Infrastructure state and secrets cannot be recovered after catastrophic loss"
+            ),
+        ))
+        return gaps
+
+    layers = bc.get("layers") or {}
+    now = datetime.now(timezone.utc)
+
+    # Default schedule interval: assume daily (24h) for config, weekly for appdata
+    default_intervals = {
+        "secrets": timedelta(hours=48),
+        "config":  timedelta(hours=48),
+        "appdata": timedelta(days=7),
+    }
+
+    for layer_name in ("secrets", "config", "appdata"):
+        layer = layers.get(layer_name) or {}
+        if not layer.get("enabled", False):
+            continue
+
+        dests = layer.get("destinations") or []
+        consec_fail = layer.get("consecutive_all_fail_count", 0)
+        last_backup = layer.get("last_backup_at")
+
+        # No destinations configured
+        if not dests and layer_name in ("secrets", "config"):
+            gaps.append(Gap(
+                component_id=f"infrastructure:backup:{layer_name}",
+                gap_type="MISSING_BACKUP_DESTINATION",
+                severity="RED",
+                description=(
+                    f"Backup layer '{layer_name}' is enabled but has no destinations configured"
+                ),
+                remediation="Run setup-backup.py to add at least one destination",
+                readiness_impact=f"'{layer_name}' data is not being backed up",
+            ))
+            continue
+
+        # Consecutive all-fail
+        if consec_fail >= 2:
+            gaps.append(Gap(
+                component_id=f"infrastructure:backup:{layer_name}",
+                gap_type="BACKUP_ALL_DESTINATIONS_FAILED",
+                severity="RED",
+                description=(
+                    f"Backup layer '{layer_name}': all destinations have failed on "
+                    f"{consec_fail} consecutive runs — backup chain is broken"
+                ),
+                remediation="Check destination connectivity and run run-backup.py manually",
+                readiness_impact=f"'{layer_name}' data is not being backed up to any destination",
+            ))
+        elif consec_fail == 1:
+            gaps.append(Gap(
+                component_id=f"infrastructure:backup:{layer_name}",
+                gap_type="BACKUP_ALL_DESTINATIONS_FAILED",
+                severity="ORANGE",
+                description=(
+                    f"Backup layer '{layer_name}': all destinations failed on the last run"
+                ),
+                remediation="Check destination connectivity and run run-backup.py",
+                readiness_impact="Last backup run produced no successful copy",
+            ))
+
+        # Last backup age
+        if last_backup:
+            try:
+                last_dt = datetime.fromisoformat(last_backup.replace("Z", "+00:00"))
+                age = now - last_dt
+                interval = default_intervals.get(layer_name, timedelta(hours=48))
+                if age > interval * 3:
+                    gaps.append(Gap(
+                        component_id=f"infrastructure:backup:{layer_name}",
+                        gap_type="STALE_BACKUP",
+                        severity="RED",
+                        description=(
+                            f"Backup layer '{layer_name}': last backup was "
+                            f"{int(age.total_seconds() / 3600)}h ago (expected every "
+                            f"{int(interval.total_seconds() / 3600)}h) — likely broken"
+                        ),
+                        remediation="Run run-backup.py and investigate why scheduled backup stopped",
+                        readiness_impact="Backup data may be dangerously stale",
+                    ))
+                elif age > interval * 2:
+                    gaps.append(Gap(
+                        component_id=f"infrastructure:backup:{layer_name}",
+                        gap_type="STALE_BACKUP",
+                        severity="ORANGE",
+                        description=(
+                            f"Backup layer '{layer_name}': last backup was "
+                            f"{int(age.total_seconds() / 3600)}h ago (expected every "
+                            f"{int(interval.total_seconds() / 3600)}h)"
+                        ),
+                        remediation="Run run-backup.py to update the backup",
+                        readiness_impact="Backup data is older than expected",
+                    ))
+                elif age > interval:
+                    gaps.append(Gap(
+                        component_id=f"infrastructure:backup:{layer_name}",
+                        gap_type="STALE_BACKUP",
+                        severity="YELLOW",
+                        description=(
+                            f"Backup layer '{layer_name}': last backup was "
+                            f"{int(age.total_seconds() / 3600)}h ago (expected every "
+                            f"{int(interval.total_seconds() / 3600)}h)"
+                        ),
+                        remediation="Run run-backup.py",
+                        readiness_impact="Backup may not meet RPO",
+                    ))
+            except (ValueError, TypeError):
+                pass
+        elif layer_name in ("secrets", "config"):
+            # Never backed up
+            gaps.append(Gap(
+                component_id=f"infrastructure:backup:{layer_name}",
+                gap_type="STALE_BACKUP",
+                severity="ORANGE",
+                description=f"Backup layer '{layer_name}': no backup has ever been run",
+                remediation="Run run-backup.py to create the first backup",
+                readiness_impact="No backup exists for this layer",
+            ))
+
+    # Checkpoint check: is there at least one permanent checkpoint in history?
+    history = bc.get("backup_history") or []
+    checkpoint_tag = bc.get("checkpoint_tag", "checkpoint")
+    has_checkpoint = any(
+        any(
+            checkpoint_tag in (c.get("restic_snapshot_id") or "")
+            for c in (r.get("components") or [])
+        )
+        for r in history
+    )
+    # Simpler check: look for checkpoint in snapshot_set_id or any tagged field
+    # (actual checkpoint detection requires querying restic; approximate from history)
+    if history and not has_checkpoint and len(history) >= 5:
+        gaps.append(Gap(
+            component_id="infrastructure:backup",
+            gap_type="MISSING_CHECKPOINT",
+            severity="YELLOW",
+            description=(
+                "No permanent checkpoint has been created — all snapshots are subject "
+                "to retention policy rotation"
+            ),
+            remediation=(
+                f"Tag a snapshot as a permanent checkpoint: "
+                f"restic tag --set {checkpoint_tag} <snapshot-id>"
+            ),
+            readiness_impact="Historical recovery points may be pruned automatically",
+        ))
+
+    return gaps
+
+
+def _score_external_dependency_state(manifest: dict) -> list:
+    """
+    Check external dependency certificate expiry.
+
+    Certificate expiry thresholds:
+      ≤ 7 days  → RED    (imminent — services will start failing)
+      ≤ 30 days → ORANGE (critical action required)
+      ≤ 60 days → YELLOW (plan renewal now)
+
+    Missing external_dependencies is not a gap — the field is optional.
+    """
+    from external_dependencies import (
+        build_external_dependency_registry,
+        CERT_EXPIRY_RED_DAYS, CERT_EXPIRY_ORANGE_DAYS, CERT_EXPIRY_YELLOW_DAYS,
+    )
+    ext_reg = build_external_dependency_registry(manifest)
+    if not ext_reg.available():
+        return []
+
+    gaps: list[Gap] = []
+    for dep in ext_reg.with_certificates():
+        days = ext_reg.days_until_expiry(dep)
+        if days is None:
+            continue
+        dep_id   = dep.get("id", "unknown")
+        dep_name = dep.get("name", dep_id)
+        endpoint = dep.get("endpoint", "")
+
+        if days <= CERT_EXPIRY_RED_DAYS:
+            gaps.append(Gap(
+                component_id=f"external:{dep_id}",
+                gap_type="CERT_EXPIRY",
+                severity="RED",
+                description=(
+                    f"Certificate for '{dep_name}' ({endpoint}) expires in {days} day(s) "
+                    f"— services depending on this endpoint will fail when the cert expires"
+                ),
+                remediation=(
+                    f"Renew TLS certificate for {endpoint} immediately. "
+                    f"Required by: {', '.join(dep.get('required_by') or []) or 'unknown'}"
+                ),
+                readiness_impact=(
+                    "Dependent services will fail on TLS handshake once the certificate expires"
+                ),
+            ))
+        elif days <= CERT_EXPIRY_ORANGE_DAYS:
+            gaps.append(Gap(
+                component_id=f"external:{dep_id}",
+                gap_type="CERT_EXPIRY",
+                severity="ORANGE",
+                description=(
+                    f"Certificate for '{dep_name}' ({endpoint}) expires in {days} day(s) "
+                    f"— renewal required within 30 days"
+                ),
+                remediation=(
+                    f"Renew TLS certificate for {endpoint} before expiry. "
+                    f"Required by: {', '.join(dep.get('required_by') or []) or 'unknown'}"
+                ),
+                readiness_impact=(
+                    "Certificate expiry will disrupt dependent services if not renewed"
+                ),
+            ))
+        elif days <= CERT_EXPIRY_YELLOW_DAYS:
+            gaps.append(Gap(
+                component_id=f"external:{dep_id}",
+                gap_type="CERT_EXPIRY",
+                severity="YELLOW",
+                description=(
+                    f"Certificate for '{dep_name}' ({endpoint}) expires in {days} day(s) "
+                    f"— plan renewal soon"
+                ),
+                remediation=(
+                    f"Schedule TLS certificate renewal for {endpoint}. "
+                    f"Required by: {', '.join(dep.get('required_by') or []) or 'unknown'}"
+                ),
+                readiness_impact=(
+                    "Certificate will expire within 60 days; plan renewal to avoid disruption"
+                ),
+            ))
+
+    return gaps
+
+
 def _score_provenance_completeness(graph, manifest: dict) -> list:
     """
     Check deployment provenance completeness for every VM node in the graph.
@@ -621,10 +941,13 @@ def score_graph(graph, manifest: dict) -> ReadinessReport:
         if cr.score == "RED" and dependent_counts.get(nid, 0) > 0
     ]
 
-    # Registry and provenance completeness
+    # Registry, provenance, service contract, external dependency, and backup completeness
     registry_gaps = _score_registry_completeness(manifest)
     registry_gaps += _score_provenance_completeness(graph, manifest)
     registry_gaps += _score_template_registry_completeness(manifest)
+    registry_gaps += _score_service_contract_completeness(graph, manifest)
+    registry_gaps += _score_external_dependency_state(manifest)
+    registry_gaps += _score_backup_config_completeness(manifest)
 
     # Overall score — worst of component scores and infrastructure gaps
     overall = "GREEN"

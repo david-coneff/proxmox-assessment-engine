@@ -361,6 +361,63 @@ def run_bootstrap(args):
     else:
         print("[doc-gen] No prior bootstrap snapshot — drift detection skipped")
 
+    # Load registries from bootstrap-state.json so the workbook renderer can
+    # pre-populate VM IPs (DNS registry) and ISO paths (template registry).
+    bootstrap_state = _load_bootstrap_state(REPO_ROOT)
+    _dns = bootstrap_state.get("dns_registry") or []
+    if _dns:
+        manifest["dns_registry"] = _dns
+        print(f"[doc-gen] DNS registry: {len(_dns)} entries")
+    else:
+        print("[doc-gen] DNS registry: not found — workbook will use [VM_IP] placeholders")
+
+    _base_images = bootstrap_state.get("base_images") or []
+    _templates   = bootstrap_state.get("templates") or []
+    if _base_images or _templates:
+        manifest["base_images"] = _base_images
+        manifest["templates"]   = _templates
+        print(f"[doc-gen] Template registry: {len(_templates)} template(s), "
+              f"{len(_base_images)} base image(s)")
+    else:
+        print("[doc-gen] Template registry: not found — workbook will use placeholder ISO path")
+
+    _storage = bootstrap_state.get("storage_config") or {}
+    if _storage:
+        manifest.setdefault("bootstrap_state_storage", _storage)
+
+    _contracts = bootstrap_state.get("service_contracts") or []
+    if _contracts:
+        manifest["service_contracts"] = _contracts
+        print(f"[doc-gen] Service contracts: {len(_contracts)} entries")
+    else:
+        print("[doc-gen] Service contracts: not found — dependency graph uses heuristics")
+
+    _ext_deps = bootstrap_state.get("external_dependencies") or []
+    if _ext_deps:
+        manifest["external_dependencies"] = _ext_deps
+        print(f"[doc-gen] External dependencies: {len(_ext_deps)} entries")
+    else:
+        print("[doc-gen] External dependencies: not declared in bootstrap-state")
+
+    _backup_cfg = bootstrap_state.get("backup_config")
+    if _backup_cfg:
+        manifest["backup_config"] = _backup_cfg
+        n_layers = sum(
+            1 for v in (_backup_cfg.get("layers") or {}).values()
+            if v.get("enabled")
+        )
+        print(f"[doc-gen] Backup config: {n_layers} enabled layer(s)")
+    else:
+        print("[doc-gen] Backup config: not configured — run setup-backup.py")
+
+    service_state = _load_service_state(REPO_ROOT)
+    if service_state:
+        manifest["service_state"] = service_state
+        n_svc = len(service_state.get("services") or [])
+        print(f"[doc-gen] Service state: {n_svc} service(s)")
+    else:
+        print("[doc-gen] Service state: not found")
+
     print("[doc-gen] Resolving fields...")
     resolved, meta = _resolve_fields(manifest)
     meta["drift"] = drift_record
@@ -405,6 +462,24 @@ def run_bootstrap(args):
     print("")
     print("  Open Bootstrap-Workbook.ods to review and complete HUMAN fields.")
     print("  Open Bootstrap-Runbook.odt  to follow the step-by-step procedure.")
+
+
+def _load_service_state(repo_root: Path) -> dict:
+    """
+    Load service-state.json from standard locations if present.
+    Returns an empty dict if not found — callers treat missing keys as unset.
+    """
+    candidates = [
+        repo_root / "proxmox-bootstrap" / "service-state.json",
+        repo_root / "tests" / "fixtures" / "bootstrap" / "service-state.json",
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+    return {}
 
 
 def _load_bootstrap_state(repo_root: Path) -> dict:
@@ -479,6 +554,39 @@ def run_recovery(args):
               f"{len(_base_images)} base image(s)")
     else:
         print("[doc-gen] Template registry: not found in bootstrap-state")
+
+    _contracts = bootstrap_state.get("service_contracts") or []
+    if _contracts:
+        manifest["service_contracts"] = _contracts
+        print(f"[doc-gen] Service contracts: {len(_contracts)} entries")
+    else:
+        print("[doc-gen] Service contracts: not found — dependency graph uses heuristics")
+
+    _ext_deps = bootstrap_state.get("external_dependencies") or []
+    if _ext_deps:
+        manifest["external_dependencies"] = _ext_deps
+        print(f"[doc-gen] External dependencies: {len(_ext_deps)} entries")
+    else:
+        print("[doc-gen] External dependencies: not declared in bootstrap-state")
+
+    _backup_cfg = bootstrap_state.get("backup_config")
+    if _backup_cfg:
+        manifest["backup_config"] = _backup_cfg
+        n_layers = sum(
+            1 for v in (_backup_cfg.get("layers") or {}).values()
+            if v.get("enabled")
+        )
+        print(f"[doc-gen] Backup config: {n_layers} enabled layer(s)")
+    else:
+        print("[doc-gen] Backup config: not configured — run setup-backup.py")
+
+    service_state = _load_service_state(REPO_ROOT)
+    if service_state:
+        manifest["service_state"] = service_state
+        n_svc = len(service_state.get("services") or [])
+        print(f"[doc-gen] Service state: {n_svc} service(s)")
+    else:
+        print("[doc-gen] Service state: not found")
 
     print("[doc-gen] Building dependency graph...")
     sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
@@ -649,7 +757,7 @@ def _write_recovery_report(out_dir, manifest, graph, readiness, meta):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Assessment Engine Documentation Generator"
+        description="Broodforge Documentation Generator"
     )
     parser.add_argument("--mode", required=True, choices=["bootstrap", "recovery"],
                         help="Documentation mode")

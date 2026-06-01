@@ -147,7 +147,7 @@ class TestDiscoverUtils(unittest.TestCase):
         self.assertEqual(err, "")
 
     def test_run_json_handles_invalid_json(self):
-        data, err = self.d._run_json(["echo", "not-json"])
+        data, err = self.d._run_json([sys.executable, "-c", "print('not-json')"])
         self.assertIsNone(data)
         self.assertIn("JSON parse error", err)
 

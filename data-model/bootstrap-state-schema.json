@@ -109,6 +109,17 @@
       "items": { "$ref": "#/definitions/service_contract" }
     },
 
+    "external_dependencies": {
+      "type": "array",
+      "description": "Declared external dependencies — services outside the cell boundary (DNS providers, SMTP relays, certificate authorities, etc.)",
+      "items": { "$ref": "#/definitions/external_dependency" }
+    },
+
+    "backup_config": {
+      "$ref": "#/definitions/backup_config",
+      "description": "Restic + rclone backup configuration (Phase 6.B). Three layers: secrets (KeePass DB, rclone copy — no restic), config (bootstrap state + assessment, encrypted restic), appdata (VM data volumes, encrypted restic, opt-in). Distinct from external_backup (git mirroring)."
+    },
+
     "network_topology": {
       "$ref": "#/definitions/network_topology",
       "description": "Management network topology — single source of truth for gateway, subnet, nameservers, and interface. All network-config snippets are generated from this."
@@ -245,7 +256,7 @@
         },
         "data_volumes": {
           "type": "array",
-          "description": "Subset of volumes that contain persistent data and require backup. These are what PBS or rclone protects.",
+          "description": "Subset of volumes that contain persistent data and require backup. Preferred method is restic (managed by backup_config, Phase 6.B). Legacy methods: PBS full-VM backup, rclone, encrypted-archive.",
           "items": { "$ref": "#/definitions/data_volume" }
         },
         "networks": {
@@ -341,20 +352,20 @@
         },
         "backup_method": {
           "type": "string",
-          "enum": ["pbs", "rclone", "encrypted-archive"],
-          "description": "How this volume is backed up. pbs: covered by full VM PBS backup. rclone: per-volume rclone to remote. encrypted-archive: per-volume GPG archive."
+          "enum": ["restic", "pbs", "rclone", "encrypted-archive"],
+          "description": "How this volume is backed up. restic: preferred method — per-volume restic repo with per-backup unique key, managed by backup_config (Phase 6.B). pbs: covered by full VM PBS backup. rclone: legacy per-volume rclone to remote. encrypted-archive: legacy per-volume GPG archive."
         },
         "backup_schedule": {
           "type": ["string", "null"],
-          "description": "Cron expression for backup schedule if backup_method is rclone or encrypted-archive. For PBS, schedule is managed by PBS itself."
+          "description": "Cron expression for backup schedule if backup_method is restic, rclone, or encrypted-archive. For PBS, schedule is managed by PBS itself. For restic, schedule is also managed by backup_config but declared here for per-volume overrides."
         },
         "backup_destination": {
           "type": ["string", "null"],
-          "description": "Destination for rclone or encrypted-archive backups, e.g. gdrive:/backups/cell-id/volumes. Not used for PBS."
+          "description": "Destination for restic, rclone, or encrypted-archive backups. For restic, this is the restic_repo_root prefix; full path assembled as {root}/{cell_id}/appdata/{component}/. Not used for PBS."
         },
         "retention_count": {
           "type": ["integer", "null"],
-          "description": "Number of volume archives to retain (rclone/encrypted-archive only)"
+          "description": "Number of snapshots or archives to retain. For restic, overrides the backup_config layer default for this volume. For rclone/encrypted-archive: number of archive files retained."
         },
         "pbs_job": {
           "type": ["string", "null"],
@@ -700,7 +711,7 @@
 
     "external_backup": {
       "type": "object",
-      "description": "External backup configuration. Covers configuration state and self-description data (bootstrap-state, snippets, assessment history, generated docs). VM disk backups are handled separately by PBS.",
+      "description": "Git repository mirroring configuration — mirrors configuration state and self-description data (bootstrap-state, snippets, assessment history, generated docs) to an external git host or encrypted archive. This is distinct from backup_config (Phase 6.B), which handles binary data backup (VMs, volumes, KeePass DB) via restic + rclone. external_backup answers 'how do I retrieve bootstrap state from scratch'; backup_config answers 'how do I restore VM data after failure'.",
       "required": ["provider"],
       "properties": {
         "provider": {
@@ -814,6 +825,10 @@
         "proxmox_version": {
           "type": ["string", "null"],
           "description": "Proxmox VE version string. Discovered by: pveversion"
+        },
+        "domain": {
+          "type": ["string", "null"],
+          "description": "Operator's domain name, e.g. home.example.com. Set during forge phase-01 (plan). All node FQDNs use this as their suffix."
         }
       }
     },
@@ -900,6 +915,43 @@
         "interface_name": {
           "type": "string",
           "description": "NIC interface name inside the VM, e.g. ens18 for VirtIO in Proxmox. All network-config snippets are generated for this interface."
+        },
+        "headscale_url": {
+          "type": ["string", "null"],
+          "description": "Headscale coordination server URL, e.g. https://hatchery.home.example.com:8080. Used in spawn packages for WAN-mode broodling registration."
+        },
+        "ddns_provider": {
+          "type": ["string", "null"],
+          "description": "External DNS auto-update provider: cloudflare | duckdns | lexicon:{provider-name} | null (static IP or manual)"
+        },
+        "ddns_zone": {
+          "type": ["string", "null"],
+          "description": "DNS zone being managed, e.g. home.example.com or duckdns.org"
+        },
+        "ddns_record": {
+          "type": ["string", "null"],
+          "description": "The A record name being auto-updated, e.g. hatchery or myhatchery (for duckdns.org)"
+        },
+        "ddns_credential_reference": {
+          "type": ["string", "null"],
+          "description": "KeePass path for the DNS provider API token/key, e.g. Infrastructure/cloudflare/api-token"
+        },
+        "ssl_provider": {
+          "type": ["string", "null"],
+          "enum": ["certbot", "acme.sh", null],
+          "description": "Let's Encrypt client used for host-level TLS certificates"
+        },
+        "ssl_method": {
+          "type": ["string", "null"],
+          "description": "ACME challenge method: dns-01-cloudflare | dns-01-duckdns | dns-01-acme.sh-cloudflare"
+        },
+        "ssl_cert_path": {
+          "type": ["string", "null"],
+          "description": "Path to the TLS fullchain certificate file on the Proxmox host"
+        },
+        "ssl_key_path": {
+          "type": ["string", "null"],
+          "description": "Path to the TLS private key file on the Proxmox host"
         }
       }
     },
@@ -935,6 +987,186 @@
         "notes": {
           "type": ["string", "null"]
         }
+      }
+    },
+
+    "external_dependency": {
+      "type": "object",
+      "required": ["id", "name", "type", "endpoint"],
+      "description": "A declared external service dependency — outside the cell boundary",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable unique identifier, e.g. cloudflare-dns, smtp-relay-sendgrid"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "dns_provider", "smtp_relay", "cert_authority", "ntp_server",
+            "container_registry", "package_repo", "vpn_gateway",
+            "object_storage", "monitoring_sink", "other"
+          ]
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Primary endpoint (URL, hostname, or host:port)"
+        },
+        "description": { "type": ["string", "null"] },
+        "required_by": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["reachable", "unreachable", "degraded", "unknown"]
+        },
+        "last_checked_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "certificate": {
+          "type": ["object", "null"],
+          "description": "TLS certificate state for HTTPS endpoints",
+          "required": ["expires_at"],
+          "properties": {
+            "expires_at":     { "type": "string", "format": "date-time" },
+            "issued_at":      { "type": ["string", "null"], "format": "date-time" },
+            "issuer":         { "type": ["string", "null"] },
+            "subject":        { "type": ["string", "null"] },
+            "sans":           { "type": "array", "items": { "type": "string" } },
+            "last_checked_at": { "type": ["string", "null"], "format": "date-time" },
+            "auto_renew":     { "type": ["boolean", "null"] }
+          }
+        },
+        "health_check_url": { "type": ["string", "null"] },
+        "failover":         { "type": ["string", "null"] },
+        "notes":            { "type": ["string", "null"] }
+      }
+    },
+
+    "backup_config": {
+      "type": "object",
+      "description": "Top-level backup configuration — layers, destinations, history.",
+      "properties": {
+        "layers": {
+          "type": "object",
+          "properties": {
+            "secrets": { "$ref": "#/definitions/backup_layer_secrets" },
+            "config":  { "$ref": "#/definitions/backup_layer_restic" },
+            "appdata": { "$ref": "#/definitions/backup_layer_restic" }
+          }
+        },
+        "checkpoint_tag": {
+          "type": "string",
+          "description": "Restic snapshot tag for permanent checkpoints (default: checkpoint)"
+        },
+        "all_failed_policy": {
+          "type": "array",
+          "description": "Actions taken when all destinations fail for a layer",
+          "items": { "type": "string", "enum": ["alert", "block_assessment"] }
+        },
+        "backup_history": {
+          "type": "array",
+          "description": "Log of backup runs (most recent first; trimmed to last 100 entries)",
+          "items": { "$ref": "#/definitions/backup_run_record" }
+        }
+      }
+    },
+
+    "backup_layer_secrets": {
+      "type": "object",
+      "description": "Backup layer for the KeePass database. Uses plain rclone copy (no restic — KeePass is already AES-256 encrypted). Transport credentials stored in forge-manifest.json, not KeePass.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "destinations": {
+          "type": "array",
+          "description": "Ordered destination chain — each attempted in sequence; failures exposed and chain continues",
+          "items": { "$ref": "#/definitions/backup_destination_secrets" }
+        },
+        "last_backup_at":                { "type": ["string", "null"], "format": "date-time" },
+        "last_successful_destination_id":{ "type": ["string", "null"] },
+        "consecutive_all_fail_count":    { "type": "integer" }
+      }
+    },
+
+    "backup_layer_restic": {
+      "type": "object",
+      "description": "Backup layer using restic (config state or appdata). All repos encrypted; per-backup unique key stored in KeePass.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "destinations": {
+          "type": "array",
+          "description": "Ordered destination chain — each attempted in sequence",
+          "items": { "$ref": "#/definitions/backup_destination_restic" }
+        },
+        "last_backup_at":                { "type": ["string", "null"], "format": "date-time" },
+        "last_successful_destination_id":{ "type": ["string", "null"] },
+        "consecutive_all_fail_count":    { "type": "integer" }
+      }
+    },
+
+    "backup_destination_secrets": {
+      "type": "object",
+      "required": ["id", "type", "kdbx_destination_root"],
+      "description": "A rclone destination for the KeePass database backup.",
+      "properties": {
+        "id":                   { "type": "string", "description": "User-given label, e.g. local-drive" },
+        "type":                 { "type": "string", "enum": ["local", "rclone"] },
+        "rclone_remote":        { "type": ["string", "null"], "description": "rclone remote name (rclone type only)" },
+        "kdbx_destination_root":{ "type": "string", "description": "Root path for .kdbx file copies" }
+      }
+    },
+
+    "backup_destination_restic": {
+      "type": "object",
+      "required": ["id", "type", "restic_repo_root", "restic_repo_password_keepass_prefix"],
+      "description": "A restic destination for config or appdata backup.",
+      "properties": {
+        "id":                                  { "type": "string" },
+        "type":                                { "type": "string", "enum": ["local", "b2", "s3", "rclone"] },
+        "rclone_remote":                       { "type": ["string", "null"] },
+        "restic_repo_root":                    { "type": "string", "description": "Root path; full repo path assembled as {root}/{cell_id}/{layer}/{component}/" },
+        "restic_repo_password_keepass_prefix": { "type": "string", "description": "KeePass path prefix; full key path: {prefix}/{component}/{timestamp}/repo-password" },
+        "retention_count":                     { "type": "integer", "description": "Snapshots to keep (default 5)" },
+        "b2_bucket":                           { "type": ["string", "null"] },
+        "s3_bucket":                           { "type": ["string", "null"] },
+        "s3_endpoint":                         { "type": ["string", "null"] }
+      }
+    },
+
+    "backup_run_record": {
+      "type": "object",
+      "description": "Record of a single backup run.",
+      "properties": {
+        "run_at":              { "type": "string", "format": "date-time" },
+        "snapshot_set_id":     { "type": "string", "description": "{cell_id}_{timestamp}_{run_hash8}" },
+        "layer":               { "type": "string", "enum": ["secrets", "config", "appdata"] },
+        "destinations_attempted": { "type": "array", "items": { "type": "string" } },
+        "destinations_succeeded": { "type": "array", "items": { "type": "string" } },
+        "consecutive_all_fail_count": { "type": "integer" },
+        "components": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/backup_component_record" }
+        }
+      }
+    },
+
+    "backup_component_record": {
+      "type": "object",
+      "description": "Per-component result within a backup run.",
+      "properties": {
+        "component_id":       { "type": "string" },
+        "component_prefix":   { "type": "string", "description": "e.g. vm-forgejo-101" },
+        "destination_id":     { "type": "string" },
+        "restic_snapshot_id": { "type": ["string", "null"] },
+        "keepass_key_path":   { "type": ["string", "null"] },
+        "size_bytes":         { "type": ["integer", "null"] },
+        "verified":           { "type": "boolean" },
+        "routed_reason":      { "type": "string", "enum": ["primary", "space_fallback", "chunked_split"] }
       }
     }
   }

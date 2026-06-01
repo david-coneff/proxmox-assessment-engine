@@ -1,8 +1,8 @@
-# Self-Documenting, Self-Recovering Infrastructure Platform — Architecture
+# Broodforge Architecture — Forging, Hatchery, Stargate
 
-Version: 6.0
-Date: 2026-05-31 16:14:22 UTC (2026-05-31 10:14:22 MDT)
-Full review: docs/ARCHITECTURE-REVIEW-v6.md
+Version: 7.1
+Date: 2026-05-31 UTC
+Full review: docs/ARCHITECTURE-REVIEW-v7.md
 
 ---
 
@@ -25,20 +25,24 @@ Full review: docs/ARCHITECTURE-REVIEW-v6.md
 
 ```
 Phase A — Bootstrap Intelligence   (pre-k3s, stdlib Python, runs on operator machine)
-  Purpose:  Build the first-ever environment from bare metal
-  Produces: Provisioned Proxmox + pre-k3s VMs + k3s-ready infrastructure
+  Process (first run):  Forging Process — produces forge package; deploys first node as hatchery
+  Process (subsequent): Hatchery Process — produces spawn packages for broodlings
+  Purpose:  Build the first-ever environment from bare metal; spawn additional nodes
+  Produces: Forge package (first run) / spawn packages (subsequent runs)
 
 Phase B — Operational Intelligence (k3s workload, runs continuously)
   Purpose:  Understand and document a running environment
   Produces: Living inventory, architecture docs, dependency maps, drift reports
 
 Phase C — Recovery Intelligence    (k3s workload, triggered by Phase B)
-  Purpose:  Generate recovery knowledge
-  Produces: Recovery documentation, readiness scores, recovery packages
+  Process:  Stargate Process
+  Purpose:  Generate phoenix packages — reconstituting a failed node's identity on new hardware
+  Produces: Phoenix packages, readiness scores, recovery documentation
 
 Phase D — Execution Intelligence   (k3s workload for generation; standalone for execution)
-  Purpose:  Generate and execute recovery workflows
-  Produces: Recovery scripts, ODS workbooks, failure packages, improvement loop
+  Process:  Stargate Process (execution layer)
+  Purpose:  Execute phoenix package scripts; capture failure packages for improvement loop
+  Produces: Phoenix scripts (identity-preserving), ODS workbooks, failure packages, improvement loop
 ```
 
 ---
@@ -54,7 +58,7 @@ AUTHORITATIVE
 
 DERIVED (never edit directly — regenerate from 1–4)
   5. Generated documentation
-  6. Generated recovery packages and scripts
+  6. Generated phoenix packages, spawn packages, and scripts
   7. ODS workbook execution records (exception: these are the execution audit trail)
 
 DISPOSABLE (safe to delete and regenerate)
@@ -127,6 +131,183 @@ First k3s workloads (in order — Phase 4):
 
 ---
 
+## Three Processes — Three Packages
+
+```
+FORGING PROCESS   → Forge package   → bare hardware becomes first hatchery
+HATCHERY PROCESS  → Spawn package   → hatchery spawns broodlings (new identity, no conflict)
+STARGATE PROCESS  → Phoenix package → failed node resurrected (identity preserved, hardware adapts)
+```
+
+The hatchery is what forging produces. Broodlings are what the hatchery process
+spawns. Phoenix packages are what the stargate process generates for any node
+— hatchery or broodling — that suffers catastrophic failure.
+
+## Node Spawning — Hatchery Process / Stargate Process
+
+The assessment engine reads the hatchery's current cluster state — all reserved
+VMIDs, IPs, hostnames, k3s join tokens, cluster topology — and produces a
+**spawn package**: a self-contained archive copied to the broodling after bare
+Proxmox installation and executed there. The broodling never needs to query the
+hatchery's API during execution; the manifest embedded in the package is the
+point-in-time reservation snapshot it operates from.
+
+```
+HATCHERY PROCESS — PRE-PACKAGE (on the hatchery)
+──────────────────────────────
+1. Hardware discovery (autonomous mode only):
+   The hatchery is a trusted node on a secured LAN. Password-based SSH from
+   the hatchery to a fresh broodling is acceptable — no pre-exchanged key required.
+   The spawn planner generates a suggested temporary root password (readable passphrase
+   format) before the operator installs Proxmox. The operator uses that password during
+   installation; the hatchery connects automatically with it after install completes.
+   Discovery runs from the hatchery using that temporary password:
+     python3 discover-hardware/network/storage.py root@{broodling-ip} (password-based)
+     → hardware-profile-{hostname}.json
+   Temporary password is valid only until the spawn package's Cloud-Init phase
+   replaces it with a KeePass-managed credential.
+   For interactive mode: no hardware profile needed on the hatchery; spawn.sh
+   discovers hardware on the broodling at runtime.
+
+2. Assessment Engine reads current cluster state
+   → spawn-manifest.json: all reserved VMIDs, IPs, hostnames,
+     Proxmox cluster join address + fingerprint, k3s join tokens
+
+3. spawn-planner.py — execution mode gate, then conditional service selection
+   Execution mode is asked FIRST:
+     Autonomous (default): triggers service selection on the hatchery; selection
+       locked into package; spawn.sh runs unattended after KeePass gate.
+     Interactive: no selection on hatchery; package includes all service scripts;
+       spawn.sh presents service menu on the broodling against actual hardware.
+
+   Service selection (autonomous only) — three modes:
+     Mode 1 — Full mirror: select all services that fit this hardware
+       Exclusions shown with reason; operator confirms or switches mode
+     Mode 2 — Select by group: Infrastructure / Platform / Intelligence /
+               Monitoring / Applications — toggle whole groups, then fine-tune
+     Mode 3 — Select individually: every service listed with fit status:
+       [✓] k3s-server        4 GB RAM req  /  14 GB avail
+       [✓] prometheus        2 GB RAM req  /  fits
+       [✗] loki              4 GB RAM req  /  insufficient
+       Dependencies enforced (selecting nextcloud auto-selects longhorn if needed)
+
+   Intelligence baseline always included, cannot be deselected:
+   Proxmox cluster membership, k3s worker, assessment/doc engine visibility,
+   bootstrap-state.json contribution.
+
+   Disposition stored as `disposition.execution_mode`, `disposition.services` (selected,
+   autonomous only), `disposition.excluded` (didn't fit + reason, autonomous only)
+   in spawn-plan.json.
+
+4. validate-spawn.py → conflict check on all proposed allocations
+   RED on any VMID / IP / hostname collision — blocks package generation
+
+5. spawn-plan.json assembled
+   Non-conflicting VMID block, IPs, hostnames, ZFS topology, bridge definitions,
+   only VM roles / Cloud-Init / Ansible roles for selected services,
+   k3s labels + taints derived from service list (Flux schedules accordingly)
+
+6. assemble-spawn-package.py
+   spawn-package-{cell}-{hostname}-{ts}.tar.gz
+     ├── spawn-manifest.json   (reservation snapshot — used offline)
+     ├── spawn-plan.json       (disposition + conflict-validated allocations)
+     ├── hardware-profile.json (disk IDs, NIC layout for host config)
+     ├── scripts/spawn.sh + phase-00 through phase-06
+     ├── opentofu/             (only disposition-declared VM roles)
+     ├── cloud-init/           (snippets for disposition VMs only)
+     ├── ansible/              (inventory additions + disposition-scoped role vars)
+     └── spawn-workbook.ods    (auditable execution record)
+
+[operator copies package to broodling — only manual step after install]
+
+SPAWN EXECUTION (on the broodling)
+────────────────────────────────────
+HOST-LEVEL PHASES — must complete before any VM can be created:
+
+  phase-00-host-bootstrap.sh
+
+    [A] Hardware pre-flight — read-only, no changes made
+        Re-scans actual hardware, diffs against embedded hardware-profile.json:
+        ├── Disk IDs in plan present + capacity matches
+        ├── NIC names/MACs match profile (renumbering happens after kernel updates)
+        ├── Available RAM ≥ plan VM total + 10% host overhead
+        ├── No existing ZFS pool name conflicts with planned pool
+        ├── No existing bridge name conflicts with planned bridges
+        └── Conflict re-validation vs spawn-manifest.json
+            (catches any new hatchery reservations since package was built)
+        On mismatch → failure package with diff, exit without touching anything
+        On pass    → proceed to [B]
+
+    [B] Host configuration — writes files, creates pool, activates network
+        ├── Set hostname + fix /etc/hosts   (pvecm add fails if host → 127.0.0.1)
+        ├── Write bridge definitions        (/etc/network/interfaces from NIC layout)
+        ├── ifreload -a                     (activate bridges without reboot)
+        ├── zpool create                    (disk IDs confirmed by pre-flight)
+        ├── pvesm add zfspool               (register pool as Proxmox datastore)
+        └── Configure apt repos
+    → Broodling ready: bridges exist, storage registered, hostname correct
+
+  phase-01-join-proxmox.sh
+    pvecm add <hatchery-address> --fingerprint <from manifest>
+    → Broodling visible in Proxmox datacenter
+
+VM PROVISIONING PHASES — bridge + datastore names from phase-00 must exist:
+
+  phase-02-vms.sh
+    tofu apply   (disposition-scoped tfvars; bridge/datastore names from phase-00)
+    → Disposition-declared VMs created on broodling
+
+  phase-03-cloudinit.sh
+    Install Cloud-Init snippets into Proxmox snippet store
+    Start VMs → Cloud-Init runs: hostname, IP, SSH keys, packages
+    Poll SSH readiness before proceeding
+
+CLUSTER JOIN PHASES — depend on VMs running:
+
+  phase-04-join-k3s.sh
+    Ansible: k3s-server or k3s-worker role, join token from manifest
+    → Broodling's k3s nodes join the hatchery cluster
+
+  phase-05-promote-ha.sh   [conditional — only if broodling is the 3rd server node]
+    SQLite → embedded etcd migration; control plane distributed across hosts
+
+  phase-06-verify.sh
+    Cluster health check, all disposition VMs running, conflict re-validation vs live state
+
+AUTOMATIC (no operator action after phase-06):
+  Flux CD     → schedules disposition-appropriate workloads on broodling
+  Assessment  → detects broodling in Proxmox API, scores against its disposition
+  Doc Engine  → regenerates topology with broodling included
+
+bootstrap-state.json updated on hatchery → committed to Forgejo
+```
+
+**What adapts to each broodling's hardware:** ZFS pool topology (disk count/mix),
+NIC bridge/bond layout, VM RAM sizing within available capacity,
+IP/VMID/hostname allocations, services trimmed to what hardware can support.
+
+**What stays identical across all nodes:** Naming convention, KeePass path structure,
+Proxmox cluster membership, the intelligence collection baseline (assessment + doc
+engine visibility), secret references.
+
+**Disposition determines what is deployed, not just hardware:**
+A broodling's disposition is chosen at spawn time and recorded in `bootstrap-state.json`.
+The assessment engine reads it — a broodling without `k3s-server` is not scored
+against HA control-plane requirements. Disposition declares intent; the assessment
+engine scores reality against that declared intent, not against the hatchery's full configuration.
+
+**k3s topology decisions are disposition-driven, not just host-count-driven:**
+
+| Disposition includes `control-plane`? | Result |
+|---|---|
+| No nodes with `control-plane` added | Workers only; existing control plane unchanged |
+| 1st or 2nd server node added | Control plane grows; no topology change |
+| 3rd server node added | SQLite → embedded etcd HA promotion; control plane distributed |
+
+See Phase 12.E in [ROADMAP.md](ROADMAP.md) for full milestone detail.
+
+---
+
 ## Key Architecture Decisions
 
 | AD | Decision |
@@ -138,35 +319,18 @@ First k3s workloads (in order — Phase 4):
 | AD-026 | Metadata YAML as primary source of infrastructure intent |
 | AD-027 | Four intelligence phases with distinct runtimes (pre/post k3s) |
 | AD-028 | Documentation engine is the first k3s workload |
-| AD-029 | Recovery packages are self-contained and offline-capable |
+| AD-029 | Phoenix packages are self-contained and offline-capable; identity is preserved even when underlying hardware changes |
 | AD-030 | Failure packages are structured for LLM analysis |
 | AD-031 | Documentation captures STATE and INTENT (what + why + which policy) |
+| AD-039 | Node spawning produces a self-contained spawn package — assessment engine reads all hatchery reservations (VMIDs, IPs, hostnames, tokens) into a spawn manifest, operator selects the broodling's disposition (full mirror / by group / individually), conflict-checked scripts + hardware-adapted IaC are bundled into an archive the broodling runs after bare Proxmox install without querying the hatchery API |
+| AD-040 | Initial deployment is forging — the forge package is a self-contained archive that takes bare Proxmox → operational hatchery via eight phases (discover → plan → validate → host → VMs → k3s → GitOps → intelligence); minimum viable forge deploys only the broodforge stack (doc engine + assessment engine), no user applications; user applications are added via GitOps after intelligence layer gates pass |
+| AD-041 | Spawn packages support two execution modes. **Execution mode is asked first** on the hatchery, before any service selection: **Interactive** — no service selection at package-generation time; the package includes all available service scripts and spawn.sh presents the service menu on the broodling at runtime, evaluating actual hardware there. **Autonomous** (default) — triggers the service selection flow on the hatchery (full mirror / by group / individually); selected services are locked into the package; spawn.sh runs end-to-end on the broodling with no prompts beyond the KeePass unlock gate. Asking mode first means Interactive operators skip service selection entirely on the hatchery. |
+| AD-042 | The KeePass database is **optionally** included in forge/spawn/phoenix packages. Including it does not compromise security because the database cannot be auto-unlocked — the operator must enter the master password at the KeePass unlock gate before any secret is accessed. If the database is not embedded, the installer prompts for a filesystem path (USB drive, local disk, or pre-agreed path) at run time. After the master password is entered once, the in-process secrets broker handles all subsequent lookups for the session without further operator input. No secret value is ever written to the node's filesystem in plain text. |
+| AD-043 | User-facing password generation defaults to a readable passphrase format: `Capital.word.phrase.9` — leading capital letter, lowercase words, period separators, trailing single digit, 20-30 characters total. This format is human-memorable, typeable in a terminal without shell escaping, and satisfies most service requirements. For services that reject periods or special characters (detected automatically when a deployment phase fails with a credential error), broodforge offers to regenerate the affected credential as a plain alphanumeric password (same length, letters + digits only) and retries. Service-specific format restrictions are recorded in service-catalog.yaml and applied automatically in future deployments. For the KeePass master password, the operator may accept a generated passphrase, enter their own, or invoke KeePass's native generator. |
+| AD-044 | Backup engine: **restic** (encryption mandatory for all non-KeePass layers; deduplication; versioned snapshots; retention policy; permanent checkpoint tagging). Transport: **rclone** as restic backend for providers not natively supported. Three layers: (1) KeePass DB — plain rclone copy, no restic layer (already AES-256 encrypted; restic would create an irrecoverable circular dependency); KeePass backup transport credentials stored in `forge-manifest.json`; (2) configuration state — all nodes' state, encrypted via restic; (3) application data volumes — opt-in, encrypted via restic. **Per-backup unique secrets**: each backup run rotates the restic repo password via `restic key add` + `key remove`; new password stored in KeePass at a timestamped path; secrets broker looks up the exact key per snapshot at restore time; KeePass entries for pruned snapshots cleaned up automatically; KeePass DB exempt. **Standard naming convention** (all names constructed programmatically): component prefixes `kdbx`, `cell-config`, `node-{hostname}`, `vm-{name}-{vmid}`, `ct-{name}-{ctid}`, `vol-{vm}-{vol}`, `svc-{name}`; timestamp `YYYY-MM-DD_HH_MM_SS` UTC; hash 8 hex chars (SHA-256 of content or snapshot ID prefix); restic repo paths `{root}/{cell_id}/{layer}/{component}/`; KeePass DB filenames `kdbx_{cell_id}_{timestamp}_{hash8}.kdbx`; snapshot set IDs `{cell_id}_{timestamp}_{run_hash8}`; restic snapshot tags `cell:`, `set:`, `component:`, `layer:`, `run:`; KeePass key paths `Backup/{layer}/{component}/{timestamp}/repo-password`. Destinations are an ordered chain of unlimited depth: each attempted, each upload verified, failures exposed, all-fail = RED. **Space-aware routing**: space probed before run; components routed to destinations with room (`primary` → `space_fallback` → `chunked_split`); chunked pieces linked by `snapshot_set_id`; restore assembles automatically via `backup_history` metadata. |
+| AD-045 | Timezone preference is set by the operator during forging, stored in `bootstrap-state.json` as `vm_defaults.timezone`, and used by the documentation engine for all generated output. All timestamps display both UTC and local time to remain unambiguous across readers. The preference is updateable after forging without requiring a rebuild. |
+| AD-048 | **Split-horizon DNS, DDNS, and TLS** — the hatchery runs **dnsmasq** (phase-03) for LAN DNS, generated from `dns-registry.yaml`. `host_identity.fqdn` is the single canonical address; spawn packages embed the FQDN and work from LAN and WAN without modification. Two supported DNS/TLS provider paths, chosen at forge time: (1) **Cloudflare** — `dns-lexicon` for DDNS, `certbot` + `python3-certbot-dns-cloudflare` for Let's Encrypt DNS-01 (wildcard cert `*.{domain}`), `certbot.timer` for auto-renewal, cert-manager ClusterIssuer with Cloudflare DNS-01 solver for k3s workloads; (2) **DuckDNS** — plain HTTPS GET for DDNS, `acme.sh` with built-in `dns_duckdns` solver for Let's Encrypt DNS-01 (wildcard cert `*.{subdomain}.duckdns.org`), acme.sh cron for auto-renewal, wildcard cert synced into k8s TLS secrets via `sync-cert-to-k8s.sh` (cert-manager not used for DuckDNS — no native DNS-01 support). Both paths: Headscale configured with TLS cert paths at forge time; SSL provider and cert paths stored in `bootstrap-state.json network_topology.ssl_*`. **Squarespace has no DNS API** — must delegate to Cloudflare. **inadyn archived Oct 2025 — not used.** See `docs/CLOUDFLARE-SETUP.md` and `docs/DUCKDNS-SETUP.md`. |
+| AD-047 | **Headscale** (self-hosted Tailscale coordination server) is auto-configured during forge phase-03 (host config). The hatchery becomes both the spawning controller and the tailnet coordinator. Configuration: apt/binary install of headscale, systemd service, `broodforge` user/namespace created, hatchery registers with its own Headscale (`tailscale up --login-server https://hatchery:8080`), Headscale URL recorded in `bootstrap-state.json` as `network_topology.headscale_url`, Headscale API key stored in KeePass. Spawn packages in WAN mode embed a one-time Headscale auth key (generated via `headscale authkeys generate --expiration 1h`; not stored in KeePass). The broodling's `phase-00a` installs Tailscale and registers with the hatchery's Headscale before hardware discovery; after that, all SSH and cluster communication flows over the WireGuard tunnel the same as LAN. Broodlings remain permanent tailnet members after spawn; their tailnet IP is recorded in bootstrap-state.json alongside their LAN IP. LAN mode (same-subnet) uses direct SSH with the temporary root password and bypasses Tailscale entirely — Headscale is used only when the broodling is on a different network. |
+| AD-046 | The forge package includes `lib/pve-suppress-nag.sh`, which patches the Proxmox web UI JavaScript to remove the non-enterprise subscription popup. Applied in phase-03 (host config). A dpkg post-invoke hook re-applies the patch when `proxmox-widget-toolkit` or `pve-manager` packages are updated, so the suppression survives Proxmox package upgrades. Proxmox Community Edition is fully functional without a subscription; this removes a commercial UI interruption. |
 
----
-
-## Core Principles
-
-1. **Reconstruction is the objective.** Every artifact is evaluated against:
-   "Does this enable reconstruction after complete infrastructure loss?"
-
-2. **Documentation captures intent, not just state.** Not "3 control plane nodes"
-   but "3 control plane nodes because HA policy requires quorum."
-
-3. **Documentation engine before all user services.** The cluster must understand
-   itself before it hosts anything for users.
-
-4. **Recovery packages are offline-capable.** A recovery package must work without
-   internet access and without Forgejo being reachable.
-
-5. **Failure drives improvement.** Every recovery failure generates a structured
-   failure package. Every failure package should result in a bootstrap repository
-   commit that prevents that failure mode from occurring again.
-
-6. **GitOps is the deployment paradigm.** All desired state is in Git. Flux applies
-   it continuously. Drift is detected and corrected automatically.
-
-7. **Generated artifacts are never the source of truth.** Documentation, recovery
-   packages, and ODS workbooks are derived from metadata + Git. They are never
-   edited directly.
-
-Full architectural rationale: docs/ARCHITECTURE-REVIEW-v6.md
+Full architectural rationale: docs/ARCHITECTURE-REVIEW-v7.md

@@ -1,0 +1,127 @@
+# service-contracts.yaml — Service Contracts
+# Authoritative declared interfaces and inter-service dependencies.
+# TIER 1 — never generated. Operators maintain this file.
+#
+# Used by:
+#   - Dependency graph builder (SERVICE-typed edges, startup ordering)
+#   - Service contract validator (declared vs observed VM state)
+#   - Recovery runbook (health check commands, restart sequences)
+#   - Spawn planner (disposition — which services to replicate on a broodling)
+#
+# Schema per entry:
+#   service            str    Unique service identifier (used as lookup key)
+#   vm                 str    VM name that hosts this service (matches vms[].name)
+#   vmid               int    VM ID (informational; vm name is the authoritative link)
+#   provided_interfaces list  What this service exposes (protocol, port, health_check)
+#   required_interfaces list  What this service needs from other declared services
+#     service          str    Service ID of the required dependency
+#     protocol         str    Connection protocol (https, ssh, postgresql, etc.)
+#     port             int    Port number
+#     critical         bool   If true: service cannot function without this dependency
+#   startup_after      list   Service IDs that must be running before this one starts
+#   backup_job         str    PBS backup job name, or null if stateless/rebuilt from repo
+#   secret_references  list   Secret IDs from secret-registry.yaml required at runtime
+#   owner              str    Team or role responsible for this service
+#   notes              str    Why this service exists and any operational considerations
+
+service_contracts:
+
+  # ── Pre-k3s Platform VMs ────────────────────────────────────────────────────
+
+  - service: infra-bootstrap
+    vm: infra-bootstrap
+    vmid: 100
+    provided_interfaces:
+      - protocol: ssh
+        port: 22
+        health_check: null
+    required_interfaces: []
+    startup_after: []
+    backup_job: null
+    secret_references:
+      - infra-bootstrap-deploy-key
+      - vm-infra-bootstrap-password
+    owner: infrastructure
+    notes: >
+      Phase A toolchain runner. Stateless — entirely rebuilt from bootstrap
+      repository. No backup required; loss of this VM has no data impact.
+      Must be reachable from operator machine during bootstrap and recovery.
+
+  - service: forgejo
+    vm: forgejo
+    vmid: 101
+    provided_interfaces:
+      - protocol: https
+        port: 3000
+        url_pattern: "https://forgejo.internal"
+        health_check: "GET /api/healthz"
+      - protocol: ssh
+        port: 22
+        url_pattern: null
+        health_check: null
+    required_interfaces:
+      - service: postgresql
+        protocol: postgresql
+        port: 5432
+        critical: true
+    startup_after:
+      - postgresql
+    backup_job: pbs-daily-vms
+    secret_references:
+      - forgejo-admin-password
+      - forgejo-deploy-key
+      - forgejo-api-token
+    owner: infrastructure
+    notes: >
+      Self-hosted Git server. All infrastructure and application repositories
+      live here. Critical dependency for GitOps (Flux), Ansible, and OpenTofu.
+      Must be restored before k3s cluster can reconcile. PBS backup covers the
+      Forgejo data volume (repositories, issues, wiki, CI artifacts).
+
+  - service: inventory
+    vm: inventory
+    vmid: 102
+    provided_interfaces:
+      - protocol: ssh
+        port: 22
+        health_check: null
+    required_interfaces:
+      - service: forgejo
+        protocol: https
+        port: 3000
+        critical: false
+    startup_after:
+      - forgejo
+    backup_job: pbs-daily-vms
+    secret_references:
+      - inventory-deploy-key
+      - vm-inventory-password
+    owner: infrastructure
+    notes: >
+      Inventory and state tracking service. Reads from Forgejo repositories.
+      Non-critical dependency on Forgejo — can start before Forgejo if needed,
+      but full functionality requires Forgejo to be reachable.
+
+  - service: assessment-engine
+    vm: assessment-engine
+    vmid: 103
+    provided_interfaces:
+      - protocol: ssh
+        port: 22
+        health_check: null
+    required_interfaces:
+      - service: forgejo
+        protocol: https
+        port: 3000
+        critical: true
+    startup_after:
+      - forgejo
+    backup_job: pbs-daily-vms
+    secret_references:
+      - assessment-engine-deploy-key
+      - vm-assessment-engine-password
+    owner: infrastructure
+    notes: >
+      Pre-k3s assessment engine (Phase A/B bootstrap assessment). Requires
+      Forgejo to access assessment repositories. Produces bootstrap assessment
+      packages that are used during initial deployment and recovery planning.

@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-05-31 17:24:59 UTC (2026-05-31 11:24:59 MDT)
+Last updated: 2026-05-31 20:00:00 UTC (2026-05-31 14:00:00 MDT)
 
 ## Active Architecture: v7.0
 
@@ -12,11 +12,11 @@ Seventeen-state model. Six-layer lifecycle. Three assessment tiers. Five depende
 
 ## Next Action
 
-**Implement Phase 2 — Generators.**
-Create proxmox-bootstrap/generators/: tofu-vars.py, cloud-init-gen.py,
-ansible-inventory-gen.py, k3s-config-gen.py, flux-bootstrap-gen.py.
-All generators read from plans/ (Phase 1 output). Stdlib only.
-See docs/SESSION-HANDOFF.md for full spec.
+**Implement Milestone 7.4 — Recovery Documentation Update (Service Layer).**
+Add service contract validation steps, service health check commands (from
+contract `health_check` field), service restart/verification commands, and
+distinct rendering of Service Contract dependency edges in the recovery runbook.
+See ROADMAP.md Milestone 7.4 for the full spec.
 
 ## Completed Milestones
 
@@ -33,21 +33,33 @@ See docs/SESSION-HANDOFF.md for full spec.
 | Architecture Review | v5.0 — 17-state model, federation, digital twin, 5 dependency graphs | Complete |
 | Architecture Review | v6.0 — k3s, Flux CD, four intelligence phases | Complete |
 | Architecture Review | v7.0 — Assessment Engine, 5 scores (ACS/RRS/DCS/CRS/OSS), 12-phase roadmap | Complete |
+| Architecture Review | v7.1 — Hatchery/Stargate process, broodling/phoenix terminology, Phase 12.E Node Spawn Bootstrap | Complete |
 | Phase 0 | Metadata Model — 10 authoritative YAML files + validator | Complete |
 | Phase 1 | Bootstrap Intelligence — discovery, 4 planners, 2 validators | Complete |
 | 6.0 | External backup (GitHub/encrypted-archive), recovery runbook Step 0, init wizard prompt | Complete |
 | 6.1 | Bootstrap State and Service State schemas (cell_id, network_topology, external_backup, containers) | Complete |
 | 6.2 | Cloud-Init Template Library — generated snippets, generate-network-configs.py, generate-user-data.py | Complete |
+| 6.3 | Secret Registry — secret-registry.yaml, SecretRegistry, recovery runbook Appendix D | Complete |
+| 6.4 | DNS Registry — dns-registry.yaml, DnsRegistry, [VM_IP] resolution in recovery runbook | Complete |
+| 6.5 | Deployment Provenance — ProvenanceRegistry, per-VM recovery blocks, Appendix E | Complete |
+| 6.6 | Template Registry — TemplateRegistry, base image tracking, recovery runbook Appendix F | Complete |
+| 6.7 | Tier 2 Bootstrap State Collector — SSH collector library + CLI + runbook (54 tests) | Complete |
+| 6.8 | Bootstrap Documentation Update — DNS + template registry wiring into Bootstrap Workbook (28 tests) | Complete |
+| 7.1 | Service Contract Implementation — YAML spec, ServiceContractRegistry, validator, graph edges, Tier 2 reader (39 tests) | Complete |
+| 7.2 | Service State Schema and Collection — collector, readiness scorer, engine injection, Tier 2 write (49 tests) | Complete |
+| 7.3 | External Dependency State — schema, ExternalDependencyRegistry, cert expiry scorer, Appendix G in recovery runbook, engine injection (71 tests) | Complete |
+| 7.4 | Recovery Documentation Update (Service Layer) — per-VM service contract block, health check commands, restart commands, required interfaces, Appendix A edge legend + ★ marker (44 tests) | Complete |
+| 6.B | Backup Infrastructure — restic+rclone engine, BackupNaming, SpaceProbe, ResticRunner, RcloneRunner, BackupEngine, RestoreEngine, run-backup.py, restore-from-backup.py, setup-backup.py, readiness scoring, Appendix H, schema additions (82 tests) | Complete |
+
+**Tests: 1354 total (1350 passed, 4 skipped)**
 
 ## Next Milestones
 
 | Milestone | Description |
 |---|---|
-| **Phase 2** | **Generators — START HERE** (tofu-vars, ansible-inventory, k3s-config, flux-bootstrap) |
-| 6.2 | Cloud-Init Template Library |
-| 6.3 | Secret Registry |
-| 6.4 | DNS Registry |
-| 6.5 | Deployment Provenance |
+| **Phase 8** | **Network Topology as Code — START HERE** |
+| Phase 1.F | Forge Package Assembly (capstone of forging process) |
+| Phase 9 | Phoenix Playbooks (Stargate Process) |
 
 ## Architecture Gaps (v4.0 items not yet implemented)
 

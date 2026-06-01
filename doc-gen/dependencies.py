@@ -264,14 +264,79 @@ def build_graph(manifest: dict) -> DependencyGraph:
         if primary_storage_id:
             add_edge(Edge(ct_node_id, primary_storage_id, "STORAGE", "primary storage"))
 
-    # ---- Service relationship heuristics ----
-    # Known service dependency patterns based on VM names
-    _add_service_heuristics(g, added_edge_keys, manifest)
+    # ---- Service dependency edges ----
+    # Prefer declared service contracts; fall back to name-based heuristics.
+    contracts = manifest.get("service_contracts") or []
+    if contracts:
+        _add_service_edges_from_contracts(g, added_edge_keys, contracts)
+    else:
+        _add_service_heuristics(g, added_edge_keys, manifest)
 
     # ---- Topological sort → restore waves ----
     g.restore_waves = _topological_waves(g)
 
     return g
+
+
+def _add_service_edges_from_contracts(
+    g: DependencyGraph,
+    added_edge_keys: set,
+    contracts: list,
+) -> None:
+    """
+    Add SERVICE and DEPENDS_ON edges derived from declared service contracts.
+
+    For each contract's required_interfaces: add a SERVICE edge from the
+    consumer VM to the provider VM.
+    For each contract's startup_after: add a DEPENDS_ON edge (startup ordering).
+
+    Only adds edges where both endpoints exist as nodes in the graph.
+    """
+    node_ids = {n.id for n in g.nodes}
+    service_to_vm = {
+        c.get("service"): c.get("vm")
+        for c in contracts
+        if c.get("service") and c.get("vm")
+    }
+
+    for contract in contracts:
+        consumer_vm = contract.get("vm")
+        if not consumer_vm:
+            continue
+        consumer_id = f"vm:{consumer_vm}"
+        if consumer_id not in node_ids:
+            continue
+
+        # required_interfaces → SERVICE edges
+        for req in contract.get("required_interfaces") or []:
+            provider_svc = req.get("service")
+            provider_vm  = service_to_vm.get(provider_svc)
+            if not provider_vm:
+                continue
+            provider_id = f"vm:{provider_vm}"
+            if provider_id not in node_ids or consumer_id == provider_id:
+                continue
+            key = (consumer_id, provider_id, "SERVICE")
+            if key not in added_edge_keys:
+                label = (f"{provider_svc} "
+                         f"({req.get('protocol', '?')}:{req.get('port', '?')})")
+                g.edges.append(Edge(consumer_id, provider_id, "SERVICE", label))
+                added_edge_keys.add(key)
+
+        # startup_after → DEPENDS_ON edges (startup ordering)
+        for svc in contract.get("startup_after") or []:
+            provider_vm = service_to_vm.get(svc)
+            if not provider_vm:
+                continue
+            provider_id = f"vm:{provider_vm}"
+            if provider_id not in node_ids or consumer_id == provider_id:
+                continue
+            key = (consumer_id, provider_id, "DEPENDS_ON")
+            if key not in added_edge_keys:
+                g.edges.append(Edge(
+                    consumer_id, provider_id, "DEPENDS_ON", f"starts after {svc}"
+                ))
+                added_edge_keys.add(key)
 
 
 def _add_service_heuristics(

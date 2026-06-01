@@ -472,15 +472,39 @@ class TestRegistryCompletenessScoring(unittest.TestCase):
         self.assertIsInstance(d["registry_gaps"], list)
 
     def test_score_graph_with_both_registries_no_registry_gaps(self):
-        """No registry gaps when both registries are present."""
+        """No registry gaps when all registries (secret, DNS, template, contracts, backup) present."""
+        from datetime import datetime, timezone
+        _now = datetime.now(timezone.utc).isoformat()
+        _dest_secrets = {"id": "local-usb", "type": "local",
+                         "kdbx_destination_root": "/mnt/usb"}
+        _dest_restic  = {"id": "local-drive", "type": "local",
+                         "restic_repo_root": "/mnt/backup",
+                         "restic_repo_password_keepass_prefix": "Backup/config",
+                         "retention_count": 5}
         manifest = {
             "host": {"hostname": "pve01"},
             "secret_registry": [{"id": "s1"}],
             "dns_registry": [{"hostname": "h1", "ip": "1.2.3.4"}],
             "templates": [{"name": "ubuntu-2204-base", "proxmox_template_id": 9000,
                            "base_image": "ubuntu-2204-base", "created_at": "2026-04-01T11:00:00Z"}],
+            # Service contracts present — empty graph has no VM nodes so no per-VM gap fires,
+            # and the non-empty contracts list suppresses the MISSING_SERVICE_CONTRACTS gap.
+            "service_contracts": [{"service": "dummy", "vm": "dummy-vm"}],
+            # Backup config present — suppresses MISSING_BACKUP_CONFIG gap.
+            "backup_config": {
+                "layers": {
+                    "secrets": {"enabled": True, "destinations": [_dest_secrets],
+                                "last_backup_at": _now, "consecutive_all_fail_count": 0},
+                    "config":  {"enabled": True, "destinations": [_dest_restic],
+                                "last_backup_at": _now, "consecutive_all_fail_count": 0},
+                    "appdata": {"enabled": False, "destinations": []},
+                },
+                "checkpoint_tag": "checkpoint",
+                "all_failed_policy": ["alert"],
+                "backup_history": [],
+            },
         }
-        # Minimal empty graph
+        # Minimal empty graph (no VM nodes, so no per-VM contract gap)
         from dependencies import DependencyGraph
         graph = DependencyGraph(nodes=[], edges=[], restore_waves=[])
         report = score_graph(graph, manifest)
@@ -690,6 +714,32 @@ class TestFixtureIntegration(unittest.TestCase):
         ]
         manifest["templates"] = fixture_bs["templates"]
         manifest["base_images"] = fixture_bs["base_images"]
+        # Inject contracts for every VM so no MISSING_SERVICE_CONTRACT gap fires
+        manifest["service_contracts"] = [
+            {"service": vm.get("name", ""), "vm": vm.get("name", "")}
+            for vm in vms if vm.get("name")
+        ]
+        # Inject backup_config so no MISSING_BACKUP_CONFIG gap fires
+        from datetime import datetime, timezone as _tz
+        _now = datetime.now(_tz.utc).isoformat()
+        manifest["backup_config"] = {
+            "layers": {
+                "secrets": {"enabled": True,
+                            "destinations": [{"id": "local", "type": "local",
+                                              "kdbx_destination_root": "/mnt/usb"}],
+                            "last_backup_at": _now, "consecutive_all_fail_count": 0},
+                "config":  {"enabled": True,
+                            "destinations": [{"id": "local", "type": "local",
+                                              "restic_repo_root": "/mnt/backup",
+                                              "restic_repo_password_keepass_prefix": "Backup/config",
+                                              "retention_count": 5}],
+                            "last_backup_at": _now, "consecutive_all_fail_count": 0},
+                "appdata": {"enabled": False, "destinations": []},
+            },
+            "checkpoint_tag": "checkpoint",
+            "all_failed_policy": ["alert"],
+            "backup_history": [],
+        }
 
         graph = dep_mod.build_graph(manifest)
         report = score_graph(graph, manifest)

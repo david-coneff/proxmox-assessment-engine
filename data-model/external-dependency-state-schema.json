@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "external-dependency-state-schema",
+  "title": "External Dependency State",
+  "description": "Schema for the External Dependency State manifest: declared external services the cell depends on, including certificate expiry tracking. External dependencies are services outside the cell boundary (e.g. DNS providers, SMTP relays, certificate authorities).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "cell_id",
+    "declared_at",
+    "dependencies"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "cell_id": {
+      "type": "string",
+      "description": "Stable unique identity of the Infrastructure Cell this external dependency state belongs to"
+    },
+    "declared_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when this external dependency state was last updated"
+    },
+    "collection_errors": {
+      "type": "array",
+      "description": "Errors encountered during external dependency state collection",
+      "items": { "type": "string" }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "Declared external dependencies — services outside the cell boundary",
+      "items": { "$ref": "#/definitions/external_dependency" }
+    }
+  },
+
+  "definitions": {
+
+    "external_dependency": {
+      "type": "object",
+      "required": ["id", "name", "type", "endpoint"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable unique identifier for this dependency, e.g. cloudflare-dns, smtp-relay-sendgrid"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name of this dependency"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "dns_provider",
+            "smtp_relay",
+            "cert_authority",
+            "ntp_server",
+            "container_registry",
+            "package_repo",
+            "vpn_gateway",
+            "object_storage",
+            "monitoring_sink",
+            "other"
+          ],
+          "description": "Category of external dependency"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Primary endpoint for this dependency (URL, hostname, or host:port)"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Human-readable description of what this dependency provides"
+        },
+        "required_by": {
+          "type": "array",
+          "description": "Names of services or VMs in this cell that depend on this external service",
+          "items": { "type": "string" }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["reachable", "unreachable", "degraded", "unknown"],
+          "description": "Observed reachability status at last check"
+        },
+        "last_checked_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Timestamp when reachability and certificate state were last verified"
+        },
+        "certificate": {
+          "$ref": "#/definitions/certificate_state",
+          "description": "TLS certificate state for HTTPS endpoints. Null for non-TLS dependencies."
+        },
+        "health_check_url": {
+          "type": ["string", "null"],
+          "description": "URL to probe for health checks, if different from endpoint"
+        },
+        "failover": {
+          "type": ["string", "null"],
+          "description": "Failover endpoint or fallback strategy if this dependency becomes unreachable"
+        },
+        "notes": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+
+    "certificate_state": {
+      "type": "object",
+      "required": ["expires_at"],
+      "properties": {
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Certificate expiry timestamp"
+        },
+        "issued_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Certificate issue timestamp"
+        },
+        "issuer": {
+          "type": ["string", "null"],
+          "description": "Certificate issuer (CA name)"
+        },
+        "subject": {
+          "type": ["string", "null"],
+          "description": "Certificate subject (CN or SAN)"
+        },
+        "sans": {
+          "type": "array",
+          "description": "Subject Alternative Names covered by this certificate",
+          "items": { "type": "string" }
+        },
+        "last_checked_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Timestamp when this certificate state was last collected"
+        },
+        "auto_renew": {
+          "type": ["boolean", "null"],
+          "description": "Whether this certificate is managed by an auto-renewal agent (e.g. cert-manager, certbot)"
+        }
+      }
+    }
+  }
+}
