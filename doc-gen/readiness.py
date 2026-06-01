@@ -565,6 +565,155 @@ def _score_service_contract_completeness(graph, manifest: dict) -> list:
     return gaps
 
 
+def _score_capacity_model(manifest: dict) -> list:
+    """
+    Score capacity model completeness and utilization thresholds (Phase 11).
+
+    YELLOW: no capacity_model declared — utilization unknown.
+    ORANGE: CPU/RAM/storage above critical threshold.
+    YELLOW: CPU/RAM/storage above warning threshold.
+    ORANGE: insufficient restoration headroom (host cannot accommodate all VMs + 10%).
+    YELLOW: trend projects storage or RAM full within 90 days.
+    """
+    gaps: list[Gap] = []
+    cm = manifest.get("capacity_model")
+
+    if not cm:
+        gaps.append(Gap(
+            component_id="infrastructure:capacity",
+            gap_type="MISSING_CAPACITY_MODEL",
+            severity="YELLOW",
+            description=(
+                "No capacity model declared — CPU, RAM, and storage utilization "
+                "thresholds are not tracked"
+            ),
+            remediation=(
+                "Run proxmox-bootstrap/capacity_collector.py to collect utilization "
+                "and populate capacity_model in bootstrap-state.json"
+            ),
+            readiness_impact=(
+                "Cannot assess whether the host has sufficient resources to "
+                "accommodate its workload or survive a recovery scenario"
+            ),
+        ))
+        return gaps
+
+    observed   = cm.get("observed") or {}
+    thresholds = cm.get("thresholds") or {}
+    trend      = cm.get("trend") or {}
+
+    def _thresh(key: str, default: int) -> int:
+        return int(thresholds.get(key, default))
+
+    # RAM utilization
+    ram_pct = observed.get("ram_usage_pct")
+    if ram_pct is not None:
+        crit = _thresh("ram_crit_pct", 90)
+        warn = _thresh("ram_warn_pct", 75)
+        if ram_pct >= crit:
+            gaps.append(Gap(
+                component_id="infrastructure:capacity:ram",
+                gap_type="CAPACITY_EXCEEDED",
+                severity="ORANGE",
+                description=f"RAM utilization {ram_pct:.0f}% exceeds critical threshold {crit}%",
+                remediation="Add RAM, migrate VMs to another node, or increase threshold",
+                readiness_impact="Host may be unable to start all VMs during recovery",
+            ))
+        elif ram_pct >= warn:
+            gaps.append(Gap(
+                component_id="infrastructure:capacity:ram",
+                gap_type="CAPACITY_WARN",
+                severity="YELLOW",
+                description=f"RAM utilization {ram_pct:.0f}% above warning threshold {warn}%",
+                remediation="Monitor RAM usage and plan capacity expansion",
+                readiness_impact="Limited headroom for additional workloads",
+            ))
+
+    # Storage utilization
+    stor_pct = observed.get("storage_usage_pct")
+    if stor_pct is not None:
+        crit = _thresh("storage_crit_pct", 90)
+        warn = _thresh("storage_warn_pct", 80)
+        if stor_pct >= crit:
+            gaps.append(Gap(
+                component_id="infrastructure:capacity:storage",
+                gap_type="CAPACITY_EXCEEDED",
+                severity="ORANGE",
+                description=f"Storage utilization {stor_pct:.0f}% exceeds critical threshold {crit}%",
+                remediation="Expand ZFS pool, delete unused volumes, or prune old backups",
+                readiness_impact="VM disk creation may fail; backup may be unable to write",
+            ))
+        elif stor_pct >= warn:
+            gaps.append(Gap(
+                component_id="infrastructure:capacity:storage",
+                gap_type="CAPACITY_WARN",
+                severity="YELLOW",
+                description=f"Storage utilization {stor_pct:.0f}% above warning threshold {warn}%",
+                remediation="Plan storage expansion or clean up unused data",
+                readiness_impact="Storage headroom is limited",
+            ))
+
+    # Trend projection (11.4)
+    days_ram = trend.get("days_to_ram_full")
+    if days_ram is not None and days_ram < 90:
+        severity = "ORANGE" if days_ram < 30 else "YELLOW"
+        gaps.append(Gap(
+            component_id="infrastructure:capacity:ram-trend",
+            gap_type="CAPACITY_TREND",
+            severity=severity,
+            description=f"RAM projected to reach 100% in {days_ram:.0f} day(s) at current growth rate",
+            remediation="Add RAM or reduce workload before RAM is exhausted",
+            readiness_impact="Future deployments may fail due to insufficient RAM",
+        ))
+
+    days_stor = trend.get("days_to_storage_full")
+    if days_stor is not None and days_stor < 90:
+        severity = "ORANGE" if days_stor < 30 else "YELLOW"
+        gaps.append(Gap(
+            component_id="infrastructure:capacity:storage-trend",
+            gap_type="CAPACITY_TREND",
+            severity=severity,
+            description=f"Storage projected to reach 100% in {days_stor:.0f} day(s) at current growth rate",
+            remediation="Expand ZFS pool or prune backups before storage is exhausted",
+            readiness_impact="VM disk writes and backups may fail",
+        ))
+
+    # Restoration headroom (11.5)
+    import sys as _sys
+    import os as _os
+    try:
+        # Use capacity_collector if available (proxmox-bootstrap path)
+        _repo = _os.path.join(_os.path.dirname(__file__), "..", "proxmox-bootstrap")
+        _sys.path.insert(0, _repo)
+        from capacity_collector import check_restoration_headroom
+        headroom = check_restoration_headroom(manifest, cm)
+        if headroom is not None and not headroom["ok"]:
+            gap_gb = abs(headroom["gap_gb"])
+            gaps.append(Gap(
+                component_id="infrastructure:capacity:restoration-headroom",
+                gap_type="INSUFFICIENT_RESTORATION_HEADROOM",
+                severity="ORANGE",
+                description=(
+                    f"Insufficient RAM for full restoration: "
+                    f"VMs require {headroom['required_gb']} GB, "
+                    f"only {headroom['available_gb']} GB available "
+                    f"(shortfall: {gap_gb} GB)"
+                ),
+                remediation=(
+                    "Add RAM to meet restoration requirements, or declare some VMs "
+                    "as deferred in restoration_scope to reduce headroom requirement"
+                ),
+                readiness_impact=(
+                    "Full restoration will fail due to insufficient host RAM; "
+                    "partial restoration may succeed"
+                ),
+            ))
+    except ImportError:
+        pass
+
+    return gaps
+
+
 def _score_phoenix_playbook_existence(manifest: dict) -> list:
     """
     Check whether a phoenix playbook has been generated for this cell.
@@ -1064,6 +1213,7 @@ def score_graph(graph, manifest: dict) -> ReadinessReport:
     registry_gaps += _score_external_dependency_state(manifest)
     registry_gaps += _score_backup_config_completeness(manifest)
     registry_gaps += _score_network_topology_completeness(manifest)
+    registry_gaps += _score_capacity_model(manifest)
     registry_gaps += _score_phoenix_playbook_existence(manifest)
 
     # Overall score — worst of component scores and infrastructure gaps

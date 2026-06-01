@@ -120,6 +120,11 @@
       "description": "Declared bridge, VLAN, and firewall topology (Phase 8). Source of truth for network reconstruction and drift detection. Distinct from network_topology (Cloud-Init CIDR/gateway parameters)."
     },
 
+    "capacity_model": {
+      "$ref": "#/definitions/capacity_model",
+      "description": "Declared capacity thresholds and observed utilization snapshot (Phase 11). Used by readiness scorer to surface capacity risk and verify restoration headroom."
+    },
+
     "backup_config": {
       "$ref": "#/definitions/backup_config",
       "description": "Restic + rclone backup configuration (Phase 6.B). Three layers: secrets (KeePass DB, rclone copy — no restic), config (bootstrap state + assessment, encrypted restic), appdata (VM data volumes, encrypted restic, opt-in). Distinct from external_backup (git mirroring)."
@@ -1050,6 +1055,59 @@
         "health_check_url": { "type": ["string", "null"] },
         "failover":         { "type": ["string", "null"] },
         "notes":            { "type": ["string", "null"] }
+      }
+    },
+
+    "capacity_model": {
+      "type": "object",
+      "description": "Capacity thresholds and observed utilization for the Proxmox host.",
+      "properties": {
+        "thresholds": {
+          "type": "object",
+          "description": "Operator-declared utilization thresholds. Utilization above these triggers gaps.",
+          "properties": {
+            "cpu_warn_pct":     { "type": "integer", "description": "CPU % above which YELLOW fires (default 75)" },
+            "cpu_crit_pct":     { "type": "integer", "description": "CPU % above which ORANGE fires (default 90)" },
+            "ram_warn_pct":     { "type": "integer", "description": "RAM % above which YELLOW fires (default 75)" },
+            "ram_crit_pct":     { "type": "integer", "description": "RAM % above which ORANGE fires (default 90)" },
+            "storage_warn_pct": { "type": "integer", "description": "Storage % above which YELLOW fires (default 80)" },
+            "storage_crit_pct": { "type": "integer", "description": "Storage % above which ORANGE fires (default 90)" },
+            "restoration_headroom_pct": {
+              "type": "integer",
+              "description": "Minimum free RAM % required to host all declared VMs after recovery (default 10)"
+            }
+          }
+        },
+        "observed": {
+          "type": "object",
+          "description": "Utilization snapshot from Tier 2 assessment.",
+          "properties": {
+            "observed_at":        { "type": ["string", "null"], "format": "date-time" },
+            "cpu_usage_pct":      { "type": ["number", "null"] },
+            "ram_total_gb":       { "type": ["number", "null"] },
+            "ram_used_gb":        { "type": ["number", "null"] },
+            "ram_usage_pct":      { "type": ["number", "null"] },
+            "storage_total_gb":   { "type": ["number", "null"] },
+            "storage_used_gb":    { "type": ["number", "null"] },
+            "storage_usage_pct":  { "type": ["number", "null"] },
+            "vm_ram_total_gb":    {
+              "type": ["number", "null"],
+              "description": "Sum of RAM allocated to all running VMs"
+            }
+          }
+        },
+        "trend": {
+          "type": "object",
+          "description": "Trend data derived from historical snapshots (populated by capacity_collector.py).",
+          "properties": {
+            "ram_trend":     { "type": ["string", "null"], "enum": ["increasing", "stable", "decreasing", null] },
+            "storage_trend": { "type": ["string", "null"], "enum": ["increasing", "stable", "decreasing", null] },
+            "days_to_ram_full":     { "type": ["number", "null"], "description": "Estimated days until RAM is fully utilized at current trend rate" },
+            "days_to_storage_full": { "type": ["number", "null"], "description": "Estimated days until storage is fully utilized" },
+            "trend_computed_at":    { "type": ["string", "null"], "format": "date-time" },
+            "snapshots_used":       { "type": ["integer", "null"] }
+          }
+        }
       }
     },
 

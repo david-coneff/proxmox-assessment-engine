@@ -418,6 +418,13 @@ def run_bootstrap(args):
     else:
         print("[doc-gen] Network topology: not declared")
 
+    _cap = bootstrap_state.get("capacity_model")
+    if _cap:
+        manifest["capacity_model"] = _cap
+        print("[doc-gen] Capacity model: loaded")
+    else:
+        print("[doc-gen] Capacity model: not collected")
+
     service_state = _load_service_state(REPO_ROOT)
     if service_state:
         manifest["service_state"] = service_state
@@ -597,6 +604,16 @@ def run_recovery(args):
               + ("  ⚠ DRIFT DETECTED" if drift else ""))
     else:
         print("[doc-gen] Network topology: not declared — readiness gap will fire")
+
+    _cap = bootstrap_state.get("capacity_model")
+    if _cap:
+        manifest["capacity_model"] = _cap
+        obs = (_cap.get("observed") or {})
+        ram_pct  = obs.get("ram_usage_pct")
+        stor_pct = obs.get("storage_usage_pct")
+        print(f"[doc-gen] Capacity model: RAM={ram_pct or '?'}%  storage={stor_pct or '?'}%")
+    else:
+        print("[doc-gen] Capacity model: not collected")
 
     service_state = _load_service_state(REPO_ROOT)
     if service_state:

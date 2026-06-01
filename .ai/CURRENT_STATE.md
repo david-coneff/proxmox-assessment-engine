@@ -55,15 +55,17 @@ See ROADMAP.md Milestone 7.4 for the full spec.
 
 | 10 | Operational Documentation — operational_report.py (7 sections: readiness, drift, capacity, service health, secret completeness, external deps, actions), run_operational() in engine.py (--mode operational), setup-operational-schedule.sh (36 tests) | Complete |
 
-**Tests: 1543 total (1539 passed, 4 skipped)**
+| 11 | Capacity Model — capacity_model schema in bootstrap-state, capacity_collector.py (snapshot extraction, trend analysis, restoration headroom), _score_capacity_model() readiness scorer, engine injection (34 tests) | Complete |
+
+**Tests: 1577 total (1573 passed, 4 skipped)**
 
 ## Next Milestones
 
 | Milestone | Description |
 |---|---|
-| **Phase 11** | **Capacity Model — START HERE** |
-| Phase 12 | Full Single-Cell Reconstruction Test |
+| **Phase 12** | **Full Single-Cell Reconstruction Test — START HERE** |
 | Phase 1.F | Forge Package Assembly (capstone of forging process) |
+| Phase 12.E | Node Spawn Bootstrap (Hatchery Process) |
 
 ## Architecture Gaps (v4.0 items not yet implemented)
 

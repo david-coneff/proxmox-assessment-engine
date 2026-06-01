@@ -511,6 +511,16 @@ class TestRegistryCompletenessScoring(unittest.TestCase):
             },
             # Phoenix playbook present — suppresses MISSING_PHOENIX_PLAYBOOK gap.
             "phoenix_playbook_generated_at": _now,
+            # Capacity model present — suppresses MISSING_CAPACITY_MODEL gap.
+            "capacity_model": {
+                "thresholds": {"ram_crit_pct": 90, "storage_crit_pct": 90,
+                               "ram_warn_pct": 75, "storage_warn_pct": 80,
+                               "cpu_warn_pct": 75, "cpu_crit_pct": 90,
+                               "restoration_headroom_pct": 10},
+                "observed": {"ram_usage_pct": 50, "storage_usage_pct": 50,
+                             "ram_total_gb": 32},
+                "trend": {},
+            },
         }
         # Minimal empty graph (no VM nodes, so no per-VM contract gap)
         from dependencies import DependencyGraph
@@ -757,6 +767,15 @@ class TestFixtureIntegration(unittest.TestCase):
         }
         # Phoenix playbook present — suppresses MISSING_PHOENIX_PLAYBOOK gap.
         manifest["phoenix_playbook_generated_at"] = _now
+        manifest["capacity_model"] = {
+            "thresholds": {"ram_crit_pct": 90, "storage_crit_pct": 90,
+                           "ram_warn_pct": 75, "storage_warn_pct": 80,
+                           "cpu_warn_pct": 75, "cpu_crit_pct": 90,
+                           "restoration_headroom_pct": 10},
+            "observed": {"ram_usage_pct": 50, "storage_usage_pct": 50,
+                         "ram_total_gb": 32},
+            "trend": {},
+        }
 
         graph = dep_mod.build_graph(manifest)
         report = score_graph(graph, manifest)

@@ -833,11 +833,18 @@ See Phase 12.E for the hatchery process playbooks (broodling spawn scripts).
 
 ### Phase 11 — Capacity Model
 
-- [ ] 11.1: Capacity model schema
-- [ ] 11.2: Capacity tracking in Tier 2 assessment
-- [ ] 11.3: Capacity validation in readiness scorer
-- [ ] 11.4: Capacity trend analysis and projection
-- [ ] 11.5: ORANGE if target host cannot accommodate restored workload
+- [x] 11.1: Capacity model schema — `capacity_model` section added to bootstrap-state-schema.json:
+      thresholds (cpu/ram/storage warn/crit pcts + restoration_headroom_pct),
+      observed (snapshot: ram/storage usage pcts + totals), trend (direction + days_to_full)
+- [x] 11.2: Capacity tracking — `proxmox-bootstrap/capacity_collector.py`:
+      collect_capacity_snapshot() reads cpu/memory/storage from manifest;
+      merge_capacity_model() updates bootstrap-state.json with observed + trend
+- [x] 11.3: Capacity validation in readiness scorer — _score_capacity_model():
+      YELLOW: no capacity_model; YELLOW/ORANGE: RAM/storage above warn/crit threshold
+- [x] 11.4: Trend analysis — compute_trend() derives direction (increasing/stable/decreasing)
+      and days_to_full projection from ordered historical snapshots; uses linear rate
+- [x] 11.5: ORANGE if target host cannot accommodate restored workload —
+      check_restoration_headroom() compares sum(VM RAM) vs host RAM × (1 - headroom_pct)
 
 ### Phase 12 — Full Single-Cell Reconstruction Test
 
