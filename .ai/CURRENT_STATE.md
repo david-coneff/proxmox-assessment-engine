@@ -70,15 +70,21 @@ See ROADMAP.md Milestone 7.4 for the full spec.
 | 12.E.4 | Spawn hardware discovery — HardwareProfile, DiskInfo, NicInfo, parsers, SSH collector, zfs_topology, round-trip serialization (34 tests) | Complete |
 | 12.E.9 | Bootstrap-state updater after spawn — SpawnResult, update_state_after_spawn, build_spawn_result, no-duplicate guards (21 tests) | Complete |
 | 12.E.10 | Disposition-aware assessment scoring — _score_disposition_compliance() RED if declared service VM not on broodling (9 tests) | Complete |
+| 12.E.5  | Spawn IaC and config generator — generate_tfvars, generate_cloudinit_user_data, generate_ansible_inventory, write_all_artifacts (33 tests) | Complete |
+| 12.E.6  | Spawn scripts generator — generate_spawn_sh, 7 phase scripts, write_all_scripts (43 tests) | Complete |
+| 12.E.7+7a | Spawn package assembler + KeePass unlock gate — assemble_spawn_package, package_contents, KEEPASS_GATE_SH, CHECKPOINT_SH (44 tests) | Complete |
+| 12.E.8  | Spawn workbook ODS — 8 sheets (Overview, Discovery, Storage, Network, Proxmox-Join, VMs, k3s-Join, Validation), embedded in package (56 tests) | Complete |
+| 12.E.11 | Spawn scenarios — 9 scenarios (baseline, compute, storage, control-plane, mixed, insufficient, full-peer, WAN, interactive), conflict detection (52 tests) | Complete |
+| 12.E.12 | NODE-SPAWNING.md — operator runbook (7 steps, pre-flight, troubleshooting, capacity guide) | Complete |
+| 12.E.3  | Spawn planner — ServiceCatalog (YAML parser), ServiceFitAssessor, SpawnPlannerSession (3 steps), build_spawn_plan, interactive CLI spawn-planner.py, service-catalog.yaml (70 tests) | Complete |
 
-**Tests: 1908 total (1904 passed, 4 skipped)**
+**Tests: 2200 total (2194 passed, 6 skipped)**
 
 ## Next Milestones
 
 | Milestone | Description |
 |---|---|
-| **Phase 12.E (continued)** | **12.E.3 Spawn planner, 12.E.5 IaC generator, 12.E.6 scripts, 12.E.7 assembler, 12.E.8 workbook, 12.E.11 scenarios, 12.E.12 docs — START HERE** |
-| Phase 1.G.4-6 | Wire guided setup into forge, spawn, phoenix |
+| **Phase 1.G.4-6** | **Wire guided setup into forge, spawn, phoenix — START HERE** |
 | Phase 1.F | Forge Package Assembly (capstone of forging process) |
 
 ## Architecture Gaps (v4.0 items not yet implemented)

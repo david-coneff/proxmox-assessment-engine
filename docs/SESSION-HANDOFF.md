@@ -1,8 +1,8 @@
 # Session Handoff
 
-Date: 2026-05-31 UTC (updated after Milestone 7.4 — Recovery Documentation Update Service Layer)
-Status: Phases 10, 11, 12, 1.G (core engine) complete.
-Next: Phase 12.E (Node Spawn Bootstrap) or Phase 1.G.4-6 (wire guided setup into packages).
+Date: 2026-06-01 UTC (updated after Phase 12.E completion)
+Status: Phase 12.E complete. Tests: 2200 total (2194 passed, 6 skipped).
+Next: Phase 1.G.4-6 (wire guided setup into forge, spawn, phoenix) → Phase 1.F (Forge Package Assembly).
 
 ---
 
@@ -737,18 +737,38 @@ SETUP-GUIDE.html updated:
 
 **Tests: 1908 total (1904 passed, 4 skipped)**
 
-## Remaining Phase 12.E (next session)
-  12.E.3: Spawn planner (spawn-planner.py) — uses guided_setup.py Session, hatchery_state,
-           validate_spawn; execution mode gate → service selection → spawn-plan.json
-  12.E.5: Spawn IaC and config generator — tfvars, Cloud-Init snippets, Ansible additions
-  12.E.6: Spawn scripts — phase-00 through phase-06 generated from spawn-plan.json
-  12.E.7: Spawn package assembler (assemble-spawn-package.py)
-  12.E.7a: KeePass unlock gate in spawn.sh
-  12.E.8: Spawn workbook (ODS)
-  12.E.11: Spawn scenarios tested
-  12.E.12: Documentation (NODE-SPAWNING.md)
+## Completed: Phase 12.E — Node Spawn Bootstrap (all sub-milestones)
 
-## Next Action: Phase 12.E (continued) — spawn planner (12.E.3)
+  12.E.5  spawn_iac_generator.py  — generate_tfvars, generate_cloudinit_user_data,
+                                     generate_ansible_inventory, generate_ansible_k3s_vars,
+                                     write_all_artifacts (33 tests)
+  12.E.6  spawn_scripts.py        — generate_spawn_sh, generate_phase_00_preflight,
+                                     generate_phase_00_host, ..._01..._06, write_all_scripts
+                                     (43 tests; WAN phase conditional; HA phase conditional)
+  12.E.7  assemble_spawn_package.py  — assemble_spawn_package, package_contents,
+                                       tar.gz bundle with all artifacts (44 tests)
+  12.E.7a lib/keepass-gate.sh     — KEEPASS_GATE_SH embedded in assembler; keepass_unlock_gate,
+                                    keepass_find_db, kdbx_get; silent password read; idempotent
+  12.E.8  spawn_workbook.py       — build_spawn_workbook, generate_spawn_workbook_file;
+                                    8 ODS sheets; embedded in package (56 tests)
+  12.E.11 tests/unit/test_spawn_scenarios.py  — 9 scenarios (baseline, compute, storage,
+                                    control-plane, mixed, insufficient, full-peer, WAN,
+                                    interactive); conflict detection suite (52 tests)
+  12.E.12 proxmox-bootstrap/NODE-SPAWNING.md  — 7-step operator runbook; pre-flight gate;
+                                    troubleshooting; capacity guidelines; key files table
+  12.E.3  spawn_planner.py        — ServiceCatalog (YAML parser), assess_service_fit,
+                                    assess_all_services, full_mirror_services,
+                                    SpawnPlannerSession, step0/1/2/3 helpers,
+                                    build_spawn_plan, generate_temp_password (70 tests)
+          service-catalog.yaml    — 11 services (5 groups): k3s-worker/server, pbs-datastore,
+                                    longhorn, forgejo, cert-manager, assessment-engine,
+                                    prometheus-agent, monitoring, nextcloud, immich
+          spawn-planner.py        — interactive CLI entry point (3-step wizard)
+
+**Tests: 2200 total (2194 passed, 6 skipped)**
+Test runner: C:\Users\dave\AppData\Local\Programs\Python\Python311\python.exe -m pytest tests/unit/ -q
+
+## Next Action: Phase 1.G.4-6 — Wire guided setup into forge, spawn, phoenix
 
 ### What It Is
 
