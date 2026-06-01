@@ -1162,7 +1162,7 @@ never needs to ask the operator what is already taken.
       Discovery output is embedded in autonomous spawn packages so phase-00 can
       reference disk IDs and NIC layout without re-running discovery on the broodling.
 
-- [ ] 12.E.5: **Spawn IaC and config generator** — from `spawn-plan-{hostname}.json`:
+- [x] 12.E.5: **Spawn IaC and config generator** — from `spawn-plan-{hostname}.json`:
       - OpenTofu `.auto.tfvars` for this host's VM set
       - Cloud-Init snippets with this host's allocated IPs (from spawn plan, not hatchery IPs)
       - Ansible inventory additions (this host appended to existing groups)
