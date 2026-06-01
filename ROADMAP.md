@@ -1119,7 +1119,7 @@ never needs to ask the operator what is already taken.
       - k3s join token type: worker always; server only if k3s-server selected (or selectable)
       - If 3rd server node possible: etcd migration plan included in interactive; locked in autonomous
 
-- [ ] 12.E.4: **Spawn hardware discovery (autonomous mode only)** — produces
+- [x] 12.E.4: **Spawn hardware discovery (autonomous mode only)** — produces
       `hardware-profile-{hostname}.json` before the spawn package is generated.
       This is the input to the spawn planner for hardware-specific adaptation:
       disk topology → ZFS pool type, NIC inventory → bridge definitions, RAM → VM sizing.
