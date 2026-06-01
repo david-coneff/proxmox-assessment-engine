@@ -1588,6 +1588,144 @@ def _score_storage_state_completeness(manifest: dict) -> list:
     return gaps
 
 
+def _score_data_protection_completeness(manifest: dict) -> list:
+    """
+    Check data protection state completeness (Phase 15.4-15.6).
+
+    YELLOW:  no data_protection_state in manifest.
+    RED:     backup encryption enabled but encryption key not in KeePass reference.
+    ORANGE:  backup jobs failing on last run.
+    ORANGE:  RTO/RPO declarations violated.
+    YELLOW:  no PBS self-recovery plan declared.
+    YELLOW:  jobs with no backups ever.
+    YELLOW:  jobs with no verification.
+    """
+    gaps: list[Gap] = []
+    dp = manifest.get("data_protection_state")
+
+    if not dp:
+        gaps.append(Gap(
+            component_id="infrastructure:data-protection",
+            gap_type="MISSING_DATA_PROTECTION_STATE",
+            severity="YELLOW",
+            description=(
+                "No data protection state collected — PBS backup job status, "
+                "RTO/RPO compliance, and encryption key recoverability are unknown"
+            ),
+            remediation=(
+                "Run proxmox-bootstrap/data_protection_collector.py to collect "
+                "PBS backup state"
+            ),
+            readiness_impact=(
+                "Cannot assess backup job health, encryption key availability, "
+                "or RTO/RPO compliance"
+            ),
+        ))
+        return gaps
+
+    health = dp.get("data_protection_health") or {}
+
+    # RED: encryption key references missing (Phase 15.4)
+    enc_missing = health.get("encryption_keys_missing") or []
+    if enc_missing:
+        gaps.append(Gap(
+            component_id="infrastructure:backup-encryption",
+            gap_type="ENCRYPTION_KEY_NOT_RECOVERABLE",
+            severity="RED",
+            description=(
+                f"PBS backup jobs have encryption enabled but no KeePass key reference: "
+                f"{', '.join(enc_missing)}"
+            ),
+            remediation=(
+                "Add encryption_key_ref KeePass paths to each encrypted backup job in "
+                "data-protection-state.json. Without the key, encrypted backups cannot "
+                "be restored."
+            ),
+            readiness_impact=(
+                "Encrypted backups are irrecoverable without the key reference. "
+                "This is a critical recovery blocker."
+            ),
+        ))
+
+    # ORANGE: backup jobs failing
+    failing = health.get("jobs_failing") or []
+    if failing:
+        gaps.append(Gap(
+            component_id="infrastructure:backup-jobs",
+            gap_type="BACKUP_JOBS_FAILING",
+            severity="ORANGE",
+            description=f"PBS backup jobs failed on last run: {', '.join(failing)}",
+            remediation="Check PBS backup logs: pvesh get /nodes/pve/tasks",
+            readiness_impact="Failed backup jobs mean no current snapshots for those VMs",
+        ))
+
+    # ORANGE: RTO/RPO violated
+    violated = health.get("rto_rpo_violated") or []
+    if violated:
+        gaps.append(Gap(
+            component_id="infrastructure:rto-rpo",
+            gap_type="RTO_RPO_VIOLATED",
+            severity="ORANGE",
+            description=(
+                f"Components violating declared RTO/RPO targets: {', '.join(violated)}"
+            ),
+            remediation=(
+                "Increase backup frequency for the affected components to meet declared targets"
+            ),
+            readiness_impact=(
+                "Recovery from the most recent backup may exceed the declared recovery objectives"
+            ),
+        ))
+
+    # YELLOW: no PBS self-recovery plan (Phase 15.5)
+    if not dp.get("pbs_self_recovery_plan"):
+        gaps.append(Gap(
+            component_id="infrastructure:pbs-self-recovery",
+            gap_type="NO_PBS_SELF_RECOVERY_PLAN",
+            severity="YELLOW",
+            description=(
+                "No PBS self-recovery plan declared. If the PBS node fails, "
+                "backup history may be lost."
+            ),
+            remediation=(
+                "Declare pbs_self_recovery_plan in data-protection-state.json: "
+                "external-backup, secondary-pbs, or manual procedure"
+            ),
+            readiness_impact=(
+                "Without a PBS self-recovery plan, a PBS node failure leaves backup "
+                "history inaccessible until the node is restored"
+            ),
+        ))
+
+    # YELLOW: jobs with no backups
+    no_backup = health.get("jobs_with_no_backup") or []
+    if no_backup:
+        gaps.append(Gap(
+            component_id="infrastructure:backup-coverage",
+            gap_type="JOBS_WITH_NO_BACKUP",
+            severity="YELLOW",
+            description=f"PBS jobs with no successful backup ever: {', '.join(no_backup)}",
+            remediation="Run backup jobs manually to create initial snapshots",
+            readiness_impact="These VMs have no restorable snapshot",
+        ))
+
+    # YELLOW: jobs unverified
+    unverified = health.get("jobs_unverified") or []
+    if unverified:
+        gaps.append(Gap(
+            component_id="infrastructure:backup-verification",
+            gap_type="JOBS_UNVERIFIED",
+            severity="YELLOW",
+            description=f"PBS backup jobs not verified: {', '.join(unverified)}",
+            remediation=(
+                "Configure PBS backup verification schedules to confirm snapshot integrity"
+            ),
+            readiness_impact="Unverified backups may be corrupt and fail at restore time",
+        ))
+
+    return gaps
+
+
 def score_graph(graph, manifest: dict) -> ReadinessReport:
     """Score all nodes; propagate BLOCKED; identify SPOFs and blockers."""
     backup_inv = BackupInventory(manifest.get("backup_inventory"))
@@ -1660,11 +1798,12 @@ def score_graph(graph, manifest: dict) -> ReadinessReport:
     registry_gaps += _score_disposition_compliance(manifest)
     registry_gaps += _score_reconstruction_drill(manifest)
     registry_gaps += _score_phoenix_playbook_existence(manifest)
-    # Track 2 — Hardware, Platform, Cluster, Storage state
+    # Track 2 — Hardware, Platform, Cluster, Storage, Data Protection state
     registry_gaps += _score_hardware_state_completeness(manifest)
     registry_gaps += _score_platform_state_completeness(manifest)
     registry_gaps += _score_cluster_state_completeness(manifest)
     registry_gaps += _score_storage_state_completeness(manifest)
+    registry_gaps += _score_data_protection_completeness(manifest)
 
     # Overall score — worst of component scores and infrastructure gaps
     overall = "GREEN"

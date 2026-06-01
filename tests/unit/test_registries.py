@@ -555,6 +555,18 @@ class TestRegistryCompletenessScoring(unittest.TestCase):
                     "pbs_job_failures": [],
                 }
             },
+            # Data protection state present — suppresses MISSING_DATA_PROTECTION_STATE gap (Phase 15).
+            "data_protection_state": {
+                "pbs_self_recovery_plan": {"plan_type": "external-backup", "documented": True},
+                "data_protection_health": {
+                    "overall_status": "HEALTHY",
+                    "jobs_with_no_backup": [],
+                    "jobs_failing": [],
+                    "jobs_unverified": [],
+                    "encryption_keys_missing": [],
+                    "rto_rpo_violated": [],
+                }
+            },
         }
         # Minimal empty graph (no VM nodes, so no per-VM contract gap)
         from dependencies import DependencyGraph
@@ -839,6 +851,18 @@ class TestFixtureIntegration(unittest.TestCase):
                 "pool_health_summary": "ALL_ONLINE",
                 "high_capacity_pools": [],
                 "pbs_job_failures": [],
+            }
+        }
+        # Phase 15 — data protection state present
+        manifest["data_protection_state"] = {
+            "pbs_self_recovery_plan": {"plan_type": "external-backup", "documented": True},
+            "data_protection_health": {
+                "overall_status": "HEALTHY",
+                "jobs_with_no_backup": [],
+                "jobs_failing": [],
+                "jobs_unverified": [],
+                "encryption_keys_missing": [],
+                "rto_rpo_violated": [],
             }
         }
 

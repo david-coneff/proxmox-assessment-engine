@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Data Protection State",
+  "description": "Proxmox Backup Server (PBS) job inventory, retention policies, RTO/RPO declarations, and backup verification status. Used by Track 2 assessment (Phase 15).",
+  "type": "object",
+  "required": ["schema_version", "cell_id", "collected_at"],
+  "additionalProperties": false,
+  "definitions": {
+    "backup_job": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id":            {"type": "string"},
+        "store":         {"type": ["string", "null"], "description": "PBS datastore name"},
+        "vm_id":         {"type": ["integer", "null"]},
+        "vm_name":       {"type": ["string", "null"]},
+        "schedule":      {"type": ["string", "null"], "description": "Cron-like schedule"},
+        "retention":     {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "keep_last":    {"type": ["integer", "null"]},
+            "keep_hourly":  {"type": ["integer", "null"]},
+            "keep_daily":   {"type": ["integer", "null"]},
+            "keep_weekly":  {"type": ["integer", "null"]},
+            "keep_monthly": {"type": ["integer", "null"]},
+            "keep_yearly":  {"type": ["integer", "null"]}
+          }
+        },
+        "enabled":       {"type": ["boolean", "null"]},
+        "last_run":      {"type": ["string", "null"], "format": "date-time"},
+        "last_status":   {"type": ["string", "null"], "description": "ok, error, warning"},
+        "last_duration_sec": {"type": ["integer", "null"]},
+        "next_run":      {"type": ["string", "null"], "format": "date-time"},
+        "snapshot_count": {"type": ["integer", "null"]},
+        "oldest_snapshot": {"type": ["string", "null"], "format": "date-time"},
+        "newest_snapshot": {"type": ["string", "null"], "format": "date-time"},
+        "total_size_gb": {"type": ["number", "null"]},
+        "encryption":    {"type": ["boolean", "null"]},
+        "encryption_key_ref": {
+          "type": ["string", "null"],
+          "description": "KeePass path for the encryption key (if encrypted)"
+        },
+        "verified_at":   {"type": ["string", "null"], "format": "date-time"},
+        "verify_status": {"type": ["string", "null"], "description": "ok, failed, none"}
+      }
+    },
+    "rto_rpo_declaration": {
+      "type": "object",
+      "required": ["component_id"],
+      "additionalProperties": true,
+      "properties": {
+        "component_id": {
+          "type": "string",
+          "description": "VM name or service name this RTO/RPO target applies to"
+        },
+        "rto_hours": {
+          "type": ["number", "null"],
+          "description": "Recovery Time Objective: max acceptable downtime in hours"
+        },
+        "rpo_hours": {
+          "type": ["number", "null"],
+          "description": "Recovery Point Objective: max acceptable data loss in hours"
+        },
+        "tier":           {"type": ["string", "null"], "description": "critical, standard, low"},
+        "declared_by":    {"type": ["string", "null"]},
+        "declared_at":    {"type": ["string", "null"], "format": "date-time"},
+        "compliance_status": {
+          "type": ["string", "null"],
+          "enum": ["COMPLIANT", "AT_RISK", "VIOLATED", "UNKNOWN", null],
+          "description": "Whether current backup schedule meets the declared RTO/RPO"
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "cell_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "collection_errors": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "pbs_node":  {
+      "type": ["string", "null"],
+      "description": "Proxmox node hosting PBS (may be same as hatchery)"
+    },
+    "pbs_version": {
+      "type": ["string", "null"]
+    },
+    "pbs_datastores": {
+      "type": "array",
+      "description": "PBS datastore names and their status.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": true,
+        "properties": {
+          "name":      {"type": "string"},
+          "path":      {"type": ["string", "null"]},
+          "total_gb":  {"type": ["number", "null"]},
+          "used_gb":   {"type": ["number", "null"]},
+          "avail_gb":  {"type": ["number", "null"]},
+          "gc_status": {"type": ["string", "null"]},
+          "verify_schedule": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "backup_jobs": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/backup_job"}
+    },
+    "rto_rpo_declarations": {
+      "type": "array",
+      "description": "Operator-declared RTO/RPO targets per component.",
+      "items": {"$ref": "#/definitions/rto_rpo_declaration"}
+    },
+    "pbs_self_recovery_plan": {
+      "type": ["object", "null"],
+      "description": "How PBS itself is recovered if the PBS node fails.",
+      "additionalProperties": true,
+      "properties": {
+        "plan_type":   {"type": "string", "description": "external-backup, secondary-pbs, manual"},
+        "documented":  {"type": "boolean"},
+        "location":    {"type": ["string", "null"], "description": "Where the plan lives"},
+        "last_tested_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "data_protection_health": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "overall_status": {
+          "type": "string",
+          "enum": ["HEALTHY", "DEGRADED", "CRITICAL", "UNKNOWN"]
+        },
+        "jobs_with_no_backup": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Job IDs that have never successfully backed up"
+        },
+        "jobs_failing": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Job IDs with last_status=error"
+        },
+        "jobs_unverified": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Job IDs with no successful verify run"
+        },
+        "encryption_keys_missing": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Job IDs with encryption enabled but no key reference"
+        },
+        "rto_rpo_violated": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Component IDs where current backups violate declared RTO/RPO"
+        }
+      }
+    }
+  }
+}
