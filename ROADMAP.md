@@ -815,13 +815,21 @@ See Phase 12.E for the hatchery process playbooks (broodling spawn scripts).
 
 ### Phase 10 — Operational Documentation
 
-- [ ] 10.1: Operational documentation class design
-- [ ] 10.2: Drift summary renderer
-- [ ] 10.3: Capacity trend renderer
-- [ ] 10.4: Service health summary renderer
-- [ ] 10.5: Secret registry completeness renderer
-- [ ] 10.6: Wire into engine.py (`--mode operational`)
-- [ ] 10.7: Scheduled refresh
+- [x] 10.1: Operational documentation class design — `doc-gen/renderers/operational_report.py`;
+      seven sections: overall readiness, drift summary, capacity, service health,
+      secret completeness, external dependencies, time-sensitive actions
+- [x] 10.2: Drift summary renderer — Section 2 reads manifest["drift"] (from compute_drift());
+      shows from/to snapshot, severity, changed fields (capped at 30)
+- [x] 10.3: Capacity trend renderer — Section 3 reads cpu/memory/storage from manifest;
+      ORANGE/RED warnings on RAM ≥90% or storage ≥90% utilization
+- [x] 10.4: Service health summary renderer — Section 4 reads manifest["service_state"];
+      shows running/stopped/degraded counts and per-service status line
+- [x] 10.5: Secret registry completeness renderer — Section 5 reads manifest["secret_registry"];
+      shows total/with-path counts; lists secrets missing keepass_path
+- [x] 10.6: Wire into engine.py — run_operational() function + `--mode operational` choice;
+      loads all registries, computes drift + readiness, renders Operational-Report.odt
+- [x] 10.7: Scheduled refresh — `proxmox-bootstrap/setup-operational-schedule.sh` installs
+      broodforge-operational.service + broodforge-operational.timer (every hour)
 
 ### Phase 11 — Capacity Model
 

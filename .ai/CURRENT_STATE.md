@@ -53,14 +53,16 @@ See ROADMAP.md Milestone 7.4 for the full spec.
 | 8 | Network Topology as Code — network-topology-schema.json, network_topology_declared in bootstrap-state-schema.json, network_topology_collector.py (parser + SSH collector + compare + merge), _score_network_topology_completeness(), Wave 0 in recovery runbook, engine injection (58 tests) | Complete |
 | 9 | Phoenix Playbooks — schema, PhoenixPlaybookGenerator (waves 0, 0.5, 1, 2, 3, 4), RECREATE vs RESTORE decision (_vm_is_stateless), _wave_05_template_rebuild(), phoenix_scripts.py (generate_wave_script + generate_run_all_sh), phoenix_validator.py (validate_playbook + is_valid + summarise_findings), readiness scorer (95 tests) | Complete |
 
-**Tests: 1507 total (1503 passed, 4 skipped)**
+| 10 | Operational Documentation — operational_report.py (7 sections: readiness, drift, capacity, service health, secret completeness, external deps, actions), run_operational() in engine.py (--mode operational), setup-operational-schedule.sh (36 tests) | Complete |
+
+**Tests: 1543 total (1539 passed, 4 skipped)**
 
 ## Next Milestones
 
 | Milestone | Description |
 |---|---|
-| **Phase 10** | **Operational Documentation — START HERE** |
-| Phase 11 | Capacity Model |
+| **Phase 11** | **Capacity Model — START HERE** |
+| Phase 12 | Full Single-Cell Reconstruction Test |
 | Phase 1.F | Forge Package Assembly (capstone of forging process) |
 
 ## Architecture Gaps (v4.0 items not yet implemented)

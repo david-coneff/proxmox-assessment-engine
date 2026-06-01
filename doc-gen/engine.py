@@ -773,11 +773,104 @@ def _write_recovery_report(out_dir, manifest, graph, readiness, meta):
 
     (out_dir / "generation-report.md").write_text("\n".join(lines), encoding="utf-8")
 
+def run_operational(args):
+    """
+    --mode operational: generate an Operational Status Report from the current
+    assessment manifest. Combines readiness scoring, drift, service health,
+    capacity, secret completeness, and external dependency state into a single
+    living status document.
+    """
+    print("[doc-gen] Loading manifest (operational mode)...")
+    manifest, assessment_id = _load_manifest(args)
+
+    out_dir = REPO_ROOT / "reports" / f"operational_{assessment_id}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    bootstrap_state = _load_bootstrap_state(REPO_ROOT)
+
+    # Inject all registries (same as recovery path)
+    _secrets = bootstrap_state.get("secrets") or bootstrap_state.get("secret_registry") or []
+    if _secrets:
+        manifest["secret_registry"] = _secrets
+    _dns = bootstrap_state.get("dns_registry") or []
+    if _dns:
+        manifest["dns_registry"] = _dns
+    _prov = bootstrap_state.get("provenance_records") or []
+    if _prov:
+        manifest["provenance_registry"] = _prov
+    _base_images = bootstrap_state.get("base_images") or []
+    _templates   = bootstrap_state.get("templates") or []
+    if _base_images or _templates:
+        manifest["base_images"] = _base_images
+        manifest["templates"]   = _templates
+    _contracts = bootstrap_state.get("service_contracts") or []
+    if _contracts:
+        manifest["service_contracts"] = _contracts
+    _ext_deps = bootstrap_state.get("external_dependencies") or []
+    if _ext_deps:
+        manifest["external_dependencies"] = _ext_deps
+    _backup_cfg = bootstrap_state.get("backup_config")
+    if _backup_cfg:
+        manifest["backup_config"] = _backup_cfg
+    _ntd = bootstrap_state.get("network_topology_declared")
+    if _ntd:
+        manifest["network_topology_declared"] = _ntd
+    _if_external = bootstrap_state.get("external_backup")
+    if _if_external:
+        manifest["external_backup"] = _if_external
+
+    # Load service state
+    service_state = _load_service_state(REPO_ROOT)
+    if service_state:
+        manifest["service_state"] = service_state
+        print(f"[doc-gen] Service state: {len(service_state.get('services') or [])} service(s)")
+
+    # Drift detection
+    tier = manifest.get("assessment_tier", 1)
+    prior_manifest, prior_snap_id = _load_history_snapshot(tier)
+    if prior_manifest is not None and prior_snap_id != assessment_id:
+        print(f"[doc-gen] Computing drift against: {prior_snap_id}")
+        drift_record = compute_drift(prior_manifest, manifest, prior_snap_id, assessment_id)
+        manifest["drift"] = drift_record
+        print(f"[doc-gen]   Drift: {len(drift_record['diffs'])} field(s)  severity={drift_record['drift_severity']}")
+    else:
+        print("[doc-gen] No prior snapshot — drift detection skipped")
+
+    # Build dependency graph and readiness scores
+    sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
+    import dependencies as dep_mod
+    import readiness as rdns_mod
+
+    graph    = dep_mod.build_graph(manifest)
+    readiness = rdns_mod.score_graph(graph, manifest)
+    print(f"[doc-gen] Readiness: {readiness.overall_score} — {readiness.overall_score_reason}")
+
+    generation_meta = {
+        "generated_at":         now_utc_iso(),
+        "generated_at_display": format_doc_timestamp(),
+        "collected_at":    manifest.get("collected_at", "unknown"),
+        "tier":            tier,
+    }
+
+    print("[doc-gen] Rendering operational report...")
+    from renderers.operational_report import build_operational_report
+    odt_bytes = build_operational_report(manifest, readiness, generation_meta)
+    odt_path  = out_dir / "Operational-Report.odt"
+    odt_path.write_bytes(odt_bytes)
+    print(f"[doc-gen]   → {odt_path}  ({len(odt_bytes):,} bytes)")
+
+    print("")
+    print("=" * 60)
+    print(f"  Operational Report generated: {out_dir}")
+    print(f"  Overall readiness: {readiness.overall_score}")
+    print("=" * 60)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Broodforge Documentation Generator"
     )
-    parser.add_argument("--mode", required=True, choices=["bootstrap", "recovery"],
+    parser.add_argument("--mode", required=True, choices=["bootstrap", "recovery", "operational"],
                         help="Documentation mode")
     parser.add_argument("--archive", help="Path to assessment .tar.gz archive")
     parser.add_argument("--manifest", help="Path to manifest.json directly")
@@ -789,6 +882,8 @@ def main():
 
     if args.mode == "bootstrap":
         run_bootstrap(args)
+    elif args.mode == "operational":
+        run_operational(args)
     else:
         run_recovery(args)
 
