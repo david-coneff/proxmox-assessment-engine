@@ -33,12 +33,13 @@ from spawn_planner import (
     EXEC_AUTONOMOUS, EXEC_INTERACTIVE,
     SEL_FULL_MIRROR, SEL_GROUP, SEL_INDIVIDUAL,
     FIT_OK, FIT_MARGINAL, FIT_NO_FIT,
-    step0_set_network_mode, step1_set_execution_mode,
+    step0_set_network_mode, step_guided_setup, step1_set_execution_mode,
     step2_select_services, step3_allocate_resources,
     assess_all_services, full_mirror_services,
     build_spawn_plan,
     GROUPS,
 )
+from guided_setup import SETTING_GROUPS, group_selector_rows, suggest, set_value
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +138,114 @@ def _generate_headscale_auth_key(headscale_url: str) -> str:
         pass
     print("  [headscale] Could not generate auth key automatically.")
     return _prompt("Enter Headscale auth key (or leave blank to embed manually)")
+
+
+# ---------------------------------------------------------------------------
+# Step 0.5 — Guided setup (optional)
+# ---------------------------------------------------------------------------
+
+def _step0_5_guided_setup(
+    session: SpawnPlannerSession, state: dict
+) -> SpawnPlannerSession:
+    """Offer guided setup for customising spawn settings."""
+    _header("Step 0.5 — Spawn Settings (Guided Setup)")
+    print("\n  Auto-calculated settings cover most cases. You can optionally")
+    print("  customise IP addressing, storage topology, VM sizing, and more.\n")
+
+    sel = _choice([
+        ("Skip (default)",    "use auto-calculated settings"),
+        ("IP-Selective",      "choose IP addressing only"),
+        ("Group-Manual",      "select setting groups to configure"),
+        ("Full-Manual",       "walk through all settings with suggestions"),
+    ], "Customise spawn settings?")
+
+    if sel == 1:
+        return session
+
+    mode_map = {2: "ip-selective", 3: "group-manual", 4: "full-manual"}
+    mode = mode_map[sel]
+
+    if mode == "ip-selective":
+        # Show IP field suggestions and prompt
+        from guided_setup import GuidedSetupSession, suggest as gs_suggest
+        _gs = GuidedSetupSession(mode=mode, manifest=state)
+        ip_values = {}
+        for fp in ("network.management_cidr", "network.gateway"):
+            current = gs_suggest(fp, _gs)
+            val = _prompt(f"  {fp}", str(current))
+            ip_values[fp] = val
+        step_guided_setup(session, mode, state, ip_values=ip_values)
+
+    elif mode == "group-manual":
+        # Show group selector
+        from guided_setup import GuidedSetupSession, group_selector_rows as _gsr
+        _gs = GuidedSetupSession(mode=mode, manifest=state)
+        rows = _gsr(_gs)
+        selected_groups = []
+        for row in rows:
+            auto = row["auto_suggestion"]
+            ans = _prompt(
+                f"  Configure {row['label']:<12} (auto: {str(auto)[:25]}) (y/N)", "n"
+            )
+            if ans.lower() == "y":
+                selected_groups.append(row["group_id"])
+
+        field_values = {}
+        for gid in selected_groups:
+            gdef = SETTING_GROUPS[gid]
+            _header(f"Group: {gdef['label']}")
+            from guided_setup import GuidedSetupSession, suggest as gs_suggest
+            _gs2 = GuidedSetupSession(mode=mode, manifest=state,
+                                       selected_groups=set(selected_groups))
+            for fp in gdef["fields"]:
+                current = gs_suggest(fp, _gs2)
+                current_str = (
+                    ",".join(current) if isinstance(current, list) else str(current)
+                ) if current is not None else ""
+                val_raw = _prompt(f"  {fp}", current_str)
+                if isinstance(current, list):
+                    field_values[fp] = [s.strip() for s in val_raw.split(",") if s.strip()]
+                elif isinstance(current, bool):
+                    field_values[fp] = val_raw.lower() in ("true", "yes", "1", "y")
+                elif isinstance(current, int):
+                    try:
+                        field_values[fp] = int(val_raw)
+                    except ValueError:
+                        field_values[fp] = val_raw
+                else:
+                    field_values[fp] = val_raw
+        step_guided_setup(session, mode, state,
+                         selected_groups=selected_groups, field_values=field_values)
+
+    elif mode == "full-manual":
+        field_values = {}
+        from guided_setup import GuidedSetupSession, suggest as gs_suggest
+        _gs = GuidedSetupSession(mode=mode, manifest=state)
+        for gid, gdef in SETTING_GROUPS.items():
+            _header(f"Group: {gdef['label']}")
+            for fp in gdef["fields"]:
+                current = gs_suggest(fp, _gs)
+                current_str = (
+                    ",".join(current) if isinstance(current, list) else str(current)
+                ) if current is not None else ""
+                val_raw = _prompt(f"  {fp}", current_str)
+                if isinstance(current, list):
+                    field_values[fp] = [s.strip() for s in val_raw.split(",") if s.strip()]
+                elif isinstance(current, bool):
+                    field_values[fp] = val_raw.lower() in ("true", "yes", "1", "y")
+                elif isinstance(current, int):
+                    try:
+                        field_values[fp] = int(val_raw)
+                    except ValueError:
+                        field_values[fp] = val_raw
+                else:
+                    field_values[fp] = val_raw
+        step_guided_setup(session, mode, state, field_values=field_values)
+
+    if session.setup_overrides:
+        print(f"\n  {len(session.setup_overrides)} manual setting(s) recorded.")
+
+    return session
 
 
 # ---------------------------------------------------------------------------
@@ -290,6 +399,7 @@ def main():
 
     session = SpawnPlannerSession()
     _step0_interactive(session, state)
+    _step0_5_guided_setup(session, state)
     _step1_interactive(session)
 
     if session.execution_mode == EXEC_AUTONOMOUS:

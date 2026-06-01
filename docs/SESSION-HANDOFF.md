@@ -1,8 +1,8 @@
 # Session Handoff
 
-Date: 2026-06-01 UTC (updated after Phase 12.E completion)
-Status: Phase 12.E complete. Tests: 2200 total (2194 passed, 6 skipped).
-Next: Phase 1.G.4-6 (wire guided setup into forge, spawn, phoenix) → Phase 1.F (Forge Package Assembly).
+Date: 2026-06-01 UTC (updated after Phase 1.G.4-6 completion)
+Status: Phase 1.G complete. Tests: 2333 total (2329 passed, 4 skipped).
+Next: Phase 1.F (Forge Package Assembly — capstone of forging process).
 
 ---
 
@@ -768,60 +768,76 @@ SETUP-GUIDE.html updated:
 **Tests: 2200 total (2194 passed, 6 skipped)**
 Test runner: C:\Users\dave\AppData\Local\Programs\Python\Python311\python.exe -m pytest tests/unit/ -q
 
-## Next Action: Phase 1.G.4-6 — Wire guided setup into forge, spawn, phoenix
+## Completed: Phase 1.G.4-6 — Wire Guided Setup into Forge, Spawn, Phoenix
 
-### What It Is
+### What was built
 
-Milestone 7.4 extends the recovery runbook with service-layer awareness:
-service contract validation steps, health check commands (from the `health_check`
-field in provided_interfaces), service restart/verification commands, and a
-distinct visual rendering of Service Contract dependency edges in the runbook.
+  proxmox-bootstrap/forge_planner.py
+      ForgePlannerSession dataclass: setup_mode, manifest, guided_session,
+        hostname, domain, cell_id, network_profile, wan_config, setup_overrides, warnings.
+      FORGE_MODE_* constants (autonomous, ip-selective, group-manual, full-manual).
+      step0_set_setup_mode(session, mode) — validates and sets mode.
+      step1_run_guided_setup(session, selected_groups, ip_values) — creates
+        GuidedSetupSession for non-autonomous modes; for ip-selective auto-populates
+        non-IP fields and records IP overrides; for group-manual sets selected_groups.
+      step2_set_identity(session, hostname, domain, cell_id) — sets identity in both
+        session and guided_session (cascade: hostname→fqdn→headscale_url).
+      step3_set_network_profile(session, profile, wan_config) — sets lan/wan profile;
+        records headscale_url in guided session for WAN.
+      record_manual_field(session, field_path, value) — records in guided session,
+        returns/accumulates conflicts, refreshes setup_overrides.
+      build_forge_manifest(session, now_fn) — assembles forge-manifest.json with
+        schema_version, cell_id, generated_at, setup_mode, host_identity,
+        network_topology; embeds setup_overrides (manual choices only) and
+        setup_warnings when non-empty.
+      auto_suggest_field(field_path, manifest) — returns suggestion without session.
 
-### Specific Deliverables
+  proxmox-bootstrap/forge-planner.py
+      Interactive CLI: Step 0 (mode), Step 1 (guided setup), Step 2 (identity),
+      Step 3 (network profile). Writes forge-manifest.json.
 
-**In `doc-gen/renderers/recovery_runbook.py`:**
+  proxmox-bootstrap/spawn_planner.py (extended)
+      SpawnPlannerSession: added guided_session (Optional) and setup_overrides (dict)
+        fields between Step 0 (network) and Step 1 (execution).
+      step_guided_setup(session, mode, manifest_dict, selected_groups, ip_values,
+        field_values) — creates GuidedSetupSession; for ip-selective calls
+        run_ip_selective_suggestions then records ip_values; for group-manual sets
+        selected_groups and records field_values; for full-manual records all
+        field_values. Populates session.setup_overrides from session_to_overrides().
+      build_spawn_plan() updated: embeds setup_overrides in plan when non-empty.
 
-1. **Per-VM section: Service Contract validation block** — for each VM node that
-   has a declared service contract, add a "Service Contract" section within that
-   VM's restore sequence entry:
-   - List provided interfaces with their health_check commands
-   - List required_interfaces dependencies (which services this VM needs)
-   - startup_after ordering note
+  proxmox-bootstrap/spawn-planner.py (extended)
+      Added Step 0.5 (_step0_5_guided_setup) between Step 0 and Step 1:
+      "Customise spawn settings? [Skip / IP-Selective / Group-Manual / Full-Manual]"
+      Drives the appropriate guided setup flow based on selection.
+      Inserts step_guided_setup() call into main().
 
-2. **Health check commands** — if a provided_interface has a health_check field
-   (e.g. "GET /api/healthz"), emit a validation command:
-   - HTTP health checks → `curl -f <health_check_url>`
-   - SSH → `ssh ubuntu@<vm_ip>` (already covered)
-   - postgresql → `pg_isready -h <vm_ip> -p 5432`
+  proxmox-bootstrap/phoenix_guided_setup.py
+      PhoenixGuidedSetupSession dataclass: restoration_scope, selected_waves,
+        identity_overrides, guided_session, setup_mode, warnings.
+      RESTORATION_SCOPE_FULL / RESTORATION_SCOPE_PARTIAL constants.
+      PHOENIX_IDENTITY_FIELDS list (hostname, domain, fqdn, cell_id).
+      restoration_wave_options(playbook) — sorted list of wave display records.
+      step0_set_restoration_scope(session, scope, selected_waves) — sets
+        full/partial; partial without waves warns + defaults to full.
+      step1_run_identity_overrides(session, manifest, mode, overrides) —
+        records identity field overrides with conflict detection via GuidedSetupSession.
+      apply_overrides_to_playbook(session, playbook) — deep-copies playbook;
+        for partial scope: filters waves to selected_waves; for identity overrides:
+        updates target_node fields and adds setup_overrides audit trail.
+        Original playbook never mutated.
+      build_phoenix_guided_session() — convenience factory.
 
-3. **Service restart commands** — for each service, emit restart guidance:
-   - Systemd service (inferred from service name): `systemctl restart <service>`
-   - Container: `docker restart <name>` or `podman restart <name>`
-   - Fallback: `# restart command not determinable — check service-contracts.yaml`
+  proxmox-bootstrap/phoenix-planner.py
+      Interactive CLI: Step 0 (restoration scope, wave selector for partial),
+      Step 1 (identity overrides). Writes updated phoenix-playbook.json.
 
-4. **Service Contract dependency graph rendering** — in Appendix A (Dependency Graph),
-   label edges with their edge type (SERVICE vs DEPENDS_ON vs STORAGE etc.) so the
-   operator can see which edges came from declared contracts vs. heuristics.
+  tests/unit/test_forge_planner.py    — 64 tests
+  tests/unit/test_guided_setup_wiring.py — 63 tests
 
-### Files to Read Before Writing Code
+**Tests: 2333 total (2329 passed, 4 skipped)**
 
-  doc-gen/renderers/recovery_runbook.py  — full file (especially the per-VM restore section ~line 350–470)
-  doc-gen/service_contracts.py           — ServiceContractRegistry methods
-  proxmox-bootstrap/service-contracts.yaml — real contract data for reference
-  tests/fixtures/bootstrap/bootstrap-state.json — service_contracts field structure
-  doc-gen/dependencies.py               — edge types (SERVICE, DEPENDS_ON, etc.)
-
-### Deliverables
-
-  doc-gen/renderers/recovery_runbook.py  Modified with service layer steps
-  tests/unit/test_recovery_runbook_service.py  New test file — contract validation steps,
-                                                health check commands, dependency labels
-
-### End-to-End Test
-
-  python3 doc-gen/engine.py --mode recovery --manifest tests/fixtures/bootstrap/bootstrap-state.json
-  → Recovery-Runbook.odt opens; forgejo section shows health check command
-  → assessment-engine section shows startup_after: forgejo dependency note
+## Next Action: Phase 1.F — Forge Package Assembly
 
 ---
 

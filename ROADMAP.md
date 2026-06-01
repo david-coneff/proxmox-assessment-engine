@@ -418,20 +418,27 @@ Warnings are shown with specific conflict details. The operator may still procee
       preserve_headscale option; lan/wan_config_to_state() serialization;
       apply_network_config_to_state(); generate_dnsmasq_config() for both profiles.
       Schema: network_topology.profile + wan_config + lan_config + ssl_provider enum updated.
-- [ ] 1.G.4: Wire into forge (Phase 1.F):
-      forge-planner.py phase-01 (plan) asks which configuration mode to use;
-      autonomous: existing behaviour; ip-selective / group-manual / full-manual:
-        launches guided_setup session before proceeding with automated planning
+- [x] 1.G.4: Wire into forge (Phase 1.F):
+      forge_planner.py (library) + forge-planner.py (CLI): ForgePlannerSession,
+      step0_set_setup_mode, step1_run_guided_setup (autonomous/ip-selective/
+      group-manual/full-manual), step2_set_identity, step3_set_network_profile,
+      record_manual_field, build_forge_manifest. Produces forge-manifest.json
+      with setup_overrides embedded for manual choices. (64 tests)
 
-- [ ] 1.G.5: Wire into spawn (Phase 12.E):
-      spawn-planner.py Step 0 (network mode) extended to include guided setup mode;
-      pre-populates spawn-plan.json with operator choices; marks fields as 'manual'
-      so the assessment engine knows they were intentional
+- [x] 1.G.5: Wire into spawn (Phase 12.E):
+      SpawnPlannerSession extended with guided_session + setup_overrides fields.
+      step_guided_setup() helper (autonomous no-op; ip-selective pre-populates;
+      group-manual + full-manual record field_values). Step 0.5 in spawn-planner.py
+      CLI offers guided setup between network mode and execution mode.
+      build_spawn_plan() embeds setup_overrides in spawn-plan.json.
 
-- [ ] 1.G.6: Wire into phoenix (Phase 9):
-      phoenix package generation offers guided setup for restoration scope and
-      any identity fields the operator wants to override;
-      particularly useful for partial restoration scope selection
+- [x] 1.G.6: Wire into phoenix (Phase 9):
+      phoenix_guided_setup.py: PhoenixGuidedSetupSession, restoration_wave_options,
+      step0_set_restoration_scope (full/partial with wave selection),
+      step1_run_identity_overrides (hostname/domain/fqdn/cell_id overrides with
+      conflict detection), apply_overrides_to_playbook (scope filter + identity
+      update + setup_overrides audit trail), build_phoenix_guided_session factory.
+      phoenix-planner.py CLI. (63 tests)
 
 ---
 

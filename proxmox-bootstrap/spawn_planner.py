@@ -309,7 +309,8 @@ class SpawnPlannerSession:
     """
     Stateful session for the spawn planner.
 
-    Populated in order: network_mode → execution_mode → service selection.
+    Populated in order: network_mode → guided_setup (optional) →
+      execution_mode → service selection.
     After all steps, build_spawn_plan() produces the spawn-plan.json dict.
     """
     # Step 0 — Network
@@ -317,6 +318,10 @@ class SpawnPlannerSession:
     broodling_ip:         Optional[str] = None
     wan_auth_key:         Optional[str] = None
     headscale_url:        Optional[str] = None
+
+    # Step 0.5 — Guided setup (optional, non-autonomous modes)
+    guided_session:       Optional[Any] = None   # GuidedSetupSession
+    setup_overrides:      dict = field(default_factory=dict)  # from session_to_overrides
 
     # Step 1 — Execution
     execution_mode:       str = EXEC_AUTONOMOUS
@@ -495,6 +500,11 @@ def build_spawn_plan(
         plan["disposition"]["wan_auth_key"] = session.wan_auth_key or ""
         plan["hatchery"]["headscale_url"]   = session.headscale_url or ""
 
+    # Guided setup overrides — embedded so downstream tools know which fields
+    # were intentionally set by the operator vs. auto-calculated.
+    if session.setup_overrides:
+        plan["setup_overrides"] = session.setup_overrides
+
     return plan
 
 
@@ -655,6 +665,74 @@ def step2_select_services(
         session.selected_services = selected
         session.excluded_services = excluded
 
+    return session
+
+
+# ---------------------------------------------------------------------------
+# Step 0.5 — Guided setup wiring (optional, inserted between Step 0 and Step 1)
+# ---------------------------------------------------------------------------
+
+def step_guided_setup(
+    session:         SpawnPlannerSession,
+    mode:            str,
+    manifest_dict:   dict,
+    selected_groups: Optional[list[str]] = None,
+    ip_values:       Optional[dict] = None,
+    field_values:    Optional[dict] = None,
+) -> SpawnPlannerSession:
+    """
+    Wire a GuidedSetupSession into the spawn planner session.
+
+    This is an optional step between Step 0 (network mode) and Step 1
+    (execution mode). It allows the operator to override auto-calculated
+    spawn settings using the guided setup framework.
+
+    mode:            autonomous | ip-selective | group-manual | full-manual
+    manifest_dict:   hatchery's bootstrap-state dict (provides suggestions)
+    selected_groups: groups to configure manually (group-manual mode)
+    ip_values:       dict of field_path → value for IP field overrides
+    field_values:    dict of field_path → value for any manual field overrides
+
+    On completion, session.setup_overrides contains all manual choices
+    as {field_path: {value, source}} for embedding in spawn-plan.json.
+    """
+    from guided_setup import (
+        GuidedSetupSession,
+        set_value as gs_set_value,
+        run_ip_selective_suggestions,
+        session_to_overrides,
+    )
+
+    if mode == "autonomous":
+        # Autonomous: no guided session needed
+        return session
+
+    gs = GuidedSetupSession(
+        mode=mode,
+        manifest=manifest_dict,
+        selected_groups=set(selected_groups or []),
+    )
+    session.guided_session = gs
+
+    if mode == "ip-selective":
+        run_ip_selective_suggestions(gs)
+        if ip_values:
+            for fp, val in ip_values.items():
+                gs_set_value(fp, val, gs, source="manual")
+
+    elif mode == "group-manual":
+        if selected_groups:
+            gs.selected_groups = set(selected_groups)
+        if field_values:
+            for fp, val in field_values.items():
+                gs_set_value(fp, val, gs, source="manual")
+
+    elif mode == "full-manual":
+        if field_values:
+            for fp, val in field_values.items():
+                gs_set_value(fp, val, gs, source="manual")
+
+    session.setup_overrides = session_to_overrides(gs)
     return session
 
 

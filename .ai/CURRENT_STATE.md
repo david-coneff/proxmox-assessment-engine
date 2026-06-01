@@ -77,15 +77,17 @@ See ROADMAP.md Milestone 7.4 for the full spec.
 | 12.E.11 | Spawn scenarios — 9 scenarios (baseline, compute, storage, control-plane, mixed, insufficient, full-peer, WAN, interactive), conflict detection (52 tests) | Complete |
 | 12.E.12 | NODE-SPAWNING.md — operator runbook (7 steps, pre-flight, troubleshooting, capacity guide) | Complete |
 | 12.E.3  | Spawn planner — ServiceCatalog (YAML parser), ServiceFitAssessor, SpawnPlannerSession (3 steps), build_spawn_plan, interactive CLI spawn-planner.py, service-catalog.yaml (70 tests) | Complete |
+| 1.G.4   | Forge planner — ForgePlannerSession, step0_set_setup_mode, step1_run_guided_setup (all 4 modes), step2_set_identity, step3_set_network_profile, record_manual_field, build_forge_manifest, forge-planner.py CLI (64 tests) | Complete |
+| 1.G.5   | Spawn guided setup wiring — SpawnPlannerSession extended (guided_session + setup_overrides), step_guided_setup() (all 4 modes), Step 0.5 in spawn-planner.py CLI, setup_overrides embedded in spawn-plan.json | Complete |
+| 1.G.6   | Phoenix guided setup — PhoenixGuidedSetupSession, restoration_wave_options, step0_set_restoration_scope (full/partial), step1_run_identity_overrides, apply_overrides_to_playbook, build_phoenix_guided_session, phoenix-planner.py CLI (63 tests) | Complete |
 
-**Tests: 2200 total (2194 passed, 6 skipped)**
+**Tests: 2329 passed, 4 skipped (2333 total)**
 
 ## Next Milestones
 
 | Milestone | Description |
 |---|---|
-| **Phase 1.G.4-6** | **Wire guided setup into forge, spawn, phoenix — START HERE** |
-| Phase 1.F | Forge Package Assembly (capstone of forging process) |
+| **Phase 1.F** | **Forge Package Assembly — capstone of forging process — START HERE** |
 
 ## Architecture Gaps (v4.0 items not yet implemented)
 
