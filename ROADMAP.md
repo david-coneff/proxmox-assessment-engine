@@ -977,7 +977,7 @@ the hatchery has reserved — IPs, VMIDs, hostnames, k3s join tokens, cluster
 topology — and encodes that knowledge into the spawn package so the broodling
 never needs to ask the operator what is already taken.
 
-- [ ] 12.E.1: **Hatchery state reader** — reads `bootstrap-state.json` and queries
+- [x] 12.E.1: **Hatchery state reader** — reads `bootstrap-state.json` and queries
       the live Assessment Engine API to extract a point-in-time reservation snapshot:
       all allocated VMIDs, all assigned IPs (from DNS registry + provenance records),
       all hostnames, Proxmox cluster join address, k3s server/worker counts,
