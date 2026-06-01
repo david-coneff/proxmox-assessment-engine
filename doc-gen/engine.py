@@ -449,6 +449,14 @@ def run_bootstrap(args):
     ods_path = out_dir / "Bootstrap-Workbook.ods"
     ods_path.write_bytes(ods_bytes)
     print(f"[doc-gen]   → {ods_path}  ({len(ods_bytes):,} bytes)")
+    try:
+        from html_bootstrap import build_bootstrap_workbook_html
+        html_str = build_bootstrap_workbook_html(manifest, meta)
+        html_path = out_dir / "Bootstrap-Workbook.html"
+        html_path.write_text(html_str, encoding="utf-8")
+        print(f"[doc-gen]   → {html_path}  ({len(html_str):,} chars)")
+    except Exception as _e_html:
+        print(f"[doc-gen]   (HTML workbook skipped: {_e_html})")
 
     print("[doc-gen] Rendering runbook...")
     from runbook import build_bootstrap_runbook
@@ -456,6 +464,14 @@ def run_bootstrap(args):
     odt_path = out_dir / "Bootstrap-Runbook.odt"
     odt_path.write_bytes(odt_bytes)
     print(f"[doc-gen]   → {odt_path}  ({len(odt_bytes):,} bytes)")
+    try:
+        from html_bootstrap import build_bootstrap_runbook_html
+        html_str = build_bootstrap_runbook_html(manifest, meta)
+        html_path = out_dir / "Bootstrap-Runbook.html"
+        html_path.write_text(html_str, encoding="utf-8")
+        print(f"[doc-gen]   → {html_path}  ({len(html_str):,} chars)")
+    except Exception as _e_html:
+        print(f"[doc-gen]   (HTML runbook skipped: {_e_html})")
 
     print("[doc-gen] Writing generation report...")
     _write_generation_report(out_dir, manifest, resolved, meta)
@@ -679,6 +695,14 @@ def run_recovery(args):
     odt_path = out_dir / "Recovery-Runbook.odt"
     odt_path.write_bytes(odt_bytes)
     print(f"[doc-gen]   → {odt_path}  ({len(odt_bytes):,} bytes)")
+    try:
+        from html_recovery_runbook import build_recovery_runbook_html
+        html_str = build_recovery_runbook_html(manifest, graph, readiness, generation_meta)
+        html_path = out_dir / "Recovery-Runbook.html"
+        html_path.write_text(html_str, encoding="utf-8")
+        print(f"[doc-gen]   → {html_path}  ({len(html_str):,} chars)")
+    except Exception as _e_html:
+        print(f"[doc-gen]   (HTML recovery runbook skipped: {_e_html})")
 
     print("[doc-gen] Writing restore sequence...")
     seq_text = dep_mod.restore_sequence_text(graph, manifest)
@@ -875,6 +899,14 @@ def run_operational(args):
     odt_path  = out_dir / "Operational-Report.odt"
     odt_path.write_bytes(odt_bytes)
     print(f"[doc-gen]   → {odt_path}  ({len(odt_bytes):,} bytes)")
+    try:
+        from html_operational_report import build_operational_report_html
+        html_str = build_operational_report_html(manifest, readiness, generation_meta)
+        html_path = out_dir / "Operational-Report.html"
+        html_path.write_text(html_str, encoding="utf-8")
+        print(f"[doc-gen]   → {html_path}  ({len(html_str):,} chars)")
+    except Exception as _e_html:
+        print(f"[doc-gen]   (HTML operational report skipped: {_e_html})")
 
     print("")
     print("=" * 60)
