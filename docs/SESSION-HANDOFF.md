@@ -631,6 +631,26 @@ Conflict detection surfaces but does not block:
 Remaining 1.G work (1.G.4–1.G.6): wire into forge-planner.py, spawn-planner.py,
   phoenix package generation.
 
+## Completed: docs/SETUP-GUIDE.html
+
+Self-contained HTML guide with collapsible `<details>`/`<summary>` tree. No external
+dependencies — works offline, in any browser, at any screen size.
+
+Structure:
+  Three top-level branches (Forge / Spawn / Phoenix), each colour-coded
+  Each branch has section-level collapsibles (Before you begin, Network, Storage,
+    VM Sizing, Identity, Security, k3s, Backup, Execution phases, Validation)
+  Each section has leaf-level collapsibles for individual settings/subtopics
+  Settings document: auto-suggestion, when to override, common gotchas
+
+Features:
+  Expand/collapse all buttons
+  Per-package header expand button
+  Alt+A / Alt+C keyboard shortcuts
+  Tag badges: [DEFAULT] [auto] [manual] [required] [optional]
+  Colour-coded callout boxes: .tip (blue), .warn (amber), .danger (red)
+  Setting rows grid for dense reference sections
+
 ## Next Action: Phase 12.E — Node Spawn Bootstrap (Hatchery Process)
 
 ### What It Is
