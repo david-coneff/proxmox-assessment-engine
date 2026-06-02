@@ -405,6 +405,76 @@ def _section_appendix_g_ext_deps(manifest: dict) -> str:
     return section("Appendix G — External Dependencies", parts, open_=False)
 
 
+def _section_appendix_i_os_migration(manifest: dict) -> str:
+    migration_history = manifest.get("migration_history") or []
+    if not migration_history:
+        return ""
+
+    parts = p(
+        "Records all OS-variant migrations on cluster nodes (Ubuntu↔Talos). "
+        "See <a href='../TALOS-ALTERNATIVE.md'>docs/TALOS-ALTERNATIVE.md</a> "
+        "for the full procedure and rollback steps."
+    )
+
+    OUTCOME_CLASS = {
+        "success":     "success",
+        "rolled_back": "warning",
+        "failed":      "danger",
+        "aborted":     "warning",
+    }
+
+    for rec in migration_history:
+        m_id      = _e(rec.get("migration_id") or "?")
+        node_name = _e(rec.get("node_vm_name") or "?")
+        from_v    = _e(rec.get("from_variant") or "?")
+        to_v      = _e(rec.get("to_variant") or "?")
+        started   = _e((rec.get("started_at") or "?")[:19])
+        completed = _e((rec.get("completed_at") or "—")[:19])
+        outcome   = rec.get("outcome") or "?"
+        snap_vmid = rec.get("snapshot_vmid")
+        dry_run   = rec.get("dry_run", False)
+        error_msg = rec.get("error")
+
+        oc = OUTCOME_CLASS.get(outcome, "")
+        badge_cls = f"score-badge score-{oc.upper()}" if oc else "score-badge"
+        outcome_badge = f'<span class="{badge_cls}">{_e(outcome.upper())}</span>'
+
+        parts += h(3, f"{node_name}: {from_v} → {to_v}  {outcome_badge}")
+        pairs = [
+            ("Migration ID", m_id),
+            ("Started",      started),
+            ("Completed",    completed),
+        ]
+        if dry_run:
+            pairs.append(("Mode", "DRY RUN — no changes were made"))
+        if snap_vmid is not None:
+            pairs.append(("Pre-migration snapshot VMID", _e(str(snap_vmid))))
+        parts += dl(pairs)
+        if error_msg:
+            parts += callout("danger", f"Error: {_e(error_msg)}")
+
+    # Rollback reference
+    parts += h(3, "Manual Rollback Procedure")
+    parts += p(
+        "If automated rollback did not fire or needs to be re-run, restore "
+        "the pre-migration snapshot VMID listed above:"
+    )
+    rollback_cmds = [
+        "# Stop the current VM (if running)",
+        "qm stop <CURRENT_VMID>",
+        "",
+        "# Roll back to the pre-migration snapshot",
+        "qm rollback <SNAPSHOT_VMID> <SNAPSHOT_NAME>",
+        "",
+        "# Or re-run migration dry-run to verify plan:",
+        "python3 proxmox-bootstrap/migrate-k3s-to-talos.py \\",
+        "  --node <NODE_NAME> --dry-run",
+    ]
+    parts += commands_block(rollback_cmds)
+
+    return section("Appendix I — OS Variant Migration History", parts, open_=False)
+
+
 def _section_appendix_h_backup(manifest: dict) -> str:
     bc = manifest.get("backup_config") or {}
     if not bc:
@@ -510,5 +580,6 @@ def build_recovery_runbook_html(
     body += _section_appendix_f_templates(manifest)
     body += _section_appendix_g_ext_deps(manifest)
     body += _section_appendix_h_backup(manifest)
+    body += _section_appendix_i_os_migration(manifest)
 
     return html_page(title, body, doc_id=f"recovery-{cell_id}", meta=meta)

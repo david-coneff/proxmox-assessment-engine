@@ -1159,4 +1159,69 @@ def build_recovery_runbook(
             "not protected by external backup. Run setup-backup.py immediately."
         )
 
+    # Appendix I — OS Variant Migration History
+    # ------------------------------------------------------------------
+    migration_history = manifest.get("migration_history") or []
+    if migration_history:
+        rb.h1("Appendix I — OS Variant Migration History")
+        rb.body(
+            "Records all OS-variant migrations on cluster nodes (Ubuntu↔Talos). "
+            "See docs/TALOS-ALTERNATIVE.md for the full procedure and rollback steps."
+        )
+        rb.spacer()
+
+        # Per-migration record
+        for rec in migration_history:
+            m_id      = rec.get("migration_id", "?")
+            node_name = rec.get("node_vm_name", "?")
+            from_v    = rec.get("from_variant", "?")
+            to_v      = rec.get("to_variant", "?")
+            started   = (rec.get("started_at") or "?")[:19]
+            completed = (rec.get("completed_at") or "—")[:19]
+            outcome   = rec.get("outcome", "?")
+            snap_vmid = rec.get("snapshot_vmid")
+            dry_run   = rec.get("dry_run", False)
+            error_msg = rec.get("error")
+
+            status_label = "AUTO"
+            if outcome == "success":
+                status_label = "AUTO"
+            elif outcome in ("failed", "rolled_back"):
+                status_label = "UNRESOLVED"
+
+            rb.h2(f"{node_name}: {from_v} → {to_v}  [{outcome.upper()}]")
+            rb.field("Migration ID",   m_id,                        "AUTO",          "")
+            rb.field("Started",        started,                     "AUTO",          "")
+            rb.field("Completed",      completed,                   "AUTO",          "")
+            rb.field("Outcome",        outcome.upper(),             status_label,    "")
+            if dry_run:
+                rb.field("Mode", "DRY RUN — no changes were made", "AUTO", "")
+            if snap_vmid is not None:
+                rb.field("Pre-migration snapshot VMID", str(snap_vmid), "AUTO",
+                         "Use this VMID to restore the node to its pre-migration state")
+            if error_msg:
+                rb.warning(f"Error: {error_msg}")
+            rb.spacer()
+
+        # Rollback reference
+        rb.h2("Manual Rollback Procedure")
+        rb.body(
+            "If automated rollback did not fire or needs to be re-run manually, "
+            "restore the pre-migration snapshot VMID listed above:"
+        )
+        rb.code("# Stop the current VM (if running)")
+        rb.code("qm stop <CURRENT_VMID>")
+        rb.code("")
+        rb.code("# Roll back: stop and restore the snapshot VM")
+        rb.code("qm rollback <SNAPSHOT_VMID> <SNAPSHOT_NAME>")
+        rb.code("")
+        rb.code("# Or restore from PBS if snapshot was not taken:")
+        rb.code("python3 proxmox-bootstrap/migrate-k3s-to-talos.py \\")
+        rb.code("  --node <NODE_NAME> --dry-run   # verify plan")
+        rb.code("")
+        rb.body(
+            "After rollback: re-run os_variant update manually via "
+            "migrate_k3s_lib.update_os_variant() and verify cluster health."
+        )
+
     return rb.build_odt()

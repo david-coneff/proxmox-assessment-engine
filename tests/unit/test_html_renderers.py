@@ -367,6 +367,98 @@ class TestHtmlRecoveryRunbook:
 
 
 # ===========================================================================
+# HTML Recovery Runbook — Appendix I OS Variant Migration (9.T.12)
+# ===========================================================================
+
+_MIGRATION_SUCCESS = {
+    "migration_id": "mig-html-001",
+    "node_vm_name": "k3s-server-01",
+    "from_variant": "ubuntu",
+    "to_variant": "talos",
+    "started_at": "2026-06-01T10:00:00Z",
+    "completed_at": "2026-06-01T10:15:00Z",
+    "outcome": "success",
+    "snapshot_vmid": 9501,
+    "dry_run": False,
+    "error": None,
+}
+
+_MIGRATION_FAILED = {
+    "migration_id": "mig-html-002",
+    "node_vm_name": "k3s-server-02",
+    "from_variant": "talos",
+    "to_variant": "ubuntu",
+    "started_at": "2026-06-02T08:00:00Z",
+    "completed_at": None,
+    "outcome": "failed",
+    "snapshot_vmid": None,
+    "dry_run": False,
+    "error": "talosctl apply-config timed out",
+}
+
+
+class TestHtmlRecoveryRunbookOsMigration:
+    def _build(self, history=None):
+        _hb.reset_checkbox_counter()
+        m = _manifest()
+        if history is not None:
+            m["migration_history"] = history
+        return build_recovery_runbook_html(m, _graph(), _readiness(), _meta())
+
+    def test_appendix_i_absent_when_no_history(self):
+        page = self._build()
+        assert "Appendix I" not in page
+
+    def test_appendix_i_absent_when_empty_history(self):
+        page = self._build(history=[])
+        assert "Appendix I" not in page
+
+    def test_appendix_i_present_with_history(self):
+        page = self._build(history=[_MIGRATION_SUCCESS])
+        assert "Appendix I" in page
+        assert "OS Variant Migration" in page
+
+    def test_node_name_shown(self):
+        page = self._build(history=[_MIGRATION_SUCCESS])
+        assert "k3s-server-01" in page
+
+    def test_variant_direction_shown(self):
+        page = self._build(history=[_MIGRATION_SUCCESS])
+        assert "ubuntu" in page
+        assert "talos" in page
+
+    def test_success_outcome_shown(self):
+        page = self._build(history=[_MIGRATION_SUCCESS])
+        assert "SUCCESS" in page
+
+    def test_snapshot_vmid_shown(self):
+        page = self._build(history=[_MIGRATION_SUCCESS])
+        assert "9501" in page
+
+    def test_error_shown_for_failed(self):
+        page = self._build(history=[_MIGRATION_FAILED])
+        assert "talosctl apply-config timed out" in page
+
+    def test_rollback_commands_shown(self):
+        page = self._build(history=[_MIGRATION_SUCCESS])
+        assert "qm rollback" in page
+
+    def test_multiple_records_both_shown(self):
+        page = self._build(history=[_MIGRATION_SUCCESS, _MIGRATION_FAILED])
+        assert "k3s-server-01" in page
+        assert "k3s-server-02" in page
+
+    def test_dry_run_flag_shown(self):
+        dry = dict(_MIGRATION_SUCCESS, dry_run=True)
+        page = self._build(history=[dry])
+        assert "DRY RUN" in page
+
+    def test_talos_alternative_md_link(self):
+        page = self._build(history=[_MIGRATION_SUCCESS])
+        assert "TALOS-ALTERNATIVE" in page
+
+
+# ===========================================================================
 # HTML Bootstrap Workbook
 # ===========================================================================
 

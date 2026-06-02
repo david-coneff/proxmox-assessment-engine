@@ -421,5 +421,99 @@ class TestRunbookHealthCheckUrls(unittest.TestCase):
         self.assertIn("/health", text)
 
 
+# ---------------------------------------------------------------------------
+# Appendix I — OS Variant Migration History (9.T.12)
+# ---------------------------------------------------------------------------
+
+_MIGRATION_SUCCESS = {
+    "migration_id": "mig-abc123",
+    "node_vm_name": "k3s-server-01",
+    "from_variant": "ubuntu",
+    "to_variant": "talos",
+    "started_at": "2026-06-01T10:00:00Z",
+    "completed_at": "2026-06-01T10:15:00Z",
+    "outcome": "success",
+    "snapshot_vmid": 9501,
+    "dry_run": False,
+    "error": None,
+}
+
+_MIGRATION_ROLLED_BACK = {
+    "migration_id": "mig-def456",
+    "node_vm_name": "k3s-server-02",
+    "from_variant": "talos",
+    "to_variant": "ubuntu",
+    "started_at": "2026-06-02T08:00:00Z",
+    "completed_at": "2026-06-02T08:20:00Z",
+    "outcome": "rolled_back",
+    "snapshot_vmid": 9502,
+    "dry_run": False,
+    "error": "Cluster health check failed: node NotReady after 120s",
+}
+
+
+class TestAppendixIOsMigration(unittest.TestCase):
+
+    def _build_with_history(self, history):
+        return _text(_build_odt({"migration_history": history}))
+
+    def test_appendix_i_absent_when_no_history(self):
+        text = _text(_build_odt())
+        self.assertNotIn("Appendix I", text)
+
+    def test_appendix_i_absent_when_empty_history(self):
+        text = self._build_with_history([])
+        self.assertNotIn("Appendix I", text)
+
+    def test_appendix_i_present_when_history_exists(self):
+        text = self._build_with_history([_MIGRATION_SUCCESS])
+        self.assertIn("Appendix I", text)
+        self.assertIn("OS Variant Migration", text)
+
+    def test_success_record_node_name(self):
+        text = self._build_with_history([_MIGRATION_SUCCESS])
+        self.assertIn("k3s-server-01", text)
+
+    def test_success_record_variants(self):
+        text = self._build_with_history([_MIGRATION_SUCCESS])
+        self.assertIn("ubuntu", text)
+        self.assertIn("talos", text)
+
+    def test_success_record_outcome(self):
+        text = self._build_with_history([_MIGRATION_SUCCESS])
+        self.assertIn("SUCCESS", text)
+
+    def test_success_record_snapshot_vmid(self):
+        text = self._build_with_history([_MIGRATION_SUCCESS])
+        self.assertIn("9501", text)
+
+    def test_rolled_back_record_shows_error(self):
+        text = self._build_with_history([_MIGRATION_ROLLED_BACK])
+        self.assertIn("Cluster health check failed", text)
+
+    def test_rolled_back_record_outcome(self):
+        text = self._build_with_history([_MIGRATION_ROLLED_BACK])
+        self.assertIn("ROLLED_BACK", text)
+
+    def test_multiple_records_all_shown(self):
+        text = self._build_with_history([_MIGRATION_SUCCESS, _MIGRATION_ROLLED_BACK])
+        self.assertIn("k3s-server-01", text)
+        self.assertIn("k3s-server-02", text)
+
+    def test_rollback_procedure_section_present(self):
+        text = self._build_with_history([_MIGRATION_SUCCESS])
+        self.assertIn("Manual Rollback", text)
+        self.assertIn("qm rollback", text)
+
+    def test_dry_run_flag_shown(self):
+        dry = dict(_MIGRATION_SUCCESS, dry_run=True)
+        text = self._build_with_history([dry])
+        self.assertIn("DRY RUN", text)
+
+    def test_migration_id_shown(self):
+        text = self._build_with_history([_MIGRATION_SUCCESS])
+        self.assertIn("mig-abc123", text)
+
+
 if __name__ == "__main__":
     unittest.main()

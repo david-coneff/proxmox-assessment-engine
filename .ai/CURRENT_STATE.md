@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-06-02 UTC
+Last updated: 2026-06-02 UTC (9.T.12 complete — all 9.T items done)
 
 ## Active Architecture: v7.1
 
@@ -22,7 +22,7 @@ I3 (DASHBOARD_VERSION 7.1). Tests: 3732 passed, 4 skipped.
 **9.T migration tier (9.T.9–9.T.11) implemented**: migrate_k3s_lib.py, migrate-k3s-to-talos.py,
 migrate-k3s-to-ubuntu.py, migration_history schema, 48 tests.
 
-Next: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py`
+All roadmap items complete. Next: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py`
 on a Proxmox host to forge the first cell. See FORGING.md for operator runbook.
 
 ## Completed Milestones
@@ -94,8 +94,9 @@ on a Proxmox host to forge the first cell. See FORGING.md for operator runbook.
 | EFF passphrase | lib/passphrase_eff.py — 1128-word EFF-derived list, generate_eff_passphrase() (44+ bits entropy), passphrase_eff.py; generate_master_password_suggestion() updated to default to EFF style; keepassxc-cli diceware gap documented; 29 tests | Complete |
 | HTML package manifests | html_package_manifest.py — build_forge/spawn/phoenix_manifest_html(); forge and spawn assemblers updated to embed *.html alongside *.json; ARCHITECTURE.md AD-047 documents as mandatory pattern; 38 tests | Complete |
 | 9.T foundation | Talos Linux alternative — build-talos-template.sh, generate_talos_config.py (library + CLI), os_variant enum in base_image/vm_template/provenance_record schemas, talos-1x-base fixture entries, _score_talos_config_completeness() in readiness.py, Talos Wave 2.5 rebuild + Wave 3 reconstruction steps in phoenix_playbook.py; 57 tests | Complete |
+| 9.T migration + 9.T.12 | migrate_k3s_lib.py, migrate-k3s-to-talos.py, migrate-k3s-to-ubuntu.py, migration_history schema; recovery runbook Appendix I (OS Variant Migration History) in ODT + HTML renderers; 48+25 tests | Complete |
 
-**Tests: 3634 (3634 passed, 37 skipped, 3 pre-existing env failures) — 9.T foundation complete**
+**Tests: 3757 (3757 passed, 37 skipped, 3 pre-existing env failures) — all 9.T items complete**
 
 ## Next Milestones
 
