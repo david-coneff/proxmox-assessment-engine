@@ -368,6 +368,7 @@ class PhoenixPlaybookGenerator:
         vms          = self._vms()
         needs_ubuntu = any(self._os_variant_for_vm(v.get("name","")) == "ubuntu" for v in vms) \
                        or not vms   # default: ubuntu
+        needs_talos  = any(self._os_variant_for_vm(v.get("name","")) == "talos" for v in vms)
 
         steps = []
 
@@ -408,6 +409,39 @@ class PhoenixPlaybookGenerator:
                 "secret_refs": [],
             })
 
+        # ── Talos template rebuild (9.T.7) ──────────────────────────────
+        if needs_talos:
+            talos_tmpl  = next((t for t in tmpl_reg if t.get("os_variant") == "talos"
+                                or "talos" in (t.get("name","")).lower()), None)
+            talos_img   = next((i for i in base_images if i.get("os_variant") == "talos"
+                                or "talos" in (i.get("name","")).lower()), None)
+            talos_id    = (talos_tmpl.get("proxmox_template_id") or 9001) if talos_tmpl else 9001
+            iso_name    = talos_img.get("source_iso", "[TALOS_ISO]") if talos_img else "[TALOS_ISO]"
+            iso_url     = talos_img.get("source_url", "[TALOS_ISO_URL]") if talos_img else "[TALOS_ISO_URL]"
+            iso_storage = storage.get("isos", "local:iso")
+
+            steps.append({
+                "id": "2.5.2",
+                "action": f"Rebuild Talos Linux VM template (VMID {talos_id})",
+                "commands": [
+                    f"# Run the Talos template builder (handles ISO download + VM creation):",
+                    f"bash proxmox-bootstrap/build-talos-template.sh \\",
+                    f"  --storage {iso_storage.split(':')[0]} \\",
+                    f"  --vmid {talos_id}",
+                    f"",
+                    f"# The script prints manual steps to complete template creation.",
+                    f"# Follow the printed instructions, then verify:",
+                ],
+                "validation": [
+                    f"qm list | grep {talos_id}  # Expected: template listed",
+                    f"qm config {talos_id} | grep template  # Expected: template: 1",
+                    f"ls talos-configs/controlplane.yaml  # Talos machine configs must exist",
+                ],
+                "method": "RECREATE",
+                "on_failure": "human",
+                "secret_refs": [],
+            })
+
         return {
             "wave": 2.5,
             "name": "Template Rebuild",
@@ -416,7 +450,7 @@ class PhoenixPlaybookGenerator:
                 "can be cloned and configured via IaC rather than restored from backup. "
                 "Must complete before Wave 3 RECREATE steps."
             ),
-            "estimated_minutes": 20,
+            "estimated_minutes": 20 + (15 if needs_talos else 0),
             "prerequisites": ["Wave 2 — host configured and storage registered"],
             "steps": steps,
         }
@@ -474,40 +508,77 @@ class PhoenixPlaybookGenerator:
                      if r.get("vmid") == vmid), None
                 )
 
+                os_variant = self._os_variant_for_vm(vm_name)
                 if stateless and provenance:
-                    # RECREATE — rebuild from IaC and Ansible (9.5)
+                    # RECREATE — rebuild from IaC (9.5)
                     tofu_ws   = provenance.get("tofu_workspace", "opentofu")
                     ans_c     = (provenance.get("ansible_commit") or "HEAD")[:12]
                     tmpl_name = provenance.get("template_name", "ubuntu-2204-base")
-                    steps.append({
-                        "id": f"3.{i}",
-                        "action": f"Recreate VM {vmid} ({vm_name}) from IaC — stateless, no PBS restore needed",
-                        "commands": [
-                            f"# VM: {vm_name}  VMID: {vmid}  IP: {vm_ip}",
-                            f"# Method: RECREATE (stateless — tofu_workspace={tofu_ws})",
-                            f"# Template: {tmpl_name}  Ansible commit: {ans_c}",
-                            f"",
-                            f"# Apply OpenTofu to create the VM:",
-                            f"tofu -chdir={tofu_ws}/ apply -target=proxmox_vm_qemu.{vm_name} -auto-approve",
-                            f"",
-                            f"# Wait for Cloud-Init to complete first boot:",
-                            f"sleep 30 && ssh ubuntu@{vm_ip} 'sudo cloud-init status --wait'",
-                            f"",
-                            f"# Configure via Ansible:",
-                            f"ansible-playbook -i inventory/ site.yml --limit {vm_name}",
-                        ],
-                        "validation": [
-                            f"qm status {vmid}  # Expected: status running",
-                            f"ssh ubuntu@{vm_ip}  # Expected: login succeeds",
-                        ],
-                        "method": "RECREATE",
-                        "on_failure": "human",
-                        "secret_refs": [
-                            s for s in (vm.get("ssh_key_reference", ""),
-                                        vm.get("password_reference", ""))
-                            if s
-                        ],
-                    })
+                    talos_cfg = (provenance.get("talos_machine_config") or
+                                 f"talos-configs/patches/{vm_name}.yaml")
+
+                    if os_variant == "talos":
+                        # 9.T.7 — Talos RECREATE path: talosctl instead of Ansible
+                        steps.append({
+                            "id": f"3.{i}",
+                            "action": f"Recreate Talos VM {vmid} ({vm_name}) from IaC — stateless, talosctl provisioning",
+                            "commands": [
+                                f"# VM: {vm_name}  VMID: {vmid}  IP: {vm_ip}",
+                                f"# Method: RECREATE (stateless Talos node — tofu_workspace={tofu_ws})",
+                                f"# Template: {tmpl_name}  Machine config: {talos_cfg}",
+                                f"",
+                                f"# Apply OpenTofu to create the VM:",
+                                f"tofu -chdir={tofu_ws}/ apply -target=proxmox_vm_qemu.{vm_name} -auto-approve",
+                                f"",
+                                f"# Apply Talos machine config (boots from talos-1x-base template):",
+                                f"talosctl apply-config --insecure --nodes {vm_ip} \\",
+                                f"  --file talos-configs/controlplane.yaml \\",
+                                f"  --patch @{talos_cfg}",
+                                f"",
+                                f"# Wait for Talos to be ready:",
+                                f"talosctl --nodes {vm_ip} --talosconfig talos-configs/talosconfig \\",
+                                f"  health --wait-timeout 5m",
+                            ],
+                            "validation": [
+                                f"qm status {vmid}  # Expected: status running",
+                                f"talosctl --nodes {vm_ip} --talosconfig talos-configs/talosconfig \\",
+                                f"  get members  # Expected: node listed",
+                            ],
+                            "method": "RECREATE",
+                            "on_failure": "human",
+                            "secret_refs": [],
+                        })
+                    else:
+                        # Ubuntu RECREATE path (original)
+                        steps.append({
+                            "id": f"3.{i}",
+                            "action": f"Recreate VM {vmid} ({vm_name}) from IaC — stateless, no PBS restore needed",
+                            "commands": [
+                                f"# VM: {vm_name}  VMID: {vmid}  IP: {vm_ip}",
+                                f"# Method: RECREATE (stateless — tofu_workspace={tofu_ws})",
+                                f"# Template: {tmpl_name}  Ansible commit: {ans_c}",
+                                f"",
+                                f"# Apply OpenTofu to create the VM:",
+                                f"tofu -chdir={tofu_ws}/ apply -target=proxmox_vm_qemu.{vm_name} -auto-approve",
+                                f"",
+                                f"# Wait for Cloud-Init to complete first boot:",
+                                f"sleep 30 && ssh ubuntu@{vm_ip} 'sudo cloud-init status --wait'",
+                                f"",
+                                f"# Configure via Ansible:",
+                                f"ansible-playbook -i inventory/ site.yml --limit {vm_name}",
+                            ],
+                            "validation": [
+                                f"qm status {vmid}  # Expected: status running",
+                                f"ssh ubuntu@{vm_ip}  # Expected: login succeeds",
+                            ],
+                            "method": "RECREATE",
+                            "on_failure": "human",
+                            "secret_refs": [
+                                s for s in (vm.get("ssh_key_reference", ""),
+                                            vm.get("password_reference", ""))
+                                if s
+                            ],
+                        })
                 else:
                     # RESTORE — from PBS backup (default)
                     prov_str = ""
@@ -516,20 +587,42 @@ class PhoenixPlaybookGenerator:
                             f"  # Provenance: deployed {provenance.get('deployed_at','?')} "
                             f"template={provenance.get('template_name','?')}"
                         )
+                    # 9.T.7 — validation differs for Talos (no SSH; use talosctl)
+                    if os_variant == "talos":
+                        talos_cfg = (provenance.get("talos_machine_config") if provenance else None) or \
+                                    f"talos-configs/patches/{vm_name}.yaml"
+                        restore_validation = [
+                            f"qm status {vmid}  # Expected: status running",
+                            f"talosctl --nodes {vm_ip} --talosconfig talos-configs/talosconfig \\",
+                            f"  get members  # Expected: node listed",
+                        ]
+                        restore_note = (
+                            f"# NOTE: Talos node — no SSH access. Use talosctl for post-restore ops."
+                        )
+                    else:
+                        restore_validation = [
+                            f"qm status {vmid}  # Expected: status running",
+                            f"ssh ubuntu@{vm_ip}  # Expected: login succeeds",
+                        ]
+                        restore_note = ""
+
+                    commands = [
+                        f"# VM: {vm_name}  VMID: {vmid}  IP: {vm_ip}",
+                        prov_str,
+                    ]
+                    if restore_note:
+                        commands.append(restore_note)
+                    commands += [
+                        f"# Locate most recent PBS backup:",
+                        f"qmrestore /path/to/backup/{vmid}-latest.vma.zst {vmid} --storage local-zfs",
+                        f"qm start {vmid}",
+                    ]
+
                     steps.append({
                         "id": f"3.{i}",
                         "action": f"Restore VM {vmid} ({vm_name}) from PBS backup",
-                        "commands": [
-                            f"# VM: {vm_name}  VMID: {vmid}  IP: {vm_ip}",
-                            prov_str,
-                            f"# Locate most recent PBS backup:",
-                            f"qmrestore /path/to/backup/{vmid}-latest.vma.zst {vmid} --storage local-zfs",
-                            f"qm start {vmid}",
-                        ],
-                        "validation": [
-                            f"qm status {vmid}  # Expected: status running",
-                            f"ssh ubuntu@{vm_ip}  # Expected: login succeeds",
-                        ],
+                        "commands": commands,
+                        "validation": restore_validation,
                         "method": "RESTORE",
                         "on_failure": "human",
                         "secret_refs": [

@@ -58,9 +58,16 @@ Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
       validation, receiver X-Broodforge-Token auth, flaky passphrase test fixed, dead code
       removed, deprecated/CONTAINER-COMPATIBILITY-PLAN.md, .ai/context.md updated.
       Tests: 3577 passed, 37 skipped, 3 pre-existing jsonschema env failures.
-- [ ] 9.T: Talos Linux alternative support — optional; scripts for template build, machine config
-      generation, and Ubuntu↔Talos migration not yet implemented.
-      See `docs/TALOS-ALTERNATIVE.html` for design and prerequisites.
+- [x] 9.T (foundation): Talos Linux alternative support — foundation tier complete.
+      `build-talos-template.sh`, `generate-talos-config.py` (library + CLI),
+      `os_variant` added to base_image/vm_template/provenance_record schemas,
+      talos-1x-base fixture entries, `_score_talos_config_completeness()` readiness scorer,
+      Talos-specific Wave 2.5 template rebuild + Wave 3 VM reconstruction steps.
+      57 tests. See `docs/TALOS-ALTERNATIVE.md` for design and prerequisites.
+- [ ] 9.T (migration): Ubuntu↔Talos migration scripts not yet implemented.
+      `migrate-k3s-to-talos.py`, `migrate-k3s-to-ubuntu.py`, `migrate_k3s_lib.py`,
+      pre/post migration validators, migration_history schema, rollback procedure,
+      recovery runbook migration appendix, tests (9.T.9–9.T.17).
 
 ---
 

@@ -9,7 +9,6 @@
     "encrypted_archive": null,
     "what_is_backed_up": null
   },
-
   "host_identity": {
     "hostname": "pve01",
     "fqdn": "pve01.internal",
@@ -157,6 +156,15 @@
         "cloud-init"
       ],
       "notes": null
+    },
+    {
+      "name": "talos-1x-base-iso",
+      "source_iso": "talos-v1.7.0-nocloud-amd64.iso",
+      "source_url": "https://factory.talos.dev/image/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4b/v1.7.0/nocloud-amd64.iso",
+      "checksum": "sha256:POPULATE",
+      "created_at": "2026-05-01T10:00:00Z",
+      "os_variant": "talos",
+      "notes": "Talos Linux v1.7.0 nocloud amd64"
     }
   ],
   "templates": [
@@ -167,6 +175,15 @@
       "created_at": "2026-04-01T11:00:00Z",
       "additional_packages": [],
       "build_notes": "Minimal base template \u00e2\u20ac\u201d no additional packages beyond ISO defaults"
+    },
+    {
+      "name": "talos-1x-base",
+      "base_image": "talos-1x-base-iso",
+      "proxmox_template_id": 9001,
+      "os_variant": "talos",
+      "created_at": "2026-05-01T11:00:00Z",
+      "additional_packages": [],
+      "build_notes": "Talos Linux v1.7.0 \u2014 no cloud-init, no SSH, talosctl only"
     }
   ],
   "provenance_records": [
@@ -446,14 +463,16 @@
     "bridges": [
       {
         "name": "vmbr0",
-        "ports": ["eno1"],
+        "ports": [
+          "eno1"
+        ],
         "vlan_aware": true,
         "ip": "192.168.1.10/24",
         "gateway": "192.168.1.1",
         "mtu": null,
         "management_bridge": true,
         "headscale_bridge": true,
-        "purpose": "Primary management bridge — all VMs and WAN-reachable services"
+        "purpose": "Primary management bridge \u00e2\u20ac\u201d all VMs and WAN-reachable services"
       }
     ],
     "vlans": [],
@@ -461,16 +480,36 @@
       "enabled": false,
       "host_policy": "accept",
       "rules": [
-        {"direction": "in", "action": "accept", "proto": "tcp", "dport": "22",   "source": null, "comment": "SSH"},
-        {"direction": "in", "action": "accept", "proto": "tcp", "dport": "8006", "source": null, "comment": "Proxmox UI"},
-        {"direction": "in", "action": "accept", "proto": "tcp", "dport": "8080", "source": null, "comment": "Headscale"}
+        {
+          "direction": "in",
+          "action": "accept",
+          "proto": "tcp",
+          "dport": "22",
+          "source": null,
+          "comment": "SSH"
+        },
+        {
+          "direction": "in",
+          "action": "accept",
+          "proto": "tcp",
+          "dport": "8006",
+          "source": null,
+          "comment": "Proxmox UI"
+        },
+        {
+          "direction": "in",
+          "action": "accept",
+          "proto": "tcp",
+          "dport": "8080",
+          "source": null,
+          "comment": "Headscale"
+        }
       ]
     },
     "drift_detected": false,
     "drift_details": null,
     "observed_at": null
   },
-
   "external_dependencies": [
     {
       "id": "cloudflare-dns",
@@ -478,14 +517,20 @@
       "type": "dns_provider",
       "endpoint": "https://1.1.1.1/dns-query",
       "description": "Cloudflare DNS resolver used for external name resolution",
-      "required_by": ["forgejo", "assessment-engine"],
+      "required_by": [
+        "forgejo",
+        "assessment-engine"
+      ],
       "status": "reachable",
       "last_checked_at": "2026-05-31T00:00:00Z",
       "certificate": {
         "expires_at": "2027-03-15T00:00:00Z",
         "issuer": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
         "subject": "cloudflare-dns.com",
-        "sans": ["cloudflare-dns.com", "*.cloudflare-dns.com"],
+        "sans": [
+          "cloudflare-dns.com",
+          "*.cloudflare-dns.com"
+        ],
         "last_checked_at": "2026-05-31T00:00:00Z",
         "auto_renew": true
       },
@@ -499,7 +544,9 @@
       "type": "smtp_relay",
       "endpoint": "smtp.sendgrid.net:587",
       "description": "Outbound SMTP relay for Forgejo notifications and alerting",
-      "required_by": ["forgejo"],
+      "required_by": [
+        "forgejo"
+      ],
       "status": "reachable",
       "last_checked_at": "2026-05-31T00:00:00Z",
       "certificate": null,
@@ -513,7 +560,10 @@
       "type": "cert_authority",
       "endpoint": "https://acme-v02.api.letsencrypt.org/directory",
       "description": "Certificate authority for TLS certificates issued to internal services via cert-manager",
-      "required_by": ["forgejo", "inventory"],
+      "required_by": [
+        "forgejo",
+        "inventory"
+      ],
       "status": "reachable",
       "last_checked_at": "2026-05-31T00:00:00Z",
       "certificate": {
@@ -529,7 +579,6 @@
       "notes": "ACME HTTP-01 challenges via cert-manager in k3s cluster"
     }
   ],
-
   "hardware_requirements": {
     "vtx_required": true,
     "iommu_required": false,

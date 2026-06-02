@@ -4,6 +4,64 @@ Last updated: 2026-06-02 UTC
 
 ## What Was Done This Session
 
+### Phase 9.T Foundation — Talos Linux Alternative Support (complete)
+
+**9.T.1** — `docs/TALOS-ALTERNATIVE.md` already existed; no changes required.
+
+**9.T.2** — `proxmox-bootstrap/build-talos-template.sh`:
+- Downloads Talos ISO (latest or pinned version) from factory.talos.dev
+- Verifies SHA256 checksum against GitHub sha256sum.txt
+- Creates Proxmox VM (VMID 9001) with OVMF/q35 (Talos UEFI requirement)
+- Prints manual steps to apply installer config and convert to template
+- `--dry-run` flag for pre-flight planning; `--storage`, `--version`, `--vmid` overrides
+- Prints suggested bootstrap-state.json entries for talos-1x-base template + base_image
+
+**9.T.3** — `proxmox-bootstrap/generate_talos_config.py` (library) + `generate-talos-config.py` (CLI):
+- `build_cluster_spec()` — reads k3s-cluster.yaml and bootstrap-state.json; selects nodes with `os_variant: talos`; derives cluster endpoint from first CP node IP
+- `generate_installer_template()` — minimal installer config for `build-talos-template.sh` template build
+- `generate_node_patch()` — per-node strategic merge patch (hostname, static IP, gateway, nameserver)
+- `generate_base_controlplane()` / `generate_base_worker()` — structural machine configs with POPULATE markers
+- `generate_talosconfig_stub()` — operator client config stub
+- `run_talosctl_genconfig()` — optional: calls talosctl to fill secrets; falls back gracefully if not installed
+- `write_readme()` — generates talos-configs/README.md with apply commands
+- `--genconfig` flag: calls talosctl for secret generation; `--state`, `--k3s`, `--output` overrides
+- YAML emitter is stdlib-only (no PyYAML required); uses PyYAML if available
+
+**9.T.4** — Fixture `tests/fixtures/bootstrap/bootstrap-state.json`:
+- Added `talos-1x-base-iso` to `base_images[]`
+- Added `talos-1x-base` to `templates[]` (VMID 9001, os_variant: talos)
+
+**9.T.5** — `data-model/bootstrap-state-schema.json` additions:
+- `base_image.os_variant`: enum `["ubuntu", "talos", null]`
+- `vm_template.os_variant`: enum `["ubuntu", "talos", null]`
+- `provenance_record.os_variant`: enum `["ubuntu", "talos", null]`
+- `provenance_record.talos_machine_config`: string | null (path to machine config patch)
+
+**9.T.6** — `doc-gen/readiness.py` — `_score_talos_config_completeness()`:
+- YELLOW: `os_variant: talos` declared for ≥1 k3s node but no `talos_machine_configs` or `talos_configs_generated_at` in manifest
+- Satisfied by either field; gap mentions node names + generate command
+- Wired into `score_graph()` alongside other registry scorers
+
+**9.T.7** — `proxmox-bootstrap/phoenix_playbook.py` — Talos reconstruction steps:
+- `_wave_05_template_rebuild()`: new step 2.5.2 for Talos template rebuild when `needs_talos=True`; detects Talos template from `os_variant: talos` in template registry; calls `build-talos-template.sh`
+- `_wave_3_vms()`: Talos RECREATE path uses `talosctl apply-config` instead of Ansible; validation uses `talosctl get members` instead of SSH; RESTORE path notes "no SSH access, use talosctl"
+
+**9.T.8** — `tests/unit/test_talos_alternative.py` — 57 tests:
+- `TestTalosNodeSpec` (2): defaults, custom disk
+- `TestBuildClusterSpec` (8): talos/ubuntu filtering, endpoint derivation, gateway fallback, worker nodes
+- `TestGenerateInstallerTemplate` (4): file creation, installer marker, machine type, warning comment
+- `TestGenerateNodePatch` (5): patches dir, file, IP/hostname/gateway content
+- `TestGenerateBaseConfigs` (6): controlplane/worker created, endpoint/cluster name/POPULATE markers
+- `TestGenerateTalosconfigStub` (3): file created, context name, node IP
+- `TestGenerateTalosConfigsPipeline` (6): no-talos/talos/both pipelines, missing files handled
+- `TestScoreTalosConfigCompleteness` (9): no-talos/no-k3s/with-configs/without-configs/mixed/multiple
+- `TestPhoenixPlaybookTalos` (6): step 2.5.2 present/absent, build script mention, validation, timing, both variants
+- `TestSchemaOsVariant` (8): os_variant in all three defs, enum values, fixture entries
+
+**Tests: 3634 passed, 37 skipped, 3 pre-existing env failures**
+
+## Remaining Work
+
 ### Full-stack audit findings — HIGH priority items (complete)
 
 **H1 — Phoenix package assembler + CLI wrappers**
@@ -91,7 +149,18 @@ Last updated: 2026-06-02 UTC
 
 ## Remaining Work
 
-All audit findings resolved. No remaining items from the full-stack review.
+### 9.T migration tier (9.T.9–9.T.17) — not yet started
+- `migrate-k3s-to-talos.py` — drain → snapshot → destroy Ubuntu VM → provision Talos VM → talosctl apply-config → verify → update bootstrap-state.json
+- `migrate-k3s-to-ubuntu.py` — reverse migration
+- `migrate_k3s_lib.py` — shared drain/snapshot/health-check/provenance helpers
+- Pre-migration checklist validator (talos-1x-base exists, machine config generated, PVC backup current)
+- Post-migration verifier (node rejoined, namespaces healthy, Flux reconciled)
+- `migration_history` array in bootstrap-state-schema.json
+- Rollback procedure (restore from pre-migration snapshot, revert os_variant)
+- Recovery runbook "OS Variant Migration" appendix
+- Tests for both migration scripts (~25-30 tests)
+
+All prior audit findings remain resolved.
 
 ## Previous Sessions
 

@@ -484,6 +484,11 @@
           "description": "Packages pre-installed in the template beyond the base ISO",
           "items": { "type": "string" }
         },
+        "os_variant": {
+          "type": ["string", "null"],
+          "enum": ["ubuntu", "talos", null],
+          "description": "OS variant this ISO produces: ubuntu (default) or talos"
+        },
         "notes": {
           "type": ["string", "null"]
         }
@@ -514,6 +519,11 @@
           "type": "array",
           "description": "Packages added to this template beyond the base image",
           "items": { "type": "string" }
+        },
+        "os_variant": {
+          "type": ["string", "null"],
+          "enum": ["ubuntu", "talos", null],
+          "description": "OS variant this template provides: ubuntu (default, Cloud-Init/SSH) or talos (immutable, talosctl only)"
         },
         "build_notes": {
           "type": ["string", "null"]
@@ -571,6 +581,15 @@
         "deployed_by": {
           "type": ["string", "null"],
           "description": "Operator identifier who performed the deployment"
+        },
+        "os_variant": {
+          "type": ["string", "null"],
+          "enum": ["ubuntu", "talos", null],
+          "description": "OS variant running on this VM: ubuntu (default) or talos"
+        },
+        "talos_machine_config": {
+          "type": ["string", "null"],
+          "description": "Path to the Talos machine config patch used for this node (talos os_variant only)"
         },
         "notes": {
           "type": ["string", "null"]

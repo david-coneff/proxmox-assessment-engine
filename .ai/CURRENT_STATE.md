@@ -14,11 +14,15 @@ Digital Twin + Federation, and Autonomous Operations (Phase 26 — all sub-phase
 
 ## Next Action
 
-**Full-stack audit complete.** All HIGH, MEDIUM, and LOW audit findings resolved as of 2026-06-02.
-Tests: 3577 passed, 37 skipped, 3 pre-existing jsonschema env failures (unchanged).
+**Phase 9.T foundation complete** (2026-06-02). Talos Linux alternative support foundation tier:
+template builder, config generator, schema additions (os_variant), readiness scorer, phoenix
+playbook Talos steps. Tests: 3634 passed, 37 skipped, 3 pre-existing jsonschema env failures.
 
-Next: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py` on a Proxmox host
-to forge the first cell. See FORGING.md for operator runbook.
+Remaining: 9.T migration tier (9.T.9–9.T.17) — Ubuntu↔Talos migration scripts, shared library,
+migration_history schema, rollback, recovery runbook appendix, tests. See ROADMAP.md.
+
+Next after migration tier: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py`
+on a Proxmox host to forge the first cell. See FORGING.md for operator runbook.
 
 ## Completed Milestones
 
@@ -88,8 +92,9 @@ to forge the first cell. See FORGING.md for operator runbook.
 | Setup Guide explainer | SETUP-GUIDE.html manifest-import-explainer section: how-to-import (drag-drop/paste/CLI), what auto-fills, what requires manual entry, CLI usage with generate-setup-manifest.py | Complete |
 | EFF passphrase | lib/passphrase_eff.py — 1128-word EFF-derived list, generate_eff_passphrase() (44+ bits entropy), passphrase_eff.py; generate_master_password_suggestion() updated to default to EFF style; keepassxc-cli diceware gap documented; 29 tests | Complete |
 | HTML package manifests | html_package_manifest.py — build_forge/spawn/phoenix_manifest_html(); forge and spawn assemblers updated to embed *.html alongside *.json; ARCHITECTURE.md AD-047 documents as mandatory pattern; 38 tests | Complete |
+| 9.T foundation | Talos Linux alternative — build-talos-template.sh, generate_talos_config.py (library + CLI), os_variant enum in base_image/vm_template/provenance_record schemas, talos-1x-base fixture entries, _score_talos_config_completeness() in readiness.py, Talos Wave 2.5 rebuild + Wave 3 reconstruction steps in phoenix_playbook.py; 57 tests | Complete |
 
-**Tests: 3577 (3577 passed, 37 skipped, 3 pre-existing env failures) — all audit items complete**
+**Tests: 3634 (3634 passed, 37 skipped, 3 pre-existing env failures) — 9.T foundation complete**
 
 ## Next Milestones
 

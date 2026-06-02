@@ -902,6 +902,57 @@ def _score_phoenix_playbook_existence(manifest: dict) -> list:
     return gaps
 
 
+def _score_talos_config_completeness(manifest: dict) -> list:
+    """
+    9.T.6 — Check Talos machine config presence when os_variant: talos is declared.
+
+    YELLOW: os_variant=talos declared for one or more k3s nodes but no talos-configs/
+            directory is present — Talos node reconstruction has no machine config.
+    """
+    gaps: list[Gap] = []
+
+    k3s = manifest.get("k3s_cluster") or {}
+    talos_nodes = []
+    for node_list in (k3s.get("server_nodes") or [], k3s.get("worker_nodes") or []):
+        for node in node_list:
+            if node.get("os_variant") == "talos":
+                talos_nodes.append(node.get("vm_name", "unknown"))
+
+    if not talos_nodes:
+        return gaps
+
+    # Check whether talos configs exist (look for talos_machine_configs key in manifest
+    # or talos_configs_generated_at timestamp; actual directory check is runtime-only)
+    has_configs = bool(
+        manifest.get("talos_machine_configs") or
+        manifest.get("talos_configs_generated_at")
+    )
+
+    if not has_configs:
+        names = ", ".join(talos_nodes)
+        gaps.append(Gap(
+            component_id="infrastructure:talos-machine-configs",
+            gap_type="MISSING_TALOS_MACHINE_CONFIGS",
+            severity="YELLOW",
+            description=(
+                f"os_variant: talos declared for {len(talos_nodes)} node(s) "
+                f"({names}) but no Talos machine configs found — "
+                "reconstruction of Talos nodes requires pre-generated configs"
+            ),
+            remediation=(
+                "Generate Talos machine configs: "
+                "python3 proxmox-bootstrap/generate-talos-config.py "
+                "--state proxmox-bootstrap/bootstrap-state.json "
+                "--output talos-configs/"
+            ),
+            readiness_impact=(
+                "Talos nodes cannot be reconstructed without machine configs; "
+                "talosctl apply-config step in phoenix playbook will fail"
+            ),
+        ))
+    return gaps
+
+
 def _score_network_topology_completeness(manifest: dict) -> list:
     """
     Check network topology declaration completeness and drift.
@@ -2022,6 +2073,7 @@ def score_graph(graph, manifest: dict) -> ReadinessReport:
     registry_gaps += _score_disposition_compliance(manifest)
     registry_gaps += _score_reconstruction_drill(manifest)
     registry_gaps += _score_phoenix_playbook_existence(manifest)
+    registry_gaps += _score_talos_config_completeness(manifest)
     # Track 2 — Hardware, Platform, Cluster, Storage, Data Protection, Observability state
     registry_gaps += _score_hardware_state_completeness(manifest)
     registry_gaps += _score_platform_state_completeness(manifest)
