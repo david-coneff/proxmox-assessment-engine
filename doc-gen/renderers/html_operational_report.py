@@ -203,6 +203,76 @@ def _section_external_dependencies(manifest: dict) -> str:
     return section("External Dependencies", body, open_=True)
 
 
+def _section_remediation_summary(manifest: dict) -> str:
+    proposals = manifest.get("remediations") or []
+    if not proposals:
+        return section("Remediation Summary", p("No remediation proposals in queue."), open_=False)
+
+    pending  = [pr for pr in proposals if pr.get("status") == "proposed"]
+    approved = [pr for pr in proposals if pr.get("status") == "approved"]
+    executed = [pr for pr in proposals if pr.get("status") == "resolved"]
+    failed   = [pr for pr in proposals if pr.get("status") == "failed"]
+    resisted = [pr for pr in proposals if pr.get("resisted")]
+    auto_exec= [pr for pr in executed if pr.get("approval_channel") == "auto-policy"]
+
+    body = ""
+
+    if pending or approved:
+        body += h(3, "Pending Approval")
+        _svmap = {"RED": 3, "ORANGE": 2, "YELLOW": 1}
+        sev_counts: dict = {}
+        for pr in pending:
+            s = pr.get("severity", "YELLOW")
+            sev_counts[s] = sev_counts.get(s, 0) + 1
+        rows = [[score_badge(s), str(c)] for s, c in
+                sorted(sev_counts.items(), key=lambda x: _svmap.get(x[0], 0), reverse=True)]
+        if rows:
+            body += table(["Severity", "Count"], rows)
+        if approved:
+            body += callout("warn", f"{len(approved)} proposals approved and ready to execute. "
+                            "Run <code>remediation-cli.py</code> or start the executor.")
+
+    recent = sorted(
+        [pr for pr in proposals if pr.get("status") in ("resolved", "rejected", "failed")],
+        key=lambda x: x.get("resolved_at") or x.get("proposed_at") or "",
+        reverse=True,
+    )[:20]
+    if recent:
+        body += h(3, "Recent Executions (last 30 days)")
+        rows = []
+        for pr in recent:
+            ts = (pr.get("resolved_at") or "")[:16]
+            out = (pr.get("outcome") or "")[:60]
+            resisted_flag = " ⚠ resisted" if pr.get("resisted") else ""
+            rows.append([
+                score_badge(pr.get("severity", "?")),
+                _e(pr.get("action_type", "")),
+                _e(pr.get("target", "")),
+                _e(pr.get("status", "")),
+                _e(ts),
+                _e(out + resisted_flag),
+            ])
+        body += table(["Severity", "Action", "Target", "Outcome", "Time", "Detail"], rows)
+
+    if failed:
+        body += callout("error",
+                        f"{len(failed)} remediation(s) failed and require operator attention.")
+
+    if resisted:
+        body += callout("error",
+                        f"{len(resisted)} remediation(s) executed but issue persisted after reassessment. "
+                        "Escalated for manual review.")
+
+    if auto_exec:
+        body += h(3, "Autonomous Executions")
+        body += p(f"{len(auto_exec)} proposals executed automatically via auto-policy.")
+        auto_rows = [[_e(pr.get("action_type", "")), _e(pr.get("target", "")),
+                      _e((pr.get("resolved_at") or "")[:16])] for pr in auto_exec[:10]]
+        body += table(["Action", "Target", "Resolved At"], auto_rows)
+
+    return section("Remediation Summary", body, open_=bool(pending or failed or resisted))
+
+
 def _section_renewal_actions(manifest: dict) -> str:
     deps = manifest.get("external_dependencies") or []
     actions: list[str] = []
@@ -272,5 +342,6 @@ def build_operational_report_html(
     body += _section_service_health(manifest)
     body += _section_secret_completeness(manifest)
     body += _section_external_dependencies(manifest)
+    body += _section_remediation_summary(manifest)
 
     return html_page(title, body, doc_id=f"operational-{cell_id}", meta=meta)

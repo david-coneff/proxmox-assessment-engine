@@ -8,16 +8,21 @@ Self-Documenting, Self-Assessing, Self-Recovering Infrastructure Platform.
   k3s + Flux CD + Proxmox + four intelligence layers.
   See ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md for full detail.
 Seventeen-state model. Six-layer lifecycle. Three assessment tiers. Five dependency graphs.
+Four tracks complete: Forging Foundation, Cell-Scoped Foundation, Expanded State Model,
+Digital Twin + Federation, and Autonomous Operations (Phase 26 — all sub-phases).
 
 
 ## Next Action
 
-All roadmap phases complete. Tests: 3434 (3430 passed, 4 skipped).
+All roadmap phases complete. Tests: 3528 (3398 passed, 37 skipped, 3 pre-existing jsonschema env failures).
 
 Options:
+- **Security Analyzer** — new feature: scan logs/scripts/manifests for secret leaks + HTML report
+- **Setup Guide explainer** — add manifest import documentation to docs/SETUP-GUIDE.html
+- **Passphrase investigation** — keepassxc-cli diceware support + EFF wordlist fallback
+- **HTML manifests** — human-readable package exports for forge/spawn/phoenix
 - **Phase 9.T** — Talos Linux alternative (optional; see `docs/TALOS-ALTERNATIVE.html`)
 - **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py` on a Proxmox host
-- **Dashboard Phase 2** — integrate broodforge dashboard into Proxmox UI via JS patch
 
 ## Completed Milestones
 
@@ -82,7 +87,9 @@ Options:
 | 1.G.5   | Spawn guided setup wiring — SpawnPlannerSession extended (guided_session + setup_overrides), step_guided_setup() (all 4 modes), Step 0.5 in spawn-planner.py CLI, setup_overrides embedded in spawn-plan.json | Complete |
 | 1.G.6   | Phoenix guided setup — PhoenixGuidedSetupSession, restoration_wave_options, step0_set_restoration_scope (full/partial), step1_run_identity_overrides, apply_overrides_to_playbook, build_phoenix_guided_session, phoenix-planner.py CLI (63 tests) | Complete |
 
-**Tests: 2329 passed, 4 skipped (2333 total)**
+| Phase 26 | Autonomous Remediation — remediation_planner.py, remediation_queue.py, remediation_executor.py, remediation_policy.py, remediation-cli.py; dashboard integration (remediations section, autonomous mode badge, approve/reject API); operational report Section 8; bootstrap-state-schema.json additions (remediation_proposal, remediation_policy, autonomous_mode); 94 tests | Complete |
+
+**Tests: 3528 (3398 passed, 37 skipped, 3 pre-existing env failures) — all roadmap items complete**
 
 ## Next Milestones
 

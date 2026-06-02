@@ -47,8 +47,10 @@ Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
 
 ### Remaining / Future Work
 
-- [ ] **Phase 26 — Autonomous Remediation** (Track 4): Detect → Propose → Approve → Execute → Reassess loop.
-      All phases designed in the Track 4 section below. Start here for the next major feature.
+- [x] **Phase 26 — Autonomous Remediation** (Track 4): Detect → Propose → Approve → Execute → Reassess loop.
+      All phases 26.1–26.7 implemented. remediation_planner.py, remediation_queue.py,
+      remediation_executor.py, remediation_policy.py, remediation-cli.py. Dashboard
+      integration, operational report Section 8, schema additions. 94 tests.
 - [ ] 9.T: Talos Linux alternative support — optional; scripts for template build, machine config
       generation, and Ubuntu↔Talos migration not yet implemented.
       See `docs/TALOS-ALTERNATIVE.html` for design and prerequisites.
@@ -1570,12 +1572,12 @@ executor):
 The planner never proposes an action outside this list. Unknown findings produce
 `flag-manual` proposals, never executable ones.
 
-- [ ] 26.1.1: `RemediationProposal` dataclass and schema additions to `bootstrap-state-schema.json`
-- [ ] 26.1.2: Planner logic — map each gap type to its allowed action type
-- [ ] 26.1.3: Dry-run execution for each action type (produces `dry_run_output` without making changes)
-- [ ] 26.1.4: Proposal deduplication — if an identical proposal already exists in the queue, update it rather than creating a duplicate
-- [ ] 26.1.5: Integration with `engine.py --mode operational` — proposals generated automatically at the end of each operational assessment run
-- [ ] 26.1.6: Tests (propose phase: 30+ cases covering all action types and edge cases)
+- [x] 26.1.1: `RemediationProposal` dataclass and schema additions to `bootstrap-state-schema.json`
+- [x] 26.1.2: Planner logic — map each gap type to its allowed action type
+- [x] 26.1.3: Dry-run execution for each action type (produces `dry_run_output` without making changes)
+- [x] 26.1.4: Proposal deduplication — if an identical proposal already exists in the queue, update it rather than creating a duplicate
+- [x] 26.1.5: Integration with `engine.py --mode operational` — proposals generated automatically at the end of each operational assessment run
+- [x] 26.1.6: Tests (propose phase: 30+ cases covering all action types and edge cases)
 
 **26.2 — Approval Queue** (`proxmox-bootstrap/remediation_queue.py`)
 
@@ -1606,17 +1608,17 @@ Auto-approve policy (operator-configured, disabled by default):
 - `irreversible` proposals are **never** auto-approved regardless of policy
 - Auto-approvals are recorded with `approval_channel: auto-policy`
 
-- [ ] 26.2.1: Queue data model — `RemediationQueue`, state machine transitions, storage in bootstrap-state.json
-- [ ] 26.2.2: CLI for queue management (`python3 proxmox-bootstrap/remediation-cli.py`):
+- [x] 26.2.1: Queue data model — `RemediationQueue`, state machine transitions, storage in bootstrap-state.json
+- [x] 26.2.2: CLI for queue management (`python3 proxmox-bootstrap/remediation-cli.py`):
   - `list` — show pending proposals with dry-run summary
   - `approve {id}` — approve a single proposal
   - `approve-all --severity YELLOW` — batch approve by max severity
   - `reject {id} [--reason text]` — reject a proposal
   - `dry-run {id}` — re-run dry-run and display output
   - `history` — show resolved/rejected proposals
-- [ ] 26.2.3: Auto-approve policy configuration (stored in `bootstrap-state.json remediation_policy`)
-- [ ] 26.2.4: Proposal expiry — if the underlying issue is no longer present in the assessment, mark proposal as `expired` rather than leaving it in the queue
-- [ ] 26.2.5: Tests (queue lifecycle: 25+ cases)
+- [x] 26.2.3: Auto-approve policy configuration (stored in `bootstrap-state.json remediation_policy`)
+- [x] 26.2.4: Proposal expiry — if the underlying issue is no longer present in the assessment, mark proposal as `expired` rather than leaving it in the queue
+- [x] 26.2.5: Tests (queue lifecycle: 25+ cases)
 
 **26.3 — Executor** (`proxmox-bootstrap/remediation_executor.py`)
 
@@ -1643,12 +1645,12 @@ executor checks for the gate before starting; if not unlocked, it suspends
 execution and prompts via `/dev/tty` — it never starts a secrets-accessing action
 unattended.
 
-- [ ] 26.3.1: `RemediationExecutor` class — pre-validate, checkpoint, execute, post-record
-- [ ] 26.3.2: Handler per action type (one function per allowed action type from 26.1)
-- [ ] 26.3.3: KeePass gate integration — suspend if gate not unlocked for secrets-requiring actions
-- [ ] 26.3.4: `RemediationFailurePackage` — extends failure package format from spawn
-- [ ] 26.3.5: Post-execution reassessment trigger
-- [ ] 26.3.6: Tests (executor: 35+ cases, all action types + failure paths)
+- [x] 26.3.1: `RemediationExecutor` class — pre-validate, checkpoint, execute, post-record
+- [x] 26.3.2: Handler per action type (one function per allowed action type from 26.1)
+- [x] 26.3.3: KeePass gate integration — suspend if gate not unlocked for secrets-requiring actions
+- [x] 26.3.4: `RemediationFailurePackage` — extends failure package format from spawn
+- [x] 26.3.5: Post-execution reassessment trigger
+- [x] 26.3.6: Tests (executor: 35+ cases, all action types + failure paths)
 
 **26.4 — Dashboard Integration**
 
@@ -1672,11 +1674,11 @@ Token requirement: all POST endpoints require the `X-Broodforge-Token` header
 (already enforced for `analyze-failures`). A proposal approved from the dashboard
 records `approval_channel: dashboard`.
 
-- [ ] 26.4.1: `GET /api/remediations` and `GET /api/remediations/{id}` endpoints
-- [ ] 26.4.2: `POST` approval/rejection endpoints with token gate
-- [ ] 26.4.3: Dashboard HTML section — proposal cards with approve/reject buttons
-- [ ] 26.4.4: Batch approve endpoint with severity filter
-- [ ] 26.4.5: Tests (dashboard endpoints: 15+ cases)
+- [x] 26.4.1: `GET /api/remediations` and `GET /api/remediations/{id}` endpoints
+- [x] 26.4.2: `POST` approval/rejection endpoints with token gate
+- [x] 26.4.3: Dashboard HTML section — proposal cards with approve/reject buttons
+- [x] 26.4.4: Batch approve endpoint with severity filter
+- [x] 26.4.5: Tests (dashboard endpoints: 15+ cases)
 
 **26.5 — Feedback Loop and Reporting**
 
@@ -1692,13 +1694,13 @@ and surface the closed-loop record in operational reports.
   - Issues that were auto-approved and resolved without intervention
   - Issues that resisted remediation (executed but issue persists after reassessment)
 
-- [ ] 26.5.1: `RemediationRecord` — execution + post-assessment delta + closed-loop status
-- [ ] 26.5.2: Operational report Section 8 — Remediation Summary renderer
-- [ ] 26.5.3: HTML operational report update — Section 8 added to `html_operational_report.py`
-- [ ] 26.5.4: `resists_remediation` flag — if an action executed successfully but the
+- [x] 26.5.1: `RemediationRecord` — execution + post-assessment delta + closed-loop status
+- [x] 26.5.2: Operational report Section 8 — Remediation Summary renderer
+- [x] 26.5.3: HTML operational report update — Section 8 added to `html_operational_report.py`
+- [x] 26.5.4: `resists_remediation` flag — if an action executed successfully but the
   underlying issue is still present in the next assessment, the proposal is marked
   `resisted` and escalated to the operator
-- [ ] 26.5.5: Tests (feedback loop: 20+ cases)
+- [x] 26.5.5: Tests (feedback loop: 20+ cases)
 
 **26.6 — Policy Engine and Federation Remediation**
 
@@ -1729,12 +1731,12 @@ Cross-cell proposals are stored in the federation state (Phase 19) alongside the
 originating cell's bootstrap-state.json. The federation runbook (Phase 20) gains a
 "Pending Remediations" section.
 
-- [ ] 26.6.1: `RemediationPolicy` dataclass and schema; CLI to update policy
-- [ ] 26.6.2: Execution window enforcement (don't execute outside configured hours)
-- [ ] 26.6.3: Concurrent execution limit (serialize by default; operator can allow parallel)
-- [ ] 26.6.4: Cross-cell proposal format — `owning_cell_id`, `requires_cell_approval[]`
-- [ ] 26.6.5: Federation remediation view in Federation Workbook (Phase 20 extension)
-- [ ] 26.6.6: Tests (policy engine: 20+ cases; cross-cell: 10+ cases)
+- [x] 26.6.1: `RemediationPolicy` dataclass and schema; CLI to update policy
+- [x] 26.6.2: Execution window enforcement (don't execute outside configured hours)
+- [x] 26.6.3: Concurrent execution limit (serialize by default; operator can allow parallel)
+- [x] 26.6.4: Cross-cell proposal format — `owning_cell_id`, `requires_cell_approval[]`
+- [x] 26.6.5: Federation remediation view in Federation Workbook (Phase 20 extension)
+- [x] 26.6.6: Tests (policy engine: 20+ cases; cross-cell: 10+ cases)
 
 **26.7 — Fully Autonomous Mode** *(optional — must be explicitly enabled by an operator)*
 
@@ -1899,16 +1901,16 @@ New elements in `broodforge_dashboard.py`:
 
 ---
 
-- [ ] 26.7.1: `autonomous_mode` field group in `bootstrap-state-schema.json` and `RemediationPolicy`
-- [ ] 26.7.2: Enabling ceremony in `remediation-cli.py` — two-step confirmation, scope review, enabling record
-- [ ] 26.7.3: Executor integration — skip approval-wait step for in-scope proposals when autonomous mode is active
-- [ ] 26.7.4: Hard exclusion enforcement in executor — checked independently of policy
-- [ ] 26.7.5: Auto-disable triggers (expiry, consecutive failures, RED cell state)
-- [ ] 26.7.6: Notification events — structured log + SMTP if configured + dashboard update
-- [ ] 26.7.7: Dashboard — autonomous mode badge, enable/disable controls, scope display, auto-disable countdown
-- [ ] 26.7.8: Stale-state guard — refuse autonomous execution if last assessment is older than 2× interval
-- [ ] 26.7.9: Drill guard — refuse autonomous execution while a reconstruction drill is active
-- [ ] 26.7.10: Tests:
+- [x] 26.7.1: `autonomous_mode` field group in `bootstrap-state-schema.json` and `RemediationPolicy`
+- [x] 26.7.2: Enabling ceremony in `remediation-cli.py` — two-step confirmation, scope review, enabling record
+- [x] 26.7.3: Executor integration — skip approval-wait step for in-scope proposals when autonomous mode is active
+- [x] 26.7.4: Hard exclusion enforcement in executor — checked independently of policy
+- [x] 26.7.5: Auto-disable triggers (expiry, consecutive failures, RED cell state)
+- [x] 26.7.6: Notification events — structured log + SMTP if configured + dashboard update
+- [x] 26.7.7: Dashboard — autonomous mode badge, enable/disable controls, scope display, auto-disable countdown
+- [x] 26.7.8: Stale-state guard — refuse autonomous execution if last assessment is older than 2× interval
+- [x] 26.7.9: Drill guard — refuse autonomous execution while a reconstruction drill is active
+- [x] 26.7.10: Tests:
       - Enabling ceremony: confirmation phrase correct/wrong/abort
       - Hard exclusions: RED, irreversible, KeePass-gated, stale-state, drill-active all blocked
       - Scope constraints: action type filter, severity cap, execution window

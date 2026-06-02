@@ -216,6 +216,33 @@ def _backup_status_from_state(state: dict) -> dict:
     }
 
 
+def _remediations_from_state(state: dict) -> dict:
+    """Extract remediation queue and policy summary from bootstrap-state.json."""
+    proposals = state.get("remediations") or []
+    policy    = state.get("remediation_policy") or {}
+    autonomous = policy.get("autonomous") or {}
+
+    pending  = [p for p in proposals if p.get("status") == "proposed"]
+    approved = [p for p in proposals if p.get("status") == "approved"]
+    recent   = sorted(
+        [p for p in proposals if p.get("status") in
+         ("resolved", "rejected", "failed", "expired")],
+        key=lambda x: x.get("resolved_at") or x.get("proposed_at") or "",
+        reverse=True,
+    )[:20]
+
+    return {
+        "pending":          pending,
+        "approved":         approved,
+        "recent":           recent,
+        "total":            len(proposals),
+        "auto_enabled":     bool(autonomous.get("enabled")),
+        "auto_expires_at":  autonomous.get("expires_at"),
+        "auto_enabled_by":  autonomous.get("enabled_by", ""),
+        "auto_threshold":   policy.get("auto_approve_threshold"),
+    }
+
+
 def _scores_from_readiness(readiness: dict) -> dict:
     """Extract score dict from readiness report, tolerating various formats."""
     scores = readiness.get("scores") or readiness.get("summary") or {}
@@ -303,6 +330,68 @@ def _failure_row(pkg: dict) -> str:
 </tr>"""
 
 
+def _remediation_card(p: dict) -> str:
+    sev   = p.get("severity", "YELLOW")
+    sev_c = {"RED": "var(--red)", "ORANGE": "var(--orange)", "YELLOW": "var(--yellow)"}.get(sev, "var(--muted)")
+    pid   = p.get("proposal_id", "")[:8]
+    atype = p.get("action_type", "")
+    target= p.get("target", "")
+    desc  = p.get("action_description", "")
+    rev   = p.get("reversibility", "")
+    kp    = p.get("keepass_gated", False)
+    status= p.get("status", "proposed")
+    ts    = (p.get("proposed_at") or "")[:16]
+
+    approve_btn = (
+        f'<button class="btn-approve" '
+        f'onclick="approveProposal(\'{p.get("proposal_id","")}\',this)">'
+        f'Approve</button>'
+    )
+    reject_btn = (
+        f'<button class="btn-reject" '
+        f'onclick="rejectProposal(\'{p.get("proposal_id","")}\',this)">'
+        f'Reject</button>'
+    )
+    kp_badge = '<span class="kp-badge">🔑 KeePass</span>' if kp else ""
+
+    return f"""
+<div class="rem-card" data-id="{p.get('proposal_id','')}">
+  <div class="rem-header">
+    <span class="rem-sev" style="color:{sev_c};border-color:{sev_c}">{sev}</span>
+    <span class="rem-type">{atype}</span>
+    <code class="rem-target">{target}</code>
+    {kp_badge}
+    <span class="rem-id" style="color:var(--muted);font-size:.75em;margin-left:auto">{pid}</span>
+  </div>
+  <div class="rem-desc">{desc}</div>
+  <div class="rem-meta" style="font-size:.78em;color:var(--muted);margin-top:4px">
+    {rev} · {ts}
+  </div>
+  <div class="rem-actions" style="margin-top:8px;display:flex;gap:8px">
+    {approve_btn}{reject_btn}
+  </div>
+</div>"""
+
+
+def _remediation_history_row(p: dict) -> str:
+    status = p.get("status", "")
+    sev    = p.get("severity", "")
+    sev_c  = {"RED": "var(--red)", "ORANGE": "var(--orange)", "YELLOW": "var(--yellow)"}.get(sev, "var(--muted)")
+    sc     = {"resolved": "var(--green)", "rejected": "var(--muted)", "failed": "var(--red)"}.get(status, "var(--muted)")
+    ts     = (p.get("resolved_at") or p.get("proposed_at") or "")[:16]
+    outcome= (p.get("outcome") or "")[:80]
+    resisted = "⚠ resisted" if p.get("resisted") else ""
+    return f"""
+<tr>
+  <td><span style="color:{sc}">{status}</span></td>
+  <td><span style="color:{sev_c}">{sev}</span></td>
+  <td>{p.get("action_type","")}</td>
+  <td><code>{p.get("target","")}</code></td>
+  <td style="font-size:.82em;color:var(--muted)">{ts}</td>
+  <td style="font-size:.82em">{outcome} <span style="color:var(--orange)">{resisted}</span></td>
+</tr>"""
+
+
 def generate_dashboard_html(
     state:    dict,
     scores:   dict,
@@ -310,11 +399,13 @@ def generate_dashboard_html(
     failures: list[dict],
     backup:   dict,
     cfg:      DashboardConfig,
+    remediations: dict = None,
 ) -> str:
-    cell_id  = state.get("cell_id") or "broodforge"
-    gen_at   = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    host_id  = state.get("host_identity") or {}
-    hostname = host_id.get("hostname") or host_id.get("fqdn") or cell_id
+    cell_id       = state.get("cell_id") or "broodforge"
+    gen_at        = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    host_id       = state.get("host_identity") or {}
+    hostname      = host_id.get("hostname") or host_id.get("fqdn") or cell_id
+    remediations  = remediations or {}
 
     scores_html = ""
     for abbr in ("PHS", "ACS", "RRS", "DCS", "CRS", "OSS"):
@@ -331,6 +422,22 @@ def generate_dashboard_html(
         '<tr><td colspan="6" style="color:var(--muted);padding:12px">No failure packages received.</td></tr>'
     fail_count = len(failures)
     fail_pending = sum(1 for p in failures if not p.get("analyzed"))
+
+    # Remediations
+    rem_pending  = remediations.get("pending", [])
+    rem_approved = remediations.get("approved", [])
+    rem_recent   = remediations.get("recent", [])
+    auto_active  = remediations.get("auto_enabled", False)
+    auto_expires = (remediations.get("auto_expires_at") or "")[:16]
+    rem_pending_html = "".join(_remediation_card(p) for p in rem_pending) if rem_pending else \
+        '<p style="color:var(--muted)">No pending proposals.</p>'
+    rem_hist_rows = "".join(_remediation_history_row(p) for p in rem_recent) if rem_recent else \
+        '<tr><td colspan="6" style="color:var(--muted);padding:10px">No history yet.</td></tr>'
+    auto_badge = (
+        '<span class="auto-badge auto-active">AUTO</span>'
+        if auto_active else
+        '<span class="auto-badge auto-gated">GATED</span>'
+    )
 
     bkp_dests = backup.get("destinations", [])
     bkp_last  = backup.get("last_run") or "Never"
@@ -349,6 +456,22 @@ def generate_dashboard_html(
 <style>
   :root{{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;--code-bg:#181b21;--radius:6px}}
+  .auto-badge{{padding:2px 10px;border-radius:99px;font-size:.75em;font-weight:700;letter-spacing:.05em}}
+  .auto-active{{background:#1e3a22;color:var(--green);border:1px solid var(--green)}}
+  .auto-gated{{background:var(--bg3);color:var(--muted);border:1px solid var(--border)}}
+  .rem-card{{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px}}
+  .rem-header{{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}}
+  .rem-sev{{font-size:.75em;font-weight:700;border:1px solid;padding:1px 7px;border-radius:99px}}
+  .rem-type{{font-family:monospace;font-size:.85em;color:var(--accent)}}
+  .rem-target{{font-size:.85em}}
+  .rem-desc{{font-size:.88em;color:var(--text)}}
+  .kp-badge{{font-size:.72em;background:var(--bg2);border:1px solid var(--border);padding:1px 6px;border-radius:3px}}
+  .btn-approve{{background:#1e3a22;color:var(--green);border:1px solid var(--green);border-radius:3px;
+    padding:3px 12px;cursor:pointer;font-size:.82em}}
+  .btn-approve:hover{{background:#2a5c30}}
+  .btn-reject{{background:var(--bg2);color:var(--muted);border:1px solid var(--border);border-radius:3px;
+    padding:3px 12px;cursor:pointer;font-size:.82em}}
+  .btn-reject:hover{{border-color:var(--red);color:var(--red)}}
   *{{box-sizing:border-box;margin:0;padding:0}}
   body{{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
     font-size:14px;line-height:1.6;padding:0}}
@@ -406,6 +529,7 @@ def generate_dashboard_html(
 <div class="topbar">
   <span class="topbar-title">🔥 Broodforge</span>
   <span class="topbar-cell">{cell_id} · {hostname}</span>
+  {auto_badge}
   <span class="topbar-time">Generated: {gen_at}</span>
   <span class="topbar-ver">v{DASHBOARD_VERSION}</span>
 </div>
@@ -466,12 +590,69 @@ def generate_dashboard_html(
     {''.join(f'<div style="margin:3px 0;font-size:.85em"><span style="color:var(--muted)">{i+1}.</span> <code>{d.get("provider","?")}</code> · {d.get("bucket") or d.get("path","")}</div>' for i, d in enumerate(bkp_dests))}
   </div>
 
+  <!-- ── Remediations ── -->
+  <h2>Remediations</h2>
+  <div class="section-wrap">
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-val">{len(rem_pending)}</div>
+        <div class="stat-label">Pending approval</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">{len(rem_approved)}</div>
+        <div class="stat-label">Approved (ready)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">{auto_badge}</div>
+        <div class="stat-label">Autonomous mode</div>
+      </div>
+      {'<div class="stat"><div class="stat-val" style="font-size:.85em;color:var(--muted)">' + auto_expires + '</div><div class="stat-label">Auto expires</div></div>' if auto_active and auto_expires else ''}
+    </div>
+
+    {'<div class="tip">Approve proposals via CLI: <code>python3 proxmox-bootstrap/remediation-cli.py approve-all --severity ORANGE</code></div>' if rem_pending else ''}
+
+    <div id="rem-pending-list">
+      {rem_pending_html}
+    </div>
+
+    {'<h2 style="margin-top:16px">Remediation History</h2>' if rem_recent else ''}
+    {'<table><tr><th>Status</th><th>Severity</th><th>Action</th><th>Target</th><th>Time</th><th>Outcome</th></tr>' + rem_hist_rows + '</table>' if rem_recent else ''}
+  </div>
+
   <p style="color:var(--muted);font-size:.78em;margin-top:16px;text-align:center">
     Broodforge Dashboard v{DASHBOARD_VERSION} · <a href="/api/state" style="color:var(--muted)">state</a> ·
     Binds <code>{cfg.listen_host}:{cfg.listen_port}</code>
   </p>
 
 </div>
+
+<script>
+const _token = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('bf-token='));
+const _tok = _token ? _token.split('=')[1] : '';
+
+function _post(url, body) {{
+  return fetch(url, {{
+    method: 'POST',
+    headers: {{'Content-Type':'application/json','X-Broodforge-Token':_tok}},
+    body: JSON.stringify(body),
+  }});
+}}
+
+function approveProposal(pid, btn) {{
+  if (!_tok) {{ alert('Set X-Broodforge-Token cookie to approve proposals.'); return; }}
+  _post('/api/remediations/' + pid + '/approve', {{}})
+    .then(r => {{ if (r.ok) {{ btn.closest('.rem-card').style.opacity='0.4'; btn.textContent='✓ Approved'; }} else {{ alert('Approve failed: ' + r.status); }} }});
+}}
+
+function rejectProposal(pid, btn) {{
+  const reason = prompt('Rejection reason (optional):');
+  if (reason === null) return;
+  if (!_tok) {{ alert('Set X-Broodforge-Token cookie to reject proposals.'); return; }}
+  _post('/api/remediations/' + pid + '/reject', {{reason}})
+    .then(r => {{ if (r.ok) {{ btn.closest('.rem-card').style.opacity='0.4'; btn.textContent='✗ Rejected'; }} else {{ alert('Reject failed: ' + r.status); }} }});
+}}
+</script>
+
 </body>
 </html>"""
 
@@ -503,6 +684,18 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/backup-status":
             state = _read_bootstrap_state(self._cfg)
             self._serve_json(_backup_status_from_state(state))
+        elif path == "/api/remediations":
+            state = _read_bootstrap_state(self._cfg)
+            self._serve_json(state.get("remediations") or [])
+        elif path.startswith("/api/remediations/") and not path.endswith(("/approve", "/reject")):
+            pid   = path[len("/api/remediations/"):]
+            state = _read_bootstrap_state(self._cfg)
+            props = state.get("remediations") or []
+            match = next((p for p in props if p.get("proposal_id") == pid), None)
+            if match:
+                self._serve_json(match)
+            else:
+                self.send_error(HTTPStatus.NOT_FOUND)
         elif path.startswith("/docs/"):
             self._serve_doc_file(path[6:])
         else:
@@ -521,8 +714,91 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self._serve_json({"analyzed": len(results)})
             except Exception as e:
                 self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(e))
+        elif path.startswith("/api/remediations/") and path.endswith("/approve"):
+            if not self._check_action_token():
+                return
+            self._handle_remediation_approve(path)
+        elif path.startswith("/api/remediations/") and path.endswith("/reject"):
+            if not self._check_action_token():
+                return
+            self._handle_remediation_reject(path)
+        elif path == "/api/remediations/approve-batch":
+            if not self._check_action_token():
+                return
+            self._handle_remediation_approve_batch()
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
+
+    def _read_post_body(self) -> dict:
+        length = int(self.headers.get("Content-Length", 0))
+        if not length:
+            return {}
+        try:
+            return json.loads(self.rfile.read(length))
+        except Exception:
+            return {}
+
+    def _handle_remediation_approve(self, path: str) -> None:
+        pid   = path[len("/api/remediations/"):-len("/approve")]
+        body  = self._read_post_body()
+        state = _read_bootstrap_state(self._cfg)
+        try:
+            import sys as _sys
+            _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from remediation_queue import load_queue, save_queue, approve_proposal
+            queue = load_queue(state)
+            ok    = approve_proposal(queue, pid, "dashboard", "dashboard",
+                                     note=body.get("note"))
+            if ok:
+                import json as _json
+                updated = save_queue(queue, state)
+                with open(self._cfg.state_path, "w") as f:
+                    _json.dump(updated, f, indent=2)
+                self._serve_json({"approved": pid})
+            else:
+                self.send_error(HTTPStatus.CONFLICT, "Cannot approve proposal in current state")
+        except Exception as e:
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(e))
+
+    def _handle_remediation_reject(self, path: str) -> None:
+        pid   = path[len("/api/remediations/"):-len("/reject")]
+        body  = self._read_post_body()
+        state = _read_bootstrap_state(self._cfg)
+        try:
+            import sys as _sys
+            _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from remediation_queue import load_queue, save_queue, reject_proposal
+            queue = load_queue(state)
+            ok    = reject_proposal(queue, pid, reason=body.get("reason", "rejected via dashboard"),
+                                    rejected_by="dashboard")
+            if ok:
+                import json as _json
+                updated = save_queue(queue, state)
+                with open(self._cfg.state_path, "w") as f:
+                    _json.dump(updated, f, indent=2)
+                self._serve_json({"rejected": pid})
+            else:
+                self.send_error(HTTPStatus.CONFLICT, "Cannot reject proposal in current state")
+        except Exception as e:
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(e))
+
+    def _handle_remediation_approve_batch(self) -> None:
+        body     = self._read_post_body()
+        severity = body.get("max_severity", "YELLOW").upper()
+        state    = _read_bootstrap_state(self._cfg)
+        try:
+            import sys as _sys
+            _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from remediation_queue import load_queue, save_queue, batch_approve
+            queue   = load_queue(state)
+            count   = batch_approve(queue, severity, "dashboard", "dashboard")
+            import json as _json
+            updated = save_queue(queue, state)
+            with open(self._cfg.state_path, "w") as f:
+                _json.dump(updated, f, indent=2)
+            self._serve_json({"approved": count, "max_severity": severity})
+        except Exception as e:
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(e))
 
     def _check_action_token(self) -> bool:
         """Verify X-Broodforge-Token header matches configured token."""
@@ -536,13 +812,15 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         return True
 
     def _serve_dashboard(self) -> None:
-        state    = _read_bootstrap_state(self._cfg)
-        readiness= _read_readiness(self._cfg)
-        nodes    = _nodes_from_state(state)
-        failures = _read_failure_packages(self._cfg)
-        backup   = _backup_status_from_state(state)
-        scores   = _scores_from_readiness(readiness)
-        html     = generate_dashboard_html(state, scores, nodes, failures, backup, self._cfg)
+        state        = _read_bootstrap_state(self._cfg)
+        readiness    = _read_readiness(self._cfg)
+        nodes        = _nodes_from_state(state)
+        failures     = _read_failure_packages(self._cfg)
+        backup       = _backup_status_from_state(state)
+        scores       = _scores_from_readiness(readiness)
+        remediations = _remediations_from_state(state)
+        html         = generate_dashboard_html(state, scores, nodes, failures, backup, self._cfg,
+                                               remediations=remediations)
         body     = html.encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")
