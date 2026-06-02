@@ -320,6 +320,56 @@ class TestToImportJson(unittest.TestCase):
         self.assertIn("network_topology.headscale_url", data)
         self.assertIn(":8080", data["network_topology.headscale_url"])
 
+    def test_backup_rows_present(self):
+        self.assertIn("__backup_rows__", self.data)
+        rows = self.data["__backup_rows__"]
+        self.assertIsInstance(rows, list)
+        self.assertGreater(len(rows), 0)
+
+    def test_backup_rows_keepass_entry(self):
+        rows = self.data["__backup_rows__"]
+        kp = [r for r in rows if "keepass" in r.get("what", "").lower()
+              or "kdbx" in r.get("what", "").lower()]
+        self.assertGreater(len(kp), 0, "Should have a KeePass row")
+
+    def test_backup_rows_config_state_entry(self):
+        rows = self.data["__backup_rows__"]
+        cfg = [r for r in rows if "bootstrap-state" in r.get("what", "").lower()]
+        self.assertGreater(len(cfg), 0, "Should have a config-state row")
+
+    def test_backup_rows_vm_entries(self):
+        rows = self.data["__backup_rows__"]
+        vm_rows = [r for r in rows if r.get("what", "").startswith("VM:")]
+        # BASE_STATE has forgejo and infra-bootstrap
+        self.assertGreaterEqual(len(vm_rows), 2, "Should have one row per VM")
+
+    def test_backup_rows_all_have_source_manifest(self):
+        rows = self.data["__backup_rows__"]
+        for row in rows:
+            self.assertEqual(row.get("source"), "manifest",
+                             f"Row missing source=manifest: {row}")
+
+    def test_backup_rows_have_required_keys(self):
+        rows = self.data["__backup_rows__"]
+        for row in rows:
+            for key in ("what", "location", "credential", "notes", "source"):
+                self.assertIn(key, row, f"Row missing key '{key}': {row}")
+
+    def test_backup_rows_vm_includes_ip(self):
+        rows = self.data["__backup_rows__"]
+        forgejo_row = next((r for r in rows if "forgejo" in r.get("what", "")), None)
+        self.assertIsNotNone(forgejo_row, "Should have a forgejo VM row")
+        self.assertIn("192.168.1.21", forgejo_row["what"])
+
+    def test_backup_rows_destination_layer_from_config(self):
+        rows = self.data["__backup_rows__"]
+        layer_rows = [r for r in rows if r.get("what", "").startswith("Backup layer:")]
+        # BASE_STATE has secrets + config layers
+        self.assertGreaterEqual(len(layer_rows), 2)
+        dest_locs = " ".join(r.get("location", "") for r in layer_rows)
+        self.assertIn("local-usb", dest_locs)
+        self.assertIn("b2-cloud", dest_locs)
+
 
 # ---------------------------------------------------------------------------
 # Real fixture validation
@@ -340,6 +390,20 @@ class TestManifestFromFixture(unittest.TestCase):
         data  = to_import_json(state)
         self.assertIsInstance(data, dict)
         self.assertGreater(len(data), 3)
+
+    def test_fixture_backup_rows_present_and_populated(self):
+        fixture_path = REPO_ROOT / "tests" / "fixtures" / "bootstrap" / "bootstrap-state.json"
+        state = json.loads(fixture_path.read_text(encoding="utf-8"))
+        data  = to_import_json(state)
+        self.assertIn("__backup_rows__", data)
+        rows = data["__backup_rows__"]
+        self.assertIsInstance(rows, list)
+        # KeePass + config state + at least 4 VMs from the fixture
+        self.assertGreaterEqual(len(rows), 4)
+        # All rows have required structure
+        for row in rows:
+            for key in ("what", "location", "credential", "notes", "source"):
+                self.assertIn(key, row)
 
 
 if __name__ == "__main__":

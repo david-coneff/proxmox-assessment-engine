@@ -351,15 +351,72 @@ def to_import_json(state: dict) -> dict:
     }
 
     # Add VMs
+    dns_reg = state.get("dns_registry") or []
     for vm in (state.get("vms") or []):
         name  = vm.get("name", "")
         vmid  = vm.get("vmid", "")
-        dns   = state.get("dns_registry") or []
-        ip    = next((e.get("ip") for e in dns if e.get("vmid") == vmid), "")
+        ip    = next((e.get("ip") for e in dns_reg if e.get("vmid") == vmid), "")
         if name == "forgejo":
             out["forge-p04-forgejo"] = f"{vmid} / {ip}" if ip else str(vmid)
         key = f"vms.{name}.vmid_ip"
         out[key] = f"{vmid} / {ip}" if ip else str(vmid)
+
+    # Build backup rows for the SETUP-GUIDE.html backup locations table
+    backup_rows: list[dict] = []
+    kc        = state.get("keepass_config") or {}
+    kdbx_loc  = kc.get("database_hint") or "/opt/broodforge/cluster.kdbx"
+    cell      = state.get("cell_id") or ""
+    cell_pfx  = f"{cell}/" if cell else ""
+
+    backup_rows.append({
+        "source": "manifest",
+        "what": "Cluster secrets (KeePass .kdbx)",
+        "location": kdbx_loc,
+        "credential": "",
+        "notes": "rclone copy (file already AES-256 encrypted)",
+    })
+    backup_rows.append({
+        "source": "manifest",
+        "what": "Infrastructure state (bootstrap-state.json + snippets)",
+        "location": "Forgejo repo" + (f" / offsite: {cell}" if cell else ""),
+        "credential": "",
+        "notes": "GPG-encrypted archive via backup.py",
+    })
+
+    bc = state.get("backup_config") or {}
+    for lname, lcfg in (bc.get("layers") or {}).items():
+        if not lcfg:
+            continue
+        dests = ", ".join(
+            d.get("id") or d.get("path") or d.get("url") or "?"
+            for d in (lcfg.get("destinations") or [])
+        ) or "—"
+        backup_rows.append({
+            "source": "manifest",
+            "what": f"Backup layer: {lname}",
+            "location": dests,
+            "credential": "",
+            "notes": "enabled" if lcfg.get("enabled") else "disabled",
+        })
+
+    svc_contracts = state.get("service_contracts") or []
+    for vm in (state.get("vms") or []):
+        vmid = vm.get("vmid", "?")
+        name = vm.get("name", "?")
+        ip   = next((e.get("ip", "") for e in dns_reg if e.get("vmid") == vmid), "") \
+               or vm.get("initial_ip", "")
+        sc   = next((c for c in svc_contracts
+                     if c.get("vm") == name or c.get("service") == name), None)
+        bjob = f" (job: {sc['backup_job']})" if sc and sc.get("backup_job") else ""
+        backup_rows.append({
+            "source": "manifest",
+            "what": f"VM: {name} (VMID {vmid})" + (f" — {ip}" if ip else ""),
+            "location": f"PBS: {cell_pfx}VMID {vmid}{bjob}",
+            "credential": "",
+            "notes": vm.get("role") or "",
+        })
+
+    out["__backup_rows__"] = backup_rows
 
     return {k: v for k, v in out.items() if v and v != "(not set)"}
 
