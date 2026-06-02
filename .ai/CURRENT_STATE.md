@@ -1,8 +1,8 @@
 # Current State
 
-Last updated: 2026-05-31 20:00:00 UTC (2026-05-31 14:00:00 MDT)
+Last updated: 2026-06-02 UTC
 
-## Active Architecture: v7.0
+## Active Architecture: v7.1
 
 Self-Documenting, Self-Assessing, Self-Recovering Infrastructure Platform.
   k3s + Flux CD + Proxmox + four intelligence layers.
@@ -12,11 +12,12 @@ Seventeen-state model. Six-layer lifecycle. Three assessment tiers. Five depende
 
 ## Next Action
 
-**Implement Milestone 7.4 — Recovery Documentation Update (Service Layer).**
-Add service contract validation steps, service health check commands (from
-contract `health_check` field), service restart/verification commands, and
-distinct rendering of Service Contract dependency edges in the recovery runbook.
-See ROADMAP.md Milestone 7.4 for the full spec.
+All roadmap phases complete. Tests: 3434 (3430 passed, 4 skipped).
+
+Options:
+- **Phase 9.T** — Talos Linux alternative (optional; see `docs/TALOS-ALTERNATIVE.html`)
+- **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py` on a Proxmox host
+- **Dashboard Phase 2** — integrate broodforge dashboard into Proxmox UI via JS patch
 
 ## Completed Milestones
 
@@ -88,23 +89,6 @@ See ROADMAP.md Milestone 7.4 for the full spec.
 | Milestone | Description |
 |---|---|
 | **Phase 1.F** | **Forge Package Assembly — capstone of forging process — START HERE** |
-
-## Architecture Gaps (v4.0 items not yet implemented)
-
-| Gap | Phase | Impact on Reconstruction |
-|---|---|---|
-| Bootstrap State schema | 6.1 | Cannot track Cloud-Init, templates, provenance |
-| Cloud-Init templates | 6.2 | First-boot provisioning not replayable |
-| Secret Registry | 6.3 | Recovery commands have `[KEEPASS_PATH]` placeholders |
-| DNS Registry | 6.4 | Recovery commands have `[VM_IP]` placeholders |
-| Deployment Provenance | 6.5 | Cannot verify reconstruction matches original |
-| Template Registry | 6.6 | Base images not tracked, template rebuild not automated |
-| Service Contracts | 7.1 | Dependencies use heuristics, not declared contracts |
-| Service State schema | 7.2 | Service layer not modeled in recovery documentation |
-| Network topology as code | 8.x | Wave 0 network reconstruction requires manual steps |
-| Reconstruction Playbooks | 9.x | No executable reconstruction scripts |
-| Operational Documentation | 10.x | No drift/capacity/health documentation class |
-| Capacity Model | 11.x | Recovery readiness does not validate resource headroom |
 
 ## New Codebase Layout (doc-gen architecture)
 

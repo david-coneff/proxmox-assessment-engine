@@ -130,7 +130,7 @@ def collect_observed_bridges(
     If not provided, uses subprocess.run with the system ssh binary.
     """
     ssh_cmd = ["ssh",
-               "-o", "StrictHostKeyChecking=no",
+               "-o", "StrictHostKeyChecking=accept-new",
                "-o", "BatchMode=yes",
                "-p", str(port)]
     if key:

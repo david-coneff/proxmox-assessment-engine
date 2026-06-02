@@ -17,7 +17,7 @@ Full review: docs/ARCHITECTURE-REVIEW-v7.md
 | GitOps | Flux CD | Continuous reconciliation from Git to k3s |
 | Orchestration | k3s | All application workloads |
 | Documentation | doc-engine (k3s workload) | Phase B/C/D intelligence |
-| Workbooks | ODS (machine-updated) | Execution records for recovery |
+| Workbooks | HTML (machine-generated) | Execution records and recovery workbooks — self-contained, print-friendly |
 
 ---
 
@@ -42,7 +42,7 @@ Phase C — Recovery Intelligence    (k3s workload, triggered by Phase B)
 Phase D — Execution Intelligence   (k3s workload for generation; standalone for execution)
   Process:  Stargate Process (execution layer)
   Purpose:  Execute phoenix package scripts; capture failure packages for improvement loop
-  Produces: Phoenix scripts (identity-preserving), ODS workbooks, failure packages, improvement loop
+  Produces: Phoenix scripts (identity-preserving), HTML workbooks, failure packages, improvement loop
 ```
 
 ---
@@ -59,7 +59,7 @@ AUTHORITATIVE
 DERIVED (never edit directly — regenerate from 1–4)
   5. Generated documentation
   6. Generated phoenix packages, spawn packages, and scripts
-  7. ODS workbook execution records (exception: these are the execution audit trail)
+  7. HTML workbook execution records (exception: these are the execution audit trail)
 
 DISPOSABLE (safe to delete and regenerate)
   8. Cached manifests, rendered templates, intermediate artifacts
@@ -102,7 +102,7 @@ bootstrap/
 ├── cloud-init/         Generated Cloud-Init snippets
 ├── validation/         Pre-deployment readiness checks
 ├── recovery/           Phase C/D: packages, scripts, workbooks
-├── workbooks/          ODS templates and generators
+├── workbooks/          HTML workbook generators
 ├── docs/               Generated documentation outputs
 └── secrets/            Secret registry (KeePass paths only)
 ```
@@ -216,7 +216,7 @@ HATCHERY PROCESS — PRE-PACKAGE (on the hatchery)
      ├── opentofu/             (only disposition-declared VM roles)
      ├── cloud-init/           (snippets for disposition VMs only)
      ├── ansible/              (inventory additions + disposition-scoped role vars)
-     └── spawn-workbook.ods    (auditable execution record)
+     └── spawn-workbook.html   (auditable execution record)
 
 [operator copies package to broodling — only manual step after install]
 
@@ -315,7 +315,7 @@ See Phase 12.E in [ROADMAP.md](ROADMAP.md) for full milestone detail.
 | AD-022 | k3s as primary application platform (over Podman) |
 | AD-023 | Flux CD as GitOps engine (over ArgoCD — bootstraps into fresh cluster) |
 | AD-024 | Forgejo as sole Git provider; external Git providers are mirrors only |
-| AD-025 | ODS as standard machine-updatable workbook format |
+| AD-025 | HTML as standard machine-generated workbook format |
 | AD-026 | Metadata YAML as primary source of infrastructure intent |
 | AD-027 | Four intelligence phases with distinct runtimes (pre/post k3s) |
 | AD-028 | Documentation engine is the first k3s workload |

@@ -46,9 +46,9 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from spawn_workbook import build_spawn_workbook
+    from html_spawn_workbook import build_spawn_workbook_html as _build_spawn_workbook_html
 except ImportError:
-    build_spawn_workbook = None  # type: ignore
+    _build_spawn_workbook_html = None  # type: ignore
 
 
 # ---------------------------------------------------------------------------
@@ -242,12 +242,13 @@ def assemble_spawn_package(
         # Ansible artifacts
         _add_dir(artifacts_dir / "ansible",     "ansible")
 
-        # Spawn workbook (ODS)
-        if build_spawn_workbook is not None:
-            wb_bytes = build_spawn_workbook(plan, hardware_profile)
+        # Spawn workbook (HTML)
+        if _build_spawn_workbook_html is not None:
+            wb_html  = _build_spawn_workbook_html(plan, manifest, hardware_profile)
+            wb_bytes = wb_html.encode("utf-8")
             hostname = plan.get("hostname", "broodling")
             ts       = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d_%H_%M_%S")
-            wb_name  = f"spawn-workbook-{hostname}-{ts}.ods"
+            wb_name  = f"spawn-workbook-{hostname}-{ts}.html"
             wb_info  = tarfile.TarInfo(name=wb_name)
             wb_info.size = len(wb_bytes)
             tar.addfile(wb_info, io.BytesIO(wb_bytes))

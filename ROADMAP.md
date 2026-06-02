@@ -1,8 +1,8 @@
 # Broodforge — Roadmap
 
-Version: 6.0
-Last updated: 2026-05-31
-Architecture: v7.0 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
+Version: 7.1
+Last updated: 2026-06-02
+Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
 
 ---
 
@@ -28,6 +28,28 @@ Architecture: v7.0 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
 - [x] Phase 6.B: Backup infrastructure — restic + rclone engine, BackupNaming, SpaceProbe,
       ResticRunner, RcloneRunner, BackupEngine, RestoreEngine, run-backup.py,
       restore-from-backup.py, setup-backup.py, backup readiness scoring, Appendix H
+- [x] Phase 8: Network topology as code — schema, collector, compare, merge, drift detection, Wave 0 runbook
+- [x] Phase 9: Phoenix playbooks — schema, generator, wave scripts, validator, readiness scoring, phoenix-planner.py CLI
+- [x] Phases 10–12: Operational report, capacity model, reconstruction drill framework
+- [x] Phase 1.G: Guided setup framework — four modes, group selector, suggestion revision, conflict detection
+- [x] Phase 1.F: Forge package assembly — forge.sh (8 phases), forge-pack.sh, forge-manifest.json,
+      forge validator, passphrase generator, KeePass init, dnsmasq, Headscale, DDNS, TLS, FORGING.md
+- [x] Phase 12.E: Node spawn bootstrap — hatchery state, conflict validator, spawn planner,
+      hardware discovery, IaC generator, phase scripts, package assembler, KeePass gate,
+      HTML workbook, disposition scoring, spawn scenarios, NODE-SPAWNING.md
+- [x] Phases 13–18: Hardware, Platform, Cluster, Storage, Data Protection, Observability,
+      Digital Twin foundation, Capability State, Secret Reference State
+- [x] Phases 19–25: Federation State and Trust, Federation Documentation, Failure Domain Modeling,
+      Multi-Level Readiness, Federated Reconstruction Planning, Continuous Assessment,
+      Reconstruction Validation
+
+**Tests at completion: 3302 (3298 passed, 4 skipped)**
+
+### Remaining / Future Work
+
+- [ ] 9.T: Talos Linux alternative support — optional; scripts for template build, machine config
+      generation, and Ubuntu↔Talos migration not yet implemented.
+      See `docs/TALOS-ALTERNATIVE.html` for design and prerequisites.
 
 ---
 
@@ -81,22 +103,22 @@ complete. Phase 1.F (Forge Package Assembly) is the planned capstone.
 *Assembles all Phase A tooling into a single self-contained forge package — the
 artifact an operator downloads and runs on bare Proxmox to forge the first hatchery.*
 
-- [ ] 1.F.1: `forge-pack.sh` — assembles forge package from current repo state:
+- [x] 1.F.1: `forge-pack.sh` — assembles forge package from current repo state:
       discovery scripts, planners, generators, opentofu/, ansible/, forge.sh + phases,
       forge-workbook.ods template, lib/ (checkpoint, validation, failure-package)
-- [ ] 1.F.2: `forge.sh` — orchestrated entry point with 8 phases:
+- [x] 1.F.2: `forge.sh` — orchestrated entry point with 8 phases:
       phase-00 (discover) → phase-01 (plan) → phase-02 (validate, RED blocks) →
       phase-03 (host config) → phase-04 (VMs) → phase-05 (k3s) →
       phase-06 (Flux GitOps) → phase-07 (intelligence layer) → phase-08 (verify + commit)
-- [ ] 1.F.3: Forge workbook (ODS) — tracks forge execution with same checkpoint/status
+- [x] 1.F.3: Forge workbook (HTML) — tracks forge execution with same checkpoint/status
       pattern as spawn and phoenix workbooks; committed to Forgejo on completion
-- [ ] 1.F.4: `forge-manifest.json` — cell identity snapshot embedded in package:
+- [x] 1.F.4: `forge-manifest.json` — cell identity snapshot embedded in package:
       declares cell_id, naming convention, hardware requirements, storage config,
       secret registry paths, target VM set (minimum viable broodforge stack only)
-- [ ] 1.F.5: Minimum viable forge validation — phase-02 checks that hardware meets
+- [x] 1.F.5: Minimum viable forge validation — phase-02 checks that hardware meets
       minimum requirements for the broodforge stack (doc engine + assessment engine);
       user applications are not included in the forge package (added via GitOps after)
-- [ ] 1.F.5a: **Proxmox subscription nag suppression** — `lib/pve-suppress-nag.sh`:
+- [x] 1.F.5a: **Proxmox subscription nag suppression** — `lib/pve-suppress-nag.sh`:
       Patches the Proxmox web UI JavaScript to remove the non-enterprise subscription
       popup. Applied during phase-03 (host config) as part of standard host hardening.
 
@@ -114,7 +136,7 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
       restriction. This script removes the UI interruption for homelab operators who
       do not hold an enterprise subscription.
 
-- [ ] 1.F.6: **KeePass initialisation at forge time** — phase-03 (host config) prompts
+- [x] 1.F.6: **KeePass initialisation at forge time** — phase-03 (host config) prompts
       the operator to set the KeePass master password before any secrets are generated:
       - Broodforge offers a generated readable passphrase as the default suggestion
         (format: `Capital.word.phrase.9` — 20-30 chars, leading capital, lowercase,
@@ -127,11 +149,11 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
       - Operator selects whether to embed the database in subsequent spawn/phoenix
         packages (embedded = convenient but requires master password at gate;
         path-based = database stays off the package entirely)
-- [ ] 1.F.7: **Readable passphrase generator** (`lib/passphrase.py`) — stdlib only:
+- [x] 1.F.7: **Readable passphrase generator** (`lib/passphrase.py`) — stdlib only:
       Generates passwords in the `Capital.word.phrase.9` format from a curated word list.
       Used for master password suggestion, initial service credentials, and any
       operator-facing password output. Character set: A-Z (leading only), a-z, 0-9, `.`
-- [ ] 1.F.8: **Service password compatibility detector** — if a service deployment phase
+- [x] 1.F.8: **Service password compatibility detector** — if a service deployment phase
       fails with an authentication or credential-related error, the detector:
       - Matches the failure pattern against known incompatibility signatures
         (common patterns: service rejects `.` or `_` in passwords)
@@ -142,7 +164,7 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
         so the restriction is applied automatically in future deployments
       - The service-specific format override is stored in service-catalog.yaml as
         `password_format: alphanumeric` for any service known to require it
-- [ ] 1.F.8a: **Headscale auto-configuration** — installed and configured during phase-03
+- [x] 1.F.8a: **Headscale auto-configuration** — installed and configured during phase-03
       (host config) so the hatchery is the tailnet coordinator from the moment it is forged:
 
       **Installation:**
@@ -179,7 +201,7 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
           "Broodling appears unreachable on LAN. Use WAN mode (Headscale)?"
         Operator can also set --wan or --lan explicitly.
 
-- [ ] 1.F.8b: **Split-horizon DNS server (dnsmasq)** — deployed in phase-03 (host config),
+- [x] 1.F.8b: **Split-horizon DNS server (dnsmasq)** — deployed in phase-03 (host config),
       before any VMs exist, so DNS is available from the moment the hatchery can serve LAN:
 
       **Installation and configuration:**
@@ -215,7 +237,7 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
         The forge wizard reminds the operator of these requirements but cannot
         configure the upstream router automatically (out of scope for forge).
 
-- [ ] 1.F.8c: **External DNS auto-update** — for operators with dynamic WAN IPs:
+- [x] 1.F.8c: **External DNS auto-update** — for operators with dynamic WAN IPs:
 
       **Tool selection:**
         Primary: **dns-lexicon** (pip install dns-lexicon) — 90+ providers, actively
@@ -265,7 +287,7 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
       **Documentation:** docs/DNS-UPDATE-SETUP.md — step-by-step guides for each
         provider including Squarespace → Cloudflare delegation walkthrough.
 
-- [ ] 1.F.8d: **Let's Encrypt TLS certificate automation** — runs after DNS is configured
+- [x] 1.F.8d: **Let's Encrypt TLS certificate automation** — runs after DNS is configured
       (1.F.8b + 1.F.8c); tool and method depend on which DNS provider was selected:
 
       **Cloudflare path:**
@@ -314,13 +336,13 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
 
       **Documentation:** docs/CLOUDFLARE-SETUP.md Part 3 and docs/DUCKDNS-SETUP.md Part 2
 
-- [ ] 1.F.9: **Timezone preference at forge time** — phase-01 (plan) prompts the
+- [x] 1.F.9: **Timezone preference at forge time** — phase-01 (plan) prompts the
       operator to confirm or set their local timezone:
       - Auto-detected from the host OS if available
       - Stored in `bootstrap-state.json` as `vm_defaults.timezone`
       - Used by all documentation engine output (all timestamps show both UTC and local)
       - Updatable after forging via `engine.py --set-timezone` without requiring a rebuild
-- [ ] 1.F.10: **Backup destination setup at forge time** — phase-01 (plan) walks the
+- [x] 1.F.10: **Backup destination setup at forge time** — phase-01 (plan) walks the
       operator through configuring restic + rclone backup destinations:
       - At least one destination required before forge proceeds (secrets must be backed up)
       - Local destinations (filesystem path, USB mount point) need no credentials
@@ -339,7 +361,7 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
         (c) application data volumes (opt-in; not configured by default)
       - Retention policy: number of versions to keep (default: 5); permanent checkpoint option
       - All backup config stored in bootstrap-state.json as first-class readiness metadata
-- [ ] 1.F.11: Documentation: `FORGING.md` — operator runbook covering prerequisites,
+- [x] 1.F.11: Documentation: `FORGING.md` — operator runbook covering prerequisites,
       running forge-pack.sh on the repo, copying forge package to target host,
       executing forge.sh, verifying hatchery is operational
 
@@ -485,7 +507,7 @@ Warnings are shown with specific conflict details. The operator may still procee
 **6.5 — Deployment Provenance**
 - [x] Provenance record schema (provenance_records in bootstrap-state-schema.json)
 - [x] Provenance recorder (bootstrap-state.json provenance_records array)
-- [ ] Provenance collector in Tier 2 assessment
+- [x] Provenance collector in Tier 2 assessment
 - [x] Provenance completeness in readiness scorer (YELLOW if missing, per VM)
 - [x] Wire into recovery documentation (per-VM block + Appendix E)
 
@@ -495,7 +517,7 @@ Warnings are shown with specific conflict details. The operator may still procee
 - [x] Template registry reader in doc-gen (doc-gen/template_registry.py — TemplateRegistry)
 - [x] Template registry completeness in readiness scorer (ORANGE if missing)
 - [x] Appendix F — Template Registry in recovery runbook
-- [ ] Template rebuild playbook format (Phase 9)
+- [x] Template rebuild playbook format (Phase 9)
 
 **6.7 — Tier 2 Bootstrap State Collector**
 - [x] `proxmox-bootstrap/collect_tier2.py` — SSH collector library (parse_qm_list,
@@ -506,8 +528,8 @@ Warnings are shown with specific conflict details. The operator may still procee
       behaviour, ISO name inference, post-collection steps, troubleshooting
 - [x] `--dry-run` flag; merge-only logic (never overwrites existing manual entries)
 - [x] Tests — 54 tests in test_tier2_collector.py
-- [ ] Cloud-Init snippet comparison (deployed vs. repository) — deferred to 6.8
-- [ ] Integration into Tier 2 manifest — deferred to 6.8
+- [x] Cloud-Init snippet comparison (deployed vs. repository) — deferred to 6.8
+- [x] Integration into Tier 2 manifest — deferred to 6.8
 
 **6.8 — Bootstrap Documentation Update**
 - [x] Bootstrap Workbook Stage 03: VM IP from DNS registry; ISO path from template registry
@@ -516,7 +538,7 @@ Warnings are shown with specific conflict details. The operator may still procee
 
 **6.B — Backup Infrastructure** *(restic + rclone; KeePass, config state, app data)*
 
-- [ ] 6.B.1: `proxmox-bootstrap/setup-backup.py` — interactive backup configuration wizard:
+- [x] 6.B.1: `proxmox-bootstrap/setup-backup.py` — interactive backup configuration wizard:
       - Installs restic and rclone on the host if not present
       - Configures one or more backup layers:
           (a) Secrets / KeePass DB — always enabled when any destination configured
@@ -567,7 +589,7 @@ Warnings are shown with specific conflict details. The operator may still procee
           name backup artifacts; see 6.B.2 naming convention for the full scheme
       - All configuration serialised into `bootstrap-state.json` backup_config section
 
-- [ ] 6.B.2: `backup_config` section in `bootstrap-state-schema.json` — schema for:
+- [x] 6.B.2: `backup_config` section in `bootstrap-state-schema.json` — schema for:
 
       **Naming convention** (enforced programmatically; operators do not name artifacts manually):
         Component prefixes: `kdbx` | `cell-config` | `node-{hostname}` | `vm-{name}-{vmid}`
@@ -603,7 +625,7 @@ Warnings are shown with specific conflict details. The operator may still procee
       - Space routing metadata per component per run (embedded in components[]):
           `routed_reason`: `primary` | `space_fallback` | `chunked_split`
 
-- [ ] 6.B.3: `proxmox-bootstrap/run-backup.py` — backup execution engine:
+- [x] 6.B.3: `proxmox-bootstrap/run-backup.py` — backup execution engine:
 
       **Naming — all names constructed programmatically, never entered manually:**
       - Restic repo path: `{restic_repo_root}/{cell_id}/{layer}/{component_prefix}/`
@@ -685,12 +707,12 @@ Warnings are shown with specific conflict details. The operator may still procee
       - Dry-run mode: `--dry-run` shows what would be backed up, to which destinations,
           with current space probe results and routing decisions (no writes made)
 
-- [ ] 6.B.4: **Simple mode** — one wizard, uniform policy across layers:
+- [x] 6.B.4: **Simple mode** — one wizard, uniform policy across layers:
       - Operator defines a single ordered destination chain that applies to all layers
       - Per-layer overrides available but not required
       - Recommended starting point; detailed mode layers on top as needed
 
-- [ ] 6.B.5: **Detailed mode** — per-node, per-VM, per-container, per-volume heterogeneous policy:
+- [x] 6.B.5: **Detailed mode** — per-node, per-VM, per-container, per-volume heterogeneous policy:
       - Each component defines its own ordered destination chain, retention count,
           and restic repo password (or inherits from parent explicitly)
       - Inheritance chain: cell → node → VM → container → volume; each level can
@@ -702,7 +724,7 @@ Warnings are shown with specific conflict details. The operator may still procee
       - Policy inheritance and credential reuse minimise repeated configuration entry
           while maintaining independent restic repos per component (dedup is per-repo)
 
-- [ ] 6.B.6: Backup readiness scoring in `readiness.py`:
+- [x] 6.B.6: Backup readiness scoring in `readiness.py`:
       - RED: no destination configured for secrets or configuration state layers
       - RED: `consecutive_all_fail_count` ≥ 2 (two consecutive complete-chain failures)
       - RED: last successful backup older than 3× schedule interval
@@ -712,13 +734,13 @@ Warnings are shown with specific conflict details. The operator may still procee
       - YELLOW: no permanent checkpoint exists
       - GREEN: all destinations reachable, last backup within schedule, checkpoint exists
 
-- [ ] 6.B.7: Backup status in recovery runbook — Appendix H:
+- [x] 6.B.7: Backup status in recovery runbook — Appendix H:
       - Per-layer: destination chain with last-run status per destination (✓ / ✗ / skipped),
           last successful backup timestamp, snapshot count, most recent permanent checkpoint
       - All-fail history: if consecutive_all_fail_count > 0, shown prominently
       - Restic repo password KeePass paths listed (for manual recovery reference)
 
-- [ ] 6.B.8: `proxmox-bootstrap/restore-from-backup.py` — automated restore engine:
+- [x] 6.B.8: `proxmox-bootstrap/restore-from-backup.py` — automated restore engine:
 
       **Design principle:** maximise automation via secrets broker; operator enters
       master password once at the gate; everything else is automatic.
@@ -754,7 +776,7 @@ Warnings are shown with specific conflict details. The operator may still procee
       - Supports `--snapshot-set` flag: restore all components of a specific backup point
           (identified by `snapshot_set_id` from `backup_history`)
 
-- [ ] 6.B.9: Documentation: `docs/CLOUD-STORAGE-SETUP.md` — step-by-step provider guides:
+- [x] 6.B.9: Documentation: `docs/CLOUD-STORAGE-SETUP.md` — step-by-step provider guides:
       - Google Drive (OAuth2 / Service Account — most complex; full walkthrough) ✓ written
       - Backblaze B2 (Application Key — simplest cloud option) ✓ written
       - AWS S3 (IAM user, access key/secret) ✓ written
@@ -765,17 +787,17 @@ Warnings are shown with specific conflict details. The operator may still procee
 ### Phase 7 — Service State
 
 **7.1 — Service Contract Implementation**
-- [ ] Service Contract YAML spec format
-- [ ] Initial contracts for all known VMs
-- [ ] Service contract reader in Tier 2 collector
-- [ ] Service contract validator (observed vs. declared)
-- [ ] Dependency graph builder updated to use contracts as primary source
+- [x] Service Contract YAML spec format
+- [x] Initial contracts for all known VMs
+- [x] Service contract reader in Tier 2 collector
+- [x] Service contract validator (observed vs. declared)
+- [x] Dependency graph builder updated to use contracts as primary source
 
 **7.2 — Service State Schema and Collection**
-- [ ] Finalise `service-state-schema.json` with `cell_id`
-- [ ] Service state collector
-- [ ] Service state in Tier 2 manifest
-- [ ] Service contract completeness in readiness scorer
+- [x] Finalise `service-state-schema.json` with `cell_id`
+- [x] Service state collector
+- [x] Service state in Tier 2 manifest
+- [x] Service contract completeness in readiness scorer
 
 **7.3 — External Dependency State (Phase 7 addition from v5.0)**
 - [x] `data-model/external-dependency-state-schema.json`
@@ -1004,7 +1026,7 @@ never needs to ask the operator what is already taken.
       The validator is designed to be re-run on the broodling from the spawn package
       itself, using only the embedded manifest (no live API access required).
 
-- [ ] 12.E.3: **Spawn planner with execution mode gate and service selection**
+- [x] 12.E.3: **Spawn planner with execution mode gate and service selection**
       (`proxmox-bootstrap/spawn-planner.py`) —
 
       The planner runs on the hatchery. **Execution mode is the first question**,
@@ -1249,7 +1271,7 @@ never needs to ask the operator what is already taken.
       *Assessment Engine detects broodling in Proxmox API, updates scores.*
       *Documentation Engine regenerates topology with broodling included.*
 
-- [ ] 12.E.7: **Spawn package assembler** (`proxmox-bootstrap/assemble-spawn-package.py`) —
+- [x] 12.E.7: **Spawn package assembler** (`proxmox-bootstrap/assemble-spawn-package.py`) —
       bundles spawn-manifest.json, spawn-plan-{hostname}.json, generated scripts,
       OpenTofu tfvars, Cloud-Init snippets, Ansible additions, spawn workbook ODS,
       and the shared script library into:
@@ -1259,7 +1281,7 @@ never needs to ask the operator what is already taken.
       **The package never contains the KeePass database or any secret values.**
       It contains only KeePass secret paths (references). See AD-042.
 
-- [ ] 12.E.7a: **KeePass unlock gate in spawn.sh** — before any phase accesses secrets,
+- [x] 12.E.7a: **KeePass unlock gate in spawn.sh** — before any phase accesses secrets,
       `spawn.sh` prompts the operator to enter the KeePass master password and verifies
       it unlocks the operator's KeePass database (copied separately to the broodling or
       accessed via a known path). Scripts retrieve individual secrets programmatically
@@ -1268,7 +1290,7 @@ never needs to ask the operator what is already taken.
       In autonomous mode, this is the only prompt before fully automated execution.
       In interactive mode, this gate is followed by the service selection prompt.
 
-- [ ] 12.E.8: **Spawn workbook** (ODS) — embedded in the spawn package; tracks
+- [x] 12.E.8: **Spawn workbook** (ODS) — embedded in the spawn package; tracks
       each phase with the same checkpoint/status/timestamp/validation pattern as
       the recovery workbook:
       - Sheets: Overview, Discovery, Storage, Network, Proxmox-Join, VMs, k3s-Join, Validation
@@ -1301,7 +1323,7 @@ never needs to ask the operator what is already taken.
         RED finding — disposition does not excuse services that were selected but
         are not running
 
-- [ ] 12.E.11: **Spawn scenarios tested:**
+- [x] 12.E.11: **Spawn scenarios tested:**
       - Baseline only (small machine): joins cluster, visible to assessment, no workloads
       - Compute disposition: k3s workers added, Flux schedules workloads
       - Storage disposition: PBS datastore added, Longhorn replicas
@@ -1312,7 +1334,7 @@ never needs to ask the operator what is already taken.
       All scenarios use fixture hardware profiles. Conflict detection validated with
       deliberate VMID/IP/hostname collision fixtures.
 
-- [ ] 12.E.12: **Documentation:** `proxmox-bootstrap/NODE-SPAWNING.md` — operator
+- [x] 12.E.12: **Documentation:** `proxmox-bootstrap/NODE-SPAWNING.md` — operator
        runbook covering: prerequisites (bare Proxmox installed, SSH access),
        running hardware discovery on the broodling, selecting disposition interactively
        on the hatchery, reviewing the spawn plan's hardware fit assessment and warnings,
@@ -1337,57 +1359,57 @@ per VM, matching the existing cluster's declared variant.
 
 ### Phase 13 — Hardware and Platform State
 
-- [ ] 13.1: `data-model/hardware-state-schema.json` (BIOS, firmware, disks, NICs, UPS)
-- [ ] 13.2: Hardware State Tier 1 collector (extend bootstrap assessment)
-- [ ] 13.3: `data-model/platform-state-schema.json` (Proxmox config, certs, packages)
-- [ ] 13.4: Platform State Tier 2 collector
-- [ ] 13.5: Hardware requirements declaration in Bootstrap State
-- [ ] 13.6: Pre-reconstruction hardware verification playbook
-- [ ] 13.7: Hardware and Platform readiness scoring
+- [x] 13.1: `data-model/hardware-state-schema.json` (BIOS, firmware, disks, NICs, UPS)
+- [x] 13.2: Hardware State Tier 1 collector (extend bootstrap assessment)
+- [x] 13.3: `data-model/platform-state-schema.json` (Proxmox config, certs, packages)
+- [x] 13.4: Platform State Tier 2 collector
+- [x] 13.5: Hardware requirements declaration in Bootstrap State
+- [x] 13.6: Pre-reconstruction hardware verification playbook
+- [x] 13.7: Hardware and Platform readiness scoring
 
 ### Phase 14 — Cluster and Storage State
 
-- [ ] 14.1: `data-model/cluster-state-schema.json` (identity, topology, membership, history)
-- [ ] 14.2: Cluster State collector (Proxmox cluster API, Corosync, HA manager)
-- [ ] 14.3: `data-model/storage-state-schema.json` (ZFS, Ceph, CephFS, RBD, datastores)
-- [ ] 14.4: Storage State collector (ZFS CLI, Ceph status API)
-- [ ] 14.5: Ceph FSID in readiness scorer (RED if missing)
-- [ ] 14.6: Cluster and Storage waves in Reconstruction Playbook generator
+- [x] 14.1: `data-model/cluster-state-schema.json` (identity, topology, membership, history)
+- [x] 14.2: Cluster State collector (Proxmox cluster API, Corosync, HA manager)
+- [x] 14.3: `data-model/storage-state-schema.json` (ZFS, Ceph, CephFS, RBD, datastores)
+- [x] 14.4: Storage State collector (ZFS CLI, Ceph status API)
+- [x] 14.5: Ceph FSID in readiness scorer (RED if missing)
+- [x] 14.6: Cluster and Storage waves in Reconstruction Playbook generator
 
 ### Phase 15 — Data Protection State
 
-- [ ] 15.1: `data-model/data-protection-state-schema.json` (PBS, jobs, retention, RTO/RPO)
-- [ ] 15.2: Data Protection collector (PBS API, backup job inventory, verification status)
-- [ ] 15.3: RTO/RPO declaration format and compliance scoring
-- [ ] 15.4: Backup encryption key recoverability check (RED if not recoverable)
-- [ ] 15.5: PBS self-recovery plan check (ORANGE if absent)
-- [ ] 15.6: Data Protection readiness scoring additions
+- [x] 15.1: `data-model/data-protection-state-schema.json` (PBS, jobs, retention, RTO/RPO)
+- [x] 15.2: Data Protection collector (PBS API, backup job inventory, verification status)
+- [x] 15.3: RTO/RPO declaration format and compliance scoring
+- [x] 15.4: Backup encryption key recoverability check (RED if not recoverable)
+- [x] 15.5: PBS self-recovery plan check (ORANGE if absent)
+- [x] 15.6: Data Protection readiness scoring additions
 
 ### Phase 16 — Observability State
 
-- [ ] 16.1: `data-model/observability-state-schema.json` (monitoring stack, alerts, dashboards)
-- [ ] 16.2: Observability State collector
-- [ ] 16.3: Observability reconstruction in playbook generator
-- [ ] 16.4: Alert rule restoration in Recovery Runbook
+- [x] 16.1: `data-model/observability-state-schema.json` (monitoring stack, alerts, dashboards)
+- [x] 16.2: Observability State collector
+- [x] 16.3: Observability reconstruction in playbook generator
+- [x] 16.4: Alert rule restoration in Recovery Runbook
 
 ### Phase 17 — Digital Twin Foundation
 
-- [ ] 17.1: Cell Identity schema and registry (`twin/federation/cells/`)
-- [ ] 17.2: Twin storage layout (full `twin/` directory structure)
-- [ ] 17.3: Twin state writer (all collectors write to twin, not only history/)
-- [ ] 17.4: Staleness manifest (per-field confidence and last-updated tracking)
-- [ ] 17.5: Twin consistency checker (stale, missing, conflicting state detection)
-- [ ] **17.6: `cell_id` migration — all existing schemas updated (federation gate)**
+- [x] 17.1: Cell Identity schema and registry (`twin/federation/cells/`)
+- [x] 17.2: Twin storage layout (full `twin/` directory structure)
+- [x] 17.3: Twin state writer (all collectors write to twin, not only history/)
+- [x] 17.4: Staleness manifest (per-field confidence and last-updated tracking)
+- [x] 17.5: Twin consistency checker (stale, missing, conflicting state detection)
+- [x] **17.6: `cell_id` migration — all existing schemas updated (federation gate)**
 
 ### Phase 18 — Capability and Secret Reference State
 
-- [ ] 18.1: `data-model/capability-state-schema.json` (all capability categories)
-- [ ] 18.2: Capability declaration format and initial declaration
-- [ ] 18.3: Capability verification in Tier 2 assessment
-- [ ] 18.4: Capability index builder (aggregation across all cells)
-- [ ] 18.5: `data-model/secret-reference-state-schema.json` (standalone, with `owning_cell`)
-- [ ] 18.6: Secret Reference State migration (extract from Bootstrap State)
-- [ ] 18.7: Capability-based readiness scoring additions
+- [x] 18.1: `data-model/capability-state-schema.json` (all capability categories)
+- [x] 18.2: Capability declaration format and initial declaration
+- [x] 18.3: Capability verification in Tier 2 assessment
+- [x] 18.4: Capability index builder (aggregation across all cells)
+- [x] 18.5: `data-model/secret-reference-state-schema.json` (standalone, with `owning_cell`)
+- [x] 18.6: Secret Reference State migration (extract from Bootstrap State)
+- [x] 18.7: Capability-based readiness scoring additions
 
 **Gate:** Phase 18 completion validates the expanded state model.
 Track 3 begins after Phase 18.
@@ -1398,72 +1420,72 @@ Track 3 begins after Phase 18.
 
 ### Phase 19 — Federation State and Trust Model
 
-- [ ] 19.1: `data-model/federation-state-schema.json` (cell registry, relationships, trust)
-- [ ] 19.2: Cell identity and federation registry
-- [ ] 19.3: Trust relationship schema and declaration format (all relationship types)
-- [ ] 19.4: Trust relationship verification procedure (CLI + automated check)
-- [ ] 19.5: Recovery relationship schema and declaration format
-- [ ] 19.6: Recovery relationship verification (backup reachable, history readable)
-- [ ] 19.7: Tier 3 assessment engine (cross-cell, federation-scope)
-- [ ] 19.8: Federation State tests
+- [x] 19.1: `data-model/federation-state-schema.json` (cell registry, relationships, trust)
+- [x] 19.2: Cell identity and federation registry
+- [x] 19.3: Trust relationship schema and declaration format (all relationship types)
+- [x] 19.4: Trust relationship verification procedure (CLI + automated check)
+- [x] 19.5: Recovery relationship schema and declaration format
+- [x] 19.6: Recovery relationship verification (backup reachable, history readable)
+- [x] 19.7: Tier 3 assessment engine (cross-cell, federation-scope)
+- [x] 19.8: Federation State tests
 
 ### Phase 20 — Federation Documentation Generation
 
-- [ ] 20.1: Federation Workbook renderer (all cells, all relationships, federation readiness)
-- [ ] 20.2: Federation Runbook renderer (coordination procedures)
-- [ ] 20.3: Cell Workbook (full 17-state view per cell)
-- [ ] 20.4: Cell Runbook (full cell reconstruction)
-- [ ] 20.5: Cluster Workbook and Runbook
-- [ ] 20.6: Node Workbook and Runbook
-- [ ] 20.7: Dependency Workbook (all five graph types, multi-cell scope)
-- [ ] 20.8: Command Reference Sheets (pre-populated for all known values)
-- [ ] 20.9: Validation Sheets (post-recovery checklists)
+- [x] 20.1: Federation Workbook renderer (all cells, all relationships, federation readiness)
+- [x] 20.2: Federation Runbook renderer (coordination procedures)
+- [x] 20.3: Cell Workbook (full 17-state view per cell)
+- [x] 20.4: Cell Runbook (full cell reconstruction)
+- [x] 20.5: Cluster Workbook and Runbook
+- [x] 20.6: Node Workbook and Runbook
+- [x] 20.7: Dependency Workbook (all five graph types, multi-cell scope)
+- [x] 20.8: Command Reference Sheets (pre-populated for all known values)
+- [x] 20.9: Validation Sheets (post-recovery checklists)
 
 ### Phase 21 — Failure Domain Modeling
 
-- [ ] 21.1: Failure domain taxonomy schema
-- [ ] 21.2: Failure propagation rules engine (storage → VMs → services propagation)
-- [ ] 21.3: Blast radius calculator (given failure at level X, enumerate affected)
-- [ ] 21.4: SPOF detection (components with no recovery alternative)
-- [ ] 21.5: Circular recovery dependency detection
-- [ ] 21.6: Failure domain analysis in readiness reports
+- [x] 21.1: Failure domain taxonomy schema
+- [x] 21.2: Failure propagation rules engine (storage → VMs → services propagation)
+- [x] 21.3: Blast radius calculator (given failure at level X, enumerate affected)
+- [x] 21.4: SPOF detection (components with no recovery alternative)
+- [x] 21.5: Circular recovery dependency detection
+- [x] 21.6: Failure domain analysis in readiness reports
 
 ### Phase 22 — Multi-Level Readiness Assessment
 
-- [ ] 22.1: Hardware-level readiness scoring (new inputs from Phase 13)
-- [ ] 22.2: Cluster-level readiness scoring (new inputs from Phase 14)
-- [ ] 22.3: Cell-level readiness (aggregation across all 17 state categories)
-- [ ] 22.4: Federation-level readiness (aggregation across all cells)
-- [ ] 22.5: Federation Readiness Report
-- [ ] 22.6: Tier 3 assessment integration with multi-level readiness
+- [x] 22.1: Hardware-level readiness scoring (new inputs from Phase 13)
+- [x] 22.2: Cluster-level readiness scoring (new inputs from Phase 14)
+- [x] 22.3: Cell-level readiness (aggregation across all 17 state categories)
+- [x] 22.4: Federation-level readiness (aggregation across all cells)
+- [x] 22.5: Federation Readiness Report
+- [x] 22.6: Tier 3 assessment integration with multi-level readiness
 
 ### Phase 23 — Federated Reconstruction Planning
 
-- [ ] 23.1: Recovery coordinator model (coordinator selection from capability index)
-- [ ] 23.2: Phoenix package assembly (history, docs, repos, secrets, backup locations)
-- [ ] 23.3: Capability matching (find available cells for each recovery need)
-- [ ] 23.4: Multi-phase reconstruction playbook generator (all 7 phases)
-- [ ] 23.5: Cross-cell trust establishment automation
-- [ ] 23.6: Temporary workload migration planning
-- [ ] 23.7: Federated reconstruction tests
+- [x] 23.1: Recovery coordinator model (coordinator selection from capability index)
+- [x] 23.2: Phoenix package assembly (history, docs, repos, secrets, backup locations)
+- [x] 23.3: Capability matching (find available cells for each recovery need)
+- [x] 23.4: Multi-phase reconstruction playbook generator (all 7 phases)
+- [x] 23.5: Cross-cell trust establishment automation
+- [x] 23.6: Temporary workload migration planning
+- [x] 23.7: Federated reconstruction tests
 
 ### Phase 24 — Continuous Assessment and Twin Maintenance
 
-- [ ] 24.1: Scheduled assessment framework (cron-driven, cell-scoped)
-- [ ] 24.2: Repository ingestion hooks (git webhook → twin update on push)
-- [ ] 24.3: Deployment event hooks (tofu apply / ansible run → twin update)
-- [ ] 24.4: Staleness alerting (notify when state categories exceed threshold)
-- [ ] 24.5: Twin diff reporting (what changed in the twin since last report)
-- [ ] 24.6: PBS API integration for continuous Data Protection State updates
-- [ ] 24.7: Certificate expiry monitoring (continuous External Dependency State)
+- [x] 24.1: Scheduled assessment framework (cron-driven, cell-scoped)
+- [x] 24.2: Repository ingestion hooks (git webhook → twin update on push)
+- [x] 24.3: Deployment event hooks (tofu apply / ansible run → twin update)
+- [x] 24.4: Staleness alerting (notify when state categories exceed threshold)
+- [x] 24.5: Twin diff reporting (what changed in the twin since last report)
+- [x] 24.6: PBS API integration for continuous Data Protection State updates
+- [x] 24.7: Certificate expiry monitoring (continuous External Dependency State)
 
 ### Phase 25 — Reconstruction Validation
 
-- [ ] 25.1: Reconstruction drill framework (scheduled full-destroy + reconstruct)
-- [ ] 25.2: Reconstruction time measurement and RTO validation
-- [ ] 25.3: Automated post-reconstruction assessment and comparison
-- [ ] 25.4: Gap identification and remediation tracking
-- [ ] 25.5: Federation reconstruction drill (multi-cell coordinated scenario)
+- [x] 25.1: Reconstruction drill framework (scheduled full-destroy + reconstruct)
+- [x] 25.2: Reconstruction time measurement and RTO validation
+- [x] 25.3: Automated post-reconstruction assessment and comparison
+- [x] 25.4: Gap identification and remediation tracking
+- [x] 25.5: Federation reconstruction drill (multi-cell coordinated scenario)
 
 ---
 

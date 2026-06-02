@@ -84,3 +84,27 @@ Use `pvesm` or the Proxmox UI to upload snippets from `snippets/`.
   by the OpenTofu/Ansible pipeline
 - `bootstrap-state.json` is the machine-readable aggregation — update it whenever
   any file in this repository changes
+
+---
+
+## File Naming Convention
+
+Python files in this directory follow a two-file pattern for CLI entry points:
+
+| Style | Example | Purpose |
+|---|---|---|
+| **Hyphenated** | `collect-tier2.py` | Shell-invocable entry point — called from scripts and cron |
+| **Underscored** | `collect_tier2.py` | Importable Python module — contains all logic |
+
+Python cannot import modules with hyphens in their names (`import collect-tier2` is a
+syntax error), so the hyphenated file is a minimal wrapper that does nothing except call
+`from collect_tier2 import main`. All logic lives in the underscored module.
+
+Pairs using this pattern:
+- `collect-tier2.py` / `collect_tier2.py`
+- `forge-planner.py` / `forge_planner.py`
+- `spawn-planner.py` / `spawn_planner.py`
+- `phoenix-planner.py` / `phoenix_guided_setup.py`
+
+Single-file CLIs (no importable counterpart): `validate-metadata.py`, `suggest-names.py`,
+`generate-setup-manifest.py`, `generate-network-configs.py`, `generate-user-data.py`.

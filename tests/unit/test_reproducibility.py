@@ -1,7 +1,9 @@
 """
-Reproducibility test: same manifest → byte-identical ODS and ODT outputs.
+Reproducibility test: same manifest → identical outputs.
 
-Validates the requirement that historical snapshots produce deterministic docs.
+Tests both the legacy ODS/ODT renderers (which remain functional for
+downstream use) and the primary HTML renderers, validating that historical
+snapshots produce deterministic documents.
 """
 
 import hashlib

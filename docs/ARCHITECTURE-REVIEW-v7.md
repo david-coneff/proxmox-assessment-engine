@@ -1,9 +1,9 @@
-# Architecture Review — v7.0
+# Architecture Review — v7.1
 ## Self-Documenting, Self-Assessing, Self-Recovering Infrastructure Platform
 
-Date: 2026-05-31 16:27:40 UTC (2026-05-31 10:27:40 MDT)
-Status: Proposed — supersedes v6.0
-Replaces: docs/ARCHITECTURE-REVIEW-v6.md (retained for reference)
+Date: 2026-06-02 UTC (updated from v7.0 — adds Hatchery/Stargate/Phase 12.E spawn bootstrap)
+Status: Current
+Supersedes: v7.0 (2026-05-31), v6.0, v5.0, v4.0 (all retired to deprecated/)
 
 ---
 

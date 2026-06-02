@@ -176,6 +176,15 @@ class ServiceCatalog:
         return sum(self._services[n].get("vm_count", 1)
                    for n in names if n in self._services)
 
+    def password_format(self, name: str) -> str:
+        """Return 'alphanumeric' if this service declares password format restrictions; else 'default'."""
+        svc = self._services.get(name, {})
+        return svc.get("password_format", "default")
+
+    def alphanumeric_services(self, names: list[str]) -> list[str]:
+        """Return subset of names whose services require alphanumeric-only passwords."""
+        return [n for n in names if self.password_format(n) == "alphanumeric"]
+
 
 # ---------------------------------------------------------------------------
 # Service fit assessment
@@ -504,6 +513,17 @@ def build_spawn_plan(
     # were intentionally set by the operator vs. auto-calculated.
     if session.setup_overrides:
         plan["setup_overrides"] = session.setup_overrides
+
+    # Credential format overrides — services that require alphanumeric-only passwords.
+    # Populated from service-catalog.yaml password_format fields.
+    # Used by generated phase scripts to issue credentials in the correct format
+    # and to drive automatic retry logic (1.F.8) if a deployment fails due to
+    # password character restrictions.
+    alphanumeric_svcs = catalog.alphanumeric_services(services) if services else []
+    if alphanumeric_svcs:
+        plan["credential_format_overrides"] = {
+            svc: "alphanumeric" for svc in alphanumeric_svcs
+        }
 
     return plan
 

@@ -273,13 +273,13 @@ class TestHaPhaseConditional(unittest.TestCase):
 
 
 class TestWorkbookEmbedded(unittest.TestCase):
-    def test_workbook_ods_in_package(self):
+    def test_workbook_html_in_package(self):
         self._tmp = tempfile.TemporaryDirectory()
         tmp = Path(self._tmp.name)
         artifacts = _make_artifacts_dir(tmp)
         pkg = assemble_spawn_package(PLAN, MANIFEST, artifacts, tmp / "out", now=_NOW)
         contents = package_contents(pkg)
-        self.assertTrue(any(c.endswith(".ods") for c in contents))
+        self.assertTrue(any(c.endswith(".html") for c in contents))
         self._tmp.cleanup()
 
     def test_workbook_name_includes_hostname(self):
@@ -288,8 +288,8 @@ class TestWorkbookEmbedded(unittest.TestCase):
         artifacts = _make_artifacts_dir(tmp)
         pkg = assemble_spawn_package(PLAN, MANIFEST, artifacts, tmp / "out", now=_NOW)
         contents = package_contents(pkg)
-        ods = [c for c in contents if c.endswith(".ods")]
-        self.assertTrue(any("pve02" in c for c in ods))
+        html = [c for c in contents if c.endswith(".html")]
+        self.assertTrue(any("pve02" in c for c in html))
         self._tmp.cleanup()
 
 

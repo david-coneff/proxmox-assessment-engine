@@ -193,7 +193,7 @@ class TestPackageContents:
 
     def test_contains_workbook(self):
         items = _afp.package_contents(_manifest())
-        assert "forge-workbook.ods" in items
+        assert "forge-workbook.html" in items
 
     def test_contains_lib_scripts(self):
         items = _afp.package_contents(_manifest())
@@ -258,11 +258,11 @@ class TestAssembleForgePackage:
             phase_scripts = [x for x in names if f"phase-0{n}" in x or f"phase-{n:02d}" in x]
             assert phase_scripts, f"phase-{n:02d} script missing from archive"
 
-    def test_contains_workbook_ods(self, tmp_path):
+    def test_contains_workbook_html(self, tmp_path):
         pkg = self._build(tmp_path)
         with tarfile.open(str(pkg), "r:gz") as tar:
             names = tar.getnames()
-        assert "forge-workbook.ods" in names
+        assert "forge-workbook.html" in names
 
     def test_contains_lib_checkpoint(self, tmp_path):
         pkg = self._build(tmp_path)

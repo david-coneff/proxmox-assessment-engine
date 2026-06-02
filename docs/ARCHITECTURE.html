@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Broodforge Architecture — v7.1</title>
+<style>
+  :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
+    --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
+    --forge-h:#cba6f7;--spawn-h:#89dceb;--phoenix-h:#fab387;--code-bg:#181b21;--radius:6px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    font-size:14px;line-height:1.6;padding:24px;max-width:1100px;margin:0 auto}
+  h1{color:var(--accent);font-size:1.7em;margin-bottom:4px}
+  h2{color:var(--accent);font-size:1.05em;margin:24px 0 8px;text-transform:uppercase;letter-spacing:.05em;
+    border-bottom:1px solid var(--border);padding-bottom:4px}
+  h3{color:var(--accent);font-size:.95em;margin:14px 0 6px}
+  h4{color:var(--muted);font-size:.82em;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em}
+  .subtitle{color:var(--muted);margin-bottom:6px;font-size:.95em}
+  .meta{color:var(--muted);font-size:.8em;margin-bottom:24px}
+  p{margin:8px 0}ul,ol{margin:8px 0 8px 20px}li{margin:4px 0}
+  code{background:var(--code-bg);color:var(--green);padding:1px 5px;border-radius:3px;
+    font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.9em}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 14px;overflow-x:auto;margin:10px 0;font-family:'Cascadia Code','Fira Code',Consolas,monospace;
+    font-size:.85em;color:var(--green);white-space:pre}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+  th{background:var(--bg2);color:var(--muted);text-align:left;padding:6px 8px;
+    border-bottom:1px solid var(--border);font-weight:600;font-size:.8em;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:5px 8px;border-bottom:1px solid var(--bg3);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tip{background:#1e2d3a;border-left:3px solid var(--accent);padding:8px 12px;
+    border-radius:0 var(--radius) var(--radius) 0;margin:10px 0}
+  .warn{background:#3a2e1a;border-left:3px solid var(--yellow);padding:8px 12px;
+    border-radius:0 var(--radius) var(--radius) 0;margin:10px 0}
+  /* ── Details / Summary ── */
+  details{margin:6px 0}
+  details[open]>summary{border-radius:var(--radius) var(--radius) 0 0}
+  summary{cursor:pointer;user-select:none;padding:9px 14px;border-radius:var(--radius);
+    list-style:none;display:flex;align-items:center;gap:8px;font-weight:600}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'▶';font-size:.7em;color:var(--muted);transition:transform .15s;flex-shrink:0}
+  details[open]>summary::before{transform:rotate(90deg)}
+  .detail-body{padding:14px 18px 14px 36px}
+  /* Phase colors */
+  details.phase-a>summary{background:#2d2640;color:var(--forge-h);border:1px solid #4a3d6e}
+  details.phase-a>.detail-body{background:#211e2a;border:1px solid #3a3050;border-top:none;border-radius:0 0 var(--radius) var(--radius)}
+  details.phase-b>summary{background:#1e3040;color:var(--spawn-h);border:1px solid #2e5060}
+  details.phase-b>.detail-body{background:#1b2a34;border:1px solid #2a4050;border-top:none;border-radius:0 0 var(--radius) var(--radius)}
+  details.phase-c>summary{background:#3a2620;color:var(--phoenix-h);border:1px solid #6e3a28}
+  details.phase-c>.detail-body{background:#2e201c;border:1px solid #5a3028;border-top:none;border-radius:0 0 var(--radius) var(--radius)}
+  details.phase-d>summary{background:#1e3a22;color:var(--green);border:1px solid #2e5a32}
+  details.phase-d>.detail-body{background:#1a2e1e;border:1px solid #285030;border-top:none;border-radius:0 0 var(--radius) var(--radius)}
+  details.section>summary{background:var(--bg2);color:var(--text);border:1px solid var(--border);font-weight:600;font-size:.92em;padding:7px 12px}
+  details.section>.detail-body{background:var(--bg3);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:12px 16px 12px 32px}
+  details.ad>summary{background:var(--bg2);color:var(--muted);border:1px solid var(--border);font-family:monospace;font-size:.88em;padding:6px 12px;font-weight:500}
+  details.ad>.detail-body{background:var(--bg);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:10px 14px 10px 30px;font-size:.88em}
+  /* ── Layout helpers ── */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:10px 0}
+  @media(max-width:700px){.two-col{grid-template-columns:1fr}}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px}
+  .card h3{margin:0 0 6px;font-size:.9em}
+  .card p{margin:0;font-size:.85em;color:var(--muted)}
+  .hierarchy{font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.82em;
+    color:var(--text);background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 16px;margin:10px 0;white-space:pre;overflow-x:auto;line-height:1.7}
+  .badge{display:inline-block;background:var(--bg2);border:1px solid var(--border);
+    border-radius:99px;padding:2px 10px;font-size:.75em;color:var(--muted);margin:2px 3px}
+  .badge-forge{background:#2d2640;color:var(--forge-h);border-color:#4a3d6e}
+  .badge-spawn{background:#1e3040;color:var(--spawn-h);border-color:#2e5060}
+  .badge-phoenix{background:#3a2620;color:var(--phoenix-h);border-color:#6e3a28}
+  .score-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0}
+  @media(max-width:700px){.score-grid{grid-template-columns:1fr 1fr}}
+  .score-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;text-align:center}
+  .score-card .score-abbr{font-size:1.1em;font-weight:700;font-family:monospace;color:var(--accent)}
+  .score-card .score-name{font-size:.72em;color:var(--muted);margin-top:2px}
+  .toc-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin:8px 0}
+  @media(max-width:600px){.toc-grid{grid-template-columns:1fr}}
+  .toc-grid a{color:var(--muted);text-decoration:none;font-size:.88em}
+  .toc-grid a:hover{color:var(--accent)}
+  .controls{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .ctrl-btn{background:var(--bg2);border:1px solid var(--border);color:var(--muted);
+    padding:5px 14px;border-radius:var(--radius);cursor:pointer;font-size:.82em}
+  .ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+  @media print{body{background:#fff;color:#000}.controls{display:none!important}details{display:block!important}summary::before{display:none}}
+</style>
+</head>
+<body>
+
+<h1>Broodforge Architecture</h1>
+<p class="subtitle">Self-Documenting, Self-Assessing, Self-Recovering Infrastructure Platform</p>
+<p class="meta">Version: 7.1 · Updated: 2026-06-02 · See also: <a href="ARCHITECTURE-REVIEW-v7.md" style="color:var(--accent)">ARCHITECTURE-REVIEW-v7.md</a> (full review) · <a href="../ROADMAP.md" style="color:var(--accent)">ROADMAP.md</a></p>
+
+<div class="controls">
+  <button class="ctrl-btn" onclick="document.querySelectorAll('details').forEach(d=>d.open=true)">⊞ Expand all</button>
+  <button class="ctrl-btn" onclick="document.querySelectorAll('details').forEach(d=>d.open=false)">⊟ Collapse all</button>
+  <button class="ctrl-btn" onclick="window.print()">🖨 Print</button>
+</div>
+
+<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:24px">
+  <h2 style="margin:0 0 10px;border:none">Contents</h2>
+  <div class="toc-grid">
+    <a href="#philosophy">1. Foundational philosophy</a>
+    <a href="#phases">2. Four intelligence phases</a>
+    <a href="#stack">3. Platform stack</a>
+    <a href="#truth">4. Source of truth hierarchy</a>
+    <a href="#hierarchy">5. Architecture hierarchy</a>
+    <a href="#packages">6. Three processes and packages</a>
+    <a href="#mvd">7. Minimum viable deployment</a>
+    <a href="#spawning">8. Node spawning — hatchery process</a>
+    <a href="#scores">9. Assessment scores</a>
+    <a href="#decisions">10. Architecture decision log</a>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="philosophy">1. Foundational Philosophy</h2>
+
+<div class="tip">
+  <strong>The platform's primary product is not virtual machines.</strong><br>
+  Applications (Forgejo, Nextcloud, monitoring) are workloads that <em>run on</em> the platform and benefit from its capabilities. They are not the reason the platform exists.
+</div>
+
+<details class="section" open>
+<summary>What the platform exists to produce</summary>
+<div class="detail-body">
+  <div class="two-col">
+    <div class="card">
+      <h3>Reproducibility</h3>
+      <p>Any component can be rebuilt from repository state. No manual knowledge required.</p>
+    </div>
+    <div class="card">
+      <h3>Recoverability</h3>
+      <p>Any failure mode has a documented, tested recovery path — generated before it's ever needed.</p>
+    </div>
+    <div class="card">
+      <h3>Documentation</h3>
+      <p>Everything that exists has a documented reason for existing, kept current automatically.</p>
+    </div>
+    <div class="card">
+      <h3>Operational intelligence</h3>
+      <p>The platform continuously knows its own state and scores its own health against declared intent.</p>
+    </div>
+  </div>
+  <h4>Concrete architectural consequences</h4>
+  <ul>
+    <li>The documentation engine and assessment engine are deployed <strong>before any user application workload</strong></li>
+    <li>A workload that cannot be documented or assessed is not fit for deployment on this platform</li>
+    <li>Recovery capability is a deployment <em>prerequisite</em>, not a post-deployment concern</li>
+    <li>The platform continuously earns the right to host workloads by maintaining its own understanding of itself</li>
+  </ul>
+</div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="phases">2. Four Intelligence Phases</h2>
+
+<p style="color:var(--muted);font-size:.88em">Each phase has a distinct runtime, purpose, and set of produced artifacts. Phases B/C/D are k3s workloads; Phase A is a pre-k3s stdlib Python tool that runs on the operator's workstation or the hatchery itself.</p>
+
+<details class="phase-a" open>
+<summary>Phase A — Bootstrap Intelligence &nbsp;<span style="font-weight:400;font-size:.85em">(pre-k3s · stdlib Python · operator machine or hatchery)</span></summary>
+<div class="detail-body">
+  <p><strong>Purpose:</strong> Build the first-ever environment from bare metal; spawn additional nodes onto an existing cluster.</p>
+  <p><strong>Two processes:</strong></p>
+  <table>
+    <tr><th>Process</th><th>Produces</th><th>When</th></tr>
+    <tr><td><strong>Forging Process</strong></td><td>Forge package → bare hardware becomes first hatchery</td><td>First run only</td></tr>
+    <tr><td><strong>Hatchery Process</strong></td><td>Spawn packages → broodlings join existing cluster</td><td>Subsequent runs</td></tr>
+  </table>
+  <p><strong>Constraint:</strong> stdlib Python only — no pip, no external dependencies. Runs without network access from the forge package. All data from embedded manifests.</p>
+</div>
+</details>
+
+<details class="phase-b">
+<summary>Phase B — Operational Intelligence &nbsp;<span style="font-weight:400;font-size:.85em">(k3s workload · runs continuously)</span></summary>
+<div class="detail-body">
+  <p><strong>Purpose:</strong> Understand and document a running environment. Score its health continuously.</p>
+  <table>
+    <tr><th>Produces</th></tr>
+    <tr><td>Living inventory — all VMs, services, volumes, network topology</td></tr>
+    <tr><td>Architecture documentation — what exists and why</td></tr>
+    <tr><td>Dependency maps — five graph types (service, network, data, secret, compute)</td></tr>
+    <tr><td>Drift reports — detected divergence between declared intent and observed reality</td></tr>
+    <tr><td>Five assessment scores — ACS, RRS, DCS, CRS, OSS (see Section 9)</td></tr>
+  </table>
+</div>
+</details>
+
+<details class="phase-c">
+<summary>Phase C — Recovery Intelligence &nbsp;<span style="font-weight:400;font-size:.85em">(k3s workload · Stargate Process · triggered by Phase B)</span></summary>
+<div class="detail-body">
+  <p><strong>Purpose:</strong> Generate phoenix packages — reconstituting a failed node's <em>identity</em> on new hardware. Identity is preserved; underlying hardware adapts.</p>
+  <table>
+    <tr><th>Produces</th></tr>
+    <tr><td>Phoenix packages — self-contained, offline-capable recovery archives</td></tr>
+    <tr><td>Readiness scores per node — is this node's recovery package current and actionable?</td></tr>
+    <tr><td>Recovery runbooks — step-by-step human-readable reconstruction guides</td></tr>
+    <tr><td>Recovery workbooks — HTML execution records for post-recovery audit</td></tr>
+  </table>
+</div>
+</details>
+
+<details class="phase-d">
+<summary>Phase D — Execution Intelligence &nbsp;<span style="font-weight:400;font-size:.85em">(k3s workload for generation · standalone for execution)</span></summary>
+<div class="detail-body">
+  <p><strong>Purpose:</strong> Execute phoenix package scripts; capture failure packages for the improvement loop; learn from failures.</p>
+  <table>
+    <tr><th>Produces</th></tr>
+    <tr><td>Phoenix scripts — identity-preserving bash with hardware adaptation at runtime</td></tr>
+    <tr><td>HTML workbooks — operator-fillable execution records</td></tr>
+    <tr><td>Failure packages — structured archives when a phase fails; sent to hatchery for analysis</td></tr>
+    <tr><td>Improvement loop — failure packages → LLM analysis → bootstrap repository updates</td></tr>
+  </table>
+</div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="stack">3. Platform Stack</h2>
+
+<table>
+  <tr><th>Layer</th><th>Technology</th><th>Role</th></tr>
+  <tr><td>Hypervisor</td><td>Proxmox VE</td><td>VM hosting, storage, networking, snapshots</td></tr>
+  <tr><td>IaC</td><td>OpenTofu</td><td>Proxmox VM provisioning — declared infrastructure</td></tr>
+  <tr><td>Configuration</td><td>Ansible</td><td>VM and service configuration (Ubuntu nodes)</td></tr>
+  <tr><td>Provisioning</td><td>Cloud-Init</td><td>VM first-boot identity: hostname, IP, SSH keys, packages</td></tr>
+  <tr><td>Git hosting</td><td>Forgejo (VM, pre-k3s)</td><td>All repositories — source of truth for configuration</td></tr>
+  <tr><td>GitOps</td><td>Flux CD</td><td>Continuous reconciliation from Git to k3s</td></tr>
+  <tr><td>Orchestration</td><td>k3s</td><td>All application workloads; lightweight Kubernetes</td></tr>
+  <tr><td>Documentation</td><td>doc-engine (k3s workload)</td><td>Phase B/C/D intelligence — first k3s workload deployed</td></tr>
+  <tr><td>Workbooks</td><td>HTML (machine-generated)</td><td>Execution records for recovery audit trail — self-contained, browser-viewable, print-friendly</td></tr>
+  <tr><td>Secrets</td><td>KeePass (keepassxc-cli)</td><td>All credentials — values never in repository</td></tr>
+  <tr><td>Backup</td><td>restic + rclone</td><td>Encrypted versioned backups; KeePass plain-copy</td></tr>
+  <tr><td>Networking (LAN)</td><td>dnsmasq</td><td>Split-horizon DNS for LAN resolution</td></tr>
+  <tr><td>Networking (WAN)</td><td>Headscale + Tailscale</td><td>WAN spawn; tailnet for cross-network nodes</td></tr>
+  <tr><td>TLS</td><td>certbot or acme.sh + cert-manager</td><td>Let's Encrypt DNS-01; wildcard certs</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="truth">4. Source of Truth Hierarchy</h2>
+
+<div class="hierarchy">AUTHORITATIVE — edit these directly
+  1. Metadata YAML files   infrastructure intent (metadata/)
+  2. Git repositories      declared state (OpenTofu, k8s manifests, configs)
+  3. OpenTofu state        provisioned infrastructure
+  4. k3s / k8s API         live running state
+
+DERIVED — never edit directly; regenerate from 1–4
+  5. Generated documentation
+  6. Generated phoenix/spawn packages and scripts
+  7. HTML workbook execution records  (exception: these are the audit trail — operator fills them)
+
+DISPOSABLE — safe to delete and regenerate
+  8. Cached manifests, rendered templates, intermediate artifacts</div>
+
+<details class="section">
+<summary>Governance rules</summary>
+<div class="detail-body">
+  <ul>
+    <li>Metadata YAML files are <strong>never generated</strong> — they are always set by the operator and reflect intent</li>
+    <li>When two sources disagree, the higher-ranked source wins; the assessment engine flags the discrepancy</li>
+    <li>Any change to sources 1–4 triggers a reassessment cycle</li>
+    <li>Generated artifacts (5–8) are reproducible: same inputs → same outputs every time</li>
+    <li>The only exception to "never edit derived" is the HTML workbook execution record — operators fill in steps as they complete them</li>
+  </ul>
+</div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="hierarchy">5. Architecture Hierarchy</h2>
+
+<div class="hierarchy">Federation
+└── Infrastructure Cell
+    └── Proxmox Cluster
+        └── Proxmox Node(s)
+            ├── Pre-k3s VMs
+            │   ├── forgejo-vm      (VM 100)  Forgejo Git hosting — source of truth
+            │   └── bootstrap-vm    (VM 101)  Phase A toolchain
+            └── k3s Cluster
+                ├── Control Plane   (1 server initially; 3 for HA after Phase 9)
+                ├── Worker Nodes
+                └── Namespaces
+                    ├── platform/       cert-manager, ingress-nginx, flux-system
+                    ├── documentation/  doc-engine (Phase B/C/D) ← FIRST WORKLOAD
+                    ├── monitoring/     Prometheus, Grafana, Loki
+                    └── applications/   User services (after documentation gates pass)</div>
+
+<details class="section">
+<summary>Node terminology</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Term</th><th>Meaning</th></tr>
+    <tr><td><strong>Hatchery</strong></td><td>What forging produces — the operational first node; runs both the k3s cluster and the hatchery process</td></tr>
+    <tr><td><strong>Broodling</strong></td><td>A newly spawned node joining the existing cluster; produced by the hatchery process</td></tr>
+    <tr><td><strong>Federation</strong></td><td>Multiple infrastructure cells with cross-cell trust relationships and shared recovery awareness</td></tr>
+  </table>
+</div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="packages">6. Three Processes and Packages</h2>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0">
+  <div style="background:#2d2640;border:1px solid #4a3d6e;border-radius:var(--radius);padding:12px 14px">
+    <p style="color:var(--forge-h);font-weight:700;margin:0 0 6px">🔨 Forging Process</p>
+    <p style="margin:0;font-size:.88em">Bare hardware → operational hatchery</p>
+    <p style="margin:4px 0 0;font-size:.82em;color:var(--muted)">Produces: Forge package</p>
+  </div>
+  <div style="background:#1e3040;border:1px solid #2e5060;border-radius:var(--radius);padding:12px 14px">
+    <p style="color:var(--spawn-h);font-weight:700;margin:0 0 6px">🥚 Hatchery Process</p>
+    <p style="margin:0;font-size:.88em">Hatchery spawns broodlings (new identity, no conflict)</p>
+    <p style="margin:4px 0 0;font-size:.82em;color:var(--muted)">Produces: Spawn packages</p>
+  </div>
+  <div style="background:#3a2620;border:1px solid #6e3a28;border-radius:var(--radius);padding:12px 14px">
+    <p style="color:var(--phoenix-h);font-weight:700;margin:0 0 6px">🦅 Stargate Process</p>
+    <p style="margin:0;font-size:.88em">Failed node resurrected (identity preserved, hardware adapts)</p>
+    <p style="margin:4px 0 0;font-size:.82em;color:var(--muted)">Produces: Phoenix packages</p>
+  </div>
+</div>
+
+<details class="section">
+<summary>Package contents and offline capability</summary>
+<div class="detail-body">
+  <p>All three packages are <strong>self-contained archives</strong> that execute from a USB drive or local copy without querying any network service. The embedded manifest is the point-in-time reservation snapshot the package operates from.</p>
+  <table>
+    <tr><th>Package component</th><th>Forge</th><th>Spawn</th><th>Phoenix</th></tr>
+    <tr><td>Manifest (reservations, fingerprints, tokens)</td><td>forge-manifest.json</td><td>spawn-manifest.json</td><td>phoenix-playbook.json</td></tr>
+    <tr><td>Hardware profile</td><td>generated during phase-00</td><td>embedded at package time</td><td>embedded at package time</td></tr>
+    <tr><td>OpenTofu IaC</td><td>full set</td><td>disposition-scoped only</td><td>disposition-scoped only</td></tr>
+    <tr><td>Ansible</td><td>full set</td><td>disposition-scoped only</td><td>restoration-wave-scoped</td></tr>
+    <tr><td>Cloud-Init snippets</td><td>full set</td><td>disposition-scoped only</td><td>disposition-scoped only</td></tr>
+    <tr><td>Phase scripts</td><td>phase-00 through phase-08</td><td>phase-00 through phase-06</td><td>run-all.sh + wave scripts</td></tr>
+    <tr><td>KeePass database</td><td>optional (operator controls)</td><td>optional (operator controls)</td><td>optional (operator controls)</td></tr>
+    <tr><td>Execution workbook</td><td>forge-workbook.html</td><td>spawn-workbook.html</td><td>phoenix-workbook.html</td></tr>
+  </table>
+</div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="mvd">7. Minimum Viable Deployment</h2>
+
+<div class="tip"><strong>Objective:</strong> create a self-documenting cluster — before any user service. The documentation gate must pass before applications are deployed.</div>
+
+<details class="section" open>
+<summary>Deployment sequence</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Phase</th><th>VMs created</th><th>RAM</th><th>Purpose</th></tr>
+    <tr><td>Pre-k3s (Phase 2)</td><td>forgejo-vm (VM 100)</td><td>2 GB</td><td>Git hosting — source of truth</td></tr>
+    <tr><td>Pre-k3s (Phase 2)</td><td>bootstrap-vm (VM 101)</td><td>2 GB</td><td>Phase A toolchain</td></tr>
+    <tr><td>k3s initial (Phase 3)</td><td>k3s-server-01 (VM 110)</td><td>4 GB</td><td>Single-node k3s</td></tr>
+    <tr><td colspan="4" style="color:var(--muted);font-size:.85em">First k3s workloads (in strict order — Phase 4):</td></tr>
+    <tr><td>1st</td><td colspan="2">cert-manager, ingress-nginx, flux-system</td><td>Platform namespace</td></tr>
+    <tr><td>2nd</td><td colspan="2"><strong>doc-engine</strong></td><td>Documentation namespace ← <strong>GATE</strong></td></tr>
+    <tr><td>3rd</td><td colspan="2">prometheus, grafana, loki</td><td>Monitoring namespace</td></tr>
+    <tr><td>After gate</td><td colspan="2">nextcloud, immich, etc.</td><td>Applications namespace</td></tr>
+  </table>
+  <div class="warn">The documentation system must be running and passing before any user application is deployed. This is enforced by the assessment engine gate check.</div>
+</div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="spawning">8. Node Spawning — Hatchery Process</h2>
+
+<details class="section" open>
+<summary>Overview: how a broodling is spawned</summary>
+<div class="detail-body">
+  <ol>
+    <li>Assessment engine reads hatchery's current cluster state — all reserved VMIDs, IPs, hostnames, k3s join tokens, cluster topology</li>
+    <li>Operator selects execution mode first (Interactive vs Autonomous), then service disposition (full mirror / by group / individually)</li>
+    <li>Conflict validator checks all proposed allocations — RED on any VMID/IP/hostname collision blocks package generation</li>
+    <li>Spawn package assembled — self-contained archive copied to broodling after bare Proxmox install</li>
+    <li>Broodling runs spawn.sh — executes phases 00–06 unattended (autonomous) or with a service menu (interactive)</li>
+    <li>Bootstrap-state.json updated on hatchery and committed to Forgejo</li>
+  </ol>
+</div>
+</details>
+
+<details class="section">
+<summary>Execution modes</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Mode</th><th>Service selection</th><th>Execution</th></tr>
+    <tr><td><strong>Autonomous</strong> (default)</td><td>Selected on hatchery at package-generation time; locked into package</td><td>spawn.sh runs end-to-end unattended after KeePass unlock gate</td></tr>
+    <tr><td><strong>Interactive</strong></td><td>No selection at generation time; all service scripts included in package</td><td>spawn.sh presents service menu on the broodling at runtime, evaluating actual hardware there</td></tr>
+  </table>
+  <div class="tip">Asking execution mode <strong>first</strong> means Interactive operators skip the service selection flow entirely on the hatchery.</div>
+</div>
+</details>
+
+<details class="section">
+<summary>Service selection modes (Autonomous only)</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Mode</th><th>Description</th></tr>
+    <tr><td>Mode 1 — Full mirror</td><td>All services that fit this hardware; exclusions shown with reason; operator confirms or switches mode</td></tr>
+    <tr><td>Mode 2 — Select by group</td><td>Infrastructure / Platform / Intelligence / Monitoring / Applications — toggle whole groups, then fine-tune</td></tr>
+    <tr><td>Mode 3 — Select individually</td><td>Every service listed with fit status (RAM req vs available); dependencies enforced</td></tr>
+  </table>
+  <p style="font-size:.85em;color:var(--muted)">Intelligence baseline (Proxmox cluster membership, k3s worker, assessment/doc engine visibility) is always included — cannot be deselected.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>Phase-by-phase spawn execution (on the broodling)</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Phase</th><th>Name</th><th>What it does</th></tr>
+    <tr><td><code>phase-00a</code></td><td>Hardware pre-flight</td><td>Read-only scan; diffs against hardware-profile.json; any mismatch → failure package, exit without touching anything</td></tr>
+    <tr><td><code>phase-00b</code></td><td>Host configuration</td><td>Hostname, /etc/hosts, bridge definitions, ifreload, ZFS pool, pvesm, apt repos</td></tr>
+    <tr><td><code>phase-01</code></td><td>Proxmox cluster join</td><td><code>pvecm add &lt;hatchery&gt; --fingerprint &lt;from manifest&gt;</code></td></tr>
+    <tr><td><code>phase-02</code></td><td>VM provisioning</td><td><code>tofu apply</code> — disposition-scoped tfvars</td></tr>
+    <tr><td><code>phase-03</code></td><td>Cloud-Init + VM startup</td><td>Install snippets → start VMs → poll SSH readiness</td></tr>
+    <tr><td><code>phase-04</code></td><td>k3s cluster join</td><td>Ansible: k3s-server or k3s-worker role, join token from manifest</td></tr>
+    <tr><td><code>phase-05</code></td><td>HA promotion</td><td>SQLite → embedded etcd migration (conditional — only if this is the 3rd server node)</td></tr>
+    <tr><td><code>phase-06</code></td><td>Verify</td><td>Cluster health, all disposition VMs running, conflict re-validation vs live state</td></tr>
+  </table>
+</div>
+</details>
+
+<details class="section">
+<summary>What adapts vs what stays identical across all nodes</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Adapts to each broodling's hardware</th><th>Stays identical across all nodes</th></tr>
+    <tr><td>ZFS pool topology (disk count/mix)</td><td>Naming convention</td></tr>
+    <tr><td>NIC bridge/bond layout</td><td>KeePass path structure</td></tr>
+    <tr><td>VM RAM sizing within available capacity</td><td>Proxmox cluster membership</td></tr>
+    <tr><td>IP/VMID/hostname allocations</td><td>Intelligence collection baseline (assessment + doc engine visibility)</td></tr>
+    <tr><td>Services trimmed to what hardware can support</td><td>Secret references</td></tr>
+  </table>
+</div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="scores">9. Assessment Scores</h2>
+
+<div class="score-grid">
+  <div class="score-card"><div class="score-abbr">ACS</div><div class="score-name">Architecture Completeness Score</div></div>
+  <div class="score-card"><div class="score-abbr">RRS</div><div class="score-name">Recovery Readiness Score</div></div>
+  <div class="score-card"><div class="score-abbr">DCS</div><div class="score-name">Documentation Currency Score</div></div>
+  <div class="score-card"><div class="score-abbr">CRS</div><div class="score-name">Capacity Readiness Score</div></div>
+  <div class="score-card"><div class="score-abbr">OSS</div><div class="score-name">Operational Stability Score</div></div>
+</div>
+
+<details class="section">
+<summary>Score levels and thresholds</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Level</th><th>Meaning</th><th>Operator action</th></tr>
+    <tr><td style="color:var(--green)"><strong>GREEN</strong></td><td>All checks pass; within thresholds</td><td>None required</td></tr>
+    <tr><td style="color:var(--yellow)"><strong>YELLOW</strong></td><td>Approaching threshold; attention warranted</td><td>Monitor; plan remediation</td></tr>
+    <tr><td style="color:var(--orange)"><strong>ORANGE</strong></td><td>Threshold exceeded; degraded but functional</td><td>Remediate before next major operation</td></tr>
+    <tr><td style="color:var(--red)"><strong>RED</strong></td><td>Critical; recovery or operation blocked</td><td>Stop and fix before proceeding</td></tr>
+    <tr><td style="color:var(--muted)"><strong>BLOCKED</strong></td><td>Cannot compute — a prerequisite is missing</td><td>Fix the missing prerequisite</td></tr>
+  </table>
+  <p style="color:var(--muted);font-size:.85em">A platform-health score (PHS) is derived as the weighted composite of all five scores. The assessment engine computes PHS continuously and reports it in the operational report and spawn gate check.</p>
+</div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<h2 id="decisions">10. Architecture Decision Log</h2>
+
+<p style="color:var(--muted);font-size:.85em">Decisions are numbered AD-NNN. The rationale for each decision is recorded here to prevent re-litigating closed questions.</p>
+
+<details class="ad"><summary>AD-022 — k3s as primary application platform (over Podman)</summary>
+<div class="detail-body">Scheduling, failover, HA, standard workload definition format, rich API surface. k3s bootstraps into a fresh cluster via a single binary and joins the Proxmox cluster — compatible with the recovery model. Podman lacks the scheduling and HA story needed for multi-node operation.</div></details>
+
+<details class="ad"><summary>AD-023 — Flux CD as GitOps engine (over ArgoCD)</summary>
+<div class="detail-body"><code>flux bootstrap</code> on a fresh cluster, pointed at Forgejo, reconciles the entire platform automatically. This recovery-bootstrapping advantage is decisive. ArgoCD requires a running cluster to install ArgoCD — a circular dependency during recovery.</div></details>
+
+<details class="ad"><summary>AD-024 — Forgejo as sole Git provider; external providers are mirrors only</summary>
+<div class="detail-body">Forgejo runs as a pre-k3s VM — available even when k3s is down. Making it the source of truth means recovery can proceed without internet access. GitHub/GitLab are optional push mirrors for off-site backup only.</div></details>
+
+<details class="ad"><summary>AD-025 — HTML as machine-generated workbook format</summary>
+<div class="detail-body">Self-contained HTML with embedded CSS/JS: no dependencies, browser-viewable without LibreOffice, print-friendly, machine-writable from Python stdlib. Checkboxes and collapsible sections are interactive; state persists in localStorage. Workbooks open directly from a package archive with no application install required.</div></details>
+
+<details class="ad"><summary>AD-026 — Metadata YAML as primary source of infrastructure intent</summary>
+<div class="detail-body">Infrastructure intent (what should exist) lives in YAML files that are never generated. Everything else is derived from them. This makes intent explicit, version-controlled, and diff-able.</div></details>
+
+<details class="ad"><summary>AD-027 — Four intelligence phases with distinct runtimes (pre/post k3s)</summary>
+<div class="detail-body">Phase A must run before k3s exists — stdlib Python only, no container runtime required. Phases B/C/D benefit from the k3s scheduler, persistent storage, and networking. Mixing the runtimes would make Phase A depend on what Phase A produces.</div></details>
+
+<details class="ad"><summary>AD-028 — Documentation engine is the first k3s workload</summary>
+<div class="detail-body">Applications benefit from broodforge's documentation and recovery capabilities only if those capabilities are operational first. The documentation gate prevents deploying applications that cannot be documented or recovered.</div></details>
+
+<details class="ad"><summary>AD-029 — Phoenix packages are self-contained and offline-capable; identity preserved, hardware adapts</summary>
+<div class="detail-body">A phoenix package must execute Phases 1–3 of recovery without network access. The node being recovered may have destroyed the network infrastructure it depends on. Identity preservation means the recovered node resumes its role with the same VMID, hostname, and IP — no cluster updates needed.</div></details>
+
+<details class="ad"><summary>AD-030 — Failure packages structured for LLM analysis</summary>
+<div class="detail-body">The self-improvement loop: failure → structured failure package → LLM analysis → bootstrap repository update. Failure packages include the spawn manifest, hardware profile, logs, and checkpoints so an LLM has full context for diagnosis and fix suggestion.</div></details>
+
+<details class="ad"><summary>AD-039 — Spawn packages are self-contained; broodling never queries hatchery API during execution</summary>
+<div class="detail-body">The spawn manifest embedded in the package is the point-in-time reservation snapshot. A WAN broodling may lose connectivity mid-execution. The package must be sufficient on its own. All VMID/IP/hostname conflicts are pre-checked at package generation time.</div></details>
+
+<details class="ad"><summary>AD-040 — Initial deployment (forging) is an 8-phase process producing an operational hatchery</summary>
+<div class="detail-body">Phases: discover → plan → validate → host-config → VMs → k3s → GitOps → intelligence. Minimum viable forge deploys only the broodforge stack (doc engine + assessment engine). User applications are added via GitOps after intelligence gates pass.</div></details>
+
+<details class="ad"><summary>AD-041 — Execution mode is asked first; Interactive operators skip service selection entirely</summary>
+<div class="detail-body">Asking mode (Interactive vs Autonomous) before service selection means Interactive operators never see the service selection flow — they answer one question and the package is built. Autonomous operators then proceed through service selection. This reduces friction for the common Interactive homelab case.</div></details>
+
+<details class="ad"><summary>AD-042 — KeePass database is optionally embedded in packages; embedding doesn't compromise security</summary>
+<div class="detail-body">The database cannot be auto-unlocked — the operator must enter the master password at the KeePass gate before any secret is accessed. Embedding the database in the package means one fewer manual step during recovery. If not embedded, the operator provides a path (USB, local disk) at runtime. No secret value is ever written to the node filesystem in plain text.</div></details>
+
+<details class="ad"><summary>AD-043 — Readable passphrase format: Capital.word.phrase.9</summary>
+<div class="detail-body">Leading capital, lowercase words, period separators, trailing single digit, 20–30 characters. Human-memorable, typeable in a terminal without shell escaping, satisfies most service requirements. Services that reject periods auto-detect failure and offer a plain alphanumeric regeneration. Service-specific format restrictions are recorded in service-catalog.yaml and applied automatically in future deployments.</div></details>
+
+<details class="ad"><summary>AD-044 — Backup engine: restic + rclone, per-backup rotating restic password, three layers</summary>
+<div class="detail-body">Three layers: (1) KeePass DB — plain rclone copy, no restic (already AES-256; restic would create circular dependency with KeePass holding restic passwords); (2) configuration state — encrypted via restic; (3) application data volumes — opt-in, encrypted via restic. Each backup run rotates the restic repo password via <code>restic key add</code> + <code>key remove</code>; new password stored in KeePass at a timestamped path; secrets broker looks up the exact key per snapshot at restore time.</div></details>
+
+<details class="ad"><summary>AD-045 — Timezone preference in bootstrap-state.json; all timestamps show UTC + local</summary>
+<div class="detail-body">Operator sets timezone at forge time; stored as <code>vm_defaults.timezone</code>. Documentation engine uses it for all generated output. All timestamps display both UTC and local time to remain unambiguous across readers in different timezones.</div></details>
+
+<details class="ad"><summary>AD-046 — Proxmox nag suppression via JS patching with dpkg post-invoke hook</summary>
+<div class="detail-body">Proxmox Community Edition is fully functional without a subscription. The subscription popup is a commercial UI interruption. The patch targets a single condition in proxmoxlib.js. The dpkg hook re-applies the patch after <code>proxmox-widget-toolkit</code> or <code>pve-manager</code> package upgrades.</div></details>
+
+<details class="ad"><summary>AD-047 — Headscale as self-hosted Tailscale coordination; hatchery is both spawn controller and tailnet coordinator</summary>
+<div class="detail-body">WAN spawn requires a secure channel between hatchery and broodling before SSH keys are exchanged. Headscale provides this via WireGuard tunnel without exposing SSH to the public internet. LAN spawns bypass Tailscale entirely. Broodlings remain permanent tailnet members after spawn.</div></details>
+
+<details class="ad"><summary>AD-048 — Split-horizon DNS + two supported DNS/TLS provider paths</summary>
+<div class="detail-body">dnsmasq on the hatchery for LAN resolution; Cloudflare or DuckDNS for WAN/DDNS. <code>host_identity.fqdn</code> is the single canonical address — spawn packages embed the FQDN and work from LAN and WAN without modification. Cloudflare: certbot + cert-manager ClusterIssuer. DuckDNS: acme.sh + cert sync script (cert-manager has no native DuckDNS DNS-01 support). Squarespace has no DNS API — delegate to Cloudflare. inadyn archived Oct 2025 — not used.</div></details>
+
+<details class="ad"><summary>AD-049 — Guided Setup Framework: four configuration modes</summary>
+<div class="detail-body">Autonomous (default): all settings auto-calculated from discovery. IP-Selective: fully autonomous except operator chooses IP addressing. Group-Manual: operator selects which setting groups to configure manually. Full Manual: operator walks through all settings with auto-suggestions. At every manual prompt: suggestion shown prominently; operator may accept or override; subsequent suggestions revised to be logically consistent with any override; conflicts warned but operator may proceed.</div></details>
+
+<details class="ad"><summary>AD-050 — Two network deployment profiles: LAN-only (A) and WAN-capable (B)</summary>
+<div class="detail-body">LAN-only: flat network, dnsmasq for local resolution only, no Headscale, no external domain, self-signed TLS or none. WAN-capable: split-horizon DNS, Headscale for cross-network spawn, DDNS agent, Let's Encrypt DNS-01. Profile stored in <code>network_topology.profile</code>. Autonomous or guided migration between profiles via <code>setup_network.py --migrate-to [lan|wan]</code>. LAN→WAN: 7 steps (6 autonomous, 1 manual: router port forwarding). WAN→LAN: 4 steps (all autonomous).</div></details>
+
+</body>
+</html>

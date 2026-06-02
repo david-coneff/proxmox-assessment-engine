@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloudflare DNS Setup — Broodforge</title>
+<style>
+  :root {
+    --bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;
+    --text:#cdd6f4;--muted:#7f8498;--accent:#89b4fa;--green:#a6e3a1;
+    --yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;--code-bg:#181b21;
+    --radius:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    font-size:14px;line-height:1.6;padding:24px;max-width:960px;margin:0 auto}
+  h1{color:var(--accent);font-size:1.6em;margin-bottom:4px}
+  h2{color:var(--accent);font-size:1.05em;margin:20px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+  h3{color:var(--accent);font-size:.95em;margin:14px 0 6px}
+  .subtitle{color:var(--muted);margin-bottom:20px;font-size:.9em}
+  .meta{color:var(--muted);font-size:.8em;margin-bottom:24px}
+  p{margin:8px 0}
+  ul,ol{margin:8px 0 8px 20px}
+  li{margin:3px 0}
+  code{background:var(--code-bg);color:var(--green);padding:1px 5px;border-radius:3px;
+    font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.9em}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 14px;overflow-x:auto;margin:10px 0}
+  pre code{background:none;padding:0;color:var(--green);display:block;white-space:pre}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+  th{background:var(--bg2);color:var(--muted);text-align:left;padding:6px 8px;
+    border-bottom:1px solid var(--border);font-weight:600;font-size:.8em;
+    text-transform:uppercase;letter-spacing:.05em}
+  td{padding:5px 8px;border-bottom:1px solid var(--bg3);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tip{background:#1e2d3a;border-left:3px solid var(--accent);padding:8px 12px;
+    border-radius:0 var(--radius) var(--radius) 0;margin:10px 0}
+  .warn{background:#3a2e1a;border-left:3px solid var(--yellow);padding:8px 12px;
+    border-radius:0 var(--radius) var(--radius) 0;margin:10px 0}
+  .danger{background:#3a1a1a;border-left:3px solid var(--red);padding:8px 12px;
+    border-radius:0 var(--radius) var(--radius) 0;margin:10px 0}
+  details{margin:6px 0}
+  details[open]>summary{border-radius:var(--radius) var(--radius) 0 0}
+  summary{cursor:pointer;user-select:none;padding:9px 14px;border-radius:var(--radius);
+    list-style:none;display:flex;align-items:center;gap:8px;font-weight:600}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'▶';font-size:.7em;color:var(--muted);transition:transform .15s;flex-shrink:0}
+  details[open]>summary::before{transform:rotate(90deg)}
+  .detail-body{padding:14px 18px 14px 36px}
+  details.part>summary{background:#2d2640;color:#cba6f7;border:1px solid #4a3d6e}
+  details.part>.detail-body{background:#211e2a;border:1px solid #3a3050;border-top:none;
+    border-radius:0 0 var(--radius) var(--radius)}
+  details.section>summary{background:var(--bg2);color:var(--text);border:1px solid var(--border);
+    font-weight:600;font-size:.92em;padding:7px 12px}
+  details.section>.detail-body{background:var(--bg3);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 var(--radius) var(--radius);padding:12px 16px 12px 32px}
+  .toc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px 18px;margin-bottom:24px}
+  .toc h2{font-size:.85em;margin:0 0 8px}
+  .toc a{color:var(--muted);text-decoration:none}
+  .toc a:hover{color:var(--accent)}
+  .toc li{margin:3px 0}
+  .badge-future{display:inline-block;background:#2d2d1a;color:var(--yellow);border:1px solid #4a4a28;
+    border-radius:99px;padding:2px 10px;font-size:.72em;font-weight:700;margin-left:8px;vertical-align:middle}
+  .badge-req{display:inline-block;background:#3a1e1e;color:var(--red);border:1px solid #5a2e2e;
+    border-radius:99px;padding:2px 10px;font-size:.72em;font-weight:700;margin-left:4px;vertical-align:middle}
+  .badge-opt{display:inline-block;background:#1e3a22;color:var(--green);border:1px solid #2e5a32;
+    border-radius:99px;padding:2px 10px;font-size:.72em;font-weight:700;margin-left:4px;vertical-align:middle}
+  .step-num{display:inline-flex;align-items:center;justify-content:center;
+    width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--bg);
+    font-size:.75em;font-weight:700;flex-shrink:0;margin-right:6px}
+  .step-row{display:flex;align-items:flex-start;gap:0;margin:6px 0}
+  .controls{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .ctrl-btn{background:var(--bg2);border:1px solid var(--border);color:var(--muted);
+    padding:5px 14px;border-radius:var(--radius);cursor:pointer;font-size:.82em}
+  .ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+  @media print{
+    body{background:#fff;color:#000}
+    .controls{display:none!important}
+    details{display:block!important}
+    summary::before{display:none}
+  }
+</style>
+</head>
+<body>
+
+<h1>Cloudflare DNS Setup</h1>
+<p class="subtitle">DNS hosting, DDNS, and Let's Encrypt TLS for the broodforge hatchery</p>
+<p class="meta">Created: 2026-05-31 · Review by: 2027-05-31 · See also: <a href="DUCKDNS-SETUP.html" style="color:var(--accent)">DuckDNS Setup</a></p>
+
+<div class="controls">
+  <button class="ctrl-btn" onclick="document.querySelectorAll('details').forEach(d=>d.open=true)">⊞ Expand all</button>
+  <button class="ctrl-btn" onclick="document.querySelectorAll('details').forEach(d=>d.open=false)">⊟ Collapse all</button>
+  <button class="ctrl-btn" onclick="window.print()">🖨 Print</button>
+</div>
+
+<div class="toc">
+  <h2>Contents</h2>
+  <ul>
+    <li><a href="#overview">Overview — what Cloudflare provides</a></li>
+    <li><a href="#part1">Part 1 — DNS setup (account, domain, records, API token)</a></li>
+    <li><a href="#part2">Part 2 — DDNS auto-update (dynamic WAN IPs)</a></li>
+    <li><a href="#part3a">Part 3a — Host certificates via certbot</a></li>
+    <li><a href="#part3a-alt">Part 3a-alt — Host certificates via acme.sh (alternative)</a></li>
+    <li><a href="#part3b">Part 3b — k3s workload certificates (cert-manager)</a></li>
+    <li><a href="#forge-summary">Forge-time summary</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+  </ul>
+</div>
+
+<div class="tip">
+  <strong>Recommended DNS provider.</strong> Cloudflare has a well-supported API, a generous free tier,
+  and integrates cleanly with certbot, cert-manager, and DNS-01 certificate challenges. If your domain
+  is registered elsewhere (Squarespace, GoDaddy, Namecheap), you can delegate DNS to Cloudflare without
+  moving your registration — Cloudflare handles DNS only.
+</div>
+
+<!-- ── Overview ─────────────────────────────────────────────────────────── -->
+<h2 id="overview">What Cloudflare provides for broodforge</h2>
+
+<table>
+  <tr><th>Feature</th><th>How it's used</th></tr>
+  <tr><td>Split-horizon DNS</td><td>LAN DNS handled by dnsmasq on the hatchery; Cloudflare handles external resolution</td></tr>
+  <tr><td>DDNS auto-update</td><td>Cloudflare API updates your A record when your WAN IP changes</td></tr>
+  <tr><td>Let's Encrypt DNS-01</td><td>Cloudflare API proves domain ownership — no port 80 needed, works behind firewalls</td></tr>
+  <tr><td>Wildcard certificates</td><td><code>*.home.example.com</code> covers all subdomains with one cert</td></tr>
+  <tr><td>cert-manager integration</td><td>k3s ClusterIssuer uses Cloudflare DNS-01 for per-service certs</td></tr>
+</table>
+
+<!-- ── Part 1 ───────────────────────────────────────────────────────────── -->
+<h2 id="part1" style="margin-top:28px">Part 1 — DNS Setup</h2>
+
+<details class="part" open>
+<summary>Part 1 — DNS Setup (account · domain · records · API token)</summary>
+<div class="detail-body">
+
+<details class="section" open>
+<summary>Step 1.1 — Create a Cloudflare account</summary>
+<div class="detail-body">
+  <ol>
+    <li>Go to <a href="https://cloudflare.com" style="color:var(--accent)">cloudflare.com</a> → Sign Up</li>
+    <li>Free plan is sufficient for all broodforge needs</li>
+    <li>Verify your email</li>
+  </ol>
+</div>
+</details>
+
+<details class="section">
+<summary>Step 1.2 — Add your domain to Cloudflare</summary>
+<div class="detail-body">
+  <ol>
+    <li>Dashboard → <strong>Add a site</strong> → enter your domain (e.g. <code>home.example.com</code>)</li>
+    <li>Select the <strong>Free</strong> plan</li>
+    <li>Cloudflare scans existing DNS records — keep any MX records (email), delete records you no longer need</li>
+    <li>Cloudflare shows two nameserver addresses — copy both (needed for the next step)</li>
+  </ol>
+</div>
+</details>
+
+<details class="section">
+<summary>Step 1.3 — Update nameservers at your registrar</summary>
+<div class="detail-body">
+
+  <details class="section">
+  <summary>Squarespace</summary>
+  <div class="detail-body">
+    <ol>
+      <li><a href="https://domains.squarespace.com" style="color:var(--accent)">domains.squarespace.com</a> → click your domain</li>
+      <li><strong>DNS</strong> → <strong>Nameservers</strong> → <strong>Use Custom Nameservers</strong></li>
+      <li>Delete the existing Squarespace nameservers; add both Cloudflare nameservers → Save</li>
+    </ol>
+    <p style="color:var(--muted);font-size:.88em">Propagation: minutes to 48 hours</p>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>GoDaddy</summary>
+  <div class="detail-body">
+    <ol>
+      <li>GoDaddy → <strong>My Products</strong> → your domain → <strong>DNS</strong></li>
+      <li>Scroll to <strong>Nameservers</strong> → <strong>Change</strong> → <strong>Enter my own nameservers</strong></li>
+      <li>Enter both Cloudflare nameservers → Save</li>
+    </ol>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Namecheap</summary>
+  <div class="detail-body">
+    <ol>
+      <li>Dashboard → your domain → <strong>Manage</strong> → <strong>Nameservers</strong></li>
+      <li>Select <strong>Custom DNS</strong> → enter both Cloudflare nameservers → Save</li>
+    </ol>
+  </div>
+  </details>
+
+  <h3>Verify propagation</h3>
+  <pre><code># Should return Cloudflare nameservers (e.g. alice.ns.cloudflare.com)
+dig NS home.example.com +short</code></pre>
+</div>
+</details>
+
+<details class="section">
+<summary>Step 1.4 — Add DNS records in Cloudflare</summary>
+<div class="detail-body">
+  <p>Cloudflare dashboard → your domain → <strong>DNS</strong> → <strong>Records</strong> → <strong>Add record</strong></p>
+  <table>
+    <tr><th>Type</th><th>Name</th><th>Value</th><th>Proxy</th><th>Notes</th></tr>
+    <tr><td><code>A</code></td><td><code>hatchery</code></td><td>your WAN IP</td><td>DNS only (grey)</td><td>Hatchery's public address</td></tr>
+    <tr><td><code>A</code></td><td><code>forgejo</code></td><td>your WAN IP</td><td>DNS only (grey)</td><td>If Forgejo should be externally accessible</td></tr>
+  </table>
+  <div class="warn">
+    <strong>Proxy must be DNS only (grey cloud).</strong> Headscale's gRPC and Forgejo's SSH/Git protocols are not compatible with Cloudflare's HTTP proxy. Orange cloud = connectivity broken.
+  </div>
+</div>
+</details>
+
+<details class="section">
+<summary>Step 1.5 — Create a scoped API token <span class="badge-req">required</span></summary>
+<div class="detail-body">
+  <p>Broodforge needs an API token with just enough permission to manage DNS records and create TXT records for Let's Encrypt challenges.</p>
+  <ol>
+    <li>Cloudflare dashboard → top right → <strong>My Profile</strong> → <strong>API Tokens</strong></li>
+    <li><strong>Create Token</strong> → use the <strong>Edit zone DNS</strong> template</li>
+    <li>Configure:
+      <ul>
+        <li>Token name: <code>broodforge</code></li>
+        <li>Permissions: <strong>Zone / DNS / Edit</strong> (pre-filled)</li>
+        <li>Zone resources: <strong>Include / Specific zone / your domain</strong></li>
+      </ul>
+    </li>
+    <li><strong>Continue to summary</strong> → <strong>Create Token</strong></li>
+    <li>Copy the token immediately — shown only once</li>
+  </ol>
+  <div class="tip">Store in KeePass at: <code>Infrastructure/cloudflare/api-token</code><br>
+  forge.sh retrieves it automatically — you never paste it manually again.</div>
+</div>
+</details>
+
+</div>
+</details>
+
+<!-- ── Part 2 ───────────────────────────────────────────────────────────── -->
+<h2 id="part2" style="margin-top:28px">Part 2 — DDNS Auto-Update</h2>
+
+<details class="part">
+<summary>Part 2 — DDNS Auto-Update (skip if WAN IP is static)</summary>
+<div class="detail-body">
+
+  <p>Broodforge installs a systemd timer (<code>broodforge-ddns.timer</code>) that checks your WAN IP every 5 minutes and updates the Cloudflare A record when it changes.</p>
+
+  <details class="section" open>
+  <summary>Step 2.1 — Install dns-lexicon</summary>
+  <div class="detail-body">
+    <pre><code>pip install dns-lexicon</code></pre>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Step 2.2 — Test the update manually</summary>
+  <div class="detail-body">
+    <pre><code>LEXICON_CLOUDFLARE_TOKEN="your-cloudflare-api-token" \
+  lexicon cloudflare update home.example.com A \
+  --name hatchery --content "$(curl -s ifconfig.me)"</code></pre>
+    <p>Expected: no error output, Cloudflare A record updates to your current WAN IP.</p>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Step 2.3 — Configure via broodforge (or manually)</summary>
+  <div class="detail-body">
+    <p>During forging, forge.sh runs setup_ddns.py automatically. For manual setup:</p>
+    <pre><code>python3 proxmox-bootstrap/setup_ddns.py \
+  --state proxmox-bootstrap/bootstrap-state.json</code></pre>
+    <p>Select <strong>Cloudflare</strong>, enter your domain zone, record name, and KeePass path for the API token.</p>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Step 2.4 — Monitor the timer</summary>
+  <div class="detail-body">
+    <pre><code># Check timer status
+systemctl status broodforge-ddns.timer
+
+# Check recent update runs
+journalctl -u broodforge-ddns.service -n 20
+
+# Force an immediate update
+systemctl start broodforge-ddns.service</code></pre>
+  </div>
+  </details>
+
+</div>
+</details>
+
+<!-- ── Part 3a ──────────────────────────────────────────────────────────── -->
+<h2 id="part3a" style="margin-top:28px">Part 3 — TLS Certificates</h2>
+
+<div class="tip">
+  <strong>DNS-01 challenges.</strong> All Let's Encrypt certificates use DNS-01 — port 80 never needs to be open. Wildcard certs (<code>*.home.example.com</code>) are supported. Works behind strict firewalls.
+</div>
+
+<table>
+  <tr><th>Layer</th><th>Tool</th><th>Cert covers</th></tr>
+  <tr><td>Proxmox host (Headscale, nginx)</td><td>certbot or acme.sh</td><td><code>hatchery.home.example.com</code>, <code>*.home.example.com</code></td></tr>
+  <tr><td>k3s workloads</td><td>cert-manager</td><td>Per-service certs via ClusterIssuer</td></tr>
+</table>
+
+<p style="color:var(--muted);font-size:.88em;margin:8px 0">Two tools available for host-level certs — choose one (certbot below, acme.sh in 3a-alt). cert-manager (3b) is required regardless of which you choose.</p>
+
+<details class="part" id="cert-certbot">
+<summary id="part3a">Part 3a — Host certificate via certbot <span class="badge-opt">recommended</span></summary>
+<div class="detail-body">
+
+  <details class="section" open>
+  <summary>Install certbot + Cloudflare plugin</summary>
+  <div class="detail-body">
+    <pre><code>apt install certbot python3-certbot-dns-cloudflare</code></pre>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Create the Cloudflare credentials file</summary>
+  <div class="detail-body">
+    <pre><code>mkdir -p /etc/broodforge
+cat > /etc/broodforge/cloudflare.ini &lt;&lt; 'EOF'
+# Cloudflare API token — KeePass: Infrastructure/cloudflare/api-token
+dns_cloudflare_api_token = PASTE_TOKEN_HERE
+EOF
+chmod 600 /etc/broodforge/cloudflare.ini</code></pre>
+    <div class="tip">During forging, forge.sh writes this file from KeePass automatically.</div>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Obtain the wildcard certificate</summary>
+  <div class="detail-body">
+    <pre><code>certbot certonly \
+  --dns-cloudflare \
+  --dns-cloudflare-credentials /etc/broodforge/cloudflare.ini \
+  --dns-cloudflare-propagation-seconds 30 \
+  -d "hatchery.home.example.com" \
+  -d "*.home.example.com" \
+  --email admin@home.example.com \
+  --agree-tos \
+  --non-interactive</code></pre>
+    <p>Certificates land in <code>/etc/letsencrypt/live/hatchery.home.example.com/</code>.</p>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Configure Headscale to use the certificate</summary>
+  <div class="detail-body">
+    <p>In <code>/etc/headscale/config.yaml</code>:</p>
+    <pre><code>tls_cert_path: /etc/letsencrypt/live/hatchery.home.example.com/fullchain.pem
+tls_key_path: /etc/letsencrypt/live/hatchery.home.example.com/privkey.pem</code></pre>
+    <pre><code>systemctl restart headscale</code></pre>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Configure auto-renewal deploy hook</summary>
+  <div class="detail-body">
+    <p>certbot installs a systemd timer for renewal. Add a hook to reload Headscale after renewal:</p>
+    <pre><code>cat > /etc/letsencrypt/renewal-hooks/deploy/reload-headscale.sh &lt;&lt; 'EOF'
+#!/bin/bash
+systemctl reload headscale || systemctl restart headscale
+EOF
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-headscale.sh
+
+# Verify renewal works
+certbot renew --dry-run</code></pre>
+  </div>
+  </details>
+
+</div>
+</details>
+
+<details class="part" id="part3a-alt">
+<summary>Part 3a-alt — Host certificate via acme.sh <span class="badge-opt">alternative</span></summary>
+<div class="detail-body">
+
+  <p>Shell-only alternative to certbot — no Python dependencies. Same result: wildcard cert at a stable path, auto-renewed. Use this if you prefer to avoid Python tooling on the host.</p>
+
+  <details class="section" open>
+  <summary>Install acme.sh</summary>
+  <div class="detail-body">
+    <pre><code>curl https://get.acme.sh | sh -s email=admin@home.example.com
+source ~/.bashrc</code></pre>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Issue the certificate</summary>
+  <div class="detail-body">
+    <pre><code>export CF_Token="YOUR-CLOUDFLARE-API-TOKEN"
+
+~/.acme.sh/acme.sh --issue \
+  --dns dns_cf \
+  -d "hatchery.home.example.com" \
+  -d "*.home.example.com" \
+  --server letsencrypt \
+  --dnssleep 30</code></pre>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Install cert to a stable path</summary>
+  <div class="detail-body">
+    <pre><code>mkdir -p /etc/broodforge/ssl
+
+~/.acme.sh/acme.sh --install-cert \
+  -d "hatchery.home.example.com" \
+  --cert-file      /etc/broodforge/ssl/cert.pem \
+  --key-file       /etc/broodforge/ssl/key.pem \
+  --fullchain-file /etc/broodforge/ssl/fullchain.pem \
+  --reloadcmd "systemctl reload headscale 2>/dev/null || systemctl restart headscale"</code></pre>
+    <div class="tip">Using <code>/etc/broodforge/ssl/</code> means the same Headscale config template works for both Cloudflare and DuckDNS paths.</div>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Verify auto-renewal</summary>
+  <div class="detail-body">
+    <pre><code>crontab -l | grep acme
+~/.acme.sh/acme.sh --renew -d "hatchery.home.example.com" --force --staging</code></pre>
+  </div>
+  </details>
+
+</div>
+</details>
+
+<details class="part" id="part3b">
+<summary>Part 3b — k3s workload certificates (cert-manager) <span class="badge-req">required</span></summary>
+<div class="detail-body">
+
+  <p>cert-manager runs inside k3s and issues per-service TLS certificates automatically using the same Cloudflare API token.</p>
+
+  <details class="section" open>
+  <summary>Create the Cloudflare API token secret in k3s</summary>
+  <div class="detail-body">
+    <pre><code>kubectl create namespace cert-manager
+
+kubectl create secret generic cloudflare-api-token \
+  --namespace cert-manager \
+  --from-literal=api-token="$(grep api_token /etc/broodforge/cloudflare.ini | awk '{print $3}')"</code></pre>
+    <div class="tip">forge.sh generates this secret from KeePass — no manual token pasting needed.</div>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Create the ClusterIssuer</summary>
+  <div class="detail-body">
+    <pre><code># /etc/broodforge/k8s/clusterissuer-cloudflare.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@home.example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            name: cloudflare-api-token
+            key: api-token</code></pre>
+    <pre><code>kubectl apply -f /etc/broodforge/k8s/clusterissuer-cloudflare.yaml</code></pre>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Request a certificate for a service (Ingress annotation)</summary>
+  <div class="detail-body">
+    <pre><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: forgejo
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - forgejo.home.example.com
+    secretName: forgejo-tls
+  rules:
+  - host: forgejo.home.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: forgejo
+            port:
+              number: 3000</code></pre>
+    <p>cert-manager sees the annotation, performs the DNS-01 challenge, and stores the cert in <code>forgejo-tls</code>. Renewal is fully automatic.</p>
+  </div>
+  </details>
+
+  <details class="section">
+  <summary>Verify cert-manager is working</summary>
+  <div class="detail-body">
+    <pre><code># Check ClusterIssuer status
+kubectl describe clusterissuer letsencrypt-prod
+
+# Check certificate status
+kubectl describe certificate forgejo-tls -n default
+
+# Watch the challenge process
+kubectl get challenges -A -w</code></pre>
+  </div>
+  </details>
+
+</div>
+</details>
+
+<!-- ── Forge summary ────────────────────────────────────────────────────── -->
+<h2 id="forge-summary" style="margin-top:28px">Forge-Time Setup Summary</h2>
+
+<p>When <code>forge.sh</code> runs, it handles all of the above automatically. You provide once, at forge time:</p>
+<ol>
+  <li>Domain name → stored in <code>bootstrap-state.json host_identity.domain</code></li>
+  <li>KeePass path for Cloudflare API token → retrieved at each step automatically</li>
+  <li>Email for Let's Encrypt account → stored in bootstrap-state.json</li>
+  <li>Whether WAN IP is static or dynamic → configures DDNS timer if dynamic</li>
+</ol>
+<p>Everything else — certbot install, credentials file, cert issuance, Headscale config, k8s secret, ClusterIssuer — is automated.</p>
+
+<!-- ── Troubleshooting ──────────────────────────────────────────────────── -->
+<h2 id="troubleshooting" style="margin-top:28px">Troubleshooting</h2>
+
+<details class="section">
+<summary>certbot: DNS propagation timeout</summary>
+<div class="detail-body">
+  <p>Increase <code>--dns-cloudflare-propagation-seconds</code> to 60 or 120. Cloudflare propagates quickly but Let's Encrypt occasionally polls before the change is visible.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>cert-manager challenge stuck</summary>
+<div class="detail-body">
+  <pre><code>kubectl describe challenge -A</code></pre>
+  <p>Check the Cloudflare API token has <code>Zone / DNS / Edit</code> permission for the correct zone.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>Headscale shows TLS error after cert renewal</summary>
+<div class="detail-body">
+  <pre><code>systemctl status headscale
+# If not running:
+certbot renew --force-renewal
+systemctl restart headscale</code></pre>
+</div>
+</details>
+
+<details class="section">
+<summary>Cloudflare "This site can't be reached"</summary>
+<div class="detail-body">
+  <p>Check that the A record's proxy status is <strong>DNS only (grey)</strong>, not proxied (orange). Headscale's gRPC protocol is not compatible with Cloudflare's HTTP proxy.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>Nameserver propagation check</summary>
+<div class="detail-body">
+  <pre><code>dig NS home.example.com @8.8.8.8 +short
+# Should show alice.ns.cloudflare.com, bob.ns.cloudflare.com (your assigned NS)</code></pre>
+</div>
+</details>
+
+</body>
+</html>

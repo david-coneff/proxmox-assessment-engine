@@ -27,7 +27,10 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 try:
-    from keepass_mfa import MfaConfig, provision_totp, render_mfa_provision_commands
+    from keepass_mfa import (
+        MfaConfig, provision_totp, render_mfa_provision_commands,
+        print_totp_setup_to_tty,
+    )
     _HAS_MFA = True
 except ImportError:
     _HAS_MFA = False
@@ -219,27 +222,30 @@ def render_init_commands(config: KeePassInitConfig) -> list[str]:
     Return ordered shell commands to initialise the KeePass database in phase-03.
 
     These commands use keepassxc-cli (available in Debian/Ubuntu repos).
-    The master password is read from the KEEPASS_MASTER_PASSWORD environment
-    variable (set by forge.sh from the operator's input — never stored on disk).
+    The master password is piped via stdin — never passed as a command-line argument
+    to avoid exposure in process listings (ps aux) and shell history.
+    KEEPASS_MASTER_PASSWORD must be set in the calling shell's environment.
     """
     db = config.db_path
     cmds = [
         "# Phase 1.F.6 — KeePass database initialisation",
         "apt-get install -y keepassxc 2>/dev/null || true",
         f"install -d -m 700 /etc/broodforge",
-        f"keepassxc-cli db-create --set-password '$KEEPASS_MASTER_PASSWORD' {db}",
+        # Pipe master password via stdin; --set-password reads '-' as stdin in keepassxc-cli ≥2.6
+        f"printf '%s\\n' \"$KEEPASS_MASTER_PASSWORD\" | keepassxc-cli db-create --set-password - {db}",
         "",
     ]
 
     for entry in config.entries + config.extra_entries:
         group = "/".join(entry.path.split("/")[:-1])
-        name  = entry.path.split("/")[-1]
         cmds.append(
-            f"keepassxc-cli mkdir {db} --password '$KEEPASS_MASTER_PASSWORD' "
+            f"printf '%s\\n' \"$KEEPASS_MASTER_PASSWORD\" | "
+            f"keepassxc-cli mkdir --password - {db} "
             f"'/{group}' 2>/dev/null || true"
         )
         cmds.append(
-            f"keepassxc-cli add {db} --password '$KEEPASS_MASTER_PASSWORD' "
+            f"printf '%s\\n' \"$KEEPASS_MASTER_PASSWORD\" | "
+            f"keepassxc-cli add --password - {db} "
             f"--no-password '/{entry.path}' "
             f"--notes '{entry.description} [PLACEHOLDER — set during service deploy]'"
         )
@@ -281,3 +287,74 @@ def config_to_dict(config: KeePassInitConfig) -> dict:
         "required_entry_count": sum(1 for e in all_entries if e.required),
         "entry_paths":          [e.path for e in all_entries],
     }
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import argparse
+    import json
+    import os
+    import subprocess
+    import sys
+
+    ap = argparse.ArgumentParser(description="Broodforge KeePass initialisation (phase-03)")
+    ap.add_argument("--manifest",    required=True, help="Path to forge-manifest.json")
+    ap.add_argument("--run",         action="store_true", help="Execute init commands (requires KEEPASS_MASTER_PASSWORD in env)")
+    ap.add_argument("--plan",        action="store_true", help="Print init plan without executing")
+    ap.add_argument("--include-wan", action="store_true", help="Include WAN-specific KeePass entries")
+    ap.add_argument("--embed",       action="store_true", help="Mark database as embedded in packages")
+    ap.add_argument("--mfa",         default="none", choices=["none", "totp", "yubikey"])
+    args = ap.parse_args()
+
+    with open(args.manifest) as f:
+        manifest = json.load(f)
+
+    cfg = generate_keepass_init_config(
+        manifest,
+        include_wan=args.include_wan,
+        embed_in_packages=args.embed,
+    )
+    cfg.mfa_method = args.mfa
+
+    if args.plan:
+        print(describe_init_plan(cfg))
+        sys.exit(0)
+
+    if not args.run:
+        ap.print_help()
+        sys.exit(0)
+
+    master_pw = os.environ.get("KEEPASS_MASTER_PASSWORD", "")
+    if not master_pw:
+        print("[keepass-init] KEEPASS_MASTER_PASSWORD not set — aborting.", file=sys.stderr)
+        sys.exit(1)
+
+    # Print TOTP setup to /dev/tty before executing commands — stdout may be
+    # redirected to forge.log by the calling phase script, and the TOTP secret
+    # must not appear in that log.
+    if cfg.mfa_method == "totp" and _HAS_MFA:
+        totp_cfg = provision_totp(manifest.get("cell_id", "broodforge"))
+        print_totp_setup_to_tty(totp_cfg.totp_secret or "", totp_cfg.totp_account or "broodforge")
+
+    cmds = render_init_commands(cfg)
+    errors = 0
+    for cmd in cmds:
+        if not cmd or cmd.startswith("#"):
+            continue
+        # Commands that use printf…| piping must run via bash to preserve the pipe
+        result = subprocess.run(
+            ["bash", "-c", cmd],
+            capture_output=False,
+            env={**os.environ, "KEEPASS_MASTER_PASSWORD": master_pw},
+        )
+        if result.returncode != 0:
+            print(f"[keepass-init] Command failed (exit {result.returncode}): {cmd[:80]}", file=sys.stderr)
+            errors += 1
+
+    if errors:
+        print(f"[keepass-init] {errors} command(s) failed.", file=sys.stderr)
+        sys.exit(1)
+    print(f"[keepass-init] Initialisation complete: {cfg.db_path}")

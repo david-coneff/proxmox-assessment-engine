@@ -99,25 +99,30 @@ forge_keepass_find_db() {
 
 forge_keepass_gate() {
   [ "$FORGE_KDBX_UNLOCKED" -eq 1 ] && return 0
-  echo ""
-  echo "================================================================="
-  echo " KeePass Unlock Gate — forge.sh"
-  echo " The master password is required once. All subsequent secret"
-  echo " lookups during forging are automatic."
-  echo "================================================================="
+  # Write prompts to /dev/tty so they reach the operator regardless of log redirects
+  echo "" >/dev/tty
+  echo "=================================================================" >/dev/tty
+  echo " KeePass Unlock Gate — forge.sh" >/dev/tty
+  echo " The master password is required once. All subsequent secret" >/dev/tty
+  echo " lookups during forging are automatic." >/dev/tty
+  echo "=================================================================" >/dev/tty
   forge_keepass_find_db || { echo "[kdbx] Cannot locate database." >&2; exit 1; }
-  read -rsp "[kdbx] Master password: " KEEPASS_MASTER_PASSWORD
-  echo ""
-  export FORGE_KDBX_PATH KEEPASS_MASTER_PASSWORD
+  # Read password from /dev/tty to guarantee it is not captured in forge.log
+  read -rsp "[kdbx] Master password: " KEEPASS_MASTER_PASSWORD </dev/tty >/dev/tty
+  echo "" >/dev/tty
+  # Export only the database path; keep the password as a shell-local variable
+  # so child processes do not inherit it via their environment
+  export FORGE_KDBX_PATH
   FORGE_KDBX_UNLOCKED=1
-  echo "[kdbx] Unlocked. Secrets broker active."
-  echo ""
+  echo "[kdbx] Unlocked. Secrets broker active." >/dev/tty
+  echo "" >/dev/tty
 }
 
 kdbx_get() {
   local path="$1"
   if command -v keepassxc-cli &>/dev/null; then
-    echo "$KEEPASS_MASTER_PASSWORD" | \\
+    # Pipe password via stdin — never passed as a command-line argument
+    printf '%s\\n' "$KEEPASS_MASTER_PASSWORD" | \\
       keepassxc-cli show -q -a Password "$FORGE_KDBX_PATH" "$path" 2>/dev/null
   else
     echo "[kdbx] keepassxc-cli not found — retrieve '$path' manually" >&2
@@ -401,9 +406,12 @@ fi
 step="phase03_keepass"
 if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_start "$step"
-  python3 "$SCRIPT_DIR/proxmox-bootstrap/forge_keepass_init.py" \\
-    --manifest "$SCRIPT_DIR/forge-manifest.json" \\
-    --run
+  # TOTP secret display and keepass prompts are redirected to /dev/tty so they
+  # reach the operator terminal but are NOT captured in forge.log
+  KEEPASS_MASTER_PASSWORD="$KEEPASS_MASTER_PASSWORD" \\
+    python3 "$SCRIPT_DIR/proxmox-bootstrap/forge_keepass_init.py" \\
+      --manifest "$SCRIPT_DIR/forge-manifest.json" \\
+      --run >/dev/tty
   checkpoint_done "$step"
 fi
 
@@ -473,11 +481,19 @@ step="phase05_k3s"
 if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_start "$step"
   if [ -d "$SCRIPT_DIR/ansible" ]; then
+    # Write k3s token to a temp vars file so it never appears on the ansible command line
+    # (command-line -e values are visible in ps aux and may appear in logs)
+    _k3s_vars=$(mktemp)
+    chmod 600 "$_k3s_vars"
+    trap 'rm -f "$_k3s_vars"' EXIT INT TERM
+    printf 'k3s_token: "%s"\\n' "$(kdbx_get 'k3s/join-token-server')" > "$_k3s_vars"
     ansible-playbook \\
       -i "$SCRIPT_DIR/ansible/inventory.ini" \\
       "$SCRIPT_DIR/ansible/site.yml" \\
       --tags k3s-server \\
-      -e "k3s_token=$(kdbx_get 'k3s/join-token-server')"
+      -e "@$_k3s_vars"
+    rm -f "$_k3s_vars"
+    trap - EXIT INT TERM
   else
     echo "[phase-05] No ansible/ directory — k3s setup may be manual." >&2
   fi

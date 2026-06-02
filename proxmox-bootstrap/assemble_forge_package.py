@@ -23,7 +23,7 @@ Package layout:
   │   ├── checkpoint.sh
   │   ├── forge-keepass-gate.sh
   │   └── pve-suppress-nag.sh
-  ├── forge-workbook.ods          ODS workbook for forge tracking
+  ├── forge-workbook.html         HTML workbook for forge tracking
   ├── proxmox-bootstrap/          library code (planners, validators, setup scripts)
   ├── data-model/                 JSON schemas
   ├── doc-gen/                    documentation engine
@@ -44,9 +44,10 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from forge_workbook import build_forge_workbook
+    from html_forge_workbook import build_forge_workbook_html as _build_forge_workbook_html
     _HAS_WORKBOOK = True
 except ImportError:
+    _build_forge_workbook_html = None  # type: ignore
     _HAS_WORKBOOK = False
 
 try:
@@ -124,7 +125,7 @@ def package_contents(
         "lib/checkpoint.sh",
         "lib/forge-keepass-gate.sh",
         "lib/pve-suppress-nag.sh",
-        "forge-workbook.ods",
+        "forge-workbook.html",
     ]
     if embed_kdbx:
         cell_id = manifest.get("cell_id") or "cell"
@@ -217,10 +218,10 @@ def assemble_forge_package(
         # pve-suppress-nag.sh
         _add_str("lib/pve-suppress-nag.sh", _PVE_NAG_SH, mode=0o755)
 
-        # Forge workbook
+        # Forge workbook (HTML)
         if _HAS_WORKBOOK:
-            wb = build_forge_workbook(manifest, hardware_profile, validation_findings)
-            _add_bytes("forge-workbook.ods", wb)
+            wb_html = _build_forge_workbook_html(manifest, hardware_profile, validation_findings)
+            _add_str("forge-workbook.html", wb_html)
 
         # Optional KeePass database
         if kdbx_path and Path(kdbx_path).exists():

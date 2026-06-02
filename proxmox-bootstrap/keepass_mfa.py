@@ -116,6 +116,10 @@ def display_totp_setup(secret: str, account: str, issuer: str = "broodforge") ->
 
     Displays the otpauth:// URI (for QR-code scanning in a GUI) and the raw
     base32 secret (for manual entry into an authenticator app).
+
+    The caller is responsible for directing this text to /dev/tty when running
+    inside a script that redirects stdout to a log file. Use
+    print_totp_setup_to_tty() for that case.
     """
     uri = totp_uri(secret, account, issuer)
     bar = "=" * 68
@@ -141,6 +145,23 @@ def display_totp_setup(secret: str, account: str, issuer: str = "broodforge") ->
         bar,
         "",
     ])
+
+
+def print_totp_setup_to_tty(secret: str, account: str, issuer: str = "broodforge") -> None:
+    """
+    Write the TOTP setup text directly to /dev/tty.
+
+    This bypasses any stdout/stderr log redirection (e.g., exec >> forge.log 2>&1)
+    so the raw TOTP secret is shown to the operator but never captured in forge.log.
+    Falls back to stderr if /dev/tty is unavailable (tests, non-interactive).
+    """
+    import sys
+    text = display_totp_setup(secret, account, issuer)
+    try:
+        with open("/dev/tty", "w") as tty:
+            tty.write(text)
+    except OSError:
+        print(text, file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------

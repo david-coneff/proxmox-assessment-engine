@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Container Compatibility Plan — Broodforge</title>
+<style>
+  :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
+    --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
+    --code-bg:#181b21;--radius:6px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    font-size:14px;line-height:1.6;padding:24px;max-width:960px;margin:0 auto}
+  h1{color:var(--accent);font-size:1.6em;margin-bottom:4px}
+  h2{color:var(--accent);font-size:1.05em;margin:20px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+  h3{color:var(--accent);font-size:.95em;margin:14px 0 6px}
+  .subtitle{color:var(--muted);margin-bottom:20px;font-size:.9em}
+  .meta{color:var(--muted);font-size:.8em;margin-bottom:24px}
+  p{margin:8px 0}ul,ol{margin:8px 0 8px 20px}li{margin:3px 0}
+  code{background:var(--code-bg);color:var(--green);padding:1px 5px;border-radius:3px;
+    font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.9em}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 14px;overflow-x:auto;margin:10px 0}
+  pre code{background:none;padding:0;display:block;white-space:pre}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+  th{background:var(--bg2);color:var(--muted);text-align:left;padding:6px 8px;
+    border-bottom:1px solid var(--border);font-weight:600;font-size:.8em;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:5px 8px;border-bottom:1px solid var(--bg3);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tip{background:#1e2d3a;border-left:3px solid var(--accent);padding:8px 12px;
+    border-radius:0 var(--radius) var(--radius) 0;margin:10px 0}
+  .warn{background:#3a2e1a;border-left:3px solid var(--yellow);padding:8px 12px;
+    border-radius:0 var(--radius) var(--radius) 0;margin:10px 0}
+  details{margin:6px 0}
+  details[open]>summary{border-radius:var(--radius) var(--radius) 0 0}
+  summary{cursor:pointer;user-select:none;padding:9px 14px;border-radius:var(--radius);
+    list-style:none;display:flex;align-items:center;gap:8px;font-weight:600}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'▶';font-size:.7em;color:var(--muted);transition:transform .15s;flex-shrink:0}
+  details[open]>summary::before{transform:rotate(90deg)}
+  .detail-body{padding:14px 18px 14px 36px}
+  details.section>summary{background:var(--bg2);color:var(--text);border:1px solid var(--border);font-weight:600;font-size:.92em;padding:7px 12px}
+  details.section>.detail-body{background:var(--bg3);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:12px 16px 12px 32px}
+  details.phase>summary{background:#1e3040;color:#89dceb;border:1px solid #2e5060}
+  details.phase>.detail-body{background:#1b2a34;border:1px solid #2a4050;border-top:none;border-radius:0 0 var(--radius) var(--radius)}
+  .toc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:24px}
+  .toc h2{font-size:.85em;margin:0 0 8px}.toc a{color:var(--muted);text-decoration:none}
+  .toc a:hover{color:var(--accent)}.toc li{margin:3px 0}
+  .badge-future{display:inline-block;background:#2d2d1a;color:var(--yellow);border:1px solid #4a4a28;
+    border-radius:99px;padding:2px 10px;font-size:.72em;font-weight:700;margin-left:8px;vertical-align:middle}
+  .score{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:.82em;padding:2px 8px;border-radius:3px}
+  .score-compat{background:#1e3a22;color:var(--green)}
+  .score-review{background:#3a2e1a;color:var(--yellow)}
+  .score-incompat{background:#3a1e1e;color:var(--red)}
+  .score-blocked{background:#2d1e2d;color:var(--orange)}
+  .check-row{display:flex;align-items:flex-start;gap:8px;padding:4px 0;cursor:pointer;user-select:none}
+  .check-row input[type="checkbox"]{margin-top:2px;accent-color:var(--green);width:15px;height:15px;flex-shrink:0}
+  .check-row .check-label{font-size:.88em;line-height:1.5}
+  .check-row.done .check-label{color:var(--muted);font-style:italic}
+  .controls{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .ctrl-btn{background:var(--bg2);border:1px solid var(--border);color:var(--muted);
+    padding:5px 14px;border-radius:var(--radius);cursor:pointer;font-size:.82em}
+  .ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+  @media print{body{background:#fff;color:#000}.controls{display:none!important}details{display:block!important}summary::before{display:none}}
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.step-check').forEach(cb => {
+      cb.checked = !!localStorage.getItem('compat-' + cb.dataset.key);
+      cb.closest('.check-row').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        cb.closest('.check-row').classList.toggle('done', cb.checked);
+        localStorage.setItem('compat-' + cb.dataset.key, cb.checked ? '1' : '');
+      });
+    });
+  });
+</script>
+</head>
+<body>
+
+<h1>Container Compatibility Plan</h1>
+<p class="subtitle">Post-recovery container re-setup for Podman and Docker — Phase 21 design</p>
+<p class="meta">Date: 2026-05-31 · Status: <strong>Planned — Phase 21 implementation</strong> · Architecture: v7.1</p>
+
+<div class="controls">
+  <button class="ctrl-btn" onclick="document.querySelectorAll('details').forEach(d=>d.open=true)">⊞ Expand all</button>
+  <button class="ctrl-btn" onclick="document.querySelectorAll('details').forEach(d=>d.open=false)">⊟ Collapse all</button>
+  <button class="ctrl-btn" onclick="window.print()">🖨 Print</button>
+</div>
+
+<div class="warn">
+  <strong>Design document — not yet implemented.</strong> This document describes the intended design for Phase 21 (Container Compatibility). No code exists yet. Prerequisites: Phase 21 (Failure Domain Modeling) must complete first.
+</div>
+
+<div class="toc">
+  <h2>Contents</h2>
+  <ul>
+    <li><a href="#scope">1. Scope</a></li>
+    <li><a href="#principle">2. Core principle: infrastructure vs application</a></li>
+    <li><a href="#determinism">3. What makes a container re-setupable</a></li>
+    <li><a href="#backup">4. Data volume backup configuration</a></li>
+    <li><a href="#algorithm">5. Compatibility check algorithm</a></li>
+    <li><a href="#scores">6. Score meanings</a></li>
+    <li><a href="#setup-flow">7. Setup flow integration</a></li>
+    <li><a href="#schema">8. New schema components</a></li>
+    <li><a href="#impl">9. Implementation phases</a></li>
+    <li><a href="#decisions">10. Design decisions</a></li>
+    <li><a href="#relationships">11. Relationship to existing architecture</a></li>
+  </ul>
+</div>
+
+<!-- ── 1. Scope ──────────────────────────────────────────────────────────── -->
+<h2 id="scope">1. Scope</h2>
+
+<details class="section" open>
+<summary>In scope / Out of scope</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>In scope</th><th>Out of scope</th></tr>
+    <tr><td>Container definition tracking (image digest, compose file, volumes, networks, env vars, secrets, resource requirements)</td><td>Application-level data compatibility (database schema migration, internal config updates)</td></tr>
+    <tr><td>Container data volume backup configuration</td><td>Container orchestration (Kubernetes, Docker Swarm) — future Phase N</td></tr>
+    <tr><td>Compatibility checking: can this container start on the restored system?</td><td>Image scanning or vulnerability assessment</td></tr>
+    <tr><td>VM disk and data volume backup naming convention (extends backup.py)</td><td></td></tr>
+    <tr><td>Setup flow integration (init wizard + external backup wizard)</td><td></td></tr>
+  </table>
+</div>
+</details>
+
+<!-- ── 2. Core principle ─────────────────────────────────────────────────── -->
+<h2 id="principle">2. Core Principle: Infrastructure vs Application</h2>
+
+<details class="section" open>
+<summary>Compatibility checker boundary</summary>
+<div class="detail-body">
+  <table>
+    <tr><th style="color:var(--green)">✓ Infrastructure layer (this system checks)</th><th style="color:var(--red)">✗ Application layer (NOT automated — runbook documents these)</th></tr>
+    <tr><td>Image digest pullable from registry</td><td>Data inside volumes compatible with restored image version</td></tr>
+    <tr><td>Volume host paths exist on new system</td><td>Application-internal config files referencing old IPs</td></tr>
+    <tr><td>Resource requirements met (RAM, CPU)</td><td>Database schema migration requirements</td></tr>
+    <tr><td>Network bridges exist and are routable</td><td>Application state consistency after partial restore</td></tr>
+    <tr><td>All secret references still in registry</td><td></td></tr>
+    <tr><td>All declared hostname env vars resolvable via DNS Registry</td><td></td></tr>
+    <tr><td>Startup dependencies reachable in correct order</td><td></td></tr>
+  </table>
+  <div class="tip">When infrastructure checks pass but application-level issues remain, the score is <span class="score score-review">NEEDS_REVIEW</span> with specific flags, not <span class="score score-blocked">BLOCKED</span>. The operator consults the per-service runbook for application-level steps.</div>
+</div>
+</details>
+
+<!-- ── 3. Determinism ────────────────────────────────────────────────────── -->
+<h2 id="determinism">3. What Makes a Container Deterministically Re-Setupable</h2>
+
+<details class="section">
+<summary>Required inputs for deterministic re-setup</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Category</th><th>Field</th><th>Notes</th></tr>
+    <tr><td rowspan="3"><strong>Image</strong></td><td><code>registry_url</code></td><td>Full registry URL</td></tr>
+    <tr><td><code>image_digest</code></td><td><strong>SHA256 digest — not the tag.</strong> Tags can move (<code>:latest</code>, <code>:stable</code>); digests are immutable and guarantee exact same image bytes.</td></tr>
+    <tr><td><code>tag</code></td><td>Human-readable tag (informational only)</td></tr>
+    <tr><td rowspan="4"><strong>Configuration</strong></td><td><code>compose_file_repo</code></td><td>Forgejo repo URL</td></tr>
+    <tr><td><code>compose_file_path</code></td><td>Path within the repo</td></tr>
+    <tr><td><code>compose_file_commit</code></td><td>Git commit hash at last deployment</td></tr>
+    <tr><td><code>compose_file_digest</code></td><td>SHA256 of file content</td></tr>
+    <tr><td rowspan="3"><strong>Volumes</strong></td><td><code>volumes[]</code></td><td>host_path → container_path mappings</td></tr>
+    <tr><td><code>data_volumes[]</code></td><td>Subset with persistent data — what backup covers</td></tr>
+    <tr><td><code>minimum_disk_gb</code></td><td>Minimum free disk on volume host path</td></tr>
+    <tr><td rowspan="2"><strong>Secrets</strong></td><td><code>env_vars{}</code></td><td>Non-secret key→value pairs</td></tr>
+    <tr><td><code>secret_references[]</code></td><td>Secret Registry IDs — values retrieved from KeePass at runtime</td></tr>
+    <tr><td rowspan="3"><strong>Resources</strong></td><td><code>minimum_ram_mb</code></td><td></td></tr>
+    <tr><td><code>minimum_cpu_cores</code></td><td>Fractional allowed</td></tr>
+    <tr><td><code>startup_after[]</code></td><td>Containers/services that must be running first</td></tr>
+  </table>
+</div>
+</details>
+
+<!-- ── 4. Backup ─────────────────────────────────────────────────────────── -->
+<h2 id="backup">4. Data Volume Backup Configuration</h2>
+
+<details class="section">
+<summary>Backup methods (per container)</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Method</th><th>Best for</th><th>Recovery</th></tr>
+    <tr><td><strong>PBS</strong> (Proxmox Backup Server)</td><td>Full VM coverage; large disks; incremental + deduplicated</td><td>Restore VM from PBS, then start containers</td></tr>
+    <tr><td><strong>Rclone volume backup</strong></td><td>Granular per-volume; high-frequency; small volumes</td><td>Restore individual volumes, then start containers</td></tr>
+    <tr><td><strong>Encrypted archive</strong></td><td>Small volumes; same as general external backup flow</td><td>Download, decrypt, extract, then start containers</td></tr>
+  </table>
+</div>
+</details>
+
+<details class="section">
+<summary>Volume backup filename convention</summary>
+<div class="detail-body">
+  <pre><code># Config state archive (existing pattern):
+{cell_id}_{YYYY-MM-DD_HH_MM_SS}_{hash}.tar.gz.gpg
+
+# Container volume archive (new):
+{cell_id}_{vmname}_{container_name}_{volume_name}_{YYYY-MM-DD_HH_MM_SS}_{hash}.tar.gz.gpg
+
+# Examples:
+proxmox-cell-a_forgejo_postgresql_data_2026-05-31_02_00_00_a3f7b2.tar.gz.gpg
+proxmox-cell-a_forgejo_forgejo-app_repos_2026-05-31_02_05_00_b4c8d1.tar.gz.gpg
+
+# PBS offsite sync (managed by rclone):
+{cell_id}_pbs_vm{vmid}_{vmname}_{YYYY-MM-DD_HH_MM_SS}_{hash}.tar.zst</code></pre>
+  <p style="color:var(--muted);font-size:.88em"><code>{volume_name}</code> is the declared volume name, not the full host path (paths contain slashes unsuitable for filenames).</p>
+</div>
+</details>
+
+<!-- ── 5. Algorithm ──────────────────────────────────────────────────────── -->
+<h2 id="algorithm">5. Compatibility Check Algorithm</h2>
+
+<details class="section" open>
+<summary>Seven-step check sequence (per container)</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>#</th><th>Check</th><th>On failure</th></tr>
+    <tr><td>1</td><td><strong>Image check</strong> — is digest pullable from registry?</td><td>Registry unreachable → <span class="score score-review">NEEDS_REVIEW</span> · Digest missing → <span class="score score-incompat">INCOMPATIBLE</span></td></tr>
+    <tr><td>2</td><td><strong>Volume path check</strong> — do host paths exist on restored system?</td><td>Path missing + backup exists → <span class="score score-review">NEEDS_REVIEW</span> · No backup → <span class="score score-incompat">INCOMPATIBLE</span></td></tr>
+    <tr><td>3</td><td><strong>Resource check</strong> — RAM, CPU, disk ≥ declared minimums?</td><td>Any fail → <span class="score score-incompat">INCOMPATIBLE</span></td></tr>
+    <tr><td>4</td><td><strong>Network check</strong> — bridge exists? hostname resolves?</td><td>Bridge missing → <span class="score score-incompat">INCOMPATIBLE</span> · IP changed → <span class="score score-review">NEEDS_REVIEW</span></td></tr>
+    <tr><td>5</td><td><strong>Secret check</strong> — all secret_references in Secret Registry?</td><td>Missing → <span class="score score-incompat">INCOMPATIBLE</span></td></tr>
+    <tr><td>6</td><td><strong>Env var check</strong> — any env var contains stale IP/hostname?</td><td>Stale reference → <span class="score score-review">NEEDS_REVIEW</span></td></tr>
+    <tr><td>7</td><td><strong>Dependency check</strong> — are startup_after containers compatible?</td><td>Any dependency INCOMPATIBLE → <span class="score score-blocked">BLOCKED</span></td></tr>
+  </table>
+  <p style="color:var(--muted);font-size:.85em">Final score = worst across all checks.</p>
+</div>
+</details>
+
+<!-- ── 6. Scores ──────────────────────────────────────────────────────────── -->
+<h2 id="scores">6. Score Meanings</h2>
+
+<table>
+  <tr><th>Score</th><th>Meaning</th><th>Action</th></tr>
+  <tr><td><span class="score score-compat">COMPATIBLE</span></td><td>All infrastructure checks pass</td><td>Start the container</td></tr>
+  <tr><td><span class="score score-review">NEEDS_REVIEW</span></td><td>Infrastructure looks OK but something changed; container may work</td><td>Review flags, then start. Check application-level issues per runbook.</td></tr>
+  <tr><td><span class="score score-incompat">INCOMPATIBLE</span></td><td>At least one infrastructure check failed; container will not start</td><td>Resolve flagged issues first</td></tr>
+  <tr><td><span class="score score-blocked">BLOCKED</span></td><td>A dependency is INCOMPATIBLE</td><td>Fix dependency chain from bottom up</td></tr>
+</table>
+
+<!-- ── 7. Setup flow ──────────────────────────────────────────────────────── -->
+<h2 id="setup-flow">7. Setup Flow Integration</h2>
+
+<details class="section">
+<summary>Per-VM container declaration (init-bootstrap-state.py)</summary>
+<div class="detail-body">
+  <pre><code>Does this VM run containerized applications? [y/N]
+
+If yes:
+  Container runtime: [podman / docker / podman-compose / docker-compose]
+
+  For each container:
+    Container name:
+    Image (with registry URL):   e.g. registry.hub.docker.com/library/postgres
+    Image tag:                   e.g. 15-alpine
+    Compose file (Forgejo):      e.g. https://forgejo.internal/infra/bootstrap/containers/postgresql/compose.yaml
+
+    Data volumes (persistent host paths):
+      /opt/forgejo/data
+      /opt/forgejo/repos
+
+    Backup method: [1] PBS  [2] Rclone volume  [3] Encrypted archive
+
+    Minimum resources:
+      Minimum RAM (MB):   [512]
+      Minimum CPU cores:  [1]
+      Minimum disk (GB):  [10]</code></pre>
+</div>
+</details>
+
+<details class="section">
+<summary>Image digest pinning (Tier 2 assessment)</summary>
+<div class="detail-body">
+  <p>When containers are first deployed, the Tier 2 assessment:</p>
+  <ol>
+    <li>Queries running containers for their image digests</li>
+    <li>Records the digest in bootstrap-state.json alongside the tag</li>
+    <li>Future assessments detect if the digest has changed (image rebuilt or tag moved)</li>
+  </ol>
+</div>
+</details>
+
+<!-- ── 8. Schema ──────────────────────────────────────────────────────────── -->
+<h2 id="schema">8. New Schema Components</h2>
+
+<details class="section">
+<summary>container-state-schema.json (new — Tier 2 assessment output)</summary>
+<div class="detail-body">
+  <p>Collected by Tier 2 assessment via <code>podman inspect</code> / <code>docker inspect</code>. Key fields: <code>cell_id</code>, <code>vmid</code>, <code>vm_name</code>, <code>container_runtime</code>, <code>containers[]</code> (observed state: running/stopped, actual image digest, port bindings, volume mounts, resource usage), <code>compose_files[]</code> (detected files with current hashes).</p>
+</div>
+</details>
+
+<details class="section">
+<summary>bootstrap-state-schema.json additions</summary>
+<div class="detail-body">
+  <p><code>containers</code> list added to <code>vm_bootstrap</code> definition: declared container configurations, compose file Forgejo references, data volume definitions with backup method, minimum capability requirements, secret references for container env vars.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>backup.py extensions</summary>
+<div class="detail-body">
+  <pre><code>volume_archive_filename(cell_id, vm_name, container_name, volume_name, dt) → str
+pbs_offsite_filename(cell_id, vmid, vm_name, dt) → str</code></pre>
+  <p>Both follow the established <code>{parts}_{YYYY-MM-DD_HH_MM_SS}_{6-char-hash}</code> pattern.</p>
+</div>
+</details>
+
+<!-- ── 9. Implementation ──────────────────────────────────────────────────── -->
+<h2 id="impl">9. Implementation Phases <span class="badge-future">Phase 21</span></h2>
+
+<details class="phase">
+<summary>Phase 21.5 — Container State Schema and Declaration</summary>
+<div class="detail-body">
+  <p style="color:var(--muted);font-size:.85em">Prerequisites: Phase 21 (Failure Domain Modeling) complete.</p>
+  <div>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="215-schema"><span class="check-label"><code>data-model/container-state-schema.json</code></span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="215-bss"><span class="check-label"><code>containers</code> list added to <code>vm_bootstrap</code> in bootstrap-state-schema.json</span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="215-backup"><span class="check-label"><code>data_backup</code> config per container; <code>volume_archive_filename()</code> and <code>pbs_offsite_filename()</code> added to backup.py</span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="215-prompts"><span class="check-label">Container declaration prompts in init-bootstrap-state.py</span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="215-tests"><span class="check-label">Schema validation tests</span></label>
+  </div>
+</div>
+</details>
+
+<details class="phase">
+<summary>Phase 21.6 — Container State Collection (Tier 2)</summary>
+<div class="detail-body">
+  <div>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="216-collector"><span class="check-label"><code>assessment/tier2/collectors/container_state.py</code> — detects runtime (podman/docker), collects running containers with image digests, volumes, compose files and hashes</span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="216-tests"><span class="check-label">Tests</span></label>
+  </div>
+</div>
+</details>
+
+<details class="phase">
+<summary>Phase 21.7 — Container Compatibility Checker</summary>
+<div class="detail-body">
+  <div>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="217-engine"><span class="check-label"><code>doc-gen/container_compat.py</code> — <code>check_image()</code>, <code>check_volumes()</code>, <code>check_resources()</code>, <code>check_network()</code>, <code>check_secrets()</code>, <code>check_env_vars()</code>, <code>check_dependencies()</code>, <code>score_container()</code>, <code>score_vm()</code></span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="217-workbook"><span class="check-label">Integration with recovery workbook renderer (container compatibility section)</span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="217-readiness"><span class="check-label">Integration with readiness scorer (ORANGE if NEEDS_REVIEW, RED if INCOMPATIBLE)</span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="217-tests"><span class="check-label">Tests (35+ covering all check types and score combinations)</span></label>
+  </div>
+</div>
+</details>
+
+<details class="phase">
+<summary>Phase 21.8 — Container Compatibility Report</summary>
+<div class="detail-body">
+  <div>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="218-report"><span class="check-label">New report type: Container Compatibility Report (per-container score + flags + guidance + volume restore steps)</span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="218-runbook"><span class="check-label">Integration with recovery runbook (container section after VM restore section)</span></label>
+    <label class="check-row"><input type="checkbox" class="step-check" data-key="218-engine"><span class="check-label">Integration with engine.py (<code>--mode container-compat</code>)</span></label>
+  </div>
+</div>
+</details>
+
+<!-- ── 10. Decisions ──────────────────────────────────────────────────────── -->
+<h2 id="decisions">10. Design Decisions</h2>
+
+<details class="section">
+<summary>D-001: Digest pinning is required, tags are informational</summary>
+<div class="detail-body">
+  <p>Tags can be reassigned. Only the image digest provides a stable reference to an exact image. The system records digests at deployment time and flags drift.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>D-002: Application-level compatibility is out of scope for automation</summary>
+<div class="detail-body">
+  <p>Database schema migration, application config file updates, and internal state consistency after restore are application-specific. The system flags that review is needed but does not attempt automated resolution. Per-service runbooks document the manual steps.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>D-003: PBS is preferred for VMs with large disks</summary>
+<div class="detail-body">
+  <p>PBS is more efficient (incremental, compressed, deduplicated) than per-volume archives for large data sets. Per-volume rclone/encrypted-archive backup is better for frequently-changed small volumes where fine-grained recovery is needed.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>D-004: Compose files live in Forgejo, not in bootstrap-state.json</summary>
+<div class="detail-body">
+  <p>Only the reference (repo URL, path, commit hash, file digest) is stored in bootstrap-state.json. The actual file is in Forgejo, making it version-controlled and diff-able.</p>
+</div>
+</details>
+
+<details class="section">
+<summary>D-005: Container minimum_capability feeds cell readiness</summary>
+<div class="detail-body">
+  <p>If the restored hardware cannot meet the declared minimum_capability of any container, that container scores INCOMPATIBLE, which propagates to the cell's readiness score. Capacity issues surface in the recovery readiness report before recovery is attempted.</p>
+</div>
+</details>
+
+<!-- ── 11. Relationships ──────────────────────────────────────────────────── -->
+<h2 id="relationships">11. Relationship to Existing Architecture</h2>
+
+<details class="section">
+<summary>Integration points</summary>
+<div class="detail-body">
+  <table>
+    <tr><th>Component</th><th>Interaction</th></tr>
+    <tr><td>Tier 2 Assessment</td><td>New <code>container-state-schema.json</code> output; <code>service-state-schema.json</code> extended (contracts link to containers)</td></tr>
+    <tr><td>Historical State</td><td>Stores container state snapshots; enables before/after diff for compatibility checking</td></tr>
+    <tr><td>Drift Detector (<code>drift.py</code>)</td><td>Detects container state drift between assessments; feeds compatibility checker with what changed</td></tr>
+    <tr><td>DNS Registry</td><td>Provides current vs historical hostname→IP mapping for env var stale detection</td></tr>
+    <tr><td>Secret Registry</td><td>Validates all container <code>secret_references</code> still exist</td></tr>
+    <tr><td>Readiness Scorer (<code>readiness.py</code>)</td><td>Extended: INCOMPATIBLE container → ORANGE cell score; BLOCKED → RED cell score</td></tr>
+    <tr><td>Recovery Workbook Renderer</td><td>Extended: container compatibility section after VM restore waves</td></tr>
+    <tr><td>backup.py</td><td>Extended: <code>volume_archive_filename()</code>, <code>pbs_offsite_filename()</code></td></tr>
+  </table>
+</div>
+</details>
+
+</body>
+</html>

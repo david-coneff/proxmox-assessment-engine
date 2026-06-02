@@ -42,7 +42,12 @@
   .toc h2 { color: var(--accent); font-size: 0.95em; margin-bottom: 10px; letter-spacing: 0.05em; text-transform: uppercase; }
   .toc ul { list-style: none; }
   .toc > ul > li { margin: 4px 0; }
-  .toc > ul > li > ul { margin-left: var(--indent); margin-top: 2px; }
+  .toc > ul > li > ul { margin-left: var(--indent); margin-top: 2px; display: none; }
+  .toc > ul > li.toc-open > ul { display: block; }
+  .toc-toggle { cursor: pointer; font-size: 0.65em; color: var(--muted); display: inline-block;
+    width: 14px; text-align: center; transition: transform 0.15s; user-select: none;
+    vertical-align: middle; margin-right: 2px; }
+  .toc-toggle.open { transform: rotate(90deg); }
   .toc a { color: var(--muted); text-decoration: none; }
   .toc a:hover { color: var(--accent); }
   .toc .branch-forge   > a { color: var(--forge-h); }
@@ -127,7 +132,10 @@
   .progress-track { flex: 1; background: var(--bg3); border-radius: 99px; height: 8px; overflow: hidden; }
   .progress-fill  { height: 100%; background: var(--green); border-radius: 99px;
     transition: width 0.3s; width: 0%; }
-  .progress-pct   { color: var(--green); font-size: 0.82em; font-weight: 700; flex-shrink: 0; min-width: 36px; }
+  .progress-fill-forge   { background: var(--forge-h); }
+  .progress-fill-spawn   { background: var(--spawn-h); }
+  .progress-fill-phoenix { background: var(--phoenix-h); }
+  .progress-pct   { font-size: 0.82em; font-weight: 700; flex-shrink: 0; min-width: 36px; }
 
   /* ── Checklist items ────────────────────────────────────────────────── */
   .check-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0;
@@ -135,7 +143,7 @@
   .check-row input[type="checkbox"] { margin-top: 2px; accent-color: var(--green);
     width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
   .check-row .check-label { color: var(--text); font-size: 0.88em; line-height: 1.5; }
-  .check-row.done .check-label { color: var(--muted); text-decoration: line-through; }
+  .check-row.done .check-label { color: var(--muted); font-style: italic; }
   .checklist { margin: 6px 0 10px 0; }
 
   /* ── Notes inputs ───────────────────────────────────────────────────── */
@@ -154,6 +162,78 @@
     border-top: 1px dashed var(--border); }
   .notes-section-title { color: var(--muted); font-size: 0.75em; text-transform: uppercase;
     letter-spacing: 0.08em; margin-bottom: 6px; }
+
+  /* ── MFA conditional blocks ─────────────────────────────────────────── */
+  .mfa-detail-block { margin-top: 10px; padding: 10px 12px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); }
+  select.note-input { cursor: pointer; }
+  #keepass-mfa-totp .note-input { border-color: var(--yellow); }
+  #keepass-mfa-totp .note-input:focus { border-color: var(--orange); }
+
+  /* ── Pre-flight summary ─────────────────────────────────────────────── */
+  .preflight-wrap { margin-bottom: 24px; }
+  .preflight-wrap > h2 { color: var(--accent); font-size: 1em; margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.05em; }
+  .preflight-wrap > p  { color: var(--muted); font-size: 0.82em; margin-bottom: 10px; }
+  details.pf-forge   > summary { background: #2d2640; color: var(--forge-h); border: 1px solid #4a3d6e; }
+  details.pf-spawn   > summary { background: #1e3040; color: var(--spawn-h); border: 1px solid #2e5060; }
+  details.pf-phoenix > summary { background: #3a2620; color: var(--phoenix-h); border: 1px solid #6e3a28; }
+  details.pf-forge   > .detail-body { background: #211e2a; border: 1px solid #3a3050; border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+  details.pf-spawn   > .detail-body { background: #1b2a34; border: 1px solid #2a4050; border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+  details.pf-phoenix > .detail-body { background: #2e201c; border: 1px solid #5a3028; border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+  .pf-group { margin: 10px 0 14px; }
+  .pf-group h4 { color: var(--muted); font-size: 0.78em; text-transform: uppercase;
+    letter-spacing: 0.07em; margin-bottom: 6px; }
+  .pf-note-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .pf-note-label { color: var(--muted); font-size: 0.8em; min-width: 180px; flex-shrink: 0; }
+  .pf-mirror-badge { font-size: 0.68em; background: #1e2d3a; color: var(--accent);
+    border-radius: 3px; padding: 1px 5px; flex-shrink: 0; white-space: nowrap; }
+  .pf-remind { background: #1e2a1e; border-left: 3px solid var(--muted);
+    padding: 6px 10px; border-radius: 0 var(--radius) var(--radius) 0; margin: 8px 0;
+    font-size: 0.82em; color: var(--muted); }
+
+  /* ── Optional standalone section ────────────────────────────────────── */
+  details.optional > summary { background: #1a2035; color: var(--accent); border: 1px solid #2a3555; }
+  details.optional > .detail-body { background: #161c2e; border: 1px solid #252f4a;
+    border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+  .optional-badge { display: inline-block; background: #2d2d1a; color: var(--yellow);
+    border: 1px solid #4a4a28; border-radius: 99px; padding: 2px 10px;
+    font-size: 0.72em; font-weight: 700; letter-spacing: 0.04em; margin-left: 8px; vertical-align: middle; }
+  .toc .branch-preflight > a { color: var(--accent); }
+  .toc .branch-backup    > a { color: var(--muted); }
+
+  /* ── Backup locations table ─────────────────────────────────────────── */
+  .backup-tbl { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.85em; }
+  .backup-tbl th { background: var(--bg2); color: var(--muted); text-align: left;
+    padding: 6px 8px; border-bottom: 1px solid var(--border);
+    font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; }
+  .backup-tbl td { padding: 4px 5px; border-bottom: 1px solid var(--bg3); vertical-align: top; }
+  .backup-tbl tr:last-child td { border-bottom: none; }
+  .backup-cell-input { background: var(--code-bg); border: 1px solid var(--border);
+    color: var(--accent); border-radius: 3px; padding: 3px 6px;
+    font-size: 0.82em; font-family: 'Cascadia Code','Consolas',monospace;
+    width: 100%; min-width: 0; outline: none; }
+  .backup-cell-input:focus { border-color: var(--accent); }
+  .backup-del-btn { background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1em; padding: 2px 5px; border-radius: 3px; }
+  .backup-del-btn:hover { color: var(--red); background: var(--bg); }
+  .backup-add-btn { background: var(--bg2); border: 1px dashed var(--border);
+    color: var(--muted); padding: 5px 14px; border-radius: var(--radius);
+    cursor: pointer; font-size: 0.82em; }
+  .backup-add-btn:hover { border-color: var(--green); color: var(--green); }
+  .tag-manifest { background: #1a2d50; color: #7eb8f7; }
+  .manifest-panel { background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin: 10px 0; }
+  .manifest-panel textarea { width: 100%; background: var(--code-bg);
+    border: 1px solid var(--border); color: var(--green); border-radius: 3px;
+    padding: 8px 10px; font-family: 'Cascadia Code','Consolas',monospace;
+    font-size: 0.8em; resize: vertical; min-height: 80px; outline: none; box-sizing: border-box; }
+  .manifest-panel textarea:focus { border-color: var(--accent); }
+  .manifest-btn-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* ── Full guide section header ──────────────────────────────────────── */
+  .guide-section-header { color: var(--accent); font-size: 1em; margin: 28px 0 4px;
+    text-transform: uppercase; letter-spacing: 0.05em; }
 
   /* ── Print / export ─────────────────────────────────────────────────── */
   @media print {
@@ -181,15 +261,28 @@
   <button class="ctrl-btn" onclick="importManifest()">⬆ Import broodforge manifest</button>
 </div>
 <div class="progress-bar-wrap">
-  <span class="progress-label">Setup progress:</span>
-  <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
-  <span class="progress-pct" id="prog-pct">0%</span>
-  <span class="progress-label" id="prog-count" style="color:var(--muted)">0 / 0 steps</span>
+  <span class="progress-label" style="color:var(--forge-h)">🔨 Forge:</span>
+  <div class="progress-track"><div class="progress-fill progress-fill-forge" id="prog-fill-forge"></div></div>
+  <span class="progress-pct" id="prog-pct-forge" style="color:var(--forge-h)">0%</span>
+  <span class="progress-label" id="prog-count-forge" style="color:var(--muted)">0 / 0 steps</span>
+</div>
+<div class="progress-bar-wrap">
+  <span class="progress-label" style="color:var(--spawn-h)">🥚 Spawn:</span>
+  <div class="progress-track"><div class="progress-fill progress-fill-spawn" id="prog-fill-spawn"></div></div>
+  <span class="progress-pct" id="prog-pct-spawn" style="color:var(--spawn-h)">0%</span>
+  <span class="progress-label" id="prog-count-spawn" style="color:var(--muted)">0 / 0 steps</span>
+</div>
+<div class="progress-bar-wrap">
+  <span class="progress-label" style="color:var(--phoenix-h)">🦅 Phoenix:</span>
+  <div class="progress-track"><div class="progress-fill progress-fill-phoenix" id="prog-fill-phoenix"></div></div>
+  <span class="progress-pct" id="prog-pct-phoenix" style="color:var(--phoenix-h)">0%</span>
+  <span class="progress-label" id="prog-count-phoenix" style="color:var(--muted)">0 / 0 steps</span>
 </div>
 
 <div class="toc">
   <h2>Contents</h2>
   <ul>
+    <li class="branch-preflight"><a href="#preflight-summary">📋 Pre-flight checklist — gather before you begin</a></li>
     <li class="branch-forge"><a href="#forge">🔨 Forge — bare hardware → hatchery</a>
       <ul>
         <li><a href="#forge-before">Before you begin</a></li>
@@ -232,8 +325,167 @@
         <li><a href="#phoenix-validation">Post-recovery validation</a></li>
       </ul>
     </li>
+    <li class="branch-backup"><a href="#backup-locations">🗄 Backup locations &amp; credentials</a> <span style="color:var(--muted);font-size:0.8em">(optional — configure after cluster is running)</span></li>
   </ul>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PRE-FLIGHT SUMMARY                                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="preflight-wrap" id="preflight-summary">
+<h2>📋 Pre-flight checklist</h2>
+<p>Gather this information and make these decisions before starting each process. Fields with <span class="pf-mirror-badge">↕ synced</span> share their value with the matching input further down — fill it here and the detailed section is already pre-filled, and vice versa.</p>
+
+<!-- ── Forge pre-flight ──────────────────────────────────────────────── -->
+<details class="pf-forge" id="pf-forge">
+<summary>🔨 Forge — have this ready before running <code>forge.sh</code></summary>
+<div class="detail-body">
+
+<div class="pf-group">
+<h4>Host &amp; network</h4>
+<div class="pf-note-row">
+  <span class="pf-note-label">Proxmox host IP:</span>
+  <input type="text" class="note-input" data-key="forge-pre-ip" placeholder="e.g. 192.168.1.10">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-note-row">
+  <span class="pf-note-label">Planned hostname:</span>
+  <input type="text" class="note-input" data-key="forge-p03-hostname" placeholder="e.g. pve01">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-note-row">
+  <span class="pf-note-label">Network profile:</span>
+  <input type="text" class="note-input" data-key="forge-p01-netprofile" placeholder="lan  or  wan">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-note-row">
+  <span class="pf-note-label">Domain name (WAN only):</span>
+  <input type="text" class="note-input" data-key="forge-pre-domain-val" placeholder="e.g. home.example.com">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+</div>
+
+<div class="pf-group">
+<h4>Storage &amp; configuration</h4>
+<div class="pf-note-row">
+  <span class="pf-note-label">Config mode:</span>
+  <input type="text" class="note-input" data-key="forge-p01-mode" placeholder="autonomous / ip-selective / group-manual / full-manual">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-note-row">
+  <span class="pf-note-label">ZFS pool name:</span>
+  <input type="text" class="note-input" data-key="forge-p03-pool" placeholder="e.g. rpool  (default)">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+</div>
+
+<div class="pf-group">
+<h4>Security decisions</h4>
+<div class="pf-note-row">
+  <span class="pf-note-label">KeePass MFA method:</span>
+  <input type="text" class="note-input" data-key="forge-security-mfa-method" placeholder="none / totp / yubikey">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-note-row">
+  <span class="pf-note-label">Cloud backup provider:</span>
+  <input type="text" class="note-input" data-key="forge-pre-backup-provider" placeholder="e.g. Backblaze B2, Cloudflare R2, local /mnt/backup">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-remind">KeePass master password is never stored here. Decide how you'll generate it (broodforge suggestion, KeePass generator, or your own) and write it down before starting phase-03.</div>
+</div>
+
+<div class="pf-group">
+<h4>Hardware minimums to verify</h4>
+<div class="checklist">
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-pre-proxmox"><span class="check-label">Proxmox VE installed from ISO (bare-metal)</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-pre-ssh"><span class="check-label">SSH access as <code>root</code> confirmed from workstation</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-forge-ram"><span class="check-label">RAM ≥ 32 GB (16 GB absolute minimum)</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-forge-vtx"><span class="check-label">VT-x / AMD-V enabled in BIOS</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-forge-disks"><span class="check-label">≥ 2 disks available for ZFS mirror (or 1 disk and accepting no redundancy)</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="forge-pre-backup"><span class="check-label">Cloud backup API key obtained (if applicable)</span></label>
+</div>
+</div>
+
+</div>
+</details>
+
+<!-- ── Spawn pre-flight ──────────────────────────────────────────────── -->
+<details class="pf-spawn" id="pf-spawn">
+<summary>🥚 Spawn — have this ready before running <code>spawn.sh</code></summary>
+<div class="detail-body">
+
+<div class="pf-group">
+<h4>Broodling identity</h4>
+<div class="pf-note-row">
+  <span class="pf-note-label">Broodling hostname:</span>
+  <input type="text" class="note-input" data-key="spawn-hostname" placeholder="e.g. pve02  [auto from hatchery]">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-note-row">
+  <span class="pf-note-label">Broodling LAN IP:</span>
+  <input type="text" class="note-input" data-key="spawn-lan-ip" placeholder="e.g. 192.168.1.15  [auto-allocated]">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-note-row">
+  <span class="pf-note-label">Pre-flight scan result:</span>
+  <input type="text" class="note-input" data-key="spawn-p00a-result" placeholder="PASS / FAIL — note any mismatches">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+</div>
+
+<div class="pf-group">
+<h4>Hatchery &amp; broodling state</h4>
+<div class="checklist">
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-spawn-phs"><span class="check-label">Hatchery PHS ≥ 80, all VMs running, Forgejo accessible</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-spawn-state"><span class="check-label"><code>bootstrap-state.json</code> is current on Forgejo (run Tier 2 assessment if in doubt)</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-spawn-pkg"><span class="check-label">Spawn package generated on hatchery and copied to broodling</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-spawn-proxmox"><span class="check-label">Proxmox VE installed on broodling; SSH as root confirmed</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-spawn-network"><span class="check-label">Broodling can reach hatchery (LAN: same subnet; WAN: Headscale join done)</span></label>
+</div>
+<div class="pf-remind">KeePass master password will be prompted once at the beginning of <code>spawn.sh</code>. Have it available.</div>
+</div>
+
+</div>
+</details>
+
+<!-- ── Phoenix pre-flight ────────────────────────────────────────────── -->
+<details class="pf-phoenix" id="pf-phoenix">
+<summary>🦅 Phoenix — have this ready before running <code>phoenix.sh</code></summary>
+<div class="detail-body">
+
+<div class="pf-group">
+<h4>Target node &amp; hardware</h4>
+<div class="pf-note-row">
+  <span class="pf-note-label">Failed node hostname:</span>
+  <input type="text" class="note-input" data-key="phoenix-hostname" placeholder="e.g. pve01  [from phoenix package]">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+<div class="pf-note-row">
+  <span class="pf-note-label">Replacement hardware:</span>
+  <input type="text" class="note-input" data-key="phoenix-hw" placeholder="e.g. same model / 4 disks instead of 2">
+  <span class="pf-mirror-badge">↕ synced</span>
+</div>
+</div>
+
+<div class="pf-group">
+<h4>Recovery resources — confirm before starting</h4>
+<div class="checklist">
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-phoenix-node-down"><span class="check-label"><strong>Failed node is fully shut down</strong> — prevents cluster split-brain</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-phoenix-pbs"><span class="check-label">PBS backup storage is accessible and contains the required VM backups</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-phoenix-kdbx"><span class="check-label">KeePass database retrieved from backup (or available on a surviving node)</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-phoenix-kp-pw"><span class="check-label">KeePass master password available</span></label>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="pf-phoenix-pkg"><span class="check-label">Phoenix package generated on a surviving node from <code>bootstrap-state.json</code></span></label>
+</div>
+<div class="pf-remind">Retrieve <code>bootstrap-state.json</code> from backup or Forgejo before generating the phoenix package. See <a href="#backup-locations">Backup Locations &amp; Credentials</a> for your recorded backup destinations.</div>
+</div>
+
+</div>
+</details>
+
+</div><!-- end .preflight-wrap -->
+
+<h2 class="guide-section-header" id="full-setup-guide">Full Setup Guide</h2>
+<p style="color:var(--muted);font-size:0.82em;margin-bottom:16px">Expand a package below to configure its settings and track execution phases. Use the pre-flight checklist above to gather everything you need before starting.</p>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- FORGE                                                                  -->
@@ -452,6 +704,46 @@ python3 proxmox-bootstrap/setup-network.py \
 <details class="leaf"><summary>KeePass database location <span class="tag tag-optional">optional</span></summary><div class="detail-body">
   <p>Defaults to <code>/opt/broodforge/cluster.kdbx</code>. Override if you have a preferred path. The database is backed up separately to all configured backup destinations (plain rclone copy — not restic — because the database is already AES-256 encrypted).</p>
 </div></details>
+<details class="leaf"><summary>KeePass MFA method <span class="tag tag-optional">optional</span></summary><div class="detail-body">
+  <p>If you added an extra factor to the KeePass database (TOTP or YubiKey challenge-response), record it here so you can recover access after losing the factor device.</p>
+  <div class="note-row">
+    <span class="note-label">MFA method:</span>
+    <select class="note-input" id="keepass-mfa-select" data-key="forge-security-mfa-method">
+      <option value="none">None</option>
+      <option value="totp">TOTP (authenticator app)</option>
+      <option value="yubikey">YubiKey</option>
+    </select>
+  </div>
+
+  <div id="keepass-mfa-totp" class="mfa-detail-block" style="display:none">
+    <div class="danger">The TOTP seed below is the one thing broodforge cannot recover for you. Without it, a lost phone means permanent loss of KeePass access. Print it or write it down and store it physically separate from the Proxmox host.</div>
+    <div class="note-row" style="margin-top:8px">
+      <span class="note-label">TOTP seed (base32):</span>
+      <input type="text" class="note-input" data-key="forge-security-mfa-totp-seed" placeholder="e.g. JBSWY3DPEHPK3PXP… (base32 secret from QR setup)">
+    </div>
+    <div class="note-row">
+      <span class="note-label">TOTP issuer / label:</span>
+      <input type="text" class="note-input" data-key="forge-security-mfa-totp-label" placeholder="e.g. Broodforge KeePass">
+    </div>
+    <p style="color:var(--muted);font-size:0.8em;margin-top:6px">The seed lets you re-enrol any authenticator app (Google Authenticator, Aegis, etc.) from scratch. Keep a printed copy alongside your master password record.</p>
+  </div>
+
+  <div id="keepass-mfa-yubikey" class="mfa-detail-block" style="display:none">
+    <div class="tip">A replacement YubiKey with the same HMAC-SHA1 secret programmed into the same slot is required to regain access if this key is lost or damaged.</div>
+    <div class="note-row" style="margin-top:8px">
+      <span class="note-label">YubiKey serial:</span>
+      <input type="text" class="note-input" data-key="forge-security-mfa-yk-serial" placeholder="e.g. 12345678">
+    </div>
+    <div class="note-row">
+      <span class="note-label">Slot used:</span>
+      <input type="text" class="note-input" data-key="forge-security-mfa-yk-slot" placeholder="e.g. Slot 2 (HMAC-SHA1 challenge-response)">
+    </div>
+    <div class="note-row">
+      <span class="note-label">Configuration notes:</span>
+      <input type="text" class="note-input" data-key="forge-security-mfa-yk-notes" placeholder="e.g. Programmed via YubiKey Manager, challenge-response mode">
+    </div>
+  </div>
+</div></details>
 <details class="leaf"><summary>Service password format <span class="tag tag-auto">auto</span></summary><div class="detail-body">
   <p>All generated service passwords use the readable passphrase format by default. If a service rejects periods or special characters, broodforge detects the deployment failure, offers to regenerate with plain alphanumeric (letters + digits), and records the restriction in <code>service-catalog.yaml</code> for future deployments.</p>
 </div></details>
@@ -501,8 +793,8 @@ python3 proxmox-bootstrap/setup-network.py \
   </ul>
   <p>Headscale is automatically configured to use the issued cert. k3s services use cert-manager (Cloudflare path) or cert sync (DuckDNS path).</p>
 </div></details>
-<details class="leaf"><summary>Backup destinations <span class="tag tag-required">at least one required</span></summary><div class="detail-body">
-  <p>At least one destination must be configured before forging completes — secrets must be backed up. Add as many as you like; all are attempted on each backup run:</p>
+<details class="leaf"><summary>Backup destinations <span class="tag tag-optional">optional</span></summary><div class="detail-body">
+  <p>Configure backup destinations to protect your secrets and state. Backup is optional — the forge completes without it — but strongly recommended before production use. Add as many as you like; all are attempted on each backup run:</p>
   <ul>
     <li><strong>Local path</strong> — <code>/mnt/backup-drive</code> (no credentials)</li>
     <li><strong>USB drive</strong> — <code>/media/usb</code> (must be mounted at runtime)</li>
@@ -723,6 +1015,7 @@ python3 proxmox-bootstrap/setup-network.py \
   <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p05"><span class="check-label"><strong>phase-05 [conditional]</strong> — SQLite → etcd HA promotion (only if 3rd server node).</span></label>
   <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-p06"><span class="check-label"><strong>phase-06 verify</strong> — Cluster health: all VMs running, all k3s nodes Ready.</span></label>
   <div class="note-row"><span class="note-label">Final verification:</span><input type="text" class="note-input" data-key="spawn-p06-note" placeholder="e.g. 2/2 nodes Ready, all VMs running"></div>
+  <label class="check-row"><input type="checkbox" class="step-check" data-key="spawn-backup-verify"><span class="check-label"><strong>Backup reachability</strong> — Confirm all backup destinations recorded in the <a href="#backup-locations">Backup Locations &amp; Credentials</a> table are reachable from this node. Run a test snapshot: <code>restic snapshots --repo {destination}</code>.</span></label>
 </div>
 <div class="tip">After phase-06: Flux schedules workloads; Assessment Engine detects and scores the broodling against its declared disposition.</div>
 </div>
@@ -756,6 +1049,7 @@ python3 proxmox-bootstrap/setup-network.py \
   <li>Replacement hardware meets or exceeds the original node's minimum requirements</li>
   <li>KeePass database is available (from external backup or another node)</li>
   <li>You have the KeePass master password</li>
+  <li>All backup destinations listed in <a href="#backup-locations">Backup Locations &amp; Credentials</a> are reachable — you will need them to retrieve <code>bootstrap-state.json</code> and the KeePass database if no surviving node holds a copy</li>
 </ul>
 <div class="danger">The phoenix package restores the original node's VMIDs and IPs. If the failed node is still partially running, shut it down completely before running <code>phoenix.sh</code> to prevent cluster split-brain.</div>
 </div>
@@ -931,12 +1225,61 @@ ansible-playbook -i inventory/ site.yml --limit {vm_name}</code></pre>
   <li>Update <code>bootstrap-state.json</code> with the phoenix completion record</li>
   <li>Commit the updated <code>bootstrap-state.json</code> to Forgejo</li>
   <li>Run a reconstruction drill entry: <code>python3 proxmox-bootstrap/reconstruction-drill.py --record-manual --outcome success</code></li>
+  <li>Verify all backup destinations in <a href="#backup-locations">Backup Locations &amp; Credentials</a> are reachable and run a post-recovery test backup to confirm the restored node's data is being captured</li>
   <li>The Assessment Engine detects the Forgejo commit and regenerates documentation automatically</li>
 </ul>
 <div class="tip">Review the provenance records for all restored VMs — compare the deployed commit hashes to the current Forgejo repository state to confirm reconstruction matches the original deployment.</div>
 </div>
 </details>
 
+</div>
+</details>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- BACKUP LOCATIONS (optional, standalone)                                -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<details class="optional" id="backup-locations">
+<summary>🗄 Backup locations &amp; credentials <span class="optional-badge">OPTIONAL</span></summary>
+<div class="detail-body">
+
+<div class="warn">
+  <strong>Skipping backup configuration is allowed but discouraged.</strong>
+  Operating without backups puts your data at risk — a disk failure or failed phoenix recovery without accessible backups can mean permanent data loss. We recommend completing this section before going into production. Credentials and paths persist in your browser, so you can fill in details as your destinations are provisioned.
+</div>
+
+<p>Record every backup target — what it covers, where it lands, and what credentials are needed. This table is your quick-reference during Phoenix recovery. It persists in your browser and can be pre-populated from a forge manifest.</p>
+<div class="tip">Minimum viable backup: the KeePass <code>.kdbx</code> file and at least one offsite copy of <code>bootstrap-state.json</code>. Phoenix recovery depends on both being reachable from a cold start on unfamiliar hardware.</div>
+
+<!-- Manifest import panel -->
+<div id="backup-manifest-panel" class="manifest-panel" style="display:none">
+  <h4 style="color:var(--accent);margin-bottom:8px">Load from manifest</h4>
+  <p style="color:var(--muted);font-size:0.82em;margin-bottom:8px">Paste or drop a <code>bootstrap-state.json</code> to auto-generate rows from your declared VMs, services, and backup configuration. Fill in credentials and notes for each generated row.</p>
+  <textarea id="backup-manifest-paste" placeholder="Paste bootstrap-state.json here…" rows="5"></textarea>
+  <div class="manifest-btn-row">
+    <button class="ctrl-btn" onclick="document.getElementById('backup-manifest-file').click()">📂 Choose file…</button>
+    <button class="ctrl-btn export-btn" onclick="applyBackupManifestPaste()">⬇ Parse &amp; add rows</button>
+    <button class="ctrl-btn" onclick="document.getElementById('backup-manifest-panel').style.display='none';document.getElementById('backup-manifest-paste').value=''">✕ Close</button>
+  </div>
+  <input type="file" id="backup-manifest-file" accept=".json" style="display:none" onchange="handleBackupManifestFile(this)">
+</div>
+
+<table class="backup-tbl">
+  <thead>
+    <tr>
+      <th style="width:26%">What it backs up</th>
+      <th style="width:25%">Location / path / URL</th>
+      <th style="width:23%">Credential / auth method</th>
+      <th style="width:20%">Notes</th>
+      <th style="width:6%"></th>
+    </tr>
+  </thead>
+  <tbody id="backup-rows-body"></tbody>
+</table>
+<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <button class="backup-add-btn" onclick="addBackupRow()">➕ Add row</button>
+  <button class="ctrl-btn" onclick="toggleBackupManifestPanel()">📋 Load from manifest</button>
+  <button class="ctrl-btn reset-btn" onclick="clearManifestBackupRows()" title="Remove rows auto-generated from a manifest">✕ Clear manifest rows</button>
+</div>
 </div>
 </details>
 
@@ -976,28 +1319,42 @@ function restoreAll() {
     });
   });
 
-  // Restore notes
+  // Restore notes and wire real-time mirror sync for shared data-key fields
   document.querySelectorAll('.note-input').forEach(inp => {
     const k = inp.dataset.key;
     if (!k) return;
     const stored = localStorage.getItem(LS_PREFIX + 'note-' + k);
     if (stored !== null) inp.value = stored;
-    inp.addEventListener('input', () => saveNote(k, inp.value));
+    inp.addEventListener('input', () => {
+      saveNote(k, inp.value);
+      // Mirror to every other element sharing the same data-key (summary ↔ detail sync)
+      document.querySelectorAll(`.note-input[data-key="${CSS.escape(k)}"]`).forEach(sib => {
+        if (sib !== inp) sib.value = inp.value;
+      });
+    });
   });
 
   updateProgress();
 }
 
 function updateProgress() {
-  const all     = document.querySelectorAll('.step-check');
-  const checked = document.querySelectorAll('.step-check:checked');
-  const pct     = all.length ? Math.round(checked.length / all.length * 100) : 0;
-  const fill    = document.getElementById('prog-fill');
-  const pctEl   = document.getElementById('prog-pct');
-  const countEl = document.getElementById('prog-count');
-  if (fill)   fill.style.width = pct + '%';
-  if (pctEl)  pctEl.textContent = pct + '%';
-  if (countEl) countEl.textContent = `${checked.length} / ${all.length} steps`;
+  [
+    { key: 'forge',   selector: 'details.forge' },
+    { key: 'spawn',   selector: 'details.spawn' },
+    { key: 'phoenix', selector: 'details.phoenix' },
+  ].forEach(({ key, selector }) => {
+    const scope   = document.querySelector(selector);
+    if (!scope) return;
+    const all     = scope.querySelectorAll('.step-check');
+    const checked = scope.querySelectorAll('.step-check:checked');
+    const pct     = all.length ? Math.round(checked.length / all.length * 100) : 0;
+    const fill    = document.getElementById(`prog-fill-${key}`);
+    const pctEl   = document.getElementById(`prog-pct-${key}`);
+    const countEl = document.getElementById(`prog-count-${key}`);
+    if (fill)    fill.style.width       = pct + '%';
+    if (pctEl)   pctEl.textContent      = pct + '%';
+    if (countEl) countEl.textContent    = `${checked.length} / ${all.length} steps`;
+  });
 }
 
 // ── Export manifest ──────────────────────────────────────────────────────
@@ -1068,6 +1425,12 @@ function importManifest() {
             saveNote(el.dataset.key, el.value);
           }
         });
+        // Populate backup locations table from manifest data
+        if (Array.isArray(data.__backup_rows__)) {
+          data.__backup_rows__.forEach(r => addBackupRow({ ...r, source: 'manifest' }));
+        } else if (data.vms || data.backup_config || data.keepass_config) {
+          _parseManifestBackupTargets(data).forEach(r => addBackupRow(r));
+        }
         alert('Manifest imported. Fields marked in green were filled by broodforge.');
       } catch {
         // Try Markdown import (extract bullet values)
@@ -1099,8 +1462,223 @@ function _getPath(obj, path) {
   return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
 }
 
+// ── Collapsible TOC ──────────────────────────────────────────────────────
+function initTocCollapse() {
+  document.querySelectorAll(
+    '.toc > ul > li.branch-forge, .toc > ul > li.branch-spawn, .toc > ul > li.branch-phoenix'
+  ).forEach(li => {
+    const sublist = li.querySelector('ul');
+    const link    = li.querySelector(':scope > a');
+    if (!sublist || !link) return;
+
+    const arrow = document.createElement('span');
+    arrow.className   = 'toc-toggle';
+    arrow.textContent = '▶';
+    li.insertBefore(arrow, link);
+
+    const toggle = e => {
+      const isOpen = li.classList.toggle('toc-open');
+      arrow.classList.toggle('open', isOpen);
+    };
+    arrow.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+    link.addEventListener('click', toggle);
+  });
+}
+
+// ── KeePass MFA conditional display ─────────────────────────────────────
+function updateMfaVisibility(value) {
+  const totp    = document.getElementById('keepass-mfa-totp');
+  const yubikey = document.getElementById('keepass-mfa-yubikey');
+  if (totp)    totp.style.display    = value === 'totp'    ? '' : 'none';
+  if (yubikey) yubikey.style.display = value === 'yubikey' ? '' : 'none';
+}
+
+function initMfaSelect() {
+  const sel = document.getElementById('keepass-mfa-select');
+  if (!sel) return;
+  sel.addEventListener('change', () => {
+    saveNote(sel.dataset.key, sel.value);
+    updateMfaVisibility(sel.value);
+  });
+  // sel.value already restored by restoreAll(); just sync visibility
+  updateMfaVisibility(sel.value);
+}
+
+// ── Backup locations table ──────────────────────────────────────────────
+const BACKUP_ROWS_KEY = 'broodforge-guide-backup-rows';
+
+function _bEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _buildBackupRow(data) {
+  data = data || {};
+  const isManifest = data.source === 'manifest';
+  const tr = document.createElement('tr');
+  tr.className = 'backup-row';
+  tr.dataset.source = isManifest ? 'manifest' : 'manual';
+
+  const fieldDefs = [
+    { ph: 'e.g. Forgejo VM disk (PBS)',        val: data.what       || '' },
+    { ph: 'e.g. pbs.internal / /mnt/backup',   val: data.location   || '' },
+    { ph: 'e.g. KeePass: backup/pbs-password', val: data.credential || '' },
+    { ph: 'e.g. daily at 02:00, restic',       val: data.notes      || '' },
+  ];
+
+  fieldDefs.forEach((f, i) => {
+    const td  = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.className   = 'backup-cell-input';
+    inp.placeholder = f.ph;
+    inp.value       = f.val;
+    inp.addEventListener('input', saveBackupRows);
+    td.appendChild(inp);
+    if (i === 0 && isManifest) {
+      const tag = document.createElement('span');
+      tag.className = 'tag tag-manifest';
+      tag.style.cssText = 'font-size:0.7em;margin-top:3px;display:block';
+      tag.textContent = 'from manifest';
+      td.appendChild(tag);
+    }
+    tr.appendChild(td);
+  });
+
+  const delTd  = document.createElement('td');
+  const delBtn = document.createElement('button');
+  delBtn.className = 'backup-del-btn';
+  delBtn.title     = 'Delete row';
+  delBtn.textContent = '🗑';
+  delBtn.onclick = () => { tr.remove(); saveBackupRows(); };
+  delTd.appendChild(delBtn);
+  tr.appendChild(delTd);
+  return tr;
+}
+
+function addBackupRow(data) {
+  const tbody = document.getElementById('backup-rows-body');
+  if (!tbody) return;
+  tbody.appendChild(_buildBackupRow(data));
+  saveBackupRows();
+}
+
+function saveBackupRows() {
+  const tbody = document.getElementById('backup-rows-body');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('.backup-row')).map(tr => {
+    const inputs = tr.querySelectorAll('.backup-cell-input');
+    return {
+      what:       inputs[0]?.value || '',
+      location:   inputs[1]?.value || '',
+      credential: inputs[2]?.value || '',
+      notes:      inputs[3]?.value || '',
+      source:     tr.dataset.source || 'manual',
+    };
+  });
+  localStorage.setItem(BACKUP_ROWS_KEY, JSON.stringify(rows));
+}
+
+function initBackupTable() {
+  const stored = localStorage.getItem(BACKUP_ROWS_KEY);
+  if (!stored) return;
+  try {
+    const rows = JSON.parse(stored);
+    if (Array.isArray(rows)) rows.forEach(r => addBackupRow(r));
+  } catch {}
+}
+
+function toggleBackupManifestPanel() {
+  const p = document.getElementById('backup-manifest-panel');
+  if (p) p.style.display = p.style.display === 'none' ? '' : 'none';
+}
+
+function handleBackupManifestFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const ta = document.getElementById('backup-manifest-paste');
+    if (ta) ta.value = e.target.result;
+    applyBackupManifestPaste();
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function applyBackupManifestPaste() {
+  const ta = document.getElementById('backup-manifest-paste');
+  if (!ta || !ta.value.trim()) return;
+  try {
+    const data = JSON.parse(ta.value);
+    const rows = _parseManifestBackupTargets(data);
+    if (rows.length === 0) { alert('No backup targets found in this manifest.'); return; }
+    rows.forEach(r => addBackupRow(r));
+    document.getElementById('backup-manifest-panel').style.display = 'none';
+    ta.value = '';
+    alert('Added ' + rows.length + ' backup target row(s) from manifest.');
+  } catch (err) {
+    alert('Could not parse manifest JSON: ' + err.message);
+  }
+}
+
+function clearManifestBackupRows() {
+  const tbody = document.getElementById('backup-rows-body');
+  if (!tbody) return;
+  const toRemove = Array.from(tbody.querySelectorAll('.backup-row'))
+    .filter(tr => tr.dataset.source === 'manifest');
+  if (toRemove.length === 0) { alert('No manifest-generated rows to remove.'); return; }
+  if (!confirm('Remove ' + toRemove.length + ' manifest-generated row(s)?')) return;
+  toRemove.forEach(tr => tr.remove());
+  saveBackupRows();
+}
+
+function _parseManifestBackupTargets(data) {
+  const rows = [];
+  const cell = data.cell_id || '';
+
+  // KeePass database
+  const kc      = data.keepass_config || {};
+  const kdbxLoc = kc.database_hint || '/opt/broodforge/cluster.kdbx';
+  rows.push({ source:'manifest', what:'Cluster secrets (KeePass .kdbx)',
+    location: kdbxLoc, credential:'', notes:'rclone copy (file already AES-256 encrypted)' });
+
+  // Infrastructure state (bootstrap-state.json + snippets)
+  rows.push({ source:'manifest', what:'Infrastructure state (bootstrap-state.json + snippets)',
+    location: 'Forgejo repo' + (cell ? ' / offsite: ' + cell : ''),
+    credential:'', notes:'GPG-encrypted archive via backup.py' });
+
+  // Backup config layers → destinations
+  const bc = data.backup_config;
+  if (bc && bc.layers) {
+    Object.entries(bc.layers).forEach(([layerName, lcfg]) => {
+      if (!lcfg) return;
+      const dests = (lcfg.destinations || [])
+        .map(d => d.id || d.path || d.url || '?').join(', ') || '—';
+      rows.push({ source:'manifest', what:'Backup layer: ' + layerName,
+        location: dests, credential:'',
+        notes: lcfg.enabled ? 'enabled' : 'disabled' });
+    });
+  }
+
+  // VMs → PBS backup targets
+  const dns = data.dns_registry || [];
+  (data.vms || []).forEach(vm => {
+    const dnsEntry = dns.find(e => e.vmid === vm.vmid);
+    const ip       = (dnsEntry && dnsEntry.ip) || vm.initial_ip || '';
+    const sc       = (data.service_contracts || [])
+      .find(c => c.vm === vm.name || c.service === vm.name);
+    const bjob = (sc && sc.backup_job) ? ' (job: ' + sc.backup_job + ')' : '';
+    rows.push({ source:'manifest',
+      what: 'VM: ' + vm.name + ' (VMID ' + vm.vmid + ')' + (ip ? ' — ' + ip : ''),
+      location: 'PBS: ' + (cell ? cell + '/' : '') + 'VMID ' + vm.vmid + bjob,
+      credential:'', notes: vm.role || '' });
+  });
+
+  return rows;
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', restoreAll);
+document.addEventListener('DOMContentLoaded', () => { restoreAll(); initMfaSelect(); initTocCollapse(); initBackupTable(); });
 </script>
 </body>
 </html>
