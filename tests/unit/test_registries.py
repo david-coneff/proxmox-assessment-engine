@@ -583,7 +583,9 @@ class TestRegistryCompletenessScoring(unittest.TestCase):
         from dependencies import DependencyGraph
         graph = DependencyGraph(nodes=[], edges=[], restore_waves=[])
         report = score_graph(graph, manifest)
-        self.assertEqual(report.registry_gaps, [])
+        # Filter out security-posture gap (expected when no scan run; not a registry gap)
+        non_security_gaps = [g for g in report.registry_gaps if g.component_id != "security-posture"]
+        self.assertEqual(non_security_gaps, [])
 
 
 # ===========================================================================
@@ -891,7 +893,7 @@ class TestFixtureIntegration(unittest.TestCase):
         graph = dep_mod.build_graph(manifest)
         report = score_graph(graph, manifest)
 
-        registry_gaps = report.registry_gaps
+        registry_gaps = [g for g in report.registry_gaps if g.component_id != "security-posture"]
         self.assertEqual(registry_gaps, [],
                          msg=f"Expected no registry gaps with all registries present, got: {registry_gaps}")
 

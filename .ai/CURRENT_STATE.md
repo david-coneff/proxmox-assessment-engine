@@ -88,6 +88,7 @@ Options:
 | 1.G.6   | Phoenix guided setup — PhoenixGuidedSetupSession, restoration_wave_options, step0_set_restoration_scope (full/partial), step1_run_identity_overrides, apply_overrides_to_playbook, build_phoenix_guided_session, phoenix-planner.py CLI (63 tests) | Complete |
 
 | Phase 26 | Autonomous Remediation — remediation_planner.py, remediation_queue.py, remediation_executor.py, remediation_policy.py, remediation-cli.py; dashboard integration (remediations section, autonomous mode badge, approve/reject API); operational report Section 8; bootstrap-state-schema.json additions (remediation_proposal, remediation_policy, autonomous_mode); 94 tests | Complete |
+| Security Analyzer | security_analyzer.py — log/script/manifest scanning (15 rules), HTML report, security_posture_score(), _score_security_posture() in readiness.py, Security section in dashboard (/api/security), 56 tests | Complete |
 
 **Tests: 3528 (3398 passed, 37 skipped, 3 pre-existing env failures) — all roadmap items complete**
 

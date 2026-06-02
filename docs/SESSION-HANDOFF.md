@@ -21,6 +21,21 @@ All seven sub-phases implemented:
 
 Test file: `tests/unit/test_remediation.py` — 94 tests, all passing.
 
+### Security Analyzer (complete)
+
+New `proxmox-bootstrap/security_analyzer.py` module:
+- Log file scanning (8 patterns: TOTP seeds, private keys, passwords, k3s tokens, API keys, restic passwords, bearer tokens)
+- Shell script scanning (7 patterns: StrictHostKeyChecking=no, passwords on cmdlines, exported secrets, echo-pipe, bearer in curl, set -x, /dev/null known hosts)
+- Manifest/state file scanning (plaintext password/secret fields, private key material)
+- One-shot audit mode
+- HTML security report (same dark-theme style as dashboard)
+- `security_posture_score()` → GREEN/YELLOW/ORANGE/RED
+- `doc-gen/readiness.py` extended with `_score_security_posture()` — new "Security Posture" scoring dimension
+- `broodforge_dashboard.py` extended with Security section and `/api/security` endpoint
+- `bootstrap-state.json` `security_scan.last_result` field stores scan results for readiness integration
+
+Test file: `tests/unit/test_security_analyzer.py` — 56 tests, all passing.
+
 ## What's Left (in priority order)
 
 1. **Security analyzer** — continuous log scanner + HTML report + readiness score dimension.

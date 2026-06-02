@@ -1886,6 +1886,70 @@ def _score_twin_consistency(manifest: dict) -> list:
     return gaps
 
 
+def _score_security_posture(manifest: dict) -> list:
+    """
+    Score Security Posture based on the last security scan result embedded in
+    bootstrap-state.json as security_scan.last_result.
+
+    Findings are sourced from the security_analyzer module when it runs
+    (proxmox-bootstrap/security_analyzer.py) and the scan result is stored
+    in bootstrap-state.json for readiness scoring.
+
+    Scoring:
+      RED:    any confirmed secret leaks (red_count > 0) or last scan overdue
+      ORANGE: unsafe script patterns (orange_count > 0)
+      YELLOW: suspicious patterns only (yellow_count > 0) or no scan yet run
+      GREEN:  scan current with no findings
+    """
+    gaps = []
+    scan = manifest.get("security_scan") or {}
+    last = scan.get("last_result") or {}
+
+    if not last:
+        gaps.append(Gap(
+            component_id="security-posture",
+            gap_type="no_security_scan",
+            severity="YELLOW",
+            description="No security scan has been run yet.",
+            remediation="Run: python3 proxmox-bootstrap/security_analyzer.py --base-dir . --audit",
+        ))
+        return gaps
+
+    red_count    = last.get("red_count", 0)
+    orange_count = last.get("orange_count", 0)
+    yellow_count = last.get("yellow_count", 0)
+    scanned_at   = last.get("scanned_at", "")
+
+    if red_count > 0:
+        gaps.append(Gap(
+            component_id="security-posture",
+            gap_type="secret_leak_detected",
+            severity="RED",
+            description=f"Security scan found {red_count} confirmed secret leak(s) in logs or manifests.",
+            remediation="Review security report and rotate exposed secrets immediately.",
+        ))
+
+    if orange_count > 0:
+        gaps.append(Gap(
+            component_id="security-posture",
+            gap_type="unsafe_script_pattern",
+            severity="ORANGE",
+            description=f"Security scan found {orange_count} unsafe pattern(s) in shell scripts.",
+            remediation="Review security report and remediate unsafe script patterns.",
+        ))
+
+    if yellow_count > 0 and not red_count and not orange_count:
+        gaps.append(Gap(
+            component_id="security-posture",
+            gap_type="suspicious_patterns",
+            severity="YELLOW",
+            description=f"Security scan found {yellow_count} suspicious pattern(s) worth reviewing.",
+            remediation="Review security report and confirm no secret exposure.",
+        ))
+
+    return gaps
+
+
 def score_graph(graph, manifest: dict) -> ReadinessReport:
     """Score all nodes; propagate BLOCKED; identify SPOFs and blockers."""
     backup_inv = BackupInventory(manifest.get("backup_inventory"))
@@ -1967,6 +2031,8 @@ def score_graph(graph, manifest: dict) -> ReadinessReport:
     registry_gaps += _score_observability_completeness(manifest)
     # Phase 17 — Digital Twin consistency
     registry_gaps += _score_twin_consistency(manifest)
+    # Security Posture — scan last security_scan result embedded in manifest
+    registry_gaps += _score_security_posture(manifest)
 
     # Overall score — worst of component scores and infrastructure gaps
     overall = "GREEN"

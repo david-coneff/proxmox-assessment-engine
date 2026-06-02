@@ -216,6 +216,22 @@ def _backup_status_from_state(state: dict) -> dict:
     }
 
 
+def _security_from_state(state: dict) -> dict:
+    """Extract security scan summary from bootstrap-state.json."""
+    scan = state.get("security_scan") or {}
+    last = scan.get("last_result") or {}
+    return {
+        "scanned_at":  last.get("scanned_at", ""),
+        "red_count":   last.get("red_count", 0),
+        "orange_count":last.get("orange_count", 0),
+        "yellow_count":last.get("yellow_count", 0),
+        "files_scanned":last.get("files_scanned", 0),
+        "score":       last.get("score", "UNKNOWN"),
+        "findings":    last.get("findings", [])[:10],
+        "has_scan":    bool(last),
+    }
+
+
 def _remediations_from_state(state: dict) -> dict:
     """Extract remediation queue and policy summary from bootstrap-state.json."""
     proposals = state.get("remediations") or []
@@ -400,12 +416,14 @@ def generate_dashboard_html(
     backup:   dict,
     cfg:      DashboardConfig,
     remediations: dict = None,
+    security: dict = None,
 ) -> str:
     cell_id       = state.get("cell_id") or "broodforge"
     gen_at        = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     host_id       = state.get("host_identity") or {}
     hostname      = host_id.get("hostname") or host_id.get("fqdn") or cell_id
     remediations  = remediations or {}
+    security      = security or {}
 
     scores_html = ""
     for abbr in ("PHS", "ACS", "RRS", "DCS", "CRS", "OSS"):
@@ -438,6 +456,17 @@ def generate_dashboard_html(
         if auto_active else
         '<span class="auto-badge auto-gated">GATED</span>'
     )
+
+    # Security
+    sec_score     = security.get("score", "UNKNOWN")
+    sec_red       = security.get("red_count", 0)
+    sec_orange    = security.get("orange_count", 0)
+    sec_yellow    = security.get("yellow_count", 0)
+    sec_scanned   = security.get("scanned_at", "")[:16] or "Never"
+    sec_has_scan  = security.get("has_scan", False)
+    sec_score_c   = {"GREEN": "var(--green)", "YELLOW": "var(--yellow)",
+                     "ORANGE": "var(--orange)", "RED": "var(--red)"}.get(sec_score, "var(--muted)")
+    sec_findings  = security.get("findings", [])
 
     bkp_dests = backup.get("destinations", [])
     bkp_last  = backup.get("last_run") or "Never"
@@ -590,6 +619,35 @@ def generate_dashboard_html(
     {''.join(f'<div style="margin:3px 0;font-size:.85em"><span style="color:var(--muted)">{i+1}.</span> <code>{d.get("provider","?")}</code> · {d.get("bucket") or d.get("path","")}</div>' for i, d in enumerate(bkp_dests))}
   </div>
 
+  <!-- ── Security ── -->
+  <h2>Security Posture</h2>
+  <div class="section-wrap">
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-val" style="color:{sec_score_c}">{sec_score}</div>
+        <div class="stat-label">Security score</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--red)">{sec_red}</div>
+        <div class="stat-label">RED (leaks)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--orange)">{sec_orange}</div>
+        <div class="stat-label">ORANGE (unsafe)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--yellow)">{sec_yellow}</div>
+        <div class="stat-label">YELLOW (review)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="font-size:.85em;color:var(--muted)">{sec_scanned}</div>
+        <div class="stat-label">Last scan</div>
+      </div>
+    </div>
+    {'<div class="tip">No security scan has been run yet. Run: <code>python3 proxmox-bootstrap/security_analyzer.py --base-dir . --audit</code></div>' if not sec_has_scan else ''}
+    {'<a class="nav-link" href="/api/security" target="_blank">🔍 Security JSON</a>' if sec_has_scan else ''}
+  </div>
+
   <!-- ── Remediations ── -->
   <h2>Remediations</h2>
   <div class="section-wrap">
@@ -684,6 +742,9 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/backup-status":
             state = _read_bootstrap_state(self._cfg)
             self._serve_json(_backup_status_from_state(state))
+        elif path == "/api/security":
+            state = _read_bootstrap_state(self._cfg)
+            self._serve_json(state.get("security_scan") or {})
         elif path == "/api/remediations":
             state = _read_bootstrap_state(self._cfg)
             self._serve_json(state.get("remediations") or [])
@@ -819,8 +880,9 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         backup       = _backup_status_from_state(state)
         scores       = _scores_from_readiness(readiness)
         remediations = _remediations_from_state(state)
+        security     = _security_from_state(state)
         html         = generate_dashboard_html(state, scores, nodes, failures, backup, self._cfg,
-                                               remediations=remediations)
+                                               remediations=remediations, security=security)
         body     = html.encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")
