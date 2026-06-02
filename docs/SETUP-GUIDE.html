@@ -1287,6 +1287,129 @@ ansible-playbook -i inventory/ site.yml --limit {vm_name}</code></pre>
   Broodforge Setup Guide · Generated 2026-06-01 · See SESSION-HANDOFF.md for current development status
 </p>
 
+<!-- ── Manifest Import Explainer ───────────────────────────────────────── -->
+<section id="manifest-import-explainer" style="
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 24px 0;
+">
+  <h2 style="color: var(--accent); font-size: 1em; text-transform: uppercase;
+              letter-spacing: .06em; border-bottom: 1px solid var(--border);
+              padding-bottom: 6px; margin-bottom: 14px;">
+    📥 Manifest Import — How It Works
+  </h2>
+
+  <p style="margin-bottom:12px">
+    The <strong>⬆ Import broodforge manifest</strong> button at the top of this guide
+    lets you pre-fill the setup fields from a <code>forge-manifest.json</code> or a
+    Broodforge Markdown export file you generated during a previous session or received
+    from your hatchery. This eliminates re-entering settings you already recorded.
+  </p>
+
+  <details open style="border:1px solid var(--border); border-radius: var(--radius); margin-bottom:10px">
+    <summary style="cursor:pointer; padding:8px 12px; background: var(--bg3);
+      font-weight:600; border-radius: var(--radius); user-select:none;
+      list-style:none">How to import</summary>
+    <div style="padding:12px 16px">
+      <p style="margin-bottom:8px"><strong>Option A — Drag and drop:</strong>
+        Drag your manifest file (<code>.json</code> or <code>.md</code>) anywhere onto
+        the guide page. The file is read locally — nothing is uploaded to a server.</p>
+      <p style="margin-bottom:8px"><strong>Option B — Paste JSON:</strong>
+        Click the Import button, then paste the contents of your
+        <code>forge-manifest.json</code> into the text area that appears.</p>
+      <p><strong>Option C — CLI output:</strong>
+        If you ran <code>python3 proxmox-bootstrap/generate-setup-manifest.py</code>,
+        it produces both a <code>.json</code> and a <code>.md</code> file.
+        Either format works with the import button.</p>
+    </div>
+  </details>
+
+  <details style="border:1px solid var(--border); border-radius: var(--radius); margin-bottom:10px">
+    <summary style="cursor:pointer; padding:8px 12px; background: var(--bg3);
+      font-weight:600; border-radius: var(--radius); user-select:none;
+      list-style:none">What the import fills in automatically</summary>
+    <div style="padding:12px 16px">
+      <table style="width:100%; border-collapse:collapse; font-size:.88em; margin:6px 0">
+        <tr style="background:var(--bg3)">
+          <th style="padding:6px 10px; text-align:left; color:var(--accent)">Field group</th>
+          <th style="padding:6px 10px; text-align:left; color:var(--accent)">Fields auto-filled from manifest</th>
+        </tr>
+        <tr><td style="padding:5px 10px; border-bottom:1px solid var(--bg3)"><strong>Cell identity</strong></td>
+            <td style="padding:5px 10px; border-bottom:1px solid var(--bg3)">cell_id, hostname, FQDN, domain</td></tr>
+        <tr><td style="padding:5px 10px; border-bottom:1px solid var(--bg3)"><strong>Network</strong></td>
+            <td style="padding:5px 10px; border-bottom:1px solid var(--bg3)">management CIDR, gateway, DNS server, all VM IPs, Headscale URL</td></tr>
+        <tr><td style="padding:5px 10px; border-bottom:1px solid var(--bg3)"><strong>Storage</strong></td>
+            <td style="padding:5px 10px; border-bottom:1px solid var(--bg3)">ZFS pool name, datastore names, disk topology</td></tr>
+        <tr><td style="padding:5px 10px; border-bottom:1px solid var(--bg3)"><strong>VM inventory</strong></td>
+            <td style="padding:5px 10px; border-bottom:1px solid var(--bg3)">VMID block, per-VM RAM/CPU allocations, VM roles</td></tr>
+        <tr><td style="padding:5px 10px; border-bottom:1px solid var(--bg3)"><strong>Backup destinations</strong></td>
+            <td style="padding:5px 10px; border-bottom:1px solid var(--bg3)">All configured backup layers and destination chains</td></tr>
+        <tr><td style="padding:5px 10px; border-bottom:1px solid var(--bg3)"><strong>Service registry</strong></td>
+            <td style="padding:5px 10px; border-bottom:1px solid var(--bg3)">DNS registry entries, declared services and their ports</td></tr>
+        <tr><td style="padding:5px 10px"><strong>Forge options</strong></td>
+            <td style="padding:5px 10px">Setup mode, guided-setup overrides you recorded manually</td></tr>
+      </table>
+    </div>
+  </details>
+
+  <details style="border:1px solid var(--border); border-radius: var(--radius); margin-bottom:10px">
+    <summary style="cursor:pointer; padding:8px 12px; background: var(--bg3);
+      font-weight:600; border-radius: var(--radius); user-select:none;
+      list-style:none">What you still need to fill in manually</summary>
+    <div style="padding:12px 16px">
+      <p style="margin-bottom:8px; color:var(--muted); font-size:.9em">
+        The import fills in everything the manifest <em>knows about</em> — things that
+        can be discovered automatically or that you previously specified. The following
+        always require manual entry because they are not stored anywhere:
+      </p>
+      <ul style="list-style:none; padding:0; margin:0">
+        <li style="padding:4px 0; border-bottom:1px solid var(--bg3)">
+          🔑 <strong>KeePass master password</strong> — never recorded anywhere; you provide it at the gate</li>
+        <li style="padding:4px 0; border-bottom:1px solid var(--bg3)">
+          🔑 <strong>Cloud API keys / tokens</strong> (Cloudflare, DuckDNS, Backblaze, etc.) — not stored in the manifest; enter them during the wizard</li>
+        <li style="padding:4px 0; border-bottom:1px solid var(--bg3)">
+          📧 <strong>Operator email address</strong> — used for Let's Encrypt registration; not auto-discovered</li>
+        <li style="padding:4px 0; border-bottom:1px solid var(--bg3)">
+          🌐 <strong>WAN IP / router port forwarding</strong> — cannot be determined from the manifest; requires checking your router</li>
+        <li style="padding:4px 0; border-bottom:1px solid var(--bg3)">
+          📦 <strong>Application data volumes</strong> — which app data to back up (opt-in, not auto-detected)</li>
+        <li style="padding:4px 0">
+          📝 <strong>Any notes or custom fields</strong> you added manually in a previous session — these are stored in localStorage, not in the manifest file</li>
+      </ul>
+    </div>
+  </details>
+
+  <details style="border:1px solid var(--border); border-radius: var(--radius)">
+    <summary style="cursor:pointer; padding:8px 12px; background: var(--bg3);
+      font-weight:600; border-radius: var(--radius); user-select:none;
+      list-style:none">Generating the manifest from the command line</summary>
+    <div style="padding:12px 16px">
+      <p style="margin-bottom:10px">
+        If you have already run the forge planner or have an existing
+        <code>bootstrap-state.json</code>, generate the manifest with:
+      </p>
+      <pre style="background:var(--code-bg); border-left:3px solid var(--accent);
+        padding:10px 14px; border-radius:0 var(--radius) var(--radius) 0;
+        font-family:'Cascadia Code',Consolas,monospace; font-size:.86em;
+        overflow-x:auto; margin-bottom:10px"><code># From the broodforge repo:
+python3 proxmox-bootstrap/generate-setup-manifest.py \
+  --state /path/to/bootstrap-state.json \
+  --output ./broodforge-setup-YYYY-MM-DD
+
+# Produces two files:
+#   broodforge-setup-YYYY-MM-DD.json   (drag-and-drop into this guide)
+#   broodforge-setup-YYYY-MM-DD.md     (human-readable summary)</code></pre>
+      <p style="color:var(--muted); font-size:.85em">
+        The manifest is a <strong>snapshot in time</strong> — it captures your current
+        cell configuration. Re-generate it whenever your infrastructure changes to keep
+        the guide pre-filled accurately for the next forge or recovery run.
+      </p>
+    </div>
+  </details>
+</section>
+
 <script>
 // ── Keyboard shortcuts ───────────────────────────────────────────────────
 document.addEventListener('keydown', e => {

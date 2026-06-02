@@ -36,9 +36,35 @@ New `proxmox-bootstrap/security_analyzer.py` module:
 
 Test file: `tests/unit/test_security_analyzer.py` — 56 tests, all passing.
 
+### Setup Guide Manifest Import Explainer (complete)
+
+Added `<section id="manifest-import-explainer">` to `docs/SETUP-GUIDE.html` (before closing `</script></body>`):
+- How to import (drag-and-drop, paste JSON, CLI output)
+- What fields are auto-filled (cell identity, network, storage, VMs, backup destinations, service registry, forge options)
+- What still requires manual entry (KeePass master password, API keys, email, WAN IP, app data volumes, notes)
+- CLI usage for `generate-setup-manifest.py`
+
+### EFF Passphrase Generator (complete)
+
+Investigation finding: `keepassxc-cli generate` does NOT support diceware/wordlist passphrases — CLI only supports character-class passwords. The GUI has a plugin but it is not exposed via CLI.
+
+New `lib/passphrase_eff.py`:
+- 1128-word curated EFF-derived wordlist (deduped, lowercase, 3-8 chars)
+- `generate_eff_passphrase(word_count=4)` → "correct-horse-battery-staple" style
+- `generate_eff_passphrase_n(count, word_count)` → distinct list
+- `eff_passphrase_strength()` → entropy bits calculation
+- ~44 bits entropy at 4 words, ~55 bits at 5 words
+
+`lib/passphrase.py` updated:
+- `generate_master_password_suggestion(style="eff")` — new default style is EFF diceware
+- `style="classic"` preserves the Capital.word.phrase.9 format
+- `style="keepassxc"` tries keepassxc-cli first, falls back to classic
+
+Test file: `tests/unit/test_passphrase_eff.py` — 29 tests, all passing.
+
 ## What's Left (in priority order)
 
-1. **Security analyzer** — continuous log scanner + HTML report + readiness score dimension.
+1. **HTML manifests for package exports** — for forge, spawn, phoenix packages.
    - Scan for plaintext secrets in forge.log, spawn.log etc.
    - Scan shell scripts for unsafe patterns (StrictHostKeyChecking=no, passwords on cmdlines)
    - Scan bootstrap-state.json / manifests for plaintext secret fields
