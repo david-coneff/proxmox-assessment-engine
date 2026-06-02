@@ -328,3 +328,38 @@ class TestCertExpiryMonitor:
         alerts = _ca.scan_cert_expiry(self._deps(), now_fn=_now)
         for a in alerts:
             assert a.action_required
+
+
+# ===========================================================================
+# run_security_scan — Phase 24 security ingestion hook
+# ===========================================================================
+
+class TestRunSecurityScan:
+    def test_returns_dict(self, tmp_path):
+        result = _ca.run_security_scan(str(tmp_path), "")
+        assert isinstance(result, dict)
+
+    def test_has_posture_key(self, tmp_path):
+        result = _ca.run_security_scan(str(tmp_path), "")
+        assert "posture" in result
+
+    def test_posture_is_green_for_clean_dir(self, tmp_path):
+        result = _ca.run_security_scan(str(tmp_path), "")
+        assert result["posture"] in ("GREEN", "YELLOW", "ORANGE", "RED")
+
+    def test_writes_to_state_path(self, tmp_path):
+        import json
+        state_path = str(tmp_path / "state.json")
+        _ca.run_security_scan(str(tmp_path), state_path)
+        with open(state_path) as f:
+            state = json.load(f)
+        assert "security_scan" in state
+        assert "last_result" in state["security_scan"]
+
+    def test_files_scanned_returned(self, tmp_path):
+        result = _ca.run_security_scan(str(tmp_path), "")
+        assert "files_scanned" in result
+
+    def test_no_state_path_still_returns(self, tmp_path):
+        result = _ca.run_security_scan(str(tmp_path), "")
+        assert "posture" in result

@@ -4,6 +4,74 @@ Last updated: 2026-06-02 UTC
 
 ## What Was Done This Session
 
+### Full-stack audit findings — HIGH priority items (complete)
+
+**H1 — Phoenix package assembler + CLI wrappers**
+- Created `proxmox-bootstrap/assemble_phoenix_package.py` — library mirrors forge/spawn pattern; bundles playbook JSON, wave scripts, run-all.sh, lib/checkpoint.sh, phoenix-manifest.html, optional phoenix-workbook.html, optional KeePass .kdbx
+- Created `proxmox-bootstrap/assemble-phoenix-package.py` — CLI entry point (`--playbook`, `--output-dir`, `--kdbx`)
+- Created `proxmox-bootstrap/assemble-forge-package.py` — CLI entry point for forge assembler (`--manifest`, `--output-dir`, `--repo`, `--kdbx`)
+- Created `proxmox-bootstrap/assemble-spawn-package.py` — CLI entry point for spawn assembler (`--plan`, `--manifest`, `--artifacts`, `--output-dir`, `--kdbx`)
+- `build_phoenix_manifest_html()` is wired into the phoenix assembler; phoenix-planner.py message already referenced correct filename
+- Tests: `tests/unit/test_assemble_phoenix_package.py` — 25 tests, all passing
+
+**H2 — Security → state integration loop**
+- Added `write_security_scan_result(state_path, report)` to `security_analyzer.py` — serializes a `SecurityReport` into `security_scan.last_result` in bootstrap-state.json; preserves all other fields
+- Added `--write-state PATH` and `--report PATH` flags to the security analyzer CLI (`main()`)
+- Added `run_security_scan(base_dir, state_path)` to `continuous_assessment.py` — lazy-imports security_analyzer, runs scan, persists results; returns summary dict
+- 6 new tests in `test_security_analyzer.py` (TestWriteSecurityScanResult), 6 in `test_phase24_continuous_assessment.py` (TestRunSecurityScan)
+
+**H3 — Duplicate AD numbers in ARCHITECTURE.md**
+- Renumbered duplicate AD-047 (HTML manifest pattern) → AD-051
+- Renumbered duplicate AD-048 (EFF diceware passphrase) → AD-052
+- Sorted the AD-045 through AD-052 block into sequential order
+
+**H4 — StrictHostKeyChecking fixes**
+- `spawn_hardware_discovery.py:225` — changed `StrictHostKeyChecking=no` → `accept-new`
+- `spawn_scripts.py:311` — changed `StrictHostKeyChecking=no` → `accept-new` in generated wait_ssh() loop
+- Security analyzer SCRIPT-001 still flags `=no`; the false positives are eliminated by the source fix
+
+**L1 — Dead code branch in security_analyzer.py:581** (fixed opportunistically)
+- Removed `hasattr(f, 'content')` dead branch in `_finding_row()` — `SecurityFinding` only has `line_content`
+
+## Remaining Work (from audit findings)
+
+### MEDIUM PRIORITY
+
+**M1 — Security analyzer: implement `watch()` continuous mode**
+- Implement `watch(paths, callback, stop_event)` — inotify/polling tail; emits SecurityFinding to callback
+
+**M2 — Make `_find_shell_scripts()` recursive**
+- Change `os.scandir()` to `os.walk()` in security_analyzer.py
+
+**M3 — Fix stale docs**
+- `CURRENT_STATE.md` "Next Milestones" section: update to reflect current state
+- Delete/overwrite `.ai/SESSION-HANDOFF.md` (stale duplicate of docs/SESSION-HANDOFF.md)
+- Fix `--import` flag reference in `SETUP-GUIDE.html` footer
+
+**M4 — Dashboard WAN exposure warning**
+- `broodforge_dashboard.py`: if `network_profile == "wan"` and `listen_host == "0.0.0.0"`, print WARNING to stderr
+
+**M5 — Phoenix KeePass gate**
+- Add KeePass unlock gate to `phoenix_scripts.py` (run-all.sh preamble), mirroring forge and spawn
+
+**M6 — Phoenix workbook**
+- Create `proxmox-bootstrap/html_phoenix_workbook.py` — phase-tracking workbook for phoenix restoration
+- Integrate into phoenix assembler
+
+**M7 — Two service-catalog.yaml disambiguation**
+- Add header comment to both files explaining purpose
+- Add README.md in `proxmox-bootstrap/metadata/`
+
+### LOW PRIORITY
+
+**L2 — Move/retire docs**: `docs/CONTAINER-COMPATIBILITY-PLAN.md` → `deprecated/`
+**L3 — Forge-manifest schema validation**: add JSON schema validation in forge_validator.py
+**L4 — Fix flaky passphrase test**: mock RNG in test_forge_package_foundation.py::TestPassphraseFormat::test_length_in_range
+**L5 — Receiver authentication**: add X-Broodforge-Token header check to hatchery_receiver.py
+**L6 — .ai/ cleanup**: remove `.ai/SESSION-HANDOFF.md`, update `.ai/context.md`
+
+## Previous Sessions
+
 ### Phase 26 — Autonomous Remediation (complete)
 
 All seven sub-phases implemented:

@@ -527,3 +527,50 @@ def scan_cert_expiry(
 
     alerts.sort(key=lambda a: a.days_remaining)
     return alerts
+
+
+# ---------------------------------------------------------------------------
+# Security scan ingestion hook
+# ---------------------------------------------------------------------------
+
+def run_security_scan(base_dir: str, state_path: str) -> dict:
+    """
+    Invoke the security analyzer against base_dir, persist the result into
+    bootstrap-state.json at state_path, and return a summary dict.
+
+    Imports security_analyzer lazily so the continuous assessor does not
+    require it at module-load time.
+    """
+    try:
+        import security_analyzer as _sa  # type: ignore
+    except ImportError:
+        return {"error": "security_analyzer not available", "posture": "UNKNOWN"}
+
+    import json as _json
+    import os as _os
+
+    state: Optional[dict] = None
+    if state_path and _os.path.exists(state_path):
+        try:
+            with open(state_path) as fh:
+                state = _json.load(fh)
+        except (OSError, _json.JSONDecodeError):
+            pass
+
+    report = _sa.scan(
+        base_dir=base_dir,
+        state=state,
+        state_path=state_path,
+    )
+
+    if state_path:
+        _sa.write_security_scan_result(state_path, report)
+
+    return {
+        "scanned_at":    report.scanned_at,
+        "posture":       _sa.security_posture_score(report),
+        "files_scanned": report.files_scanned,
+        "red_count":     report.red_count,
+        "orange_count":  report.orange_count,
+        "yellow_count":  report.yellow_count,
+    }

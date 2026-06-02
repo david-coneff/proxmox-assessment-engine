@@ -308,7 +308,7 @@ def generate_phase_03_cloudinit(plan: dict) -> str:
         f'  local ip="$1" name="$2" retries=30\n'
         f'  echo "[cloud-init] Waiting for SSH on $name ($ip)..."\n'
         f'  for i in $(seq 1 $retries); do\n'
-        f'    ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no ubuntu@"$ip" exit 0 2>/dev/null \\\n'
+        f'    ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new ubuntu@"$ip" exit 0 2>/dev/null \\\n'
         f'      && {{ echo "[cloud-init] $name SSH ready"; return 0; }}\n'
         f'    sleep 10\n'
         f'  done\n'

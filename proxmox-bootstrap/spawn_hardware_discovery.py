@@ -222,7 +222,7 @@ def discover_hardware(
     def _ssh(remote_cmd: str) -> tuple[bool, str]:
         """Run a command on the remote host. Returns (ok, stdout)."""
         cmd = ["ssh",
-               "-o", "StrictHostKeyChecking=no",
+               "-o", "StrictHostKeyChecking=accept-new",
                "-o", "BatchMode=yes",
                "-p", str(port)]
         if key:

@@ -488,3 +488,104 @@ class TestDashboardSecurity:
         cfg = DashboardConfig()
         html = generate_dashboard_html(state, {}, [], [], {}, cfg, security={"has_scan": False})
         assert "security_analyzer.py" in html or "No security scan" in html
+
+
+# ===========================================================================
+# write_security_scan_result
+# ===========================================================================
+
+class TestWriteSecurityScanResult:
+    def _report(self, red=0, orange=0, yellow=0):
+        findings = []
+        for _ in range(red):
+            findings.append(_sa.SecurityFinding(
+                severity="RED", category="log-leak", rule_id="LOG-001",
+                file_path="/tmp/test.log", line_number=1,
+                line_content="REDACTED", description="leak", remediation="rotate",
+            ))
+        for _ in range(orange):
+            findings.append(_sa.SecurityFinding(
+                severity="ORANGE", category="script-unsafe", rule_id="SCRIPT-001",
+                file_path="/tmp/test.sh", line_number=5,
+                line_content="StrictHostKeyChecking=no", description="unsafe ssh",
+                remediation="use accept-new",
+            ))
+        for _ in range(yellow):
+            findings.append(_sa.SecurityFinding(
+                severity="YELLOW", category="log-leak", rule_id="LOG-003",
+                file_path="/tmp/test.log", line_number=2,
+                line_content="REDACTED", description="suspicious", remediation="review",
+            ))
+        r = _sa.SecurityReport(
+            cell_id="test-cell",
+            scanned_at="2026-06-01T12:00:00+00:00",
+            base_dir="/tmp",
+            findings=findings,
+            files_scanned=10,
+        )
+        return r
+
+    def test_creates_state_file_if_absent(self, tmp_path):
+        from security_analyzer import write_security_scan_result
+        state_path = str(tmp_path / "bootstrap-state.json")
+        write_security_scan_result(state_path, self._report())
+        import json
+        with open(state_path) as f:
+            state = json.load(f)
+        assert "security_scan" in state
+        assert "last_result" in state["security_scan"]
+
+    def test_writes_posture(self, tmp_path):
+        from security_analyzer import write_security_scan_result
+        state_path = str(tmp_path / "state.json")
+        write_security_scan_result(state_path, self._report(red=2))
+        import json
+        with open(state_path) as f:
+            state = json.load(f)
+        assert state["security_scan"]["last_result"]["posture"] == "RED"
+
+    def test_writes_counts(self, tmp_path):
+        from security_analyzer import write_security_scan_result
+        state_path = str(tmp_path / "state.json")
+        write_security_scan_result(state_path, self._report(red=1, orange=2, yellow=3))
+        import json
+        with open(state_path) as f:
+            state = json.load(f)
+        lr = state["security_scan"]["last_result"]
+        assert lr["red_count"] == 1
+        assert lr["orange_count"] == 2
+        assert lr["yellow_count"] == 3
+
+    def test_preserves_existing_state_fields(self, tmp_path):
+        import json
+        from security_analyzer import write_security_scan_result
+        state_path = str(tmp_path / "state.json")
+        with open(state_path, "w") as f:
+            json.dump({"cell_id": "preserved", "version": "1.0"}, f)
+        write_security_scan_result(state_path, self._report())
+        with open(state_path) as f:
+            state = json.load(f)
+        assert state["cell_id"] == "preserved"
+        assert state["version"] == "1.0"
+        assert "security_scan" in state
+
+    def test_findings_serialized(self, tmp_path):
+        import json
+        from security_analyzer import write_security_scan_result
+        state_path = str(tmp_path / "state.json")
+        write_security_scan_result(state_path, self._report(red=1))
+        with open(state_path) as f:
+            state = json.load(f)
+        findings = state["security_scan"]["last_result"]["findings"]
+        assert len(findings) == 1
+        assert findings[0]["severity"] == "RED"
+        assert findings[0]["rule_id"] == "LOG-001"
+
+    def test_green_scan_posture(self, tmp_path):
+        import json
+        from security_analyzer import write_security_scan_result
+        state_path = str(tmp_path / "state.json")
+        write_security_scan_result(state_path, self._report())
+        with open(state_path) as f:
+            state = json.load(f)
+        assert state["security_scan"]["last_result"]["posture"] == "GREEN"

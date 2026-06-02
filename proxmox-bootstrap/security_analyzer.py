@@ -578,7 +578,7 @@ def _finding_row(f: SecurityFinding, idx: int) -> str:
   <td style="font-size:.85em">{_e(cat)}</td>
   <td><code style="font-size:.78em">{_e(loc)}</code></td>
   <td style="font-size:.85em">{_e(f.description)}</td>
-  <td style="font-size:.82em;color:#555">{_e(f.content if hasattr(f, 'content') else f.line_content)}</td>
+  <td style="font-size:.82em;color:#555">{_e(f.line_content)}</td>
 </tr>"""
 
 
@@ -751,3 +751,115 @@ def build_security_report_html(
 </div>
 </body>
 </html>"""
+
+
+# ---------------------------------------------------------------------------
+# State persistence
+# ---------------------------------------------------------------------------
+
+def write_security_scan_result(state_path: str, report: "SecurityReport") -> None:
+    """
+    Serialize a SecurityReport into the ``security_scan.last_result`` field of
+    bootstrap-state.json.  Creates the key if absent; leaves all other state
+    fields untouched.
+    """
+    state_path = str(state_path)
+    try:
+        with open(state_path) as fh:
+            state: dict = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        state = {}
+
+    state.setdefault("security_scan", {})
+    state["security_scan"]["last_result"] = {
+        "scanned_at":    report.scanned_at,
+        "cell_id":       report.cell_id,
+        "files_scanned": report.files_scanned,
+        "posture":       security_posture_score(report),
+        "red_count":     report.red_count,
+        "orange_count":  report.orange_count,
+        "yellow_count":  report.yellow_count,
+        "findings": [
+            {
+                "severity":    f.severity,
+                "category":    f.category,
+                "rule_id":     f.rule_id,
+                "file_path":   f.file_path,
+                "line_number": f.line_number,
+                "description": f.description,
+                "remediation": f.remediation,
+            }
+            for f in report.findings
+        ],
+    }
+
+    with open(state_path, "w") as fh:
+        json.dump(state, fh, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Broodforge security analyzer — one-shot audit of logs, scripts, and manifest",
+    )
+    parser.add_argument(
+        "--base-dir", default=".",
+        help="Base directory to scan (default: current directory)",
+    )
+    parser.add_argument(
+        "--state", default=None,
+        help="Path to bootstrap-state.json for manifest scan (optional)",
+    )
+    parser.add_argument(
+        "--write-state", default=None, metavar="PATH",
+        help="Persist scan results into bootstrap-state.json at PATH",
+    )
+    parser.add_argument(
+        "--report", default=None, metavar="PATH",
+        help="Write HTML report to PATH (optional)",
+    )
+    args = parser.parse_args()
+
+    import sys
+
+    state: Optional[dict] = None
+    state_path_str = args.state or ""
+    if args.state:
+        try:
+            with open(args.state) as fh:
+                state = json.load(fh)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"[warn] Could not load state: {exc}", file=sys.stderr)
+
+    report = scan(
+        base_dir=args.base_dir,
+        state=state,
+        state_path=state_path_str,
+    )
+
+    score  = security_posture_score(report)
+    reason = security_posture_reason(report)
+
+    print(f"Security Posture: {score}")
+    print(f"  {reason}")
+    print(f"  Files scanned: {report.files_scanned}")
+    print(f"  RED: {report.red_count}  ORANGE: {report.orange_count}  YELLOW: {report.yellow_count}")
+
+    if args.write_state:
+        write_security_scan_result(args.write_state, report)
+        print(f"  Results written to: {args.write_state}")
+
+    if args.report:
+        html = build_security_report_html(report)
+        Path(args.report).write_text(html, encoding="utf-8")
+        print(f"  HTML report: {args.report}")
+
+    if report.red_count > 0:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
