@@ -18,6 +18,7 @@ Stdlib only.
 
 import json
 import os
+import secrets
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -161,7 +162,7 @@ class _ReceiverHandler(BaseHTTPRequestHandler):
         expected_token = self._config.auth_token
         if expected_token:
             provided = self.headers.get("X-Broodforge-Token", "")
-            if not provided or provided != expected_token:
+            if not provided or not secrets.compare_digest(provided, expected_token):
                 self.send_error(401, "Unauthorized — missing or invalid X-Broodforge-Token")
                 return
 

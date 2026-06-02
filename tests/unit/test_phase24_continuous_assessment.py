@@ -363,3 +363,39 @@ class TestRunSecurityScan:
     def test_no_state_path_still_returns(self, tmp_path):
         result = _ca.run_security_scan(str(tmp_path), "")
         assert "posture" in result
+
+
+# ===========================================================================
+# run_security_scan wiring — engine.py operational mode integration
+# ===========================================================================
+
+class TestRunSecurityScanEngineWiring:
+    """Verify run_security_scan is accessible and callable from the engine path."""
+
+    def test_importable_from_doc_gen_path(self):
+        import importlib
+        mod = importlib.import_module("continuous_assessment")
+        assert hasattr(mod, "run_security_scan")
+
+    def test_wiring_returns_posture_on_graceful_error(self, tmp_path):
+        result = _ca.run_security_scan(str(tmp_path), "")
+        assert "posture" in result
+        assert result["posture"] in ("GREEN", "YELLOW", "ORANGE", "RED", "UNKNOWN")
+
+    def test_wiring_handles_missing_state_gracefully(self, tmp_path):
+        state_path = str(tmp_path / "nonexistent.json")
+        result = _ca.run_security_scan(str(tmp_path), state_path)
+        assert isinstance(result, dict)
+
+    def test_wiring_writes_state_on_valid_path(self, tmp_path):
+        import json
+        state_path = str(tmp_path / "state.json")
+        _ca.run_security_scan(str(tmp_path), state_path)
+        with open(state_path) as f:
+            state = json.load(f)
+        assert "security_scan" in state
+
+    def test_wiring_result_has_count_fields(self, tmp_path):
+        result = _ca.run_security_scan(str(tmp_path), "")
+        for key in ("red_count", "orange_count", "yellow_count", "files_scanned"):
+            assert key in result, f"missing key: {key}"

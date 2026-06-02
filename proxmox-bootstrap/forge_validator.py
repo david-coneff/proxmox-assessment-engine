@@ -332,9 +332,17 @@ def validate_forge_manifest(manifest: dict, schema_path: Optional[str] = None) -
         try:
             jsonschema.validate(manifest, schema)
         except jsonschema.ValidationError as exc:
+            path_str = ".".join(str(p) for p in exc.absolute_path)
+            if not path_str and exc.validator == "required":
+                # Root-level required field: extract name from message
+                import re as _re
+                m = _re.search(r"'(\w+)' is a required property", exc.message)
+                path_str = m.group(1) if m else "root"
+            elif not path_str:
+                path_str = "root"
             findings.append(ForgeValidationFinding(
                 severity=SEVERITY_RED,
-                field=".".join(str(p) for p in exc.absolute_path) or "root",
+                field=path_str,
                 message=exc.message,
                 observed=None,
                 required=None,

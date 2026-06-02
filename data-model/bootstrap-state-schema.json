@@ -161,6 +161,33 @@
     "remediation_policy": {
       "$ref": "#/definitions/remediation_policy",
       "description": "Remediation policy configuration (Phase 26.2 / 26.6): auto-approve threshold, blocked action types, execution window, autonomous mode."
+    },
+
+    "migration_history": {
+      "type": "array",
+      "description": "History of OS-variant migrations on cluster nodes (Ubuntu↔Talos). Appended by migrate-k3s-to-talos.py and migrate-k3s-to-ubuntu.py (9.T.10–9.T.11).",
+      "items": {
+        "type": "object",
+        "required": ["migration_id", "node_vm_name", "from_variant", "to_variant",
+                     "started_at", "outcome"],
+        "properties": {
+          "migration_id":   { "type": "string", "description": "Unique ID for this migration attempt" },
+          "node_vm_name":   { "type": "string", "description": "VM name of the migrated node" },
+          "from_variant":   { "type": "string", "enum": ["ubuntu", "talos"] },
+          "to_variant":     { "type": "string", "enum": ["ubuntu", "talos"] },
+          "started_at":     { "type": "string", "format": "date-time" },
+          "completed_at":   { "type": ["string", "null"], "format": "date-time" },
+          "outcome":        { "type": "string",
+                              "enum": ["success", "failed", "rolled_back", "aborted"],
+                              "description": "Final result of this migration attempt" },
+          "snapshot_vmid":  { "type": ["integer", "null"],
+                              "description": "Proxmox VMID of the pre-migration snapshot (if taken)" },
+          "error":          { "type": ["string", "null"],
+                              "description": "Error message if outcome is not success" },
+          "dry_run":        { "type": "boolean",
+                              "description": "True if this was a dry-run (no actual changes)" }
+        }
+      }
     }
   },
 

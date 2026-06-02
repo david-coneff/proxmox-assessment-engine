@@ -154,7 +154,13 @@ def _load_yaml_simple(path: str) -> dict:
             elif ':' in content:
                 if result is None:
                     result = {}
-                assert isinstance(result, dict)
+                # Continuation of a multi-key list item (e.g. "- key1: v\n  key2: v")
+                if isinstance(result, list):
+                    if not result or not isinstance(result[-1], dict):
+                        result.append({})
+                    target = result[-1]
+                else:
+                    target = result
                 k, _, v = content.partition(':')
                 k = k.strip()
                 v = v.strip()
@@ -177,11 +183,11 @@ def _load_yaml_simple(path: str) -> dict:
                             break
                         child_lines.append(child_raw)
                         j += 1
-                    result[k] = _parse(child_lines, indent + 1)
+                    target[k] = _parse(child_lines, indent + 1)
                     i = j
                     continue
                 else:
-                    result[k] = _clean_val(v)
+                    target[k] = _clean_val(v)
             i += 1
         return result
 
@@ -192,6 +198,10 @@ def _load_yaml_simple(path: str) -> dict:
             return False
         if v in ('null', 'Null', 'None', '~', ''):
             return None
+        if v == '[]':
+            return []
+        if v == '{}':
+            return {}
         try:
             return int(v)
         except ValueError:

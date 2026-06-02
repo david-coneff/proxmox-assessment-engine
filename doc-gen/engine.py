@@ -853,6 +853,21 @@ def run_operational(args):
     else:
         print("[doc-gen] No prior snapshot — drift detection skipped")
 
+    # Security scan — run as part of operational assessment cycle
+    _pb_path = str(REPO_ROOT / "proxmox-bootstrap")
+    if _pb_path not in sys.path:
+        sys.path.insert(0, _pb_path)
+    try:
+        import continuous_assessment as _ca
+        _state_path = str(REPO_ROOT / "proxmox-bootstrap" / "bootstrap-state.json")
+        scan_result = _ca.run_security_scan(str(REPO_ROOT), _state_path)
+        print(f"[doc-gen] Security scan: posture={scan_result.get('posture','?')}  "
+              f"files={scan_result.get('files_scanned','?')}")
+        if scan_result.get("red_count"):
+            print(f"[doc-gen]   ⚠ {scan_result['red_count']} RED finding(s) — review security_scan in bootstrap-state.json")
+    except Exception as _exc:
+        print(f"[doc-gen] Security scan skipped: {_exc}", file=sys.stderr)
+
     # Build dependency graph and readiness scores
     sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
     import dependencies as dep_mod
