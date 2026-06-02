@@ -1357,14 +1357,14 @@ latest session context.
 | Milestones 6.0–6.8 | Bootstrap State schema, Cloud-Init templates, Secret/DNS registries, provenance tracking, template registry, Tier 2 SSH state collector, Bootstrap Workbook registry wiring |
 | Milestones 7.1–7.3 | Service contract implementation, service state schema and collection, external dependency state (cert expiry monitoring, recovery runbook Appendix G) |
 
-**Test suite: 1224 passing (4 skipped).**
+**Test suite: 3792 passing, 37 skipped, 3 pre-existing env failures.**
+All roadmap milestones complete through Phase 26 (Autonomous Remediation) + 9.T (Talos alternative).
 
 ### Active
 
-**Milestone 7.4** — Recovery Documentation Update (Service Layer): add service
-contract validation steps, health check commands from declared contracts, service
-restart/verification commands, and distinct rendering of Service Contract dependency
-edges in the recovery runbook.
+**Deploy to hardware** — All implementation milestones complete. Next step: run
+`python3 proxmox-bootstrap/forge-planner.py` on a real Proxmox host to forge the
+first cell. See `FORGING.md` for the operator runbook.
 
 ### Upcoming
 
@@ -1397,7 +1397,7 @@ broodforge/
 │   ├── collect_tier2.py     Tier 2 SSH state collector library
 │   ├── collect-tier2.py     CLI entry point for Tier 2 collection
 │   └── TIER2-COLLECTION.md  Operator runbook for Tier 2 collection
-├── tests/                   1041 tests (unit + fixtures)
+├── tests/                   3792 tests (unit + fixtures)
 ├── docs/                    Architecture reviews, session handoffs
 ├── reports/                 Generated documentation output
 ├── ARCHITECTURE.md          Current architecture summary

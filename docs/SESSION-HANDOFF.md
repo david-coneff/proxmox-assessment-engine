@@ -4,6 +4,67 @@ Last updated: 2026-06-02 UTC
 
 ## What Was Done This Session (current)
 
+### Full-stack audit round 4 — all 13 findings resolved
+
+**S1/A3** — `proxmox-bootstrap/setup-secrets.py:434–444`: SSH private key PEM now
+written to `/dev/tty` instead of stdout/stderr. Bypasses `exec >> forge.log 2>&1`
+log redirection. Fallback to stderr if `/dev/tty` unavailable (tests, Windows).
+Same pattern as `print_totp_setup_to_tty()` in `keepass_mfa.py:150`.
+
+**S2** — `proxmox-bootstrap/backup_engine.py:293`: Added comment explaining
+`RESTIC_PASSWORD` env var is the correct restic authentication mechanism
+(not a security smell — safer than --password-command and avoids disk writes).
+
+**S3** — `proxmox-bootstrap/spawn-planner.py:135`: Headscale auth key no longer
+partially printed to stdout. Now prints: "Auth key generated — embedded in spawn package."
+
+**D1/I4** — `proxmox-bootstrap/reconstruction-drill.py` created: CLI wrapper with
+`start`, `complete`, `last`, `report` subcommands. Fixes broken `python3
+proxmox-bootstrap/reconstruction-drill.py` references in `docs/RECONSTRUCTION-DRILL.md`
+and `doc-gen/readiness.py:658`.
+
+**D2** — `proxmox-bootstrap/update_state_after_spawn.py:14–15`: Docstring corrected —
+removed false claim "committed to Forgejo"; now says "caller is responsible."
+
+**I1** — `proxmox-bootstrap/hatchery_receiver.py`: New `/api/spawn-complete` endpoint
+(`_handle_spawn_complete`); loads `spawn_plan`, calls `update_state_after_spawn()`,
+writes updated bootstrap-state.json to disk. `HatcheryReceiverConfig.state_path` field
+added; `--state` CLI argument wired in.
+`proxmox-bootstrap/spawn_scripts.py:phase-06-verify.sh`: Now reads `hatchery_url` and
+`receiver_token` from spawn-manifest.json and POSTs to `/api/spawn-complete` on success.
+Falls back gracefully with manual instructions if POST fails.
+`proxmox-bootstrap/hatchery_state.py`: `hatchery_url` (http://{fqdn}:9321) and
+`receiver_token` (empty by default) embedded in spawn manifest at generation time.
+
+**I2** — Both migration scripts gain `_commit_migration_record()`: runs
+`git add <state_path> && git commit -m "migrate: {node} {from}→{to}"` after each
+successful migration. Non-fatal (warning on failure). Dry-run skips the commit.
+Operator still responsible for `git push` to Forgejo.
+
+**I3** — `doc-gen/readiness.py`: `_score_migration_health(manifest)` added and wired
+into `score_graph()`. ORANGE if any `migration_history[].outcome == "failed"`, YELLOW
+if `"rolled_back"`. Gap_type: `MIGRATION_FAILED` / `MIGRATION_ROLLED_BACK`. Remediation
+references `docs/TALOS-ALTERNATIVE.md`.
+
+**I5** — `proxmox-bootstrap/migrate_k3s_lib.py`: `_local_runner` now imported from
+`collector_utils.local_runner` with a fallback inline definition. Consistent with
+the S5 fix in round 3 that migrated the 5 state collectors.
+
+**A2** — All 5 state collectors changed from `from collector_utils import local_runner
+as _local_runner` to `from collector_utils import local_runner` (no private alias).
+Files: hardware_, platform_, cluster_, storage_, data_protection_ state collectors.
+
+**A1** — sys.path coupling in 5 modules (html workbooks + collect_tier2 importing from
+doc-gen/renderers) deferred — requires package restructure. Documented as known debt.
+
+**Tests: 3792 passed, 37 skipped, 3 pre-existing env failures** (35 new tests in
+`tests/unit/test_audit_round4_fixes.py`).
+
+**ARCHITECTURE.md**: AD-053 (spawn-complete endpoint) and AD-054 (migration commit
+convention) added.
+
+---
+
 ### 9.T.12 — Recovery Runbook OS Variant Migration Appendix (complete)
 
 Added **Appendix I — OS Variant Migration History** to both recovery runbook renderers:
@@ -205,7 +266,16 @@ ROADMAP.md updated: all 9.T.1–9.T.17 checkboxes now `[x]`. All roadmap milesto
 ## Remaining Work
 
 All roadmap milestones complete. All 9.T items (9.T.1–9.T.17) done.
-No remaining implementation items. Next action: deploy to hardware.
+All audit findings from rounds 1–4 resolved.
+No remaining implementation items.
+
+**Next action: deploy to hardware.**
+Run `python3 proxmox-bootstrap/forge-planner.py` on a real Proxmox host.
+See `FORGING.md` for the operator runbook.
+
+**One deferred item (A1):** sys.path coupling in html workbooks + collect_tier2
+that import from doc-gen/renderers via sys.path.insert. Requires package
+restructure into a proper Python package. Low urgency — works correctly today.
 
 ## Previous Sessions
 

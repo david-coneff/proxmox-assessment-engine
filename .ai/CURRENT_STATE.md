@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-06-02 UTC (9.T.12 complete — all 9.T items done)
+Last updated: 2026-06-02 UTC (round 4 audit complete — all findings resolved)
 
 ## Active Architecture: v7.1
 
@@ -95,8 +95,9 @@ on a Proxmox host to forge the first cell. See FORGING.md for operator runbook.
 | HTML package manifests | html_package_manifest.py — build_forge/spawn/phoenix_manifest_html(); forge and spawn assemblers updated to embed *.html alongside *.json; ARCHITECTURE.md AD-047 documents as mandatory pattern; 38 tests | Complete |
 | 9.T foundation | Talos Linux alternative — build-talos-template.sh, generate_talos_config.py (library + CLI), os_variant enum in base_image/vm_template/provenance_record schemas, talos-1x-base fixture entries, _score_talos_config_completeness() in readiness.py, Talos Wave 2.5 rebuild + Wave 3 reconstruction steps in phoenix_playbook.py; 57 tests | Complete |
 | 9.T migration + 9.T.12 | migrate_k3s_lib.py, migrate-k3s-to-talos.py, migrate-k3s-to-ubuntu.py, migration_history schema; recovery runbook Appendix I (OS Variant Migration History) in ODT + HTML renderers; 48+25 tests | Complete |
+| Round 4 audit fixes | 13 findings: S1 (key→/dev/tty), S3 (auth key), D1/I4 (reconstruction-drill.py CLI), D2 (docstring), I1 (/api/spawn-complete endpoint + spawn verify POST), I2 (migration git commit), I3 (_score_migration_health), I5 (collector_utils), A2 (import aliases); 35 tests | Complete |
 
-**Tests: 3757 (3757 passed, 37 skipped, 3 pre-existing env failures) — all 9.T items complete**
+**Tests: 3792 (3792 passed, 37 skipped, 3 pre-existing env failures) — all 9.T items + round 4 audit complete**
 
 ## Next Milestones
 

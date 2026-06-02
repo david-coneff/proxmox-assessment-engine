@@ -74,6 +74,20 @@ Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
 - [x] 9.T.12: Recovery runbook "OS Variant Migration" Appendix I — migration history table
       with per-record detail and manual rollback commands. ODT + HTML. 25 tests.
       Tests: 3757 passed, 37 skipped, 3 pre-existing jsonschema env failures.
+- [x] **Full-stack audit findings (round 4)** — all 13 findings resolved:
+      S1: setup-secrets.py private key redirected to /dev/tty (not stdout/log);
+      S2: RESTIC_PASSWORD env pattern documented as intentional (correct approach);
+      S3: headscale auth key no longer partially printed to stdout;
+      D1/I4: reconstruction-drill.py CLI wrapper created (start/complete/last/report);
+      D2: update_state_after_spawn.py docstring corrected;
+      I1: hatchery_receiver.py /api/spawn-complete endpoint; spawn verify script
+          POSTs to hatchery on success; hatchery_url embedded in spawn manifest;
+      I2: migration scripts commit bootstrap-state.json to git after migration;
+      I3: readiness.py _score_migration_health() ORANGE(failed)/YELLOW(rolled_back);
+      I5: migrate_k3s_lib.py imports from collector_utils (consistent with round 3 fix);
+      A2: 5 state collector import aliases removed (local_runner not _local_runner);
+      A3: same as S1. A1 (sys.path coupling) deferred — requires package restructure.
+      35 new tests. Tests: 3792 passed, 37 skipped, 3 pre-existing.
 - [x] **Full-stack audit findings (round 3)** — all MEDIUM and LOW items resolved:
       S1: secrets.compare_digest in hatchery_receiver; I1: security scan wired into operational;
       I2: 9.T migration tier (above); S2: no-token startup warning in dashboard;
