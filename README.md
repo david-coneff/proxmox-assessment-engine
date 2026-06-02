@@ -134,7 +134,7 @@ documented or assessed is not fit for deployment on this platform.
 | GitOps | Flux CD | Continuous reconciliation: Git → k3s |
 | Orchestration | k3s | All application workloads |
 | Secrets | KeePassXC-compatible | Secret references only (paths, never values) |
-| Workbooks | ODS (machine-updated) | Execution and audit records |
+| Workbooks | HTML (machine-generated) | Execution and audit records — browser-viewable, print-friendly |
 
 ---
 
@@ -246,8 +246,9 @@ vs full recreation via IaC + Ansible).
 Phases 1–3 (through k3s) require only the phoenix package, the operator's machine,
 and PBS backup access — no internet, no Forgejo required.
 
-**ODS recovery workbook** — machine-updated execution audit trail (every step
-status, timestamp, operator notes, validation results).
+**HTML recovery workbook** — machine-generated execution audit trail (every step
+status, timestamp, operator notes, validation results). Opens in any browser;
+checkboxes save state in localStorage; print-friendly.
 
 **Failure packages** — structured, LLM-optimized analysis artifacts generated
 automatically on any script step failure. Contains: what was attempted, the error,
@@ -290,7 +291,7 @@ forge-package-{cell_id}-{ts}.tar.gz
   │   ├── phase-07-intelligence.sh  Doc engine + assessment engine deployed
   │   └── phase-08-verify.sh    Full health check; bootstrap-state.json committed
   ├── workbook/
-  │   └── forge-workbook.ods  Auditable execution record (same checkpoint pattern)
+  │   └── forge-workbook.html  Auditable execution record (same checkpoint pattern)
   └── lib/                    checkpoint.sh, validation.sh, failure-package.sh
 ```
 
@@ -398,7 +399,7 @@ spawn-package-{cell_id}-{new-hostname}-{ts}.tar.gz
   ├── cloud-init/                Adapted snippets (IPs from spawn-plan, not hatchery)
   ├── ansible/                   Inventory additions for this host
   ├── workbook/
-  │   └── spawn-workbook.ods     Auditable execution record (same pattern as recovery workbook)
+  │   └── spawn-workbook.html    Auditable execution record (same pattern as recovery workbook)
   └── lib/                       checkpoint.sh, validation.sh, failure-package.sh
 ```
 
@@ -1282,7 +1283,7 @@ phoenix-package-{cell_id}-{hostname}-{ts}.tar.gz
   ├── cloud-init/               Original snippets (same IPs, same hostnames)
   ├── ansible/                  Original inventory entry for this node
   ├── workbook/
-  │   └── phoenix-workbook.ods  Auditable execution record
+  │   └── phoenix-workbook.html  Auditable execution record
   └── lib/                      checkpoint.sh, validation.sh, failure-package.sh
 ```
 
