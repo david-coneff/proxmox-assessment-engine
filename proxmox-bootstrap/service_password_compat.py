@@ -206,10 +206,10 @@ def regenerate_credential_alphanumeric(service_name: str) -> str:
     """
     try:
         sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
-        from passphrase import generate_passphrase  # type: ignore
-        return generate_passphrase(format="alphanumeric")
-    except (ImportError, TypeError):
-        import secrets, string
+        from passphrase import generate_alphanumeric  # type: ignore
+        return generate_alphanumeric()
+    except ImportError:
+        import string
         alphabet = string.ascii_letters + string.digits
         return "".join(secrets.choice(alphabet) for _ in range(24))
 
@@ -265,8 +265,8 @@ with_credential_compat() {
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath('$0')), '..', 'lib'))
 try:
-    from passphrase import generate_passphrase
-    print(generate_passphrase(format='alphanumeric'))
+    from passphrase import generate_alphanumeric
+    print(generate_alphanumeric())
 except Exception:
     import secrets, string
     print(''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(24)))

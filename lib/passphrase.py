@@ -14,12 +14,32 @@ Used for:
 Character set: A-Z (leading only), a-z, 0-9, period.
 No shell-special characters — passphrases are safe to embed in scripts.
 
+Entropy source
+--------------
+The production path (rng=None) uses Python's `secrets` module exclusively:
+  - `secrets.choice()` and `secrets.randbelow()` are backed by `os.urandom()`
+    which is a CSPRNG (ChaCha20 on Linux ≥5.6, Fortuna on macOS, BCryptGenRandom
+    on Windows). This is the same OS-level source that KeePass uses internally.
+
+The `rng` parameter accepts a `random.Random` instance ONLY for deterministic
+testing (test_seeded_reproducible). It MUST NOT be used in production paths.
+
+KeePass master password
+-----------------------
+For the KeePass master password specifically, `generate_master_password_suggestion()`
+first attempts `keepassxc-cli generate` when KeePass is already installed,
+falling back to the secrets-based generator otherwise. This means the operator
+sees a KeePass-native suggestion whenever possible.
+
 Stdlib only.
 """
 
-import random
+import random  # used ONLY for the deterministic test path (rng parameter)
 import secrets
 import string
+import subprocess
+from typing import Optional
+
 
 # ---------------------------------------------------------------------------
 # Word list — common 4-8 letter English words suitable for passphrases
@@ -128,13 +148,30 @@ _MIN_LEN = 20
 _MAX_LEN = 30
 
 
-def _rng() -> random.Random:
-    """Return a secrets-seeded Random for sampling without using SystemRandom directly."""
-    seed = int.from_bytes(secrets.token_bytes(8), "big")
-    return random.Random(seed)
+# ---------------------------------------------------------------------------
+# Secure sampling (production path)
+# ---------------------------------------------------------------------------
+
+def _secure_sample(population: tuple | list, k: int) -> list:
+    """
+    Draw k distinct items from population using secrets.randbelow().
+
+    Each draw uses a fresh os.urandom()-backed call — no shared state
+    carries entropy information between draws.
+    """
+    pool   = list(population)
+    result = []
+    for _ in range(k):
+        idx = secrets.randbelow(len(pool))
+        result.append(pool.pop(idx))
+    return result
 
 
-def generate_passphrase(rng: random.Random | None = None) -> str:
+# ---------------------------------------------------------------------------
+# Passphrase generator
+# ---------------------------------------------------------------------------
+
+def generate_passphrase(rng: Optional[random.Random] = None) -> str:
     """
     Generate a readable passphrase in Capital.word.phrase.9 format.
 
@@ -147,34 +184,44 @@ def generate_passphrase(rng: random.Random | None = None) -> str:
       - Total length 20-30 characters
 
     Returns a string such as "Forest.amber.glide.8" or "Brave.sonic.relay.stone.3".
-    """
-    r = rng or _rng()
-    words = list(_WORDS)
 
+    rng: pass a random.Random instance ONLY for deterministic testing.
+         Leave as None (default) in all production paths — the function
+         then uses secrets.choice() / secrets.randbelow() which are
+         backed by os.urandom() (the same CSPRNG KeePass uses internally).
+    """
     for _attempt in range(200):
-        # Pick 2 or 3 body words
-        n_words = r.choice([2, 3])
-        chosen = r.sample(words, n_words)
-        # Capitalise first word
-        first = chosen[0].capitalize()
-        rest  = chosen[1:]
-        digit = str(r.randint(0, 9))
+        if rng is None:
+            n_words = secrets.choice([2, 3])
+            chosen  = _secure_sample(_WORDS, n_words)
+            digit   = str(secrets.randbelow(10))
+        else:
+            n_words = rng.choice([2, 3])
+            chosen  = rng.sample(list(_WORDS), n_words)
+            digit   = str(rng.randint(0, 9))
+
+        first  = chosen[0].capitalize()
+        rest   = chosen[1:]
         phrase = ".".join([first] + rest) + "." + digit
         if _MIN_LEN <= len(phrase) <= _MAX_LEN:
             return phrase
 
-    # Fallback: 3 words, force digit — should never be reached with the word list
-    chosen = r.sample(words, 3)
-    return chosen[0].capitalize() + "." + chosen[1] + "." + chosen[2] + "." + str(r.randint(0, 9))
+    # Fallback: 3 words — should never be reached with this word list.
+    if rng is None:
+        chosen = _secure_sample(_WORDS, 3)
+        digit  = str(secrets.randbelow(10))
+    else:
+        chosen = rng.sample(list(_WORDS), 3)
+        digit  = str(rng.randint(0, 9))
+    return chosen[0].capitalize() + "." + chosen[1] + "." + chosen[2] + "." + digit
 
 
-def generate_passphrase_n(count: int, rng: random.Random | None = None) -> list[str]:
+def generate_passphrase_n(count: int, rng: Optional[random.Random] = None) -> list[str]:
     """Generate `count` distinct passphrases."""
-    r = rng or _rng()
-    results = []
-    seen: set[str] = set()
+    results: list[str] = []
+    seen:    set[str]  = set()
     for _ in range(count * 10):
-        p = generate_passphrase(r)
+        p = generate_passphrase(rng)
         if p not in seen:
             seen.add(p)
             results.append(p)
@@ -183,25 +230,117 @@ def generate_passphrase_n(count: int, rng: random.Random | None = None) -> list[
     return results
 
 
-def generate_alphanumeric(length: int = 24, rng: random.Random | None = None) -> str:
+# ---------------------------------------------------------------------------
+# Alphanumeric generator
+# ---------------------------------------------------------------------------
+
+def generate_alphanumeric(
+    length: int = 24,
+    rng:    Optional[random.Random] = None,
+) -> str:
     """
     Generate an alphanumeric-only password (letters + digits, no special chars).
 
-    Used as fallback for services that reject period characters in passwords.
+    Uses secrets.choice() (os.urandom) on the production path.
+    rng parameter is for deterministic testing only.
+
+    Guarantees at least one uppercase letter, one lowercase letter, one digit.
     Length default matches 24-char typical service credential length.
     """
-    r = rng or _rng()
     alphabet = string.ascii_letters + string.digits
-    # Ensure at least one uppercase, one lowercase, one digit
-    chars = (
-        [r.choice(string.ascii_uppercase)]
-        + [r.choice(string.ascii_lowercase)]
-        + [r.choice(string.digits)]
-        + [r.choice(alphabet) for _ in range(max(length - 3, 0))]
-    )
-    r.shuffle(chars)
+
+    if rng is None:
+        chars = [secrets.choice(alphabet) for _ in range(length)]
+        # Guarantee character-class diversity by replacing three positions
+        pos = _secure_sample(range(length), 3)
+        chars[pos[0]] = secrets.choice(string.ascii_uppercase)
+        chars[pos[1]] = secrets.choice(string.ascii_lowercase)
+        chars[pos[2]] = secrets.choice(string.digits)
+    else:
+        chars = [rng.choice(alphabet) for _ in range(length)]
+        rng.shuffle(chars)
+        pos = rng.sample(range(length), 3)
+        chars[pos[0]] = rng.choice(string.ascii_uppercase)
+        chars[pos[1]] = rng.choice(string.ascii_lowercase)
+        chars[pos[2]] = rng.choice(string.digits)
+
     return "".join(chars)
 
+
+# ---------------------------------------------------------------------------
+# KeePass-native generation (preferred for master password)
+# ---------------------------------------------------------------------------
+
+def keepassxc_generate(
+    length:    int  = 32,
+    uppercase: bool = True,
+    lowercase: bool = True,
+    digits:    bool = True,
+    special:   bool = False,
+) -> Optional[str]:
+    """
+    Generate a password using keepassxc-cli's own CSPRNG.
+
+    Returns the generated password string, or None if keepassxc-cli is not
+    installed or the command fails.
+
+    keepassxc-cli generates passwords using KeePass's own secure random engine
+    (the same engine used for database key generation). This is the most
+    trustworthy source for the KeePass master password itself — generated
+    by the same application that will guard it.
+
+    Note: keepassxc-cli's `generate` command does not support the
+    Capital.word.phrase.N format; it generates character-class passwords.
+    For that reason this function is offered as an alternative for the master
+    password but the Python-backed generator (using secrets) is used for
+    service credentials where the period-separated format is expected.
+    """
+    try:
+        cmd = ["keepassxc-cli", "generate", f"-L{length}"]
+        if uppercase: cmd.append("-u")
+        if lowercase: cmd.append("-l")
+        if digits:    cmd.append("-n")
+        if special:   cmd.append("-s")
+        result = subprocess.run(
+            cmd,
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            generated = result.stdout.strip()
+            if generated:
+                return generated
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        pass
+    return None
+
+
+def generate_master_password_suggestion() -> tuple[str, str]:
+    """
+    Generate a master password suggestion for display at forge time.
+
+    Returns (password, source) where source is either:
+      "keepassxc-cli"  — generated by KeePass's own CSPRNG (preferred)
+      "secrets"        — generated by Python's secrets module (os.urandom)
+
+    Tries keepassxc-cli first. Falls back to the secrets-based generator
+    when KeePass is not yet installed (e.g. before forge phase-03).
+
+    Both sources use a CSPRNG (os.urandom or equivalent). The keepassxc-cli
+    path is preferred so operators can see that the suggestion comes from the
+    same tool they are about to use as their password manager.
+    """
+    kp = keepassxc_generate(length=28, uppercase=True, lowercase=True,
+                             digits=True, special=False)
+    if kp:
+        return kp, "keepassxc-cli"
+
+    passphrase = generate_passphrase()
+    return passphrase, "secrets"
+
+
+# ---------------------------------------------------------------------------
+# Strength report
+# ---------------------------------------------------------------------------
 
 def passphrase_strength(phrase: str) -> dict:
     """
@@ -210,7 +349,7 @@ def passphrase_strength(phrase: str) -> dict:
     Returns: {length, word_count, has_digit, format_valid, meets_min_length}
     """
     parts = phrase.split(".")
-    has_digit = parts[-1].isdigit() if parts else False
+    has_digit  = parts[-1].isdigit() if parts else False
     word_parts = parts[:-1] if has_digit else parts
     return {
         "length":           len(phrase),
