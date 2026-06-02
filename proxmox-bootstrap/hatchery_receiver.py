@@ -38,6 +38,7 @@ class HatcheryReceiverConfig:
     listen_host:    str  = "0.0.0.0"
     listen_port:    int  = 9321
     max_package_mb: int  = 50
+    auth_token:     str  = ""   # if set, require X-Broodforge-Token header on every POST
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +157,14 @@ class _ReceiverHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
 
+        # Token authentication — check X-Broodforge-Token if configured
+        expected_token = self._config.auth_token
+        if expected_token:
+            provided = self.headers.get("X-Broodforge-Token", "")
+            if not provided or provided != expected_token:
+                self.send_error(401, "Unauthorized — missing or invalid X-Broodforge-Token")
+                return
+
         content_length = int(self.headers.get("Content-Length", 0))
         max_bytes = self._config.max_package_mb * 1024 * 1024
         if content_length > max_bytes:
@@ -233,10 +242,14 @@ if __name__ == "__main__":
     p.add_argument("--list",    metavar="DIR", help="List received packages in DIR")
     p.add_argument("--port",    type=int, default=9321)
     p.add_argument("--storage", default="/var/lib/broodforge/failure-packages")
+    p.add_argument("--token",   default="", help="Require X-Broodforge-Token header (recommended for WAN)")
     args = p.parse_args()
 
     if args.serve:
-        cfg = HatcheryReceiverConfig(storage_dir=args.storage, listen_port=args.port)
+        cfg = HatcheryReceiverConfig(
+            storage_dir=args.storage, listen_port=args.port,
+            auth_token=getattr(args, "token", ""),
+        )
         run_receiver_server(cfg)
     elif args.analyze:
         diagnoses = analyze_all_unanalyzed(args.analyze)

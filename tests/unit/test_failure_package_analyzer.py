@@ -427,3 +427,82 @@ class TestAnalyzeAllUnanalyzed:
             # Should skip
             results = _hr.analyze_all_unanalyzed(tmpdir)
             assert len(results) == 0
+
+
+# ===========================================================================
+# HatcheryReceiverConfig — auth token field
+# ===========================================================================
+
+class TestHatcheryReceiverConfigAuth:
+    def test_default_auth_token_empty(self):
+        cfg = _hr.HatcheryReceiverConfig()
+        assert cfg.auth_token == ""
+
+    def test_auth_token_set(self):
+        cfg = _hr.HatcheryReceiverConfig(auth_token="secret-token-123")
+        assert cfg.auth_token == "secret-token-123"
+
+    def test_auth_token_in_server_handler(self):
+        """Handler must reject requests when token is configured but not provided."""
+        import io
+        from http.server import BaseHTTPRequestHandler
+        from unittest.mock import MagicMock
+
+        cfg = _hr.HatcheryReceiverConfig(auth_token="test-token")
+
+        class _Handler(_hr._ReceiverHandler):
+            _config = cfg
+
+        # Build a minimal mock request with missing token
+        mock_request = MagicMock()
+        mock_request.makefile.return_value = io.BytesIO(b"")
+        handler = _Handler.__new__(_Handler)
+        handler.headers = {"Content-Length": "0"}
+        handler.path = "/api/failure-packages"
+        handler.client_address = ("127.0.0.1", 1234)
+        handler.rfile = io.BytesIO(b"")
+
+        sent_errors = []
+        handler.send_error = lambda code, msg="": sent_errors.append(code)
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+        handler.log_message = lambda *a: None
+
+        handler.do_POST()
+        assert 401 in sent_errors
+
+    def test_auth_token_accepted_with_correct_header(self):
+        """Handler must accept requests when correct token is provided."""
+        import io
+        from unittest.mock import MagicMock
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg = _hr.HatcheryReceiverConfig(auth_token="correct-token", storage_dir=tmpdir)
+
+            class _Handler(_hr._ReceiverHandler):
+                _config = cfg
+
+            data = _make_failure_package_bytes(_report_dict())
+            handler = _Handler.__new__(_Handler)
+            handler.headers = {
+                "Content-Length": str(len(data)),
+                "X-Broodforge-Token": "correct-token",
+                "X-Package-Name": "test.tar.gz",
+            }
+            handler.path = "/api/failure-packages"
+            handler.client_address = ("127.0.0.1", 1234)
+            handler.rfile = io.BytesIO(data)
+
+            responses = []
+            handler.send_error = lambda code, msg="": responses.append(("error", code))
+            handler.send_response = lambda code: responses.append(("ok", code))
+            handler.send_header = MagicMock()
+            handler.end_headers = MagicMock()
+            handler.wfile = io.BytesIO()
+            handler.log_message = lambda *a: None
+
+            handler.do_POST()
+            assert any(r == ("ok", 200) for r in responses)

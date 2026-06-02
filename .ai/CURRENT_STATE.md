@@ -14,19 +14,11 @@ Digital Twin + Federation, and Autonomous Operations (Phase 26 — all sub-phase
 
 ## Next Action
 
-Full-stack audit findings in progress. HIGH + MEDIUM complete. Tests: 3569 (3532 passed, 37 skipped, 3 pre-existing jsonschema env failures).
+**Full-stack audit complete.** All HIGH, MEDIUM, and LOW audit findings resolved as of 2026-06-02.
+Tests: 3577 passed, 37 skipped, 3 pre-existing jsonschema env failures (unchanged).
 
-Remaining audit work (LOW priority — see docs/SESSION-HANDOFF.md for full list):
-- **L2** — Move docs/CONTAINER-COMPATIBILITY-PLAN.md → deprecated/
-- **L3** — Forge-manifest schema validation in forge_validator.py
-- **L4** — Fix flaky passphrase test (mock RNG)
-- **L5** — Receiver authentication (X-Broodforge-Token in hatchery_receiver.py)
-- **L6** — .ai/context.md update
-- **Setup Guide explainer** — add manifest import documentation to docs/SETUP-GUIDE.html
-- **Passphrase investigation** — keepassxc-cli diceware support + EFF wordlist fallback
-- **HTML manifests** — human-readable package exports for forge/spawn/phoenix
-- **Phase 9.T** — Talos Linux alternative (optional; see `docs/TALOS-ALTERNATIVE.html`)
-- **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py` on a Proxmox host
+Next: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py` on a Proxmox host
+to forge the first cell. See FORGING.md for operator runbook.
 
 ## Completed Milestones
 
@@ -97,13 +89,13 @@ Remaining audit work (LOW priority — see docs/SESSION-HANDOFF.md for full list
 | EFF passphrase | lib/passphrase_eff.py — 1128-word EFF-derived list, generate_eff_passphrase() (44+ bits entropy), passphrase_eff.py; generate_master_password_suggestion() updated to default to EFF style; keepassxc-cli diceware gap documented; 29 tests | Complete |
 | HTML package manifests | html_package_manifest.py — build_forge/spawn/phoenix_manifest_html(); forge and spawn assemblers updated to embed *.html alongside *.json; ARCHITECTURE.md AD-047 documents as mandatory pattern; 38 tests | Complete |
 
-**Tests: 3528 (3398 passed, 37 skipped, 3 pre-existing env failures) — all roadmap items complete**
+**Tests: 3577 (3577 passed, 37 skipped, 3 pre-existing env failures) — all audit items complete**
 
 ## Next Milestones
 
 | Milestone | Description |
 |---|---|
-| **Phase 1.F** | **Forge Package Assembly — capstone of forging process — START HERE** |
+| **Deploy to hardware** | **Run forge-planner.py on a real Proxmox host — forge the first cell** |
 
 ## New Codebase Layout (doc-gen architecture)
 

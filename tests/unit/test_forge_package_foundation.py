@@ -23,15 +23,20 @@ import passphrase as _pw
 
 
 class TestPassphraseFormat:
-    def _gen(self):
-        return _pw.generate_passphrase()
+    def _gen(self, seed=None):
+        import random
+        rng = random.Random(seed) if seed is not None else None
+        return _pw.generate_passphrase(rng=rng)
 
     def test_returns_string(self):
-        assert isinstance(self._gen(), str)
+        assert isinstance(self._gen(seed=0), str)
 
     def test_length_in_range(self):
-        for _ in range(50):
-            p = self._gen()
+        import random
+        # Use a seeded RNG so the test is deterministic — no flakiness
+        rng = random.Random(42)
+        for i in range(50):
+            p = _pw.generate_passphrase(rng=rng)
             assert _pw._MIN_LEN <= len(p) <= _pw._MAX_LEN, f"Length out of range: {p!r}"
 
     def test_contains_only_allowed_chars(self):
@@ -484,3 +489,49 @@ class TestForgeManifestSchema:
         assert "cell_id" in required
         assert "host_identity" in required
         assert "network_topology" in required
+
+
+# ===========================================================================
+# validate_forge_manifest() — schema validation helper in forge_validator
+# ===========================================================================
+
+class TestValidateForgeManifest:
+    def _valid_manifest(self):
+        return {
+            "schema_version": "1.0",
+            "cell_id": "pve01-cell",
+            "generated_at": "2026-06-01T12:00:00+00:00",
+            "setup_mode": "autonomous",
+            "host_identity": {
+                "hostname": "pve01",
+                "domain": "home.example.com",
+                "fqdn": "pve01.home.example.com",
+                "cell_id": "pve01-cell",
+            },
+            "network_topology": {
+                "profile": "lan",
+                "management_cidr": "192.168.1.0/24",
+                "gateway": "192.168.1.1",
+            },
+        }
+
+    def test_valid_manifest_returns_empty(self):
+        findings = _fv.validate_forge_manifest(self._valid_manifest())
+        reds = [f for f in findings if f.severity == "RED"]
+        assert not reds
+
+    def test_missing_required_field_returns_red(self):
+        m = self._valid_manifest()
+        del m["cell_id"]
+        findings = _fv.validate_forge_manifest(m)
+        assert any(f.severity == "RED" and "cell_id" in f.field for f in findings)
+
+    def test_missing_schema_path_returns_yellow(self):
+        findings = _fv.validate_forge_manifest(self._valid_manifest(), schema_path="/nonexistent/schema.json")
+        assert len(findings) == 1
+        assert findings[0].severity == "YELLOW"
+        assert "schema" in findings[0].field
+
+    def test_returns_list(self):
+        result = _fv.validate_forge_manifest(self._valid_manifest())
+        assert isinstance(result, list)

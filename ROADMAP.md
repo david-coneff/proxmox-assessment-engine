@@ -51,6 +51,13 @@ Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
       All phases 26.1–26.7 implemented. remediation_planner.py, remediation_queue.py,
       remediation_executor.py, remediation_policy.py, remediation-cli.py. Dashboard
       integration, operational report Section 8, schema additions. 94 tests.
+- [x] **Full-stack audit findings** — all HIGH, MEDIUM, LOW items resolved:
+      Phoenix assembler + CLI, security→state loop, AD dedup, StrictHostKeyChecking fixes,
+      watch() continuous mode, recursive shell script scan, stale docs, dashboard WAN warning,
+      phoenix KeePass gate + workbook, service-catalog disambiguation; forge manifest schema
+      validation, receiver X-Broodforge-Token auth, flaky passphrase test fixed, dead code
+      removed, deprecated/CONTAINER-COMPATIBILITY-PLAN.md, .ai/context.md updated.
+      Tests: 3577 passed, 37 skipped, 3 pre-existing jsonschema env failures.
 - [ ] 9.T: Talos Linux alternative support — optional; scripts for template build, machine config
       generation, and Ubuntu↔Talos migration not yet implemented.
       See `docs/TALOS-ALTERNATIVE.html` for design and prerequisites.

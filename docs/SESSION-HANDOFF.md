@@ -30,8 +30,30 @@ Last updated: 2026-06-02 UTC
 - `spawn_scripts.py:311` — changed `StrictHostKeyChecking=no` → `accept-new` in generated wait_ssh() loop
 - Security analyzer SCRIPT-001 still flags `=no`; the false positives are eliminated by the source fix
 
-**L1 — Dead code branch in security_analyzer.py:581** (fixed opportunistically)
+**L1 — Dead code branch in security_analyzer.py:581** (fixed opportunistically during HIGH pass)
 - Removed `hasattr(f, 'content')` dead branch in `_finding_row()` — `SecurityFinding` only has `line_content`
+
+### LOW priority audit findings (complete)
+
+**L2 — Move docs/CONTAINER-COMPATIBILITY-PLAN.md → deprecated/**
+- Renamed via git mv; README and docs index notes it as deprecated
+
+**L3 — Forge-manifest schema validation**
+- Added `validate_forge_manifest(manifest, schema_path)` to `forge_validator.py`
+- Uses `jsonschema` if available; falls back to required-field checks (stdlib only)
+- 4 new tests in `TestValidateForgeManifest`
+
+**L4 — Fix flaky passphrase test**
+- `test_forge_package_foundation.py::TestPassphraseFormat::test_length_in_range` now uses a seeded `random.Random(42)` — deterministic, no flakiness
+
+**L5 — Receiver authentication**
+- Added `auth_token: str = ""` field to `HatcheryReceiverConfig`
+- `_ReceiverHandler.do_POST()` checks `X-Broodforge-Token` header when `auth_token` is set; returns 401 on mismatch
+- `--token` CLI argument added to `hatchery_receiver.py` `__main__` block
+- 4 new tests in `TestHatcheryReceiverConfigAuth`
+
+**L6 — .ai/context.md update**
+- Rewrote to reflect current scope: self-managing platform (forge/spawn/phoenix/assess/monitor/remediate), v7.1 architecture, six lifecycle phases, current milestone
 
 ### MEDIUM priority audit findings (complete)
 
@@ -67,15 +89,9 @@ Last updated: 2026-06-02 UTC
 - Added 10-line disambiguation header to both `proxmox-bootstrap/service-catalog.yaml` and `proxmox-bootstrap/metadata/service-catalog.yaml`
 - `proxmox-bootstrap/metadata/README.md` already exists
 
-## Remaining Work (LOW priority)
+## Remaining Work
 
-### LOW PRIORITY
-
-**L2 — Move/retire docs**: `docs/CONTAINER-COMPATIBILITY-PLAN.md` → `deprecated/`
-**L3 — Forge-manifest schema validation**: add JSON schema validation in forge_validator.py
-**L4 — Fix flaky passphrase test**: mock RNG in test_forge_package_foundation.py::TestPassphraseFormat::test_length_in_range
-**L5 — Receiver authentication**: add X-Broodforge-Token header check to hatchery_receiver.py
-**L6 — .ai/ cleanup**: remove `.ai/SESSION-HANDOFF.md`, update `.ai/context.md`
+All audit findings resolved. No remaining items from the full-stack review.
 
 ## Previous Sessions
 

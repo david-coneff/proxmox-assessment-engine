@@ -25,8 +25,11 @@ Provides:
 Stdlib only.
 """
 
+import json
+import os
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
+from typing import Any, List, Optional
 
 # ---------------------------------------------------------------------------
 # Severity constants
@@ -291,3 +294,70 @@ def describe_minimum_stack() -> str:
         + "\n".join(f"  - {s}" for s in MINIMUM_VIABLE_STACK)
         + "\n\nUser applications are added via GitOps (Flux CD) after forging."
     )
+
+
+# ---------------------------------------------------------------------------
+# Forge manifest schema validation
+# ---------------------------------------------------------------------------
+
+_SCHEMA_PATH = Path(__file__).parent.parent / "data-model" / "forge-manifest-schema.json"
+
+
+def validate_forge_manifest(manifest: dict, schema_path: Optional[str] = None) -> List["ForgeValidationFinding"]:
+    """
+    Validate a forge-manifest.json dict against the JSON schema.
+
+    Uses jsonschema if available; falls back to structural checks (required
+    fields only) if jsonschema is not installed.
+
+    Returns a list of ForgeValidationFinding — empty list means valid.
+    """
+    findings: List[ForgeValidationFinding] = []
+    path = Path(schema_path) if schema_path else _SCHEMA_PATH
+
+    if not path.exists():
+        return [ForgeValidationFinding(
+            severity=SEVERITY_YELLOW,
+            field="schema",
+            message=f"forge-manifest-schema.json not found at {path} — schema validation skipped",
+            observed=None,
+            required=None,
+        )]
+
+    with open(path) as fh:
+        schema = json.load(fh)
+
+    try:
+        import jsonschema  # type: ignore
+        try:
+            jsonschema.validate(manifest, schema)
+        except jsonschema.ValidationError as exc:
+            findings.append(ForgeValidationFinding(
+                severity=SEVERITY_RED,
+                field=".".join(str(p) for p in exc.absolute_path) or "root",
+                message=exc.message,
+                observed=None,
+                required=None,
+            ))
+        except jsonschema.SchemaError as exc:
+            findings.append(ForgeValidationFinding(
+                severity=SEVERITY_YELLOW,
+                field="schema",
+                message=f"Schema itself is invalid: {exc.message}",
+                observed=None,
+                required=None,
+            ))
+    except ImportError:
+        # jsonschema not available — fall back to checking required fields only
+        required = schema.get("required") or []
+        for field in required:
+            if field not in manifest:
+                findings.append(ForgeValidationFinding(
+                    severity=SEVERITY_RED,
+                    field=field,
+                    message=f"Required field '{field}' missing from forge manifest",
+                    observed=None,
+                    required=field,
+                ))
+
+    return findings
