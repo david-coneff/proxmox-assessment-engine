@@ -51,6 +51,13 @@ except ImportError:
     _HAS_WORKBOOK = False
 
 try:
+    from html_package_manifest import build_forge_manifest_html as _build_forge_manifest_html
+    _HAS_PKG_MANIFEST = True
+except ImportError:
+    _build_forge_manifest_html = None  # type: ignore
+    _HAS_PKG_MANIFEST = False
+
+try:
     from forge_scripts import (
         FORGE_CHECKPOINT_SH, FORGE_KEEPASS_GATE_SH,
         generate_forge_sh,
@@ -126,6 +133,7 @@ def package_contents(
         "lib/forge-keepass-gate.sh",
         "lib/pve-suppress-nag.sh",
         "forge-workbook.html",
+        "forge-manifest.html",
     ]
     if embed_kdbx:
         cell_id = manifest.get("cell_id") or "cell"
@@ -222,6 +230,11 @@ def assemble_forge_package(
         if _HAS_WORKBOOK:
             wb_html = _build_forge_workbook_html(manifest, hardware_profile, validation_findings)
             _add_str("forge-workbook.html", wb_html)
+
+        # Human-readable package manifest (architecture requirement)
+        if _HAS_PKG_MANIFEST:
+            manifest_html = _build_forge_manifest_html(manifest, now_fn=lambda: (now or datetime.now(timezone.utc)).isoformat())
+            _add_str("forge-manifest.html", manifest_html)
 
         # Optional KeePass database
         if kdbx_path and Path(kdbx_path).exists():

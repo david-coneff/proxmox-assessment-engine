@@ -50,6 +50,13 @@ try:
 except ImportError:
     _build_spawn_workbook_html = None  # type: ignore
 
+try:
+    from html_package_manifest import build_spawn_manifest_html as _build_spawn_manifest_html
+    _HAS_PKG_MANIFEST = True
+except ImportError:
+    _build_spawn_manifest_html = None  # type: ignore
+    _HAS_PKG_MANIFEST = False
+
 
 # ---------------------------------------------------------------------------
 # KeePass unlock gate — 12.E.7a
@@ -241,6 +248,14 @@ def assemble_spawn_package(
 
         # Ansible artifacts
         _add_dir(artifacts_dir / "ansible",     "ansible")
+
+        # Human-readable package manifest (architecture requirement)
+        if _HAS_PKG_MANIFEST and _build_spawn_manifest_html is not None:
+            pkg_html = _build_spawn_manifest_html(
+                manifest, plan,
+                now_fn=lambda: (now or datetime.now(timezone.utc)).isoformat(),
+            )
+            _add_str("spawn-manifest.html", pkg_html)
 
         # Spawn workbook (HTML)
         if _build_spawn_workbook_html is not None:

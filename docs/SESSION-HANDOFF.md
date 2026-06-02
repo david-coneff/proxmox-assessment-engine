@@ -62,9 +62,22 @@ New `lib/passphrase_eff.py`:
 
 Test file: `tests/unit/test_passphrase_eff.py` — 29 tests, all passing.
 
+### HTML Package Manifests (complete)
+
+New `proxmox-bootstrap/html_package_manifest.py`:
+- `build_forge_manifest_html(manifest)` — forge package: cell identity, all 8 phases explained, VM table, key settings, operator checklist
+- `build_spawn_manifest_html(manifest, plan)` — spawn package: target hostname, execution mode, service disposition, allocated resources, operator checklist
+- `build_phoenix_manifest_html(playbook)` — phoenix package: restoration scope, waves table, VMIDs, danger warning, operator checklist
+
+All HTML outputs are self-contained (dark theme, no external dependencies, same style as dashboard and setup guide).
+
+Architecture: `assemble_forge_package.py` now embeds `forge-manifest.html` alongside `forge-manifest.json`. `assemble_spawn_package.py` embeds `spawn-manifest.html`. `ARCHITECTURE.md` documents AD-047 as the mandatory pattern: every machine-readable manifest must have a human-readable HTML equivalent.
+
+Test file: `tests/unit/test_html_package_manifest.py` — 38 tests, all passing.
+
 ## What's Left (in priority order)
 
-1. **HTML manifests for package exports** — for forge, spawn, phoenix packages.
+All 5 session items are now complete. No remaining items.
    - Scan for plaintext secrets in forge.log, spawn.log etc.
    - Scan shell scripts for unsafe patterns (StrictHostKeyChecking=no, passwords on cmdlines)
    - Scan bootstrap-state.json / manifests for plaintext secret fields

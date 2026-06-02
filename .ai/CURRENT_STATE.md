@@ -91,6 +91,7 @@ Options:
 | Security Analyzer | security_analyzer.py — log/script/manifest scanning (15 rules), HTML report, security_posture_score(), _score_security_posture() in readiness.py, Security section in dashboard (/api/security), 56 tests | Complete |
 | Setup Guide explainer | SETUP-GUIDE.html manifest-import-explainer section: how-to-import (drag-drop/paste/CLI), what auto-fills, what requires manual entry, CLI usage with generate-setup-manifest.py | Complete |
 | EFF passphrase | lib/passphrase_eff.py — 1128-word EFF-derived list, generate_eff_passphrase() (44+ bits entropy), passphrase_eff.py; generate_master_password_suggestion() updated to default to EFF style; keepassxc-cli diceware gap documented; 29 tests | Complete |
+| HTML package manifests | html_package_manifest.py — build_forge/spawn/phoenix_manifest_html(); forge and spawn assemblers updated to embed *.html alongside *.json; ARCHITECTURE.md AD-047 documents as mandatory pattern; 38 tests | Complete |
 
 **Tests: 3528 (3398 passed, 37 skipped, 3 pre-existing env failures) — all roadmap items complete**
 
