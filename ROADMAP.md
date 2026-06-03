@@ -111,6 +111,10 @@ Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
       A3: test_bootstrap_workbook.py migrated to html_bootstrap.py; registry helpers extracted;
       D1–D4: stale ODS refs in ROADMAP, ARCHITECTURE-REVIEW-v7.md deprecation note, AD-055 added.
       Tests: 3646 passed, 37 skipped.
+- [x] **Full-stack audit findings (round 7)** — 2 findings:
+      I1: html_forge_workbook.py + html_phoenix_workbook.py had zero test coverage;
+          TestHtmlForgeWorkbook + TestHtmlPhoenixWorkbook added (8 tests total).
+      Tests: 3654 passed, 37 skipped.
 - [x] **Full-stack audit findings (round 3)** — all MEDIUM and LOW items resolved:
       S1: secrets.compare_digest in hatchery_receiver; I1: security scan wired into operational;
       I2: 9.T migration tier (above); S2: no-token startup warning in dashboard;
