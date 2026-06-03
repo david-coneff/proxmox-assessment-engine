@@ -264,7 +264,7 @@ spawn-package-cell-alpha-pve02-2026-06-01_12_00_00.tar.gz
 ├── phase-04-k3s.sh            ansible k3s role
 ├── [phase-05-ha.sh]           HA promotion (3rd server only)
 ├── phase-06-verify.sh         post-spawn health check
-├── spawn-workbook-pve02.ods   ODS tracking workbook
+├── spawn-workbook-pve02.html  HTML tracking workbook
 ├── opentofu/                  Proxmox VM tfvars
 ├── cloud-init/snippets/       user-data + network-config per VM
 ├── ansible/                   inventory + k3s role vars

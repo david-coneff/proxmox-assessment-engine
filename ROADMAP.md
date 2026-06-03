@@ -164,7 +164,7 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
 
 - [x] 1.F.1: `forge-pack.sh` — assembles forge package from current repo state:
       discovery scripts, planners, generators, opentofu/, ansible/, forge.sh + phases,
-      forge-workbook.ods template, lib/ (checkpoint, validation, failure-package)
+      forge-workbook.html template, lib/ (checkpoint, validation, failure-package)
 - [x] 1.F.2: `forge.sh` — orchestrated entry point with 8 phases:
       phase-00 (discover) → phase-01 (plan) → phase-02 (validate, RED blocks) →
       phase-03 (host config) → phase-04 (VMs) → phase-05 (k3s) →
@@ -1008,7 +1008,7 @@ See Phase 12.E for the hatchery process playbooks (broodling spawn scripts).
 - [x] 10.5: Secret registry completeness renderer — Section 5 reads manifest["secret_registry"];
       shows total/with-path counts; lists secrets missing keepass_path
 - [x] 10.6: Wire into engine.py — run_operational() function + `--mode operational` choice;
-      loads all registries, computes drift + readiness, renders Operational-Report.odt
+      loads all registries, computes drift + readiness, renders Operational-Report.html
 - [x] 10.7: Scheduled refresh — `proxmox-bootstrap/setup-operational-schedule.sh` installs
       broodforge-operational.service + broodforge-operational.timer (every hour)
 

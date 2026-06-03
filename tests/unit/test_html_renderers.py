@@ -605,3 +605,51 @@ class TestHtmlSpawnWorkbook:
     def test_hardware_profile_shown(self):
         page = self._build()
         assert "/dev/sda" in page or "sda" in page
+
+
+# ===========================================================================
+# HTML Recovery Workbook (I1 — missing tests)
+# ===========================================================================
+
+class TestHtmlRecoveryWorkbook:
+    def _build(self):
+        from html_recovery_workbook import build_recovery_workbook_html
+        from dependencies import build_graph
+        from readiness import score_graph
+        _hb.reset_checkbox_counter()
+        m = _manifest()
+        g = build_graph(m)
+        r = score_graph(g, m)
+        return build_recovery_workbook_html(m, g, r, _meta())
+
+    def test_returns_string(self):
+        assert isinstance(self._build(), str)
+
+    def test_is_valid_html(self):
+        page = self._build()
+        assert "<!DOCTYPE html>" in page
+        assert "</html>" in page
+
+    def test_hostname_in_page(self):
+        page = self._build()
+        assert "pve01" in page
+
+    def test_overall_readiness_score(self):
+        page = self._build()
+        assert "GREEN" in page or "score-green" in page
+
+    def test_restore_sequence_section(self):
+        page = self._build()
+        assert "Restore Sequence" in page or "Wave" in page
+
+    def test_recovery_readiness_section(self):
+        page = self._build()
+        assert "Readiness" in page
+
+    def test_checkboxes_present(self):
+        page = self._build()
+        assert 'type="checkbox"' in page
+
+    def test_self_contained(self):
+        page = self._build()
+        assert "cdn." not in page

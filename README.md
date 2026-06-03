@@ -1388,7 +1388,7 @@ broodforge/
 │   ├── template_registry.py TemplateRegistry
 │   ├── provenance.py        ProvenanceRegistry
 │   ├── readiness.py         GREEN/YELLOW/ORANGE/RED scorer
-│   └── renderers/           ODS workbook and ODT runbook generators
+│   └── renderers/           HTML document generators (deprecated/ holds old ODS/ODT)
 ├── engine/                  Legacy pae CLI (Phases 1–6 assessment history)
 ├── collector/               Legacy collector framework
 ├── proxmox-bootstrap/       Bootstrap Intelligence toolchain
