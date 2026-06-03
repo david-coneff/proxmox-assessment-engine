@@ -95,6 +95,12 @@ Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
       waves; _health_check_cmds()/_service_restart_cmds() unified; html_operational_report
       gains backup failure actions + inline cert expiry computation. 9 test files migrated.
       Tests: 3745 passed, 37 skipped, 3 pre-existing.
+- [x] **Full-stack audit findings (round 5)** — 10 findings, all resolved:
+      A1/I2: recovery_workbook.py (missed in ODT sweep) → moved to deprecated/;
+      I1: TestHtmlRecoveryWorkbook (8 tests) added — html_recovery_workbook had no coverage;
+      D1–D4: stale .ods/.odt refs in README, ROADMAP, NODE-SPAWNING.md updated to HTML.
+      A2 (sys.path coupling) and A3 (deprecated ODS import in test) deferred.
+      Tests: 3647 passed, 37 skipped, 3 pre-existing.
 - [x] **Full-stack audit findings (round 3)** — all MEDIUM and LOW items resolved:
       S1: secrets.compare_digest in hatchery_receiver; I1: security scan wired into operational;
       I2: 9.T migration tier (above); S2: no-token startup warning in dashboard;

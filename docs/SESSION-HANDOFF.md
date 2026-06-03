@@ -4,6 +4,30 @@ Last updated: 2026-06-02 UTC
 
 ## What Was Done This Session (current)
 
+### Audit round 5 — 10 findings, all resolved
+
+**A1/I2** — `doc-gen/renderers/recovery_workbook.py` was missed in the ODT deprecation
+sweep; imported from `workbook.py` (now in deprecated/), confirmed broken at import time.
+Moved to `doc-gen/renderers/deprecated/recovery_workbook.py`.
+
+**I1** — `TestHtmlRecoveryWorkbook` (8 tests) added to `tests/unit/test_html_renderers.py`.
+`html_recovery_workbook.py` previously had zero test coverage; bootstrap and spawn workbooks
+both had test classes; now consistent.
+
+**D1–D4 (stale ODS/ODT docs):**
+- `README.md:1391`: renderers/ description → "HTML document generators"
+- `ROADMAP.md:167`: "forge-workbook.ods" → "forge-workbook.html"
+- `ROADMAP.md:1011`: "Operational-Report.odt" → "Operational-Report.html"
+- `NODE-SPAWNING.md:267`: "spawn-workbook-pve02.ods" → ".html"
+
+**A2 (deferred):** sys.path coupling in 4 proxmox-bootstrap/ modules still deferred.
+**S1 (residual):** shell=True in collector_utils + migrate_k3s_lib — low risk, kept.
+**A3 (low):** test_bootstrap_workbook.py imports deprecated ODS helpers — preserved.
+
+**Tests: 3647 passed, 37 skipped, 3 pre-existing** (8 new tests)
+
+---
+
 ### ODT/ODS renderer deprecation + HTML migration
 
 **Deprecated:** `recovery_runbook.py`, `runbook.py`, `operational_report.py`, `workbook.py`
