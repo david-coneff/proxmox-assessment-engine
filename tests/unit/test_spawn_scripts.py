@@ -119,6 +119,8 @@ class TestPhase06Verify(unittest.TestCase):
     def test_checks_gateway(self): self.assertIn("192.168.1.1", self.s)
     def test_exits_on_failure(self): self.assertIn("exit 1", self.s)
     def test_mentions_update_state(self): self.assertIn("update_state_after_spawn", self.s)
+    def test_posts_to_spawn_complete(self): self.assertIn("api/spawn-complete", self.s)
+    def test_reads_hatchery_url(self): self.assertIn("HATCHERY_URL", self.s)
 
 
 class TestWriteAllScripts(unittest.TestCase):

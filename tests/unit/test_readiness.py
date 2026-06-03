@@ -15,7 +15,8 @@ sys.path.insert(0, str(REPO / "doc-gen"))
 
 from readiness import (
     BackupInventory, score_component, score_graph,
-    ReadinessReport, ComponentReadiness, worst, BACKUP_AGE_THRESHOLDS
+    ReadinessReport, ComponentReadiness, worst, BACKUP_AGE_THRESHOLDS,
+    _score_migration_health,
 )
 import dependencies as dep_mod
 
@@ -373,6 +374,81 @@ class TestFixtureEndToEnd(unittest.TestCase):
 
         # SPOFs should be detected (rpool has multiple dependents)
         self.assertGreater(len(report.single_points_of_failure), 0)
+
+
+# ---------------------------------------------------------------------------
+# Test: _score_migration_health (I3 audit fix — 9.T.12)
+# ---------------------------------------------------------------------------
+
+class TestScoreMigrationHealth(unittest.TestCase):
+    def test_no_history_returns_empty(self):
+        gaps = _score_migration_health({})
+        self.assertEqual(gaps, [])
+
+    def test_empty_history_returns_empty(self):
+        gaps = _score_migration_health({"migration_history": []})
+        self.assertEqual(gaps, [])
+
+    def test_failed_outcome_gives_orange_gap(self):
+        manifest = {
+            "migration_history": [
+                {"node_vm_name": "k3s-server-01", "migration_id": "m-001",
+                 "outcome": "failed", "error": "talosctl apply timed out"},
+            ]
+        }
+        gaps = _score_migration_health(manifest)
+        self.assertEqual(len(gaps), 1)
+        self.assertEqual(gaps[0].severity, "ORANGE")
+        self.assertEqual(gaps[0].gap_type, "MIGRATION_FAILED")
+        self.assertIn("k3s-server-01", gaps[0].description)
+
+    def test_rolled_back_outcome_gives_yellow_gap(self):
+        manifest = {
+            "migration_history": [
+                {"node_vm_name": "k3s-worker-02", "migration_id": "m-002",
+                 "outcome": "rolled_back"},
+            ]
+        }
+        gaps = _score_migration_health(manifest)
+        self.assertEqual(len(gaps), 1)
+        self.assertEqual(gaps[0].severity, "YELLOW")
+        self.assertEqual(gaps[0].gap_type, "MIGRATION_ROLLED_BACK")
+        self.assertIn("k3s-worker-02", gaps[0].description)
+
+    def test_completed_outcome_gives_no_gap(self):
+        manifest = {
+            "migration_history": [
+                {"node_vm_name": "k3s-server-01", "migration_id": "m-003",
+                 "outcome": "completed"},
+            ]
+        }
+        gaps = _score_migration_health(manifest)
+        self.assertEqual(gaps, [])
+
+    def test_mixed_outcomes_returns_both_gaps(self):
+        manifest = {
+            "migration_history": [
+                {"node_vm_name": "node-a", "migration_id": "m-001", "outcome": "failed"},
+                {"node_vm_name": "node-b", "migration_id": "m-002", "outcome": "rolled_back"},
+                {"node_vm_name": "node-c", "migration_id": "m-003", "outcome": "completed"},
+            ]
+        }
+        gaps = _score_migration_health(manifest)
+        self.assertEqual(len(gaps), 2)
+        severities = {g.severity for g in gaps}
+        self.assertIn("ORANGE", severities)
+        self.assertIn("YELLOW", severities)
+
+    def test_multiple_failed_gives_multiple_gaps(self):
+        manifest = {
+            "migration_history": [
+                {"node_vm_name": "node-a", "migration_id": "m-001", "outcome": "failed"},
+                {"node_vm_name": "node-b", "migration_id": "m-002", "outcome": "failed"},
+            ]
+        }
+        gaps = _score_migration_health(manifest)
+        self.assertEqual(len(gaps), 2)
+        self.assertTrue(all(g.severity == "ORANGE" for g in gaps))
 
 
 if __name__ == "__main__":

@@ -26,15 +26,6 @@ Provides:
 Stdlib only.
 """
 
-import sys
-import os
-# doc-gen/renderers is in a sibling directory; import html_base utilities from there.
-# Idempotent: only insert if not already in sys.path (avoids duplicate entries).
-_RENDERERS_PATH = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), '..', 'doc-gen', 'renderers'))
-if _RENDERERS_PATH not in sys.path:
-    sys.path.insert(0, _RENDERERS_PATH)
-
 from html_base import (
     html_page, h, p, pre, code, dl, table, divider,
     callout, section, score_badge,

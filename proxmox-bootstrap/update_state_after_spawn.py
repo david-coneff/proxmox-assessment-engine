@@ -11,8 +11,9 @@ Provides:
   update_state_after_spawn(state, spawn_result, hardware_profile) → dict
   build_spawn_result(spawn_plan, hardware_profile, now_fn) → SpawnResult
 
-The caller is responsible for writing the updated state dict to disk and
-committing to Forgejo to trigger Assessment Engine reassessment.
+The caller is responsible for writing the updated state dict to disk.
+Committing to Forgejo is handled externally (e.g. hatchery_receiver.py
+writes the file; a separate git push triggers Assessment Engine reassessment).
 
 Stdlib only.
 """
