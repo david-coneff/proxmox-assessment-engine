@@ -653,3 +653,63 @@ class TestHtmlRecoveryWorkbook:
     def test_self_contained(self):
         page = self._build()
         assert "cdn." not in page
+
+
+# ===========================================================================
+# HTML Forge Workbook (I1 — missing tests)
+# ===========================================================================
+
+class TestHtmlForgeWorkbook:
+    def _build(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "html_forge_workbook",
+            os.path.join(_ROOT, "proxmox-bootstrap", "html_forge_workbook.py"),
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _hb.reset_checkbox_counter()
+        return mod.build_forge_workbook_html(_manifest())
+
+    def test_returns_string(self):
+        assert isinstance(self._build(), str)
+
+    def test_is_valid_html(self):
+        page = self._build()
+        assert "<!DOCTYPE html>" in page and "</html>" in page
+
+    def test_self_contained(self):
+        assert "cdn." not in self._build()
+
+    def test_has_checkboxes(self):
+        assert 'type="checkbox"' in self._build()
+
+
+# ===========================================================================
+# HTML Phoenix Workbook (I1 — missing tests)
+# ===========================================================================
+
+class TestHtmlPhoenixWorkbook:
+    def _build(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "html_phoenix_workbook",
+            os.path.join(_ROOT, "proxmox-bootstrap", "html_phoenix_workbook.py"),
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _hb.reset_checkbox_counter()
+        return mod.build_phoenix_workbook_html({})
+
+    def test_returns_string(self):
+        assert isinstance(self._build(), str)
+
+    def test_is_valid_html(self):
+        page = self._build()
+        assert "<!DOCTYPE html>" in page and "</html>" in page
+
+    def test_self_contained(self):
+        assert "cdn." not in self._build()
+
+    def test_has_checkboxes(self):
+        assert 'type="checkbox"' in self._build()
