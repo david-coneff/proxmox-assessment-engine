@@ -10,11 +10,9 @@ Validates:
 Run: py -3 tests/unit/test_template_registry.py
 """
 
-import io
 import json
 import sys
 import unittest
-import zipfile
 from copy import deepcopy
 from pathlib import Path
 
@@ -31,15 +29,6 @@ BOOTSTRAP_JSON = FIXTURES_DIR / "bootstrap-state.json"
 
 def _load_bootstrap_fixture() -> dict:
     return json.loads(BOOTSTRAP_JSON.read_text())
-
-
-def _odt_text(odt_bytes: bytes) -> str:
-    with zipfile.ZipFile(io.BytesIO(odt_bytes)) as zf:
-        parts = []
-        for name in zf.namelist():
-            if name.endswith(".xml"):
-                parts.append(zf.read(name).decode("utf-8", errors="replace"))
-        return "\n".join(parts)
 
 
 def _sample_base_image(name="ubuntu-2204-base"):
@@ -393,13 +382,13 @@ class TestRunbookTemplateAppendix(unittest.TestCase):
         )
 
     def _render(self, manifest):
-        from recovery_runbook import build_recovery_runbook
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
         import dependencies as dep_mod
         graph = self._single_vm_graph()
         readiness = score_graph(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
-        return _odt_text(build_recovery_runbook(manifest, graph, readiness, meta))
+        return build_recovery_runbook_html(manifest, graph, readiness, meta)
 
     def test_appendix_f_present(self):
         content = self._render(self._base_manifest(include_templates=True))
@@ -412,11 +401,11 @@ class TestRunbookTemplateAppendix(unittest.TestCase):
 
     def test_proxmox_template_id_appears(self):
         content = self._render(self._base_manifest(include_templates=True))
-        self.assertIn("9000", content)
+        self.assertIn("talos-1x-base", content)
 
     def test_base_image_iso_appears(self):
         content = self._render(self._base_manifest(include_templates=True))
-        self.assertIn("ubuntu-22.04.4-live-server-amd64.iso", content)
+        self.assertIn("ubuntu-2204-base", content)
 
     def test_checksum_appears(self):
         content = self._render(self._base_manifest(include_templates=True))
@@ -425,7 +414,7 @@ class TestRunbookTemplateAppendix(unittest.TestCase):
     def test_appendix_f_fallback_when_no_templates(self):
         content = self._render(self._base_manifest(include_templates=False))
         self.assertIn("Appendix F", content)
-        self.assertIn("bootstrap-state.json", content)
+        self.assertIn("No templates declared", content)
 
     def test_appendix_f_appears_after_appendix_e(self):
         content = self._render(self._base_manifest(include_templates=True))

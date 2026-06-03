@@ -7,8 +7,8 @@ Usage:
     python3 doc-gen/engine.py --mode bootstrap --manifest <manifest.json>
 
 Outputs (bootstrap mode):
-    reports/<id>/Bootstrap-Workbook.ods
-    reports/<id>/Bootstrap-Runbook.odt
+    reports/<id>/Bootstrap-Workbook.html
+    reports/<id>/Bootstrap-Runbook.html
     reports/<id>/generation-report.md
 """
 

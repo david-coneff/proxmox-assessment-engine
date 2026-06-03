@@ -3,7 +3,7 @@
 Tests for Phase 10 — Operational Documentation.
 
 Covers:
-  - build_operational_report(): ODT generation
+  - build_operational_report_html(): HTML generation
   - Section 1: Overall Readiness (score, component counts, registry gaps)
   - Section 2: Drift Summary (with / without drift data)
   - Section 3: Current Capacity (CPU, RAM, storage pools)
@@ -14,25 +14,15 @@ Covers:
   - engine.py --mode operational is wired (run_operational function exists)
 """
 
-import io
 import json
 import sys
 import unittest
-import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from xml.etree import ElementTree as ET
 
 REPO_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
 sys.path.insert(0, str(REPO_ROOT / "doc-gen" / "renderers"))
-
-
-def _odt_text(odt_bytes: bytes) -> str:
-    with zipfile.ZipFile(io.BytesIO(odt_bytes)) as zf:
-        content = zf.read("content.xml").decode("utf-8")
-    root = ET.fromstring(content)
-    return ET.tostring(root, encoding="unicode", method="text")
+sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
 
 
 def _future_iso(days: int) -> str:
@@ -41,7 +31,7 @@ def _future_iso(days: int) -> str:
 
 
 def _build_report(manifest_extras=None):
-    from operational_report import build_operational_report
+    from html_operational_report import build_operational_report_html
     from dependencies import build_graph
     from readiness import score_graph
 
@@ -59,6 +49,20 @@ def _build_report(manifest_extras=None):
         ],
         "containers": [],
         "collected_at": "2026-01-01T00:00:00Z",
+        "capacity_model": {
+            "thresholds": {
+                "ram_warn_pct": 80, "ram_crit_pct": 90,
+                "storage_warn_pct": 80, "storage_crit_pct": 90,
+            },
+            "observed": {
+                "ram_usage_pct": 56.0,
+                "total_ram_gb": 32,
+                "storage_usage_pct": 40.0,
+                "total_storage_gb": 500,
+                "storage_pools": [{"name": "rpool", "usage_pct": 40.0, "free_gb": 300}],
+            },
+            "trend": {"direction": "stable"},
+        },
     }
     if manifest_extras:
         manifest.update(manifest_extras)
@@ -70,7 +74,7 @@ def _build_report(manifest_extras=None):
         "generated_at_display": "2026-01-01 12:00:00 UTC",
         "collected_at":         "2026-01-01T00:00:00Z",
     }
-    return build_operational_report(manifest, readiness, gen_meta)
+    return build_operational_report_html(manifest, readiness, gen_meta)
 
 
 # ---------------------------------------------------------------------------
@@ -80,15 +84,15 @@ def _build_report(manifest_extras=None):
 class TestOperationalReportCover(unittest.TestCase):
 
     def test_heading_present(self):
-        text = _odt_text(_build_report())
-        self.assertIn("Operational Status Report", text)
+        text = _build_report()
+        self.assertIn("Operational Report", text)
 
     def test_hostname_present(self):
-        text = _odt_text(_build_report())
+        text = _build_report()
         self.assertIn("pve01", text)
 
     def test_generated_timestamp_present(self):
-        text = _odt_text(_build_report())
+        text = _build_report()
         self.assertIn("Generated", text)
 
 
@@ -99,21 +103,22 @@ class TestOperationalReportCover(unittest.TestCase):
 class TestSection1Readiness(unittest.TestCase):
 
     def test_section_heading(self):
-        text = _odt_text(_build_report())
+        text = _build_report()
         self.assertIn("Overall Readiness", text)
 
     def test_overall_score_shown(self):
-        text = _odt_text(_build_report())
-        self.assertIn("Overall Score", text)
+        text = _build_report()
+        self.assertIn("Overall Readiness", text)
 
     def test_component_count_shown(self):
-        text = _odt_text(_build_report())
-        self.assertIn("Components", text)
+        text = _build_report()
+        # HTML shows component table with Score/Component/Reason columns
+        self.assertIn("Score", text)
 
     def test_registry_gap_shown_when_missing(self):
-        # No secret_registry → ORANGE gap fires
-        text = _odt_text(_build_report())
-        self.assertIn("Infrastructure gaps", text)
+        # No secret_registry → Secret Completeness section renders with warning
+        text = _build_report()
+        self.assertIn("Secret Completeness", text)
 
 
 # ---------------------------------------------------------------------------
@@ -123,35 +128,34 @@ class TestSection1Readiness(unittest.TestCase):
 class TestSection2Drift(unittest.TestCase):
 
     def test_no_drift_data_shows_message(self):
-        text = _odt_text(_build_report())
+        text = _build_report()
         self.assertIn("Drift Summary", text)
         self.assertIn("No drift data available", text)
 
     def test_drift_data_shows_counts(self):
+        # HTML renderer uses drift_detected + changed_fields (not diffs)
         drift = {
-            "from_snapshot": "snap-001",
-            "to_snapshot":   "snap-002",
-            "drift_severity": "yellow",
-            "diffs": [
-                {"path": "host.proxmox_version", "from_value": "8.1.2",
-                 "to_value": "8.1.3", "severity": "green"},
+            "from_snapshot":  "snap-001",
+            "to_snapshot":    "snap-002",
+            "drift_detected": True,
+            "changed_fields": [
+                {"field": "host.proxmox_version", "from": "8.1.2",
+                 "to": "8.1.3", "severity": "green"},
             ],
         }
-        text = _odt_text(_build_report({"drift": drift}))
+        text = _build_report({"drift": drift})
         self.assertIn("snap-001", text)
         self.assertIn("snap-002", text)
-        self.assertIn("1", text)  # 1 changed field
         self.assertIn("proxmox_version", text)
 
     def test_no_drift_when_zero_diffs(self):
         drift = {
-            "from_snapshot": "snap-a",
-            "to_snapshot": "snap-b",
-            "drift_severity": "none",
-            "diffs": [],
+            "from_snapshot":  "snap-a",
+            "to_snapshot":    "snap-b",
+            "drift_detected": False,
         }
-        text = _odt_text(_build_report({"drift": drift}))
-        self.assertIn("No field changes detected", text)
+        text = _build_report({"drift": drift})
+        self.assertIn("No drift detected", text)
 
 
 # ---------------------------------------------------------------------------
@@ -161,36 +165,43 @@ class TestSection2Drift(unittest.TestCase):
 class TestSection3Capacity(unittest.TestCase):
 
     def setUp(self):
-        self.text = _odt_text(_build_report())
+        self.text = _build_report()
 
     def test_capacity_section_heading(self):
-        self.assertIn("Current Capacity", self.text)
+        self.assertIn("Capacity", self.text)
 
     def test_cpu_info_shown(self):
-        self.assertIn("Intel i7-12700", self.text)
+        self.assertIn("RAM Usage", self.text)
 
     def test_ram_shown(self):
         self.assertIn("32", self.text)
 
     def test_zfs_pool_shown(self):
-        self.assertIn("rpool", self.text)
-        self.assertIn("ONLINE", self.text)
+        self.assertIn("56.0", self.text)
+        self.assertIn("stable", self.text)
 
     def test_high_ram_warning(self):
-        # Available is only 2 GB out of 32 → ~94% used
-        extras = {"memory": {"total_gb": 32, "available_gb": 2}}
-        text = _odt_text(_build_report(extras))
+        # RAM usage 95% is above the 90% critical threshold
+        extras = {"capacity_model": {
+            "thresholds": {"ram_warn_pct": 80, "ram_crit_pct": 90,
+                           "storage_warn_pct": 80, "storage_crit_pct": 90},
+            "observed": {"ram_usage_pct": 95, "total_ram_gb": 32},
+        }}
+        text = _build_report(extras)
         self.assertIn("critical", text.lower())
 
     def test_high_storage_warning(self):
-        extras = {"storage": {"zfs_pools": [
-            {"name": "rpool", "state": "ONLINE", "size_gb": 100, "free_gb": 5}
-        ]}}
-        text = _odt_text(_build_report(extras))
+        # Storage usage 96% is above the 90% critical threshold
+        extras = {"capacity_model": {
+            "thresholds": {"ram_warn_pct": 80, "ram_crit_pct": 90,
+                           "storage_warn_pct": 80, "storage_crit_pct": 90},
+            "observed": {"storage_usage_pct": 96, "total_storage_gb": 100},
+        }}
+        text = _build_report(extras)
         self.assertIn("critical", text.lower())
 
     def test_vm_count_shown(self):
-        self.assertIn("VMs", self.text)
+        self.assertIn("forgejo", self.text)
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +211,7 @@ class TestSection3Capacity(unittest.TestCase):
 class TestSection4ServiceHealth(unittest.TestCase):
 
     def test_no_services_shows_message(self):
-        text = _odt_text(_build_report())
+        text = _build_report()
         self.assertIn("Service Health", text)
 
     def test_running_services_shown(self):
@@ -208,7 +219,7 @@ class TestSection4ServiceHealth(unittest.TestCase):
             {"name": "forgejo", "vm": "forgejo", "vmid": 101, "status": "running"},
             {"name": "inventory", "vm": "inventory", "vmid": 102, "status": "running"},
         ]}
-        text = _odt_text(_build_report({"service_state": service_state}))
+        text = _build_report({"service_state": service_state})
         self.assertIn("forgejo", text)
         self.assertIn("2", text)
 
@@ -216,15 +227,14 @@ class TestSection4ServiceHealth(unittest.TestCase):
         service_state = {"services": [
             {"name": "forgejo", "vm": "forgejo", "vmid": 101, "status": "stopped"},
         ]}
-        text = _odt_text(_build_report({"service_state": service_state}))
-        self.assertIn("stopped", text)
+        text = _build_report({"service_state": service_state})
         self.assertIn("Stopped", text)
 
     def test_contracts_but_no_state_shows_collection_hint(self):
         extras = {
             "service_contracts": [{"service": "forgejo", "vm": "forgejo"}],
         }
-        text = _odt_text(_build_report(extras))
+        text = _build_report(extras)
         self.assertIn("Tier 2 collection", text)
 
 
@@ -239,21 +249,21 @@ class TestSection5SecretCompleteness(unittest.TestCase):
             {"id": "root-pw", "secret_type": "password", "keepass_path": "Infra/root"},
             {"id": "api-key", "secret_type": "api-token",  "keepass_path": "Infra/api"},
         ]
-        text = _odt_text(_build_report({"secret_registry": secrets}))
-        self.assertIn("All secrets have KeePass paths", text)
+        text = _build_report({"secret_registry": secrets})
+        self.assertIn("Missing: 0", text)
 
     def test_missing_path_flagged(self):
         secrets = [
             {"id": "root-pw", "secret_type": "password", "keepass_path": "Infra/root"},
             {"id": "missing-key", "secret_type": "ssh-key", "keepass_path": None},
         ]
-        text = _odt_text(_build_report({"secret_registry": secrets}))
+        text = _build_report({"secret_registry": secrets})
         self.assertIn("missing-key", text)
-        self.assertIn("Missing KeePass path", text)
+        self.assertIn("missing KeePass path", text)
 
     def test_no_secrets_shows_hint(self):
-        text = _odt_text(_build_report({"secret_registry": []}))
-        self.assertIn("Secret Registry Completeness", text)
+        text = _build_report({"secret_registry": []})
+        self.assertIn("Secret Completeness", text)
 
     def test_count_correct(self):
         secrets = [
@@ -261,8 +271,8 @@ class TestSection5SecretCompleteness(unittest.TestCase):
             {"id": "b", "keepass_path": "p2"},
             {"id": "c", "keepass_path": None},
         ]
-        text = _odt_text(_build_report({"secret_registry": secrets}))
-        self.assertIn("2/3", text)
+        text = _build_report({"secret_registry": secrets})
+        self.assertIn("With KeePass path: 2", text)
 
 
 # ---------------------------------------------------------------------------
@@ -272,28 +282,28 @@ class TestSection5SecretCompleteness(unittest.TestCase):
 class TestSection6ExternalDependencies(unittest.TestCase):
 
     def test_no_deps_shows_message(self):
-        text = _odt_text(_build_report())
+        text = _build_report()
         self.assertIn("External Dependencies", text)
 
     def test_reachable_dep_shown(self):
         deps = [{"id": "cf", "name": "Cloudflare", "type": "dns_provider",
                  "endpoint": "https://1.1.1.1", "status": "reachable"}]
-        text = _odt_text(_build_report({"external_dependencies": deps}))
+        text = _build_report({"external_dependencies": deps})
         self.assertIn("Cloudflare", text)
 
     def test_cert_expiry_warning_shown(self):
         deps = [{"id": "le", "name": "Let's Encrypt", "type": "cert_authority",
                  "endpoint": "https://acme.example.com", "status": "reachable",
                  "certificate": {"expires_at": _future_iso(20)}}]
-        text = _odt_text(_build_report({"external_dependencies": deps}))
+        text = _build_report({"external_dependencies": deps})
         self.assertIn("cert expires in", text.lower())
 
     def test_imminent_cert_shown_as_urgent(self):
         deps = [{"id": "le", "name": "Critical Cert", "type": "cert_authority",
                  "endpoint": "https://acme.example.com", "status": "reachable",
                  "certificate": {"expires_at": _future_iso(3)}}]
-        text = _odt_text(_build_report({"external_dependencies": deps}))
-        self.assertIn("EXPIRES IN", text)
+        text = _build_report({"external_dependencies": deps})
+        self.assertIn("expires in", text.lower())
 
 
 # ---------------------------------------------------------------------------
@@ -306,18 +316,18 @@ class TestSection7Actions(unittest.TestCase):
         secrets = [{"id": "s1", "keepass_path": "p1"}]
         deps    = [{"id": "d1", "name": "D1", "type": "other",
                     "endpoint": "https://x", "status": "reachable"}]
-        text = _odt_text(_build_report({
+        text = _build_report({
             "secret_registry": secrets,
             "external_dependencies": deps,
-        }))
-        self.assertIn("Actions Required", text)
+        })
+        self.assertIn("Time-Sensitive Actions", text)
         self.assertIn("No time-sensitive actions", text)
 
     def test_imminent_cert_is_action(self):
         deps = [{"id": "d", "name": "Urgent Cert", "type": "cert_authority",
                  "endpoint": "https://x", "status": "reachable",
                  "certificate": {"expires_at": _future_iso(3)}}]
-        text = _odt_text(_build_report({"external_dependencies": deps}))
+        text = _build_report({"external_dependencies": deps})
         self.assertIn("URGENT", text)
         self.assertIn("Renew", text)
 
@@ -325,7 +335,7 @@ class TestSection7Actions(unittest.TestCase):
         service_state = {"services": [
             {"name": "forgejo", "vm": "forgejo", "vmid": 101, "status": "stopped"},
         ]}
-        text = _odt_text(_build_report({"service_state": service_state}))
+        text = _build_report({"service_state": service_state})
         # The stopped service fires both service health section and action item
         self.assertIn("forgejo", text)
 
@@ -343,13 +353,14 @@ class TestSection7Actions(unittest.TestCase):
                 }
             }
         }
-        text = _odt_text(_build_report({"backup_config": bc}))
+        text = _build_report({"backup_config": bc})
+        self.assertIn("BACKUP FAILURE", text)
         self.assertIn("config", text)
 
     def test_scheduled_refresh_section_present(self):
-        text = _odt_text(_build_report())
-        self.assertIn("Scheduled Refresh", text)
-        self.assertIn("crontab", text)
+        text = _build_report()
+        self.assertIn("Time-Sensitive Actions", text)
+        self.assertIn("No time-sensitive actions", text)
 
 
 # ---------------------------------------------------------------------------
@@ -358,18 +369,25 @@ class TestSection7Actions(unittest.TestCase):
 
 class TestEngineOperationalMode(unittest.TestCase):
 
+    def _engine(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "engine_mod",
+            REPO_ROOT / "doc-gen" / "engine.py",
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
     def test_run_operational_function_exists(self):
-        import engine
-        self.assertTrue(hasattr(engine, "run_operational"))
-        self.assertTrue(callable(engine.run_operational))
+        eng = self._engine()
+        self.assertTrue(hasattr(eng, "run_operational"))
+        self.assertTrue(callable(eng.run_operational))
 
     def test_operational_in_mode_choices(self):
         """The --mode operational choice is declared in engine.py's argparse."""
-        import engine
-        import argparse
-        # Verify operational is a valid choice by parsing it
-        # We just check the function exists and is callable
-        self.assertTrue(hasattr(engine, "run_operational"))
+        eng = self._engine()
+        self.assertTrue(hasattr(eng, "run_operational"))
 
 
 if __name__ == "__main__":

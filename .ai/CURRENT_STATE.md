@@ -117,7 +117,8 @@ doc-gen/                Documentation generation engine
   drift.py              Field-level manifest diff and drift detector
   readiness.py          GREEN/YELLOW/ORANGE/RED/BLOCKED scorer
   readiness_report.py   Standalone Readiness-Report.md + .json
-  renderers/            ODS and ODT generators (stdlib only)
+  renderers/            HTML document generators (stdlib only)
+  renderers/deprecated/ ODS/ODT renderers — preserved but not used
 history/                Snapshot store
   index.py              Snapshot index builder CLI
   index.json            Snapshot index (auto-generated)
@@ -141,7 +142,8 @@ pyproject.toml  Package definition for pae CLI
 ## Key Design Constraints
 
 - analyze.py and validate.py: Python 3 stdlib only (no pip)
-- ODS/ODT renderers: zipfile + XML only (no odfpy)
+- HTML renderers: stdlib html.escape + html_base.py (no external deps)
+- ODS/ODT renderers: deprecated — preserved in renderers/deprecated/ but not called by engine.py
 - doc-gen: runs without network access (all data from manifest)
 - UNRESOLVED fields: never silently omitted
 - Historical snapshots: reproducible (same manifest → same docs)

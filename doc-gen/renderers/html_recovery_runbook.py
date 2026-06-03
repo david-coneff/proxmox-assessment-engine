@@ -144,13 +144,17 @@ def _section_wave0_network(manifest: dict) -> str:
 
     parts = ""
     if drift:
-        parts += callout("warn", "⚠ Network topology drift detected — verify bridges match expected configuration.")
+        drift_details = nt.get("drift_details") or ""
+        drift_msg = "⚠ Network topology drift detected — verify bridges match expected configuration."
+        if drift_details:
+            drift_msg += f" Details: {drift_details}"
+        parts += callout("warn", _e(drift_msg))
 
     rows = []
     for b in bridges:
         rows.append([
             _e(b.get("name", "?")),
-            _e(b.get("address") or "—"),
+            _e(b.get("address") or b.get("ip") or "—"),
             "Yes" if b.get("vlan_aware") else "No",
             _e(", ".join(b.get("ports") or []) or "—"),
         ])
@@ -176,42 +180,56 @@ def _section_wave0_network(manifest: dict) -> str:
 
 
 def _section_restore_wave(wave, manifest: dict, node_map: dict, idx: int) -> str:
-    wave_label = f"Wave {idx} — {wave.name}"
+    wave_note  = getattr(wave, "note", "") or f"Wave {idx}"
+    wave_label = f"Wave {idx} — {wave_note}"
     mins_hint  = f" (~{wave.estimated_minutes} min)" if getattr(wave, "estimated_minutes", None) else ""
 
     parts = ""
-    if wave.prerequisites:
-        prereq_str = ", ".join(wave.prerequisites)
-        parts += p(f"Prerequisites: {_e(prereq_str)}")
-
-    for node in wave.restore_order:
-        parts += _vm_restore_block(node, manifest, node_map)
+    for cid in (getattr(wave, "component_ids", None) or []):
+        node = node_map.get(cid)
+        if node:
+            parts += _vm_restore_block(node, manifest, node_map)
 
     return section(wave_label + mins_hint, parts, open_=True)
 
 
 def _vm_restore_block(node, manifest: dict, node_map: dict) -> str:
-    vm_ip   = _resolve_vm_ip(getattr(node, "vmid", None), manifest)
-    vm_name = getattr(node, "label", "?")
+    metadata = getattr(node, "metadata", {}) or {}
+    vmid_val = metadata.get("vmid") or metadata.get("ctid")
+    vm_ip    = _resolve_vm_ip(vmid_val, manifest)
+    vm_name  = getattr(node, "label", "?")
 
     parts = h(3, f"{_e(vm_name)} ({_e(vm_ip)})")
 
     # Provenance
-    prov_reg = manifest.get("provenance_records") or []
-    prov = next((r for r in prov_reg if str(r.get("vmid")) == str(getattr(node, "vmid", ""))), None)
+    prov_reg = manifest.get("provenance_registry") or []
+    prov = None
+    if vmid_val is not None:
+        for r in prov_reg:
+            try:
+                if int(r.get("vmid", -1)) == int(vmid_val):
+                    prov = r
+                    break
+            except (TypeError, ValueError):
+                pass
     if prov:
         pairs = []
         if prov.get("tofu_workspace"):
             pairs.append(("IaC workspace", prov["tofu_workspace"]))
-        if prov.get("ansible_role"):
-            pairs.append(("Ansible role", prov["ansible_role"]))
-        if prov.get("source_commit"):
-            pairs.append(("Source commit", prov["source_commit"]))
+        if prov.get("tofu_commit"):
+            tc = prov["tofu_commit"]
+            pairs.append(("OpenTofu commit", tc[:12] + "..." if len(tc) > 12 else tc))
+        if prov.get("template_name"):
+            pairs.append(("Template", prov["template_name"]))
+        if prov.get("deployed_at"):
+            pairs.append(("Deployed at", prov["deployed_at"]))
         if pairs:
             parts += dl(pairs)
+    else:
+        parts += callout("warn", "NOT RECORDED — no provenance record found for this VM")
 
     # Restore commands
-    vmid = getattr(node, "vmid", None)
+    vmid = vmid_val
     if vmid:
         restore_cmds = [
             f"# Restore from PBS backup",
@@ -243,10 +261,82 @@ def _vm_restore_block(node, manifest: dict, node_map: dict) -> str:
 
 
 def _get_contract(vm_name: str, manifest: dict) -> dict | None:
+    """
+    Return the service contract for the given VM name, or None.
+    Handles node labels like "forgejo (VM 101)" by also matching the bare name.
+    """
+    import re as _re
+    bare = _re.sub(r'\s*\(VM\s+\d+\)\s*$', '', vm_name).strip()
     for sc in (manifest.get("service_contracts") or []):
-        if sc.get("vm_name") == vm_name or sc.get("service") == vm_name:
+        vm_field = sc.get("vm") or sc.get("vm_name") or sc.get("service") or ""
+        if vm_field == vm_name or vm_field == bare:
             return sc
     return None
+
+
+def _health_check_cmds(iface: dict, vm_ip: str) -> list[str]:
+    """
+    Generate executable health-check commands from a provided_interface entry.
+    Returns a list of command strings (empty if no meaningful check can be derived).
+    SSH interfaces are skipped — reachability is validated in the standard block.
+    """
+    protocol     = (iface.get("protocol") or "").lower()
+    port         = iface.get("port")
+    health_check = iface.get("health_check")
+    url_pattern  = iface.get("url_pattern")
+    host         = vm_ip if vm_ip != "[VM_IP]" else "HOST"
+
+    if protocol == "ssh":
+        return []
+
+    if protocol == "postgresql":
+        return [
+            f"pg_isready -h {host} -p {port or 5432}",
+            "# Expected: accepting connections",
+        ]
+
+    if protocol in ("smtp", "smtps"):
+        return [
+            f"nc -z -w 5 {host} {port or 25}",
+            "# Expected: connection established (exit 0)",
+        ]
+
+    if health_check and health_check.upper().startswith("GET "):
+        path = health_check[4:].strip()
+        if url_pattern:
+            url = url_pattern.rstrip("/") + path
+        else:
+            scheme = "https" if protocol == "https" else "http"
+            url = f"{scheme}://{host}:{port}{path}"
+        return [
+            f"curl -sf --max-time 10 '{url}'",
+            "# Expected: HTTP 2xx (exit 0)",
+        ]
+
+    if port and vm_ip != "[VM_IP]":
+        return [
+            f"nc -z -w 5 {vm_ip} {port}",
+            f"# Expected: {protocol}:{port} reachable (exit 0)",
+        ]
+
+    return []
+
+
+def _service_restart_cmds(contract: dict, vm_ip: str) -> list[str]:
+    """
+    Generate service restart and status commands. Assumes Ubuntu VM with systemd.
+    """
+    svc = contract.get("service", "unknown")
+    if vm_ip == "[VM_IP]":
+        prefix = f"ssh ubuntu@[VM_IP_{svc.upper().replace('-','_')}]"
+    else:
+        prefix = f"ssh ubuntu@{vm_ip}"
+    return [
+        f"# Restart and verify service: {svc}",
+        f"{prefix} 'sudo systemctl restart {svc}'",
+        f"{prefix} 'sudo systemctl status --no-pager {svc}'",
+        "# Expected: Active: active (running)",
+    ]
 
 
 def _service_contract_block(contract: dict, vm_ip: str) -> str:
@@ -255,29 +345,50 @@ def _service_contract_block(contract: dict, vm_ip: str) -> str:
 
     provided = contract.get("provided_interfaces") or []
     if provided:
-        cmds = []
+        all_cmds: list[str] = []
         for iface in provided:
-            itype = iface.get("type", "")
-            if itype == "http":
-                port = iface.get("port", 80)
-                cmds.append(f"curl -sf http://{vm_ip}:{port}/health || curl -sf http://{vm_ip}:{port}/")
-            elif itype == "https":
-                port = iface.get("port", 443)
-                cmds.append(f"curl -skf https://{vm_ip}:{port}/")
-            elif itype == "postgresql":
-                cmds.append(f"pg_isready -h {vm_ip} -U postgres")
-            elif itype == "smtp":
-                port = iface.get("port", 25)
-                cmds.append(f"nc -z -w5 {vm_ip} {port}")
-        if cmds:
+            all_cmds.extend(_health_check_cmds(iface, vm_ip))
+        if all_cmds:
             parts += p("Health check commands:")
-            parts += pre("\n".join(cmds))
+            parts += pre("\n".join(all_cmds))
 
-    # Service restart
-    if contract.get("systemd_service"):
-        svc_name = contract["systemd_service"]
-        parts += p("Restart command:")
-        parts += pre(f"ssh ubuntu@{vm_ip} 'sudo systemctl restart {svc_name} && sudo systemctl status {svc_name}'")
+    # Required interfaces
+    required = contract.get("required_interfaces") or []
+    if required:
+        rows = []
+        for req in required:
+            crit = "CRITICAL" if req.get("critical") else "optional"
+            rows.append([
+                _e(req.get("service", "?")),
+                _e(req.get("protocol", "?")),
+                _e(str(req.get("port", ""))),
+                _e(crit),
+            ])
+        parts += p("Required interfaces:")
+        parts += table(["Service", "Protocol", "Port", "Criticality"], rows)
+
+    # Startup ordering
+    startup = contract.get("startup_after") or []
+    if startup:
+        parts += p(f"Start after: {_e(', '.join(startup))}")
+
+    # Secret references
+    secrets = contract.get("secret_references") or []
+    if secrets:
+        parts += p("Secret references: " + _e(", ".join(secrets)))
+
+    # Restart commands
+    restart_cmds = _service_restart_cmds(contract, vm_ip)
+    if restart_cmds:
+        parts += p("Restart commands:")
+        parts += pre("\n".join(restart_cmds))
+
+    # Checkboxes
+    parts += checkbox_list([
+        f"All required interfaces ({len(required)}) verified reachable",
+        "Service running and healthy after restart",
+    ] + [f"Health check passed: {_e(iface.get('protocol','?'))}:{iface.get('port','?')}"
+         for iface in provided if _health_check_cmds(iface, vm_ip)])
 
     return parts
 
@@ -294,11 +405,17 @@ def _section_appendix_a_edges(graph) -> str:
     legend = table(["Edge Type", "Meaning"], rows)
 
     edges = []
+    node_map = graph.node_map() if hasattr(graph, "node_map") else {}
     for edge in (getattr(graph, "edges", None) or []):
-        edge_type = getattr(edge, "edge_type", "?")
+        # Edge uses from_id/to_id/type (not source/target/edge_type)
+        edge_type = getattr(edge, "type", getattr(edge, "edge_type", "?"))
         marker    = "★" if edge_type == "SERVICE" else ""
-        src_lbl   = getattr(edge.source, "label", str(edge.source))
-        tgt_lbl   = getattr(edge.target, "label", str(edge.target))
+        from_id   = getattr(edge, "from_id", getattr(edge, "source", "?"))
+        to_id     = getattr(edge, "to_id",   getattr(edge, "target",  "?"))
+        src_node  = node_map.get(str(from_id))
+        tgt_node  = node_map.get(str(to_id))
+        src_lbl   = src_node.label if src_node else str(from_id)
+        tgt_lbl   = tgt_node.label if tgt_node else str(to_id)
         edges.append(f"{_e(src_lbl)} →[{_e(edge_type)}{marker}]→ {_e(tgt_lbl)}")
 
     body = h(3, "Edge Type Legend") + legend + divider()
@@ -308,6 +425,23 @@ def _section_appendix_a_edges(graph) -> str:
         body += p("(no dependency edges in manifest)")
 
     return section("Appendix A — Dependency Graph", body, open_=False)
+
+
+def _section_appendix_c_dns(manifest: dict) -> str:
+    reg = manifest.get("dns_registry") or []
+    if not reg:
+        body = p("No DNS registry declared. Add entries to dns-registry.yaml.")
+        return section("Appendix C — DNS Registry", body, open_=False)
+    rows = []
+    for e in reg:
+        rows.append([
+            _e(e.get("hostname") or "?"),
+            _e(e.get("ip") or e.get("address") or "?"),
+            _e(str(e.get("vmid") or "—")),
+            _e(e.get("role") or "—"),
+        ])
+    body = table(["Hostname", "IP Address", "VMID", "Role"], rows)
+    return section("Appendix C — DNS Registry", body, open_=False)
 
 
 def _section_appendix_d_secrets(manifest: dict) -> str:
@@ -383,21 +517,34 @@ def _section_appendix_g_ext_deps(manifest: dict) -> str:
             ("Type",      dep_type),
             ("Required by", ", ".join(dep.get("required_by") or []) or "—"),
         ]
+        if dep.get("failover"):
+            pairs.append(("Failover", dep["failover"]))
+        if dep.get("notes"):
+            pairs.append(("Notes", dep["notes"]))
         parts += h(3, f"{_e(name)} ({_e(dep_type)})")
         parts += dl(pairs)
 
         if cert.get("expires_at"):
+            parts += h(4, "TLS Certificate")
             days = dep.get("_days_remaining")
+            if days is None:
+                try:
+                    from datetime import datetime, timezone as _tz
+                    exp = datetime.fromisoformat(
+                        cert["expires_at"].replace("Z", "+00:00"))
+                    days = (exp - datetime.now(_tz.utc)).days
+                except Exception:
+                    pass
             if days is not None:
                 if int(days) <= 7:
-                    parts += callout("danger", f"TLS certificate expires in {days} days!")
+                    parts += callout("danger", f"EXPIRES IN {days} days — immediate renewal required!")
                 elif int(days) <= 30:
                     parts += callout("warn", f"TLS certificate expires in {days} days — action required.")
                 else:
                     parts += callout("tip", f"TLS certificate expires in {days} days.")
             cert_pairs = [
-                ("Expires",  cert.get("expires_at") or "?"),
-                ("Issuer",   cert.get("issuer") or "?"),
+                ("Expires at", cert.get("expires_at") or "?"),
+                ("Issuer",     cert.get("issuer") or "?"),
                 ("Auto-renew", "Yes" if cert.get("auto_renew") else "No"),
             ]
             parts += dl(cert_pairs)
@@ -478,26 +625,83 @@ def _section_appendix_i_os_migration(manifest: dict) -> str:
 def _section_appendix_h_backup(manifest: dict) -> str:
     bc = manifest.get("backup_config") or {}
     if not bc:
-        body = callout("danger", "No backup configuration declared. Run setup-backup.py.")
+        body = callout("danger",
+                       "No backup configuration declared. Run setup-backup.py "
+                       "to configure KeePass DB, configuration state, and application data backups.")
         return section("Appendix H — Backup Configuration", body, open_=False)
 
-    parts = ""
+    LAYER_LABELS = {
+        "secrets": "Secrets (KeePass database)",
+        "config":  "Configuration state",
+        "appdata": "Application data volumes",
+    }
+
+    parts = p(
+        "Backup is managed by restic (config/appdata layers) and rclone "
+        "(secrets / KeePass layer). All restic repos use per-backup unique "
+        "encryption keys stored in KeePass."
+    )
+
     for layer_name, layer in (bc.get("layers") or {}).items():
         if not isinstance(layer, dict):
             continue
-        parts += h(3, f"Layer: {_e(layer_name)}")
+        label = LAYER_LABELS.get(layer_name, layer_name)
+        enabled = layer.get("enabled", True)
+        heading = f"{label} [DISABLED]" if not enabled else label
+        parts += h(3, _e(heading))
+
+        if not enabled:
+            continue
+
+        consec = layer.get("consecutive_all_fail_count", 0)
+        if consec >= 2:
+            parts += callout("danger",
+                             f"ALL DESTINATIONS FAILED on {consec} consecutive runs — backup chain broken")
+        elif consec == 1:
+            parts += callout("warn",
+                             "All destinations failed on last run — investigate before next run")
+
+        last_ok = layer.get("last_backup_at") or layer.get("last_successful_backup")
+        parts += dl([
+            ("Last successful backup", _e(last_ok or "NEVER")),
+            ("Consecutive all-fail count", str(consec)),
+        ])
+
         dests = layer.get("destinations") or []
         if dests:
             rows = []
             for d in dests:
-                rows.append([
-                    _e(d.get("type") or "?"),
-                    _e(d.get("rclone_remote") or d.get("path") or "—"),
-                ])
-            parts += table(["Type", "Destination"], rows)
-        last_run = layer.get("last_successful_backup")
-        if last_run:
-            parts += p(f"Last successful backup: {_e(str(last_run))}")
+                dest_id = d.get("id") or d.get("rclone_remote") or d.get("path") or "?"
+                dest_type = d.get("type") or "?"
+                rows.append([_e(dest_type), _e(dest_id)])
+            parts += table(["Type", "Destination ID"], rows)
+
+    # Restore commands
+    parts += h(3, "Restore Commands")
+    parts += pre("\n".join([
+        "# List available snapshot sets:",
+        "python3 proxmox-bootstrap/restore-from-backup.py \\",
+        "  --state proxmox-bootstrap/bootstrap-state.json --list",
+        "",
+        "# Restore config state (latest):",
+        "python3 proxmox-bootstrap/restore-from-backup.py \\",
+        "  --state proxmox-bootstrap/bootstrap-state.json \\",
+        "  --layer config --latest --target /tmp/restore",
+    ]))
+
+    # KeePass backup note
+    secrets_cfg  = (bc.get("layers") or {}).get("secrets") or {}
+    secrets_dests = secrets_cfg.get("destinations") or []
+    parts += h(3, "KeePass Database Backup")
+    parts += p(
+        "The KeePass database is backed up as a plain rclone file copy "
+        f"(already AES-256 encrypted — no restic layer). "
+        f"{len(secrets_dests)} destination(s) configured."
+    )
+    parts += p(
+        "To retrieve: use the rclone credentials from forge-manifest.json "
+        "(stored in the spawn/phoenix package, not in KeePass)."
+    )
 
     return section("Appendix H — Backup Configuration", parts, open_=False)
 
@@ -575,6 +779,7 @@ def build_recovery_runbook_html(
     # Appendices
     body += h(1, "Appendices")
     body += _section_appendix_a_edges(graph)
+    body += _section_appendix_c_dns(manifest)
     body += _section_appendix_d_secrets(manifest)
     body += _section_appendix_e_provenance(manifest)
     body += _section_appendix_f_templates(manifest)

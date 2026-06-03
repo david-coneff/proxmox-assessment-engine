@@ -11,11 +11,9 @@ Validates:
 Run: py -3 tests/unit/test_provenance.py
 """
 
-import io
 import json
 import sys
 import unittest
-import zipfile
 from copy import deepcopy
 from pathlib import Path
 
@@ -33,16 +31,6 @@ BOOTSTRAP_JSON = FIXTURES_DIR / "bootstrap-state.json"
 
 def _load_bootstrap_fixture() -> dict:
     return json.loads(BOOTSTRAP_JSON.read_text())
-
-
-def _odt_text(odt_bytes: bytes) -> str:
-    """Extract all XML text content from an ODT/ODS zip archive."""
-    with zipfile.ZipFile(io.BytesIO(odt_bytes)) as zf:
-        parts = []
-        for name in zf.namelist():
-            if name.endswith(".xml"):
-                parts.append(zf.read(name).decode("utf-8", errors="replace"))
-        return "\n".join(parts)
 
 
 def _sample_record(vmid=101, name="forgejo"):
@@ -379,11 +367,11 @@ class TestRunbookProvenanceSection(unittest.TestCase):
         )
 
     def _render(self, manifest, graph):
-        from recovery_runbook import build_recovery_runbook
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
         readiness = score_graph(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
-        return _odt_text(build_recovery_runbook(manifest, graph, readiness, meta))
+        return build_recovery_runbook_html(manifest, graph, readiness, meta)
 
     def test_provenance_fields_present_when_record_available(self):
         """When a provenance record exists, its fields appear in the runbook."""
@@ -423,8 +411,8 @@ class TestRunbookProvenanceSection(unittest.TestCase):
         graph = self._single_vm_graph(vmid=101, name="forgejo")
         content = self._render(manifest, graph)
         self.assertIn("Appendix E", content)
-        # Should explain how to add provenance
-        self.assertIn("provenance_records", content)
+        # Should show a "no records" message
+        self.assertIn("No provenance records declared", content)
 
     def test_appendix_e_tofu_commit_in_full(self):
         """Full tofu_commit hash appears in Appendix E."""

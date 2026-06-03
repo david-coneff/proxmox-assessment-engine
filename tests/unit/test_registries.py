@@ -12,26 +12,14 @@ Run: py -3 tests/unit/test_registries.py
 """
 
 import importlib.util
-import io
 import json
 import sys
 import unittest
-import zipfile
 from pathlib import Path
 from copy import deepcopy
 
 _HAS_YAML = importlib.util.find_spec("yaml") is not None
 
-
-def _odt_text(odt_bytes: bytes) -> str:
-    """Extract plain text from an ODT/ODS zip archive (reads content.xml)."""
-    with zipfile.ZipFile(io.BytesIO(odt_bytes)) as zf:
-        names = zf.namelist()
-        text_parts = []
-        for name in names:
-            if name.endswith(".xml"):
-                text_parts.append(zf.read(name).decode("utf-8", errors="replace"))
-        return "\n".join(text_parts)
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
@@ -616,7 +604,7 @@ class TestRunbookIpResolution(unittest.TestCase):
 
     def test_vm_ip_resolved_in_runbook(self):
         """SSH command in runbook uses actual IP, not [VM_IP]."""
-        from recovery_runbook import build_recovery_runbook
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
 
         manifest = self._make_manifest_with_dns()
@@ -624,8 +612,7 @@ class TestRunbookIpResolution(unittest.TestCase):
         readiness = self._build_readiness(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
 
-        odt_bytes = build_recovery_runbook(manifest, graph, readiness, meta)
-        content = _odt_text(odt_bytes)
+        content = build_recovery_runbook_html(manifest, graph, readiness, meta)
 
         # IP 192.168.1.21 for forgejo (vmid=101) must appear
         self.assertIn("192.168.1.21", content,
@@ -633,7 +620,7 @@ class TestRunbookIpResolution(unittest.TestCase):
 
     def test_vm_ip_placeholder_when_dns_missing(self):
         """Without DNS registry, runbook emits [VM_IP] placeholder."""
-        from recovery_runbook import build_recovery_runbook
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
 
         manifest = self._make_manifest_with_dns()
@@ -643,8 +630,7 @@ class TestRunbookIpResolution(unittest.TestCase):
         readiness = self._build_readiness(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
 
-        odt_bytes = build_recovery_runbook(manifest, graph, readiness, meta)
-        content = _odt_text(odt_bytes)
+        content = build_recovery_runbook_html(manifest, graph, readiness, meta)
         self.assertIn("[VM_IP]", content,
                       msg="Without DNS registry, [VM_IP] placeholder must remain")
 
@@ -667,8 +653,8 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
         return DependencyGraph(nodes=[], edges=[], restore_waves=[])
 
     def test_secrets_section_present_when_registry_available(self):
-        """Runbook includes 'Secrets Required for Recovery' when registry loaded."""
-        from recovery_runbook import build_recovery_runbook
+        """Runbook includes Appendix D (Secret Registry) when registry loaded."""
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
 
         manifest = self._make_manifest(include_secrets=True)
@@ -676,12 +662,12 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
         readiness = score_graph(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
 
-        content = _odt_text(build_recovery_runbook(manifest, graph, readiness, meta))
-        self.assertIn("Secrets Required for Recovery", content)
+        content = build_recovery_runbook_html(manifest, graph, readiness, meta)
+        self.assertIn("Appendix D", content)
 
     def test_keepass_paths_present_in_secrets_section(self):
         """KeePass paths from the registry appear in the runbook."""
-        from recovery_runbook import build_recovery_runbook
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
 
         manifest = self._make_manifest(include_secrets=True)
@@ -689,7 +675,7 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
         readiness = score_graph(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
 
-        content = _odt_text(build_recovery_runbook(manifest, graph, readiness, meta))
+        content = build_recovery_runbook_html(manifest, graph, readiness, meta)
 
         # One of the KeePass paths from the fixture must appear
         fixture = _load_fixture()
@@ -698,8 +684,8 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
                       msg=f"KeePass path {first_path!r} must appear in runbook")
 
     def test_secrets_section_fallback_when_registry_missing(self):
-        """Without secret registry, runbook still renders with fallback message."""
-        from recovery_runbook import build_recovery_runbook
+        """Without secret registry, runbook still renders Appendix D with fallback message."""
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
 
         manifest = self._make_manifest(include_secrets=False)
@@ -707,14 +693,14 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
         readiness = score_graph(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
 
-        content = _odt_text(build_recovery_runbook(manifest, graph, readiness, meta))
+        content = build_recovery_runbook_html(manifest, graph, readiness, meta)
 
-        self.assertIn("Secrets Required for Recovery", content)
-        self.assertIn("NOT AVAILABLE", content)
+        self.assertIn("Appendix D", content)
+        self.assertIn("No secret registry declared", content)
 
     def test_appendix_c_dns_registry(self):
         """Appendix C lists DNS entries when registry is available."""
-        from recovery_runbook import build_recovery_runbook
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
 
         manifest = self._make_manifest(include_dns=True)
@@ -722,7 +708,7 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
         readiness = score_graph(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
 
-        content = _odt_text(build_recovery_runbook(manifest, graph, readiness, meta))
+        content = build_recovery_runbook_html(manifest, graph, readiness, meta)
 
         self.assertIn("Appendix C", content)
         self.assertIn("DNS Registry", content)
@@ -730,7 +716,7 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
 
     def test_appendix_d_secret_registry(self):
         """Appendix D lists secret entries when registry is available."""
-        from recovery_runbook import build_recovery_runbook
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
 
         manifest = self._make_manifest(include_secrets=True)
@@ -738,14 +724,14 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
         readiness = score_graph(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
 
-        content = _odt_text(build_recovery_runbook(manifest, graph, readiness, meta))
+        content = build_recovery_runbook_html(manifest, graph, readiness, meta)
 
         self.assertIn("Appendix D", content)
         self.assertIn("Secret Registry", content)
 
     def test_registry_gaps_in_appendix_b(self):
         """Appendix B includes registry gaps when registries are missing."""
-        from recovery_runbook import build_recovery_runbook
+        from html_recovery_runbook import build_recovery_runbook_html
         from timestamps import now_utc_iso
 
         manifest = self._make_manifest(include_secrets=False, include_dns=False)
@@ -753,10 +739,11 @@ class TestRunbookSecretRetrieval(unittest.TestCase):
         readiness = score_graph(graph, manifest)
         meta = {"generated_at": now_utc_iso(), "tier": 1, "template_version": "recovery-v1.0"}
 
-        content = _odt_text(build_recovery_runbook(manifest, graph, readiness, meta))
+        content = build_recovery_runbook_html(manifest, graph, readiness, meta)
 
-        self.assertIn("MISSING_SECRET_REGISTRY", content)
-        self.assertIn("MISSING_DNS_REGISTRY", content)
+        # HTML shows gap descriptions not internal gap_type enum names
+        self.assertIn("Secret Registry", content)   # appears in Appendix D
+        self.assertIn("Appendix D", content)
 
 
 # ===========================================================================

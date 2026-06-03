@@ -32,6 +32,27 @@ def _get(manifest: dict, path: str, default=None):
     return obj
 
 
+def _cert_days_remaining(dep: dict) -> int | None:
+    """
+    Return days until cert expiry for a dependency.
+    Uses pre-computed _days_remaining if available, else computes from
+    certificate.expires_at. Returns None if no cert or can't parse.
+    """
+    if "_days_remaining" in dep:
+        return dep["_days_remaining"]
+    cert = dep.get("certificate") or {}
+    expires_at = cert.get("expires_at")
+    if not expires_at:
+        return None
+    try:
+        from datetime import datetime, timezone
+        exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        days = (exp - datetime.now(timezone.utc)).days
+        return days
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Section builders
 # ---------------------------------------------------------------------------
@@ -182,12 +203,10 @@ def _section_external_dependencies(manifest: dict) -> str:
     rows = []
     for dep in deps:
         cert = dep.get("certificate") or {}
-        days = dep.get("_days_remaining")
+        days = _cert_days_remaining(dep)
         cert_info = "—"
         if cert.get("expires_at"):
-            cert_info = f"Expires: {cert.get('expires_at')}"
-            if days is not None:
-                cert_info += f" ({days}d)"
+            cert_info = f"cert expires in {days} days" if days is not None else f"Expires: {cert.get('expires_at')}"
         rows.append([
             score_badge("GREEN" if dep.get("status") == "ok" else
                         ("RED" if days is not None and int(days) <= 7 else
@@ -278,8 +297,7 @@ def _section_renewal_actions(manifest: dict) -> str:
     actions: list[str] = []
 
     for dep in deps:
-        cert = dep.get("certificate") or {}
-        days = dep.get("_days_remaining")
+        days = _cert_days_remaining(dep)
         if days is not None:
             name = dep.get("name") or dep.get("id") or "?"
             if int(days) <= 7:
@@ -288,6 +306,19 @@ def _section_renewal_actions(manifest: dict) -> str:
                 actions.append(f"ACTION: Renew {name} cert — expires in {days} days")
             elif int(days) <= 60:
                 actions.append(f"PLAN: Schedule {name} cert renewal — {days} days remaining")
+
+    # Backup failure actions
+    bc = manifest.get("backup_config") or {}
+    for layer_name, layer in (bc.get("layers") or {}).items():
+        if not isinstance(layer, dict):
+            continue
+        consec = layer.get("consecutive_all_fail_count", 0)
+        if consec >= 2:
+            actions.append(f"BACKUP FAILURE: {layer_name} layer — all destinations failed "
+                           f"on {consec} consecutive runs")
+        elif consec == 1:
+            actions.append(f"BACKUP WARNING: {layer_name} layer — all destinations failed "
+                           "on last run")
 
     # Drill reminder
     drill = (manifest.get("reconstruction_drills") or [{}])[0]

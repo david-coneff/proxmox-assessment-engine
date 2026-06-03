@@ -18,14 +18,11 @@ Covers:
   - bootstrap-state-schema.json validates backup_config entries
 """
 
-import io
 import json
 import sys
 import unittest
-import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from xml.etree import ElementTree as ET
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
@@ -108,13 +105,6 @@ def _minimal_backup_config(
         "all_failed_policy": ["alert", "block_assessment"],
         "backup_history": history or [],
     }
-
-
-def _odt_text(odt_bytes: bytes) -> str:
-    with zipfile.ZipFile(io.BytesIO(odt_bytes)) as zf:
-        content = zf.read("content.xml").decode("utf-8")
-    root = ET.fromstring(content)
-    return ET.tostring(root, encoding="unicode", method="text")
 
 
 # ---------------------------------------------------------------------------
@@ -803,8 +793,8 @@ class TestScoreBackupConfigCompleteness(unittest.TestCase):
 
 class TestRunbookAppendixH(unittest.TestCase):
 
-    def _build_odt(self, bc=None):
-        from recovery_runbook import build_recovery_runbook
+    def _build_html(self, bc=None):
+        from html_recovery_runbook import build_recovery_runbook_html
         from dependencies import build_graph
         from readiness import score_graph
 
@@ -820,53 +810,50 @@ class TestRunbookAppendixH(unittest.TestCase):
         readiness = score_graph(graph, manifest)
         gen_meta = {"generated_at": "2026-01-01T12:00:00Z",
                     "generated_at_display": "2026-01-01 12:00:00 UTC"}
-        return build_recovery_runbook(manifest, graph, readiness, gen_meta)
-
-    def _text(self, odt):
-        return _odt_text(odt)
+        return build_recovery_runbook_html(manifest, graph, readiness, gen_meta)
 
     def test_appendix_h_present(self):
-        text = self._text(self._build_odt())
+        text = self._build_html()
         self.assertIn("Appendix H", text)
         self.assertIn("Backup Configuration", text)
 
     def test_no_backup_config_shows_warning(self):
-        text = self._text(self._build_odt(bc=None))
-        self.assertIn("Backup not configured", text)
+        text = self._build_html(bc=None)
+        self.assertIn("No backup configuration declared", text)
         self.assertIn("setup-backup.py", text)
 
     def test_configured_backup_shows_layers(self):
         bc = _minimal_backup_config(last_backup_at="2026-06-01T03:00:00Z")
-        text = self._text(self._build_odt(bc=bc))
+        text = self._build_html(bc=bc)
         self.assertIn("Secrets", text)
         self.assertIn("Configuration state", text)
 
     def test_destination_ids_shown(self):
         bc = _minimal_backup_config()
-        text = self._text(self._build_odt(bc=bc))
+        text = self._build_html(bc=bc)
         self.assertIn("local-drive", text)
         self.assertIn("local-usb", text)
 
     def test_all_fail_warning_shown(self):
         bc = _minimal_backup_config(consec_fail=2)
-        text = self._text(self._build_odt(bc=bc))
+        text = self._build_html(bc=bc)
         self.assertIn("ALL DESTINATIONS FAILED", text)
 
     def test_restore_commands_shown(self):
         bc = _minimal_backup_config()
-        text = self._text(self._build_odt(bc=bc))
+        text = self._build_html(bc=bc)
         self.assertIn("restore-from-backup.py", text)
         self.assertIn("--layer config", text)
 
     def test_keepass_backup_note_shown(self):
         bc = _minimal_backup_config()
-        text = self._text(self._build_odt(bc=bc))
+        text = self._build_html(bc=bc)
         self.assertIn("KeePass Database Backup", text)
         self.assertIn("forge-manifest.json", text)
 
     def test_disabled_appdata_layer_shown_as_disabled(self):
         bc = _minimal_backup_config(appdata_enabled=False)
-        text = self._text(self._build_odt(bc=bc))
+        text = self._build_html(bc=bc)
         self.assertIn("DISABLED", text)
 
 

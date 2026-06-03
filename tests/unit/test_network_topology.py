@@ -14,13 +14,10 @@ Covers:
   - bootstrap-state.json fixture validates with network_topology_declared
 """
 
-import io
 import json
 import sys
 import unittest
-import zipfile
 from pathlib import Path
-from xml.etree import ElementTree as ET
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
@@ -110,13 +107,6 @@ DECLARED_BRIDGES = [
         "gateway": "192.168.1.1",
     }
 ]
-
-
-def _odt_text(odt_bytes: bytes) -> str:
-    with zipfile.ZipFile(io.BytesIO(odt_bytes)) as zf:
-        content = zf.read("content.xml").decode("utf-8")
-    root = ET.fromstring(content)
-    return ET.tostring(root, encoding="unicode", method="text")
 
 
 # ---------------------------------------------------------------------------
@@ -438,8 +428,8 @@ class TestScoreNetworkTopologyCompleteness(unittest.TestCase):
 
 class TestRunbookWave0(unittest.TestCase):
 
-    def _build_odt(self, ntd=None):
-        from recovery_runbook import build_recovery_runbook
+    def _build_html(self, ntd=None):
+        from html_recovery_runbook import build_recovery_runbook_html
         from dependencies import build_graph
         from readiness import score_graph
 
@@ -455,33 +445,30 @@ class TestRunbookWave0(unittest.TestCase):
         readiness = score_graph(graph, manifest)
         gen_meta = {"generated_at": "2026-01-01T12:00:00Z",
                     "generated_at_display": "2026-01-01 12:00:00 UTC"}
-        return build_recovery_runbook(manifest, graph, readiness, gen_meta)
-
-    def _text(self, odt):
-        return _odt_text(odt)
+        return build_recovery_runbook_html(manifest, graph, readiness, gen_meta)
 
     def test_wave0_heading_present(self):
-        text = self._text(self._build_odt())
+        text = self._build_html()
         self.assertIn("Wave 0", text)
         self.assertIn("Network Reconstruction", text)
 
     def test_wave0_no_declared_shows_unresolved(self):
-        text = self._text(self._build_odt(ntd=None))
-        self.assertIn("NOT DECLARED", text)
+        text = self._build_html(ntd=None)
+        self.assertIn("not declared", text.lower())
 
     def test_wave0_declared_bridge_shown(self):
         ntd = {"bridges": DECLARED_BRIDGES, "drift_detected": False}
-        text = self._text(self._build_odt(ntd=ntd))
+        text = self._build_html(ntd=ntd)
         self.assertIn("vmbr0", text)
 
     def test_wave0_bridge_ip_shown(self):
         ntd = {"bridges": DECLARED_BRIDGES, "drift_detected": False}
-        text = self._text(self._build_odt(ntd=ntd))
+        text = self._build_html(ntd=ntd)
         self.assertIn("192.168.1.10/24", text)
 
     def test_wave0_bridge_ports_shown(self):
         ntd = {"bridges": DECLARED_BRIDGES, "drift_detected": False}
-        text = self._text(self._build_odt(ntd=ntd))
+        text = self._build_html(ntd=ntd)
         self.assertIn("eno1", text)
 
     def test_wave0_drift_warning_shown(self):
@@ -490,24 +477,24 @@ class TestRunbookWave0(unittest.TestCase):
             "drift_detected": True,
             "drift_details": "Bridge vmbr0 IP mismatch",
         }
-        text = self._text(self._build_odt(ntd=ntd))
+        text = self._build_html(ntd=ntd)
         self.assertIn("drift", text.lower())
         self.assertIn("IP mismatch", text)
 
     def test_wave0_ifreload_command_shown(self):
         ntd = {"bridges": DECLARED_BRIDGES, "drift_detected": False}
-        text = self._text(self._build_odt(ntd=ntd))
+        text = self._build_html(ntd=ntd)
         self.assertIn("ifreload", text)
 
     def test_wave0_checkboxes_present(self):
         ntd = {"bridges": DECLARED_BRIDGES, "drift_detected": False}
-        text = self._text(self._build_odt(ntd=ntd))
-        self.assertIn("vmbr0 UP", text)
+        text = self._build_html(ntd=ntd)
+        self.assertIn("Management bridge up", text)
 
     def test_wave0_no_bridge_ip_skips_addr_check(self):
         bridges_no_ip = [{"name": "vmbr1", "ports": [], "vlan_aware": False, "ip": None}]
         ntd = {"bridges": bridges_no_ip, "drift_detected": False}
-        text = self._text(self._build_odt(ntd=ntd))
+        text = self._build_html(ntd=ntd)
         self.assertIn("vmbr1", text)
 
 

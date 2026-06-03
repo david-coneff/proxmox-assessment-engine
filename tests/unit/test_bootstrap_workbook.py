@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-Tests for doc-gen/renderers/workbook.py — build_bootstrap_workbook().
+Tests for doc-gen/renderers/deprecated/workbook.py — build_bootstrap_workbook().
+
+NOTE: workbook.py (ODS) is deprecated. The active output format is HTML via
+html_bootstrap.py. This test is preserved because the registry-lookup helpers
+(_registry_ip_for_bootstrap_vm, _registry_iso_path) contain tested logic.
 
 Verifies that Stage 03 fields are pre-populated from the DNS and template
 registries when bootstrap-state.json data is available in the manifest, and
@@ -17,6 +21,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
 sys.path.insert(0, str(REPO_ROOT / "doc-gen" / "renderers"))
+# workbook.py is deprecated — now lives in renderers/deprecated/
+sys.path.insert(0, str(REPO_ROOT / "doc-gen" / "renderers" / "deprecated"))
 
 from workbook import (
     build_bootstrap_workbook,

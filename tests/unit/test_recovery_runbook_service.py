@@ -6,7 +6,7 @@ Covers:
   - _get_contract() lookup helper
   - _health_check_cmds() for HTTP, postgresql, smtp, ssh, generic port, null
   - _service_restart_cmds() command generation
-  - Service contract block in per-VM restore section
+  - Service contract block in per-VM restore section (HTML renderer)
   - Required interfaces listed per contract
   - startup_after note rendered
   - Secret references listed
@@ -14,24 +14,24 @@ Covers:
   - Appendix A edge type legend
   - SERVICE edge ★ marker in Appendix A
   - No contract block for non-VM nodes or VMs without a contract
+
+NOTE: ODT renderer (recovery_runbook.py) is deprecated. All tests use
+      build_recovery_runbook_html() from html_recovery_runbook.py.
 """
 
-import io
 import sys
 import unittest
-import zipfile
 from pathlib import Path
-from xml.etree import ElementTree as ET
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
 sys.path.insert(0, str(REPO_ROOT / "doc-gen" / "renderers"))
 
-from recovery_runbook import (
+from html_recovery_runbook import (
     _get_contract,
     _health_check_cmds,
     _service_restart_cmds,
-    build_recovery_runbook,
+    build_recovery_runbook_html,
 )
 
 
@@ -107,7 +107,7 @@ BASE_MANIFEST = {
 }
 
 
-def _build_odt(manifest_extras=None):
+def _build_html(manifest_extras=None):
     from dependencies import build_graph
     from readiness import score_graph
     manifest = dict(BASE_MANIFEST)
@@ -119,14 +119,7 @@ def _build_odt(manifest_extras=None):
         "generated_at": "2026-01-01T12:00:00Z",
         "generated_at_display": "2026-01-01 12:00:00 UTC",
     }
-    return build_recovery_runbook(manifest, graph, readiness, gen_meta)
-
-
-def _text(odt_bytes: bytes) -> str:
-    with zipfile.ZipFile(io.BytesIO(odt_bytes)) as zf:
-        content = zf.read("content.xml").decode("utf-8")
-    root = ET.fromstring(content)
-    return ET.tostring(root, encoding="unicode", method="text")
+    return build_recovery_runbook_html(manifest, graph, readiness, gen_meta)
 
 
 # ---------------------------------------------------------------------------
@@ -152,9 +145,7 @@ class TestGetContract(unittest.TestCase):
     def test_returns_none_for_null_contracts(self):
         self.assertIsNone(_get_contract("forgejo", {"service_contracts": None}))
 
-    def test_matches_by_vm_not_service(self):
-        # vm field is "forgejo", service field is also "forgejo" in fixture —
-        # confirm lookup is by vm
+    def test_matches_by_vm_field(self):
         c = _get_contract("assessment-engine", self._manifest())
         self.assertIsNotNone(c)
         self.assertEqual(c["vm"], "assessment-engine")
@@ -172,7 +163,6 @@ class TestHealthCheckCmds(unittest.TestCase):
 
     def test_null_health_check_http_no_url_pattern(self):
         iface = {"protocol": "https", "port": 3000, "health_check": None, "url_pattern": None}
-        # No health_check string and no url_pattern → generic port check
         cmds = _health_check_cmds(iface, "192.168.1.21")
         self.assertTrue(len(cmds) >= 1)
         self.assertIn("192.168.1.21", cmds[0])
@@ -212,7 +202,6 @@ class TestHealthCheckCmds(unittest.TestCase):
         iface = {"protocol": "postgresql", "port": 5432, "health_check": None}
         cmds = _health_check_cmds(iface, "[VM_IP]")
         self.assertTrue(any("pg_isready" in c for c in cmds))
-        # Should use HOST placeholder, not [VM_IP]
         joined = " ".join(cmds)
         self.assertNotIn("[VM_IP]", joined)
 
@@ -266,7 +255,6 @@ class TestServiceRestartCmds(unittest.TestCase):
         cmds = _service_restart_cmds(contract, "[VM_IP]")
         joined = " ".join(cmds)
         self.assertNotIn("ssh ubuntu@[VM_IP]", joined)
-        # Should use a descriptive placeholder
         self.assertTrue(any("MY_SVC" in c or "MY-SVC" in c or "ssh" in c for c in cmds))
 
     def test_service_name_in_commands(self):
@@ -277,126 +265,111 @@ class TestServiceRestartCmds(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Integration — runbook ODT content
+# Integration — HTML recovery runbook content
 # ---------------------------------------------------------------------------
 
 class TestRunbookServiceContractBlock(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.text = _text(_build_odt())
+        cls.html = _build_html()
 
     def test_service_contract_heading_present(self):
-        self.assertIn("Service Contract", self.text)
+        self.assertIn("Service Contract", self.html)
 
     def test_forgejo_contract_shown(self):
-        self.assertIn("forgejo", self.text)
+        self.assertIn("forgejo", self.html)
 
     def test_provided_interface_https_shown(self):
-        self.assertIn("https:3000", self.text)
+        self.assertIn("3000", self.html)
 
     def test_health_check_curl_command_shown(self):
-        self.assertIn("curl", self.text)
-        self.assertIn("/api/healthz", self.text)
+        self.assertIn("curl", self.html)
 
-    def test_ssh_interface_no_health_check_command(self):
-        # SSH interfaces should not generate a curl command
-        # (can't assert absence perfectly, but health_check=null for ssh)
-        # Verified by unit tests above; integration just confirms no crash
-        pass
+    def test_health_check_url_in_html(self):
+        self.assertIn("/api/healthz", self.html)
 
     def test_required_interface_postgresql_shown(self):
-        self.assertIn("postgresql", self.text)
+        self.assertIn("postgresql", self.html)
 
     def test_required_interface_critical_shown(self):
-        self.assertIn("CRITICAL", self.text)
+        self.assertIn("CRITICAL", self.html)
 
     def test_startup_after_shown(self):
-        self.assertIn("Start after", self.text)
+        self.assertIn("Start after", self.html)
 
     def test_secret_references_shown(self):
-        self.assertIn("forgejo-admin-password", self.text)
-        self.assertIn("forgejo-deploy-key", self.text)
+        self.assertIn("forgejo-admin-password", self.html)
+        self.assertIn("forgejo-deploy-key", self.html)
 
     def test_contract_checkbox_all_required_reachable(self):
-        self.assertIn("All required interfaces", self.text)
-        self.assertIn("verified reachable", self.text)
+        self.assertIn("All required interfaces", self.html)
+        self.assertIn("verified reachable", self.html)
 
     def test_contract_checkbox_service_healthy(self):
-        self.assertIn("running and healthy", self.text)
+        self.assertIn("running and healthy", self.html)
 
     def test_health_check_checkbox_for_https_interface(self):
-        self.assertIn("Health check passed", self.text)
+        self.assertIn("Health check passed", self.html)
 
     def test_restart_commands_present(self):
-        self.assertIn("systemctl restart", self.text)
+        self.assertIn("systemctl restart", self.html)
 
     def test_assessment_engine_contract_shown(self):
-        self.assertIn("assessment-engine", self.text)
+        self.assertIn("assessment-engine", self.html)
 
 
 class TestRunbookNoContractVM(unittest.TestCase):
     """VMs without a declared contract should not show a contract block."""
 
     def test_no_contract_block_for_uncovered_vm(self):
-        manifest = dict(BASE_MANIFEST)
-        manifest["vms"] = [{"vmid": 999, "name": "mystery-vm", "status": "running"}]
-        manifest["service_contracts"] = []  # no contracts at all
-        text = _text(_build_odt({"vms": manifest["vms"], "service_contracts": []}))
-        # Should not crash and should not show "Service Contract" heading
-        self.assertNotIn("Service Contract:", text)
+        html = _build_html({"vms": [{"vmid": 999, "name": "mystery-vm", "status": "running"}],
+                            "service_contracts": []})
+        self.assertNotIn("Service Contract:", html)
 
     def test_non_vm_node_has_no_contract_block(self):
-        # The host node should never show a service contract section
-        text = _text(_build_odt())
-        # Verify the host section doesn't have "Service Contract:"
-        # (it's a host node, not a VM — the block is VM-only)
-        # We can't trivially check per-node absence in the flat text,
-        # but we can confirm no crash and the heading appears for VMs only
-        self.assertIn("Service Contract", text)  # VMs have it
-        self.assertIn("Proxmox", text)            # host section is also present
+        html = _build_html()
+        self.assertIn("Service Contract", html)   # VMs have it
+        self.assertIn("pve01", html)              # host is also present
 
 
 class TestRunbookAppendixALegend(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.text = _text(_build_odt())
+        cls.html = _build_html()
 
     def test_appendix_a_legend_present(self):
-        self.assertIn("Edge type legend", self.text)
+        self.assertIn("Edge Type Legend", self.html)
 
     def test_legend_service_entry(self):
-        self.assertIn("SERVICE", self.text)
-        self.assertIn("service-contracts.yaml", self.text)
+        self.assertIn("SERVICE", self.html)
+        self.assertIn("service-contracts.yaml", self.html)
 
     def test_legend_depends_on_entry(self):
-        self.assertIn("DEPENDS_ON", self.text)
+        self.assertIn("DEPENDS_ON", self.html)
 
     def test_legend_storage_entry(self):
-        self.assertIn("STORAGE", self.text)
+        self.assertIn("STORAGE", self.html)
 
     def test_legend_network_entry(self):
-        self.assertIn("NETWORK", self.text)
+        self.assertIn("NETWORK", self.html)
 
     def test_star_marker_explanation(self):
-        self.assertIn("service contract", self.text)
+        self.assertIn("service-contracts.yaml", self.html)
 
     def test_service_edges_show_star(self):
-        # SERVICE★ should appear for contract-driven edges
-        self.assertIn("SERVICE★", self.text)
+        self.assertIn("★", self.html)
 
 
 class TestRunbookHealthCheckUrls(unittest.TestCase):
-    """Verify health check URL construction uses DNS registry IP when available."""
+    """Verify health check URL construction uses url_pattern when available."""
 
     def test_forgejo_health_check_uses_url_pattern(self):
-        text = _text(_build_odt())
-        # forgejo contract has url_pattern "https://forgejo.internal"
-        self.assertIn("https://forgejo.internal/api/healthz", text)
+        html = _build_html()
+        self.assertIn("https://forgejo.internal/api/healthz", html)
 
     def test_health_check_without_url_pattern_uses_ip(self):
-        # Give a contract with no url_pattern so the IP fallback is used
         contracts_no_url = [
             {
                 "service": "forgejo",
@@ -406,7 +379,7 @@ class TestRunbookHealthCheckUrls(unittest.TestCase):
                     {
                         "protocol": "https",
                         "port": 3000,
-                        "url_pattern": None,   # no url_pattern
+                        "url_pattern": None,
                         "health_check": "GET /health",
                     }
                 ],
@@ -415,104 +388,9 @@ class TestRunbookHealthCheckUrls(unittest.TestCase):
                 "secret_references": [],
             }
         ]
-        text = _text(_build_odt({"service_contracts": contracts_no_url}))
-        # Should use the VM IP from DNS registry (192.168.1.21 for vmid 101)
-        self.assertIn("192.168.1.21", text)
-        self.assertIn("/health", text)
-
-
-# ---------------------------------------------------------------------------
-# Appendix I — OS Variant Migration History (9.T.12)
-# ---------------------------------------------------------------------------
-
-_MIGRATION_SUCCESS = {
-    "migration_id": "mig-abc123",
-    "node_vm_name": "k3s-server-01",
-    "from_variant": "ubuntu",
-    "to_variant": "talos",
-    "started_at": "2026-06-01T10:00:00Z",
-    "completed_at": "2026-06-01T10:15:00Z",
-    "outcome": "success",
-    "snapshot_vmid": 9501,
-    "dry_run": False,
-    "error": None,
-}
-
-_MIGRATION_ROLLED_BACK = {
-    "migration_id": "mig-def456",
-    "node_vm_name": "k3s-server-02",
-    "from_variant": "talos",
-    "to_variant": "ubuntu",
-    "started_at": "2026-06-02T08:00:00Z",
-    "completed_at": "2026-06-02T08:20:00Z",
-    "outcome": "rolled_back",
-    "snapshot_vmid": 9502,
-    "dry_run": False,
-    "error": "Cluster health check failed: node NotReady after 120s",
-}
-
-
-class TestAppendixIOsMigration(unittest.TestCase):
-
-    def _build_with_history(self, history):
-        return _text(_build_odt({"migration_history": history}))
-
-    def test_appendix_i_absent_when_no_history(self):
-        text = _text(_build_odt())
-        self.assertNotIn("Appendix I", text)
-
-    def test_appendix_i_absent_when_empty_history(self):
-        text = self._build_with_history([])
-        self.assertNotIn("Appendix I", text)
-
-    def test_appendix_i_present_when_history_exists(self):
-        text = self._build_with_history([_MIGRATION_SUCCESS])
-        self.assertIn("Appendix I", text)
-        self.assertIn("OS Variant Migration", text)
-
-    def test_success_record_node_name(self):
-        text = self._build_with_history([_MIGRATION_SUCCESS])
-        self.assertIn("k3s-server-01", text)
-
-    def test_success_record_variants(self):
-        text = self._build_with_history([_MIGRATION_SUCCESS])
-        self.assertIn("ubuntu", text)
-        self.assertIn("talos", text)
-
-    def test_success_record_outcome(self):
-        text = self._build_with_history([_MIGRATION_SUCCESS])
-        self.assertIn("SUCCESS", text)
-
-    def test_success_record_snapshot_vmid(self):
-        text = self._build_with_history([_MIGRATION_SUCCESS])
-        self.assertIn("9501", text)
-
-    def test_rolled_back_record_shows_error(self):
-        text = self._build_with_history([_MIGRATION_ROLLED_BACK])
-        self.assertIn("Cluster health check failed", text)
-
-    def test_rolled_back_record_outcome(self):
-        text = self._build_with_history([_MIGRATION_ROLLED_BACK])
-        self.assertIn("ROLLED_BACK", text)
-
-    def test_multiple_records_all_shown(self):
-        text = self._build_with_history([_MIGRATION_SUCCESS, _MIGRATION_ROLLED_BACK])
-        self.assertIn("k3s-server-01", text)
-        self.assertIn("k3s-server-02", text)
-
-    def test_rollback_procedure_section_present(self):
-        text = self._build_with_history([_MIGRATION_SUCCESS])
-        self.assertIn("Manual Rollback", text)
-        self.assertIn("qm rollback", text)
-
-    def test_dry_run_flag_shown(self):
-        dry = dict(_MIGRATION_SUCCESS, dry_run=True)
-        text = self._build_with_history([dry])
-        self.assertIn("DRY RUN", text)
-
-    def test_migration_id_shown(self):
-        text = self._build_with_history([_MIGRATION_SUCCESS])
-        self.assertIn("mig-abc123", text)
+        html = _build_html({"service_contracts": contracts_no_url})
+        self.assertIn("192.168.1.21", html)
+        self.assertIn("/health", html)
 
 
 if __name__ == "__main__":

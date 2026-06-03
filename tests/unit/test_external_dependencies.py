@@ -314,8 +314,8 @@ class TestScoreExternalDependencyState(unittest.TestCase):
 class TestRecoveryRunbookAppendixG(unittest.TestCase):
 
     def _build_minimal_runbook(self, manifest_extras=None):
-        """Build a recovery runbook ODT bytes with given manifest additions."""
-        from recovery_runbook import build_recovery_runbook
+        """Build a recovery runbook HTML string with given manifest additions."""
+        from html_recovery_runbook import build_recovery_runbook_html
         from dependencies import build_graph
         from readiness import score_graph
 
@@ -335,78 +335,60 @@ class TestRecoveryRunbookAppendixG(unittest.TestCase):
             "generated_at": "2026-01-01T12:00:00Z",
             "generated_at_display": "2026-01-01 12:00:00 UTC",
         }
-        return build_recovery_runbook(manifest, graph, readiness, generation_meta)
-
-    def _extract_text(self, odt_bytes: bytes) -> str:
-        import io
-        import zipfile
-        from xml.etree import ElementTree as ET
-        with zipfile.ZipFile(io.BytesIO(odt_bytes)) as zf:
-            content = zf.read("content.xml").decode("utf-8")
-        # Strip XML tags to get text content
-        root = ET.fromstring(content)
-        return ET.tostring(root, encoding="unicode", method="text")
+        return build_recovery_runbook_html(manifest, graph, readiness, generation_meta)
 
     def test_appendix_g_header_present(self):
-        odt = self._build_minimal_runbook()
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook()
         self.assertIn("Appendix G", text)
         self.assertIn("External Dependencies", text)
 
     def test_appendix_g_no_deps_message(self):
-        odt = self._build_minimal_runbook()
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook()
         self.assertIn("No external dependencies declared", text)
 
     def test_appendix_g_shows_dependency_name(self):
         deps = [_make_dep("cf-dns", "Cloudflare DNS", "dns_provider", "https://1.1.1.1")]
-        odt = self._build_minimal_runbook({"external_dependencies": deps})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": deps})
         self.assertIn("Cloudflare DNS", text)
 
     def test_appendix_g_shows_endpoint(self):
         deps = [_make_dep("cf-dns", endpoint="https://1.1.1.1")]
-        odt = self._build_minimal_runbook({"external_dependencies": deps})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": deps})
         self.assertIn("https://1.1.1.1", text)
 
     def test_appendix_g_shows_dep_type(self):
         deps = [_make_dep("cf-dns", dep_type="dns_provider")]
-        odt = self._build_minimal_runbook({"external_dependencies": deps})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": deps})
         self.assertIn("dns_provider", text)
 
     def test_appendix_g_shows_required_by(self):
         deps = [_make_dep("cf-dns", required_by=["forgejo", "inventory"])]
-        odt = self._build_minimal_runbook({"external_dependencies": deps})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": deps})
         self.assertIn("forgejo", text)
         self.assertIn("inventory", text)
 
     def test_appendix_g_cert_section_shows_expiry(self):
         dep = _make_dep("cf-dns", cert_days=90)
-        odt = self._build_minimal_runbook({"external_dependencies": [dep]})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": [dep]})
         self.assertIn("TLS Certificate", text)
         self.assertIn("Expires at", text)
 
     def test_appendix_g_cert_shows_issuer(self):
         dep = _make_dep("cf-dns", cert_days=90)
         dep["certificate"]["issuer"] = "Let's Encrypt"
-        odt = self._build_minimal_runbook({"external_dependencies": [dep]})
-        text = self._extract_text(odt)
-        self.assertIn("Let's Encrypt", text)
+        text = self._build_minimal_runbook({"external_dependencies": [dep]})
+        # Apostrophe may be HTML-escaped to &#x27; — check the unambiguous part
+        self.assertIn("Encrypt", text)
+        self.assertIn("Issuer", text)
 
     def test_appendix_g_imminent_expiry_warns(self):
         dep = _make_dep("cf-dns", cert_days=3)
-        odt = self._build_minimal_runbook({"external_dependencies": [dep]})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": [dep]})
         self.assertIn("EXPIRES IN", text)
 
     def test_appendix_g_no_cert_dep_has_no_cert_section(self):
         dep = _make_dep("smtp", dep_type="smtp_relay")
-        odt = self._build_minimal_runbook({"external_dependencies": [dep]})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": [dep]})
         self.assertIn("smtp_relay", text)
         # No TLS Certificate header when no cert declared
         self.assertNotIn("TLS Certificate", text)
@@ -416,23 +398,20 @@ class TestRecoveryRunbookAppendixG(unittest.TestCase):
             _make_dep("dep-a", "Dep Alpha", cert_days=90),
             _make_dep("dep-b", "Dep Beta"),
         ]
-        odt = self._build_minimal_runbook({"external_dependencies": deps})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": deps})
         self.assertIn("Dep Alpha", text)
         self.assertIn("Dep Beta", text)
 
     def test_appendix_g_failover_shown(self):
         dep = _make_dep("cf-dns")
         dep["failover"] = "8.8.8.8"
-        odt = self._build_minimal_runbook({"external_dependencies": [dep]})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": [dep]})
         self.assertIn("8.8.8.8", text)
 
     def test_appendix_g_notes_shown(self):
         dep = _make_dep("smtp")
         dep["notes"] = "Uses STARTTLS on port 587"
-        odt = self._build_minimal_runbook({"external_dependencies": [dep]})
-        text = self._extract_text(odt)
+        text = self._build_minimal_runbook({"external_dependencies": [dep]})
         self.assertIn("STARTTLS", text)
 
 
