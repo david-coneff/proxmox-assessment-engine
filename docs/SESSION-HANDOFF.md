@@ -4,6 +4,93 @@ Last updated: 2026-06-03 UTC
 
 ## What Was Done This Session (current)
 
+### Audit round 13 — Cycles 1–5 (completed)
+
+**Cycle 1 — Missing tailscale-join.sh + shell injection + YELLOW reason:**
+- I1: `spawn_scripts.py` referenced `tailscale-join.sh` in WAN spawn.sh but no generator
+  existed. Added `generate_tailscale_join_sh(plan)`: installs tailscale, uses auth key
+  from `disposition.wan_auth_key` and headscale URL from `hatchery.headscale_url`,
+  uses checkpoint. Wired into `write_all_scripts()` (include_wan_phase=True) and
+  `assemble_spawn_package.py` internal generation (is_wan=True). 13 new tests.
+- S1: `remediation_executor._exec_restart_service()` built SSH remote commands by
+  interpolating `svc = proposal.target` directly into `f"sudo systemctl {action} {svc}"`.
+  Remote shell interprets metacharacters. Fixed with `shlex.quote(svc)`. 2 new tests.
+- D1: `readiness.py score_graph()` appended `"; DNS registry missing"` for ANY YELLOW
+  registry gap; now there are many YELLOW gap types (drills, talos, migrations, etc.).
+  Fixed: only append DNS message when `gap_type == "MISSING_DNS_REGISTRY"` is present;
+  otherwise append generic infrastructure gap count.
+- **Tests: 3785 passed, 37 skipped** (+16)
+
+**Cycle 2 — spawn_history schema + WAN scenario field name:**
+- I2: `bootstrap-state-schema.json` was missing `spawn_history` property despite
+  `update_state_after_spawn()` writing it on every spawn since Phase 12.E.9.
+  Added full spawn_history array definition with required fields.
+- D2: `test_spawn_scenarios.py` WAN scenario set `headscale_auth_key` in
+  `plan["disposition"]` but spawn_planner.py stores it as `wan_auth_key` (line 509).
+  Wrong field means `generate_tailscale_join_sh()` would see an empty auth key.
+  Fixed and added 2 tests verifying auth key and URL are embedded in tailscale-join.sh.
+- **Tests: 3787 passed, 37 skipped** (+2)
+
+**Cycle 3 — Negative Content-Length + NODE-SPAWNING doc:**
+- S2: `hatchery_receiver.py` `_handle_failure_package()` and `_handle_spawn_complete()`
+  did not reject negative Content-Length; `self.rfile.read(-1)` blocks until EOF on
+  the single-threaded server. Added `content_length < 0 → 400` guard on both handlers.
+  2 new tests.
+- D3: `NODE-SPAWNING.md` package contents listing was missing `tailscale-join.sh`
+  for WAN mode. Added `[tailscale-join.sh]` with WAN-only annotation.
+- **Tests: 3789 passed, 37 skipped** (+2)
+
+**Cycle 4 — PBS epoch→ISO + dashboard Content-Length cap:**
+- B1: `continuous_assessment.collect_pbs_state_update()` stored PBS API's
+  `last-run-endtime` (Unix epoch int) directly into `PbsJobStatus.last_run_at`
+  (typed `Optional[str]`). Dashboard would display an integer. Fixed: convert epoch
+  to UTC ISO string via `datetime.fromtimestamp()`. 2 new tests.
+- S3: `broodforge_dashboard._read_post_body()` had same unbounded read risk as
+  hatchery receiver. Added `length <= 0 → {}` guard and 1 MB cap.
+- **Tests: 3791 passed, 37 skipped** (+2)
+
+**Cycle 5 — Dashboard HTML escaping:**
+- S4: `broodforge_dashboard.py` rendered hostname, IP, service names, failure package
+  fields, and remediation fields from bootstrap-state.json into HTML without escaping.
+  Added `import html`, module-level `_e()` helper, and applied throughout
+  `_node_card()`, `_failure_row()`, `_remediation_card()`.
+- **Tests: 3791 passed, 37 skipped** (no change — no new tests; verified via existing
+  TestDashboardRemediation and TestDashboardSecurity)
+
+---
+
+### Audit round 12 — Cycles 1–3 (completed)
+
+**Cycle 1 — spawn manifest detection + fallback message:**
+- B1: `assemble-spawn-package.py` used `schema_version` to distinguish bootstrap-state
+  from spawn-manifest but both use `"1.0"`. Fixed: use `"host_identity"` presence
+  (bootstrap-state) vs `"hatchery_url"` at top level (spawn-manifest).
+  Added `test_cli_uses_pregenerated_spawn_manifest_as_is`.
+- D1: `phase-06-verify.sh` error fallback message improved to include `--state/--plan`
+  arguments in the manual update command hint.
+- **Tests: 3926 passed, 37 skipped** (+1)
+
+**Cycle 2 — html_package_manifest + hatchery hostname:**
+- B1: `hatchery_receiver.py:276` read `target_hostname` from spawn plan; spawn plans
+  use `hostname`. Log always printed "unknown". Fixed.
+- B2: `html_package_manifest.build_spawn_manifest_html()` used stale field names
+  (`target_hostname`, `vmid_block.start/end`, top-level `execution_mode/network_mode`)
+  from an old spawn plan format. Current format uses `hostname`, `disposition.execution_mode`,
+  `vms[].vmid`, `k3s.role`, `storage.topology`. Fixed with fallback for legacy tests.
+  Added `TestSpawnManifestCurrentPlanFormat` (5 tests).
+- **Tests: 3931 passed, 37 skipped** (+5)
+
+**Cycle 3 — spawn workbook + state updater field names:**
+- B1: `html_spawn_workbook.py` read `network_mode` at plan top level; should be
+  `disposition.network_mode`. Fixed with fallback.
+- B2: `update_state_after_spawn.build_spawn_result()` read `vmid_block`/`ip_block`
+  which spawn_planner.py doesn't set (VMIDs are in `vms[].vmid`). `spawn_history[].vmids_allocated`
+  was always empty. Fixed: derive from `vms[]` when these keys are absent.
+  Added `test_vmids_derived_from_vms_list_when_no_vmid_block`.
+- **Tests: 3932 passed, 37 skipped** (+1)
+
+---
+
 ### Audit round 11 — Cycles 1–5 (completed)
 
 **Cycle 1 — Stale CLI docs + missing timeouts:**

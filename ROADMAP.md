@@ -1,7 +1,7 @@
 # Broodforge — Roadmap
 
 Version: 7.1
-Last updated: 2026-06-03 (audit round 12: spawn field name bugs, html manifest, hatchery receiver)
+Last updated: 2026-06-03 (audit round 13: tailscale-join.sh, shell quoting, schema, security fixes)
 Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
 
 ---

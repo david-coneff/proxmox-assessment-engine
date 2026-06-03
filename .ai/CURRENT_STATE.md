@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-06-03 UTC (audit round 12 — cycles 1–3: spawn field name bugs, html manifest, hatchery)
+Last updated: 2026-06-03 UTC (audit round 13 — cycles 1–5: tailscale-join.sh, shell quoting, schema, security)
 
 ## Active Architecture: v7.1
 
@@ -14,11 +14,18 @@ Digital Twin + Federation, and Autonomous Operations (Phase 26 — all sub-phase
 
 ## Next Action
 
-**All audit findings resolved through round 12 cycle 3** (2026-06-03).
-Audit rounds 3–12 complete. Latest fixes: spawn field name bugs across html_package_manifest,
-html_spawn_workbook, update_state_after_spawn (vmid_block→vms[], network_mode→disposition.*,
-target_hostname→hostname); spawn manifest detection schema_version fix; hatchery receiver
-hostname log fix. AD-056 added. Tests: 3932 passed, 37 skipped.
+**All audit findings resolved through round 13 cycle 5** (2026-06-03).
+Audit rounds 3–13 complete. Round 13 fixes (5 cycles):
+- I1: generate_tailscale_join_sh() added to spawn_scripts.py; WAN packages now include tailscale-join.sh
+- S1: shlex.quote() in remediation_executor._exec_restart_service() SSH commands
+- D1: readiness.py overall_reason no longer says "DNS registry missing" for non-DNS YELLOW gaps
+- I2: spawn_history added to bootstrap-state-schema.json
+- D2: WAN scenario test used wrong field name headscale_auth_key→wan_auth_key
+- D3: NODE-SPAWNING.md package listing now shows [tailscale-join.sh] for WAN mode
+- S2/S3: negative Content-Length rejected in hatchery_receiver and dashboard
+- B1: PBS last-run-endtime Unix epoch converted to ISO string in continuous_assessment
+- S4: broodforge_dashboard HTML-escapes node/failure/remediation fields via _e()
+Tests: 3791 passed, 37 skipped.
 
 All roadmap items complete. Next: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py`
 on a Proxmox host to forge the first cell. See FORGING.md for operator runbook.
