@@ -792,7 +792,9 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
 
     def _read_post_body(self) -> dict:
         length = int(self.headers.get("Content-Length", 0))
-        if not length:
+        if length <= 0:
+            return {}
+        if length > 1 * 1024 * 1024:  # 1 MB cap — dashboard actions are small JSON
             return {}
         try:
             return json.loads(self.rfile.read(length))

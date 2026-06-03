@@ -430,11 +430,19 @@ def collect_pbs_state_update(
     jobs: list[PbsJobStatus] = []
     for job in (pbs_api_response.get("data") or []):
         job_id = job.get("id") or job.get("job-id") or "unknown"
+        # PBS API returns last-run-endtime as a Unix epoch integer; convert to ISO string
+        _endtime = job.get("last-run-upid") and job.get("last-run-endtime")
+        if isinstance(_endtime, (int, float)) and _endtime:
+            _last_run_at: Optional[str] = datetime.fromtimestamp(
+                _endtime, tz=timezone.utc
+            ).isoformat()
+        else:
+            _last_run_at = None
         jobs.append(PbsJobStatus(
             job_id=job_id,
             vm_id=job.get("vmid"),
             vm_name=job.get("comment") or job.get("name"),
-            last_run_at=job.get("last-run-upid") and job.get("last-run-endtime"),
+            last_run_at=_last_run_at,
             status="ok" if job.get("last-run-state") == "OK" else
                    ("failed" if job.get("last-run-state") else "unknown"),
             last_size_gb=job.get("last-run-size-bytes") and

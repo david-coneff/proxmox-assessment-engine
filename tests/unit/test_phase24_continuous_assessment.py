@@ -275,6 +275,31 @@ class TestPbsStateUpdater:
         d = _ca.collect_pbs_state_update(self._response(), "pve01-cell")
         assert d["cell_id"] == "pve01-cell"
 
+    def test_last_run_at_is_iso_string_for_epoch_timestamp(self):
+        """PBS API returns last-run-endtime as Unix epoch int; must convert to ISO string."""
+        response = {"data": [
+            {"id": "job-01", "vmid": 101,
+             "last-run-upid": "UPID:pbs:abc",
+             "last-run-endtime": 1748908800,  # 2026-06-03T00:00:00Z
+             "last-run-state": "OK"},
+        ]}
+        d = _ca.collect_pbs_state_update(response, "pve01-cell")
+        job = d["backup_jobs"][0]
+        assert job["last_run_at"] is not None
+        assert isinstance(job["last_run_at"], str), (
+            f"last_run_at should be ISO string, got {type(job['last_run_at'])}: {job['last_run_at']}"
+        )
+        assert "T" in job["last_run_at"], "ISO string should contain 'T' separator"
+        assert "2025" in job["last_run_at"]  # epoch 1748908800 = 2025-06-03
+
+    def test_last_run_at_is_none_when_no_upid(self):
+        """When last-run-upid is absent (job never ran), last_run_at should be None."""
+        response = {"data": [
+            {"id": "job-01", "vmid": 101, "last-run-state": None},
+        ]}
+        d = _ca.collect_pbs_state_update(response, "pve01-cell")
+        assert d["backup_jobs"][0]["last_run_at"] is None
+
 
 # ===========================================================================
 # 24.7 — Certificate Expiry Monitor
