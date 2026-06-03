@@ -76,13 +76,14 @@ def main() -> None:
         raw_state = json.load(f)
 
     # Convert bootstrap-state.json to a proper spawn manifest (adds hatchery_url,
-    # receiver_token, reserved VMIDs/IPs, etc.) if the state file is a bootstrap-state
-    # (identified by the absence of "schema_version" with value "spawn-manifest-*").
+    # receiver_token, reserved VMIDs/IPs, etc.) if the state file is a bootstrap-state.
+    # Bootstrap-state.json is identified by having "host_identity" (not present in a
+    # spawn-manifest.json which instead has top-level "hatchery_url").
     manifest = raw_state
     try:
         from hatchery_state import read_hatchery_state
-        spawn_manifest_version = raw_state.get("schema_version", "")
-        if not str(spawn_manifest_version).startswith("spawn-manifest"):
+        is_bootstrap_state = "host_identity" in raw_state and "hatchery_url" not in raw_state
+        if is_bootstrap_state:
             manifest = read_hatchery_state(raw_state).raw
     except ImportError:
         pass  # hatchery_state not available; use raw state as-is

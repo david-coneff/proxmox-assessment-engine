@@ -446,7 +446,7 @@ def generate_phase_06_verify(plan: dict) -> str:
         f'    echo "[verify] Hatchery notified — bootstrap-state.json updated"\n'
         f'  else\n'
         f'    echo "[verify] WARNING: could not reach hatchery at ${{HATCHERY_URL}}"\n'
-        f'    echo "[verify] Run on hatchery manually: python3 proxmox-bootstrap/update_state_after_spawn.py"\n'
+        f'    echo "[verify] Run on hatchery: python3 proxmox-bootstrap/update_state_after_spawn.py --state proxmox-bootstrap/bootstrap-state.json --plan /path/to/spawn-plan-{hostname}.json"\n'
         f'  fi\n'
         f'else\n'
         f'  echo "[verify] No hatchery_url in spawn-manifest.json — update hatchery manually"\n'

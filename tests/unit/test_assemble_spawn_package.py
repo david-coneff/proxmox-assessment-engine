@@ -388,7 +388,24 @@ class TestInternalScriptGeneration(unittest.TestCase):
 
 
 class TestCLISpawnManifestGeneration(unittest.TestCase):
-    """CLI converts bootstrap-state.json to a proper spawn manifest with hatchery_url."""
+    """CLI converts bootstrap-state.json to a proper spawn manifest with hatchery_url.
+    When given a pre-existing spawn-manifest.json, it is used as-is."""
+
+    def _run_assembler(self, state_dict, plan_dict, tmp):
+        import subprocess
+        state_path = Path(tmp) / "state.json"
+        plan_path  = Path(tmp) / "spawn-plan.json"
+        state_path.write_text(json.dumps(state_dict))
+        plan_path.write_text(json.dumps(plan_dict))
+        result = subprocess.run(
+            [sys.executable,
+             str(REPO_ROOT / "proxmox-bootstrap" / "assemble-spawn-package.py"),
+             "--plan", str(plan_path),
+             "--state", str(state_path),
+             "--output-dir", tmp],
+            capture_output=True, text=True, timeout=15,
+        )
+        return result
 
     def test_cli_generates_hatchery_url_from_bootstrap_state(self):
         """When --state is a bootstrap-state.json, the CLI calls read_hatchery_state
@@ -440,6 +457,42 @@ class TestCLISpawnManifestGeneration(unittest.TestCase):
             # read_hatchery_state generates hatchery_url from host_identity.fqdn
             self.assertIn("hatchery_url", manifest_data)
             self.assertIn("pve01.home.example.com", manifest_data.get("hatchery_url", ""))
+
+    def test_cli_uses_pregenerated_spawn_manifest_as_is(self):
+        """When --state is a pre-generated spawn manifest (has hatchery_url at top level),
+        it is used as-is without regenerating through read_hatchery_state."""
+        import tarfile as tf
+        import tempfile
+
+        # Pre-generated spawn manifest (already has hatchery_url + receiver_token)
+        spawn_manifest = {
+            "cell_id": "cell-alpha",
+            "schema_version": "1.0",
+            "hatchery_url": "http://custom-hatchery:9321",
+            "receiver_token": "my-secret-token",
+            "hatchery": {"hostname": "pve01", "fqdn": "pve01.example.com"},
+        }
+        plan = {
+            "cell_id": "cell-alpha",
+            "hostname": "pve02",
+            "disposition": {"execution_mode": "autonomous"},
+            "k3s": {"role": "worker"},
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run_assembler(spawn_manifest, plan, tmp)
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+
+            packages = list(Path(tmp).glob("spawn-package-*.tar.gz"))
+            self.assertEqual(len(packages), 1)
+
+            with tf.open(packages[0], "r:gz") as tar:
+                manifest_bytes = tar.extractfile("spawn-manifest.json").read()
+            manifest_data = json.loads(manifest_bytes)
+
+            # Spawn manifest should be used as-is (custom hatchery_url preserved)
+            self.assertEqual(manifest_data.get("hatchery_url"), "http://custom-hatchery:9321")
+            self.assertEqual(manifest_data.get("receiver_token"), "my-secret-token")
 
 
 if __name__ == "__main__":
