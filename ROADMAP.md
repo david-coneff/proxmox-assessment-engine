@@ -105,6 +105,12 @@ Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
       accepting state_path from POST body, allowing any filesystem path to be
       read+written. Fixed: body state_path now ignored; only server-configured --state
       path is used. 1 new test. Tests: 3648 passed.
+- [x] **Full-stack audit findings (round 6)** — 7 findings fixed:
+      HIGH: forge_scripts.py heredoc __file__ bug (NameError in stdin mode) → SCRIPT_DIR env;
+      A2: sys.path inserts in 5 proxmox-bootstrap/ workbook modules made idempotent;
+      A3: test_bootstrap_workbook.py migrated to html_bootstrap.py; registry helpers extracted;
+      D1–D4: stale ODS refs in ROADMAP, ARCHITECTURE-REVIEW-v7.md deprecation note, AD-055 added.
+      Tests: 3646 passed, 37 skipped.
 - [x] **Full-stack audit findings (round 3)** — all MEDIUM and LOW items resolved:
       S1: secrets.compare_digest in hatchery_receiver; I1: security scan wired into operational;
       I2: 9.T migration tier (above); S2: no-token startup warning in dashboard;

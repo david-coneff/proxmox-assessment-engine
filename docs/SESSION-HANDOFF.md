@@ -4,6 +4,28 @@ Last updated: 2026-06-02 UTC
 
 ## What Was Done This Session (current)
 
+### Audit round 6 — 7 findings fixed
+
+**HIGH — forge_scripts.py heredoc `__file__` bug**: `generate_phase_02_sh()` and
+`generate_phase_03_sh()` embedded Python heredocs used `os.path.abspath(__file__)`
+which raises `NameError` in `python3 - <<'PYEOF'` stdin mode. Fixed: use
+`os.environ.get("SCRIPT_DIR", ".")` — shell sets `SCRIPT_DIR` before the heredoc runs.
+2 new regression tests added to `test_forge_assembler.py`.
+
+**A2/A3 (deferred items):** 
+- sys.path coupling in 5 proxmox-bootstrap/ workbook modules made idempotent
+- `test_bootstrap_workbook.py` fully migrated away from deprecated `workbook.py`:
+  `registry_ip_for_bootstrap_vm()` and `registry_iso_path()` extracted to
+  `html_bootstrap.py` as public functions; `_wb_section_stage_03()` uses them;
+  test file now uses `build_bootstrap_workbook_html()` for all workbook tests.
+
+**Docs (D1–D4):** ROADMAP stale ODS refs updated; ARCHITECTURE-REVIEW-v7.md gets
+deprecation note at top; AD-055 added to ARCHITECTURE.md (HTML-only output decision).
+
+**Tests: 3646 passed, 37 skipped** (2 new, 4 ODS-specific removed = net -2 vs pre-session)
+
+---
+
 ### Security fix — /api/spawn-complete path traversal
 
 `proxmox-bootstrap/hatchery_receiver.py:_handle_spawn_complete()`: removed
