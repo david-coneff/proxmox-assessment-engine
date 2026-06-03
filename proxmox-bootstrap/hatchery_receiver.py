@@ -255,7 +255,8 @@ class _ReceiverHandler(BaseHTTPRequestHandler):
         try:
             body = json.loads(self.rfile.read(content_length).decode())
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            self.send_error(400, f"Invalid JSON: {exc}")
+            print(f"[receiver] Invalid JSON in spawn-complete body: {exc}", file=sys.stderr)
+            self.send_error(400, "Invalid JSON in request body")
             return
 
         # Never accept state_path from the request body — use only the configured

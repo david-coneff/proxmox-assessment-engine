@@ -794,7 +794,8 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
                 results = analyze_all_unanalyzed(self._cfg.failures_path)
                 self._serve_json({"analyzed": len(results)})
             except Exception as e:
-                self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(e))
+                print(f"[dashboard] ERROR analyzing failures: {e}", file=sys.stderr)
+                self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")
         elif path.startswith("/api/remediations/") and path.endswith("/approve"):
             if not self._check_action_token():
                 return
@@ -837,7 +838,8 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self.send_error(HTTPStatus.CONFLICT, "Cannot approve proposal in current state")
         except Exception as e:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(e))
+            print(f"[dashboard] ERROR in approve: {e}", file=sys.stderr)
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")
 
     def _handle_remediation_reject(self, path: str) -> None:
         pid   = path[len("/api/remediations/"):-len("/reject")]
@@ -855,11 +857,17 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self.send_error(HTTPStatus.CONFLICT, "Cannot reject proposal in current state")
         except Exception as e:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(e))
+            print(f"[dashboard] ERROR in reject: {e}", file=sys.stderr)
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")
+
+    _VALID_SEVERITIES = {"RED", "ORANGE", "YELLOW", "GREEN", "BLOCKED"}
 
     def _handle_remediation_approve_batch(self) -> None:
         body     = self._read_post_body()
         severity = body.get("max_severity", "YELLOW").upper()
+        if severity not in self._VALID_SEVERITIES:
+            self.send_error(HTTPStatus.BAD_REQUEST, "Invalid severity level")
+            return
         state    = _read_bootstrap_state(self._cfg)
         try:
             queue   = load_queue(state)
@@ -869,7 +877,8 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
                 json.dump(updated, f, indent=2)
             self._serve_json({"approved": count, "max_severity": severity})
         except Exception as e:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, str(e))
+            print(f"[dashboard] ERROR in batch approve: {e}", file=sys.stderr)
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")
 
     def _check_action_token(self) -> bool:
         """Verify X-Broodforge-Token header matches configured token."""
