@@ -260,7 +260,8 @@ def generate_phase_00_host(plan: dict) -> str:
 def generate_phase_01_proxmox(plan: dict) -> str:
     hatchery = (plan.get("hatchery") or {}).get("proxmox_cluster_address", "hatchery")
     fingerprint = (plan.get("hatchery") or {}).get("proxmox_cluster_fingerprint") or ""
-    fp_arg = f'--fingerprint "{fingerprint}"' if fingerprint else ""
+    h = shlex.quote(hatchery)
+    fp_arg = f'--fingerprint {shlex.quote(fingerprint)}' if fingerprint else ""
 
     return (
         _plan_header(plan, "phase-01-proxmox.sh — Proxmox cluster join") +
@@ -270,7 +271,7 @@ def generate_phase_01_proxmox(plan: dict) -> str:
         f'  if pvecm status 2>/dev/null | grep -q "Quorum"; then\n'
         f'    echo "[pvecm] Already a cluster member — skipping join"\n'
         f'  else\n'
-        f'    pvecm add {hatchery} {fp_arg}\n'
+        f'    pvecm add {h} {fp_arg}\n'
         f'  fi\n'
         f'  checkpoint_done "pvecm"\n'
         f'}}\n\n'
@@ -310,7 +311,7 @@ def generate_phase_03_cloudinit(plan: dict) -> str:
     snippets_store = shlex.quote((plan.get("storage") or {}).get("snippets", "local:snippets"))
     vms = plan.get("vms") or []
     vm_waits = "\n".join(
-        f'wait_ssh "{v.get("ip","")}" "{v.get("name","vm")}"'
+        f'wait_ssh {shlex.quote(str(v.get("ip","")))} {shlex.quote(str(v.get("name","vm")))}'
         for v in vms if v.get("ip")
     )
 
@@ -358,13 +359,16 @@ def generate_phase_03_cloudinit(plan: dict) -> str:
 
 def generate_phase_04_k3s(plan: dict) -> str:
     k3s_role = (plan.get("k3s") or {}).get("role", "worker")
+    if k3s_role not in ("worker", "server"):
+        raise ValueError(f"Invalid k3s role: {k3s_role!r} — must be 'worker' or 'server'")
+    hostname_q = shlex.quote(plan.get("hostname", "?"))
     return (
         _plan_header(plan, f"phase-04-k3s.sh — k3s {k3s_role} join via Ansible") +
         f'is_done "k3s-join" && checkpoint_skip "k3s-join" || {{\n'
         f'  checkpoint_start "k3s-join"\n'
         f'  cd "$SCRIPT_DIR/ansible"\n'
         f'  ansible-playbook site.yml \\\n'
-        f'    -i "spawn-{plan.get("hostname","?")}.ini" \\\n'
+        f'    -i "spawn-{hostname_q}.ini" \\\n'
         f'    --tags k3s-{k3s_role}\n'
         f'  checkpoint_done "k3s-join"\n'
         f'}}\n\n'

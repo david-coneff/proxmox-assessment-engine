@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-06-03 UTC (audit round 14: security hardening, HTML escaping, quoting, handler parity)
+Last updated: 2026-06-03 UTC (audit round 15: shell injection in pvecm, XSS in onclick, k3s_role validation)
 
 ## Active Architecture: v7.1
 
@@ -14,7 +14,7 @@ Digital Twin + Federation, and Autonomous Operations (Phase 26 — all sub-phase
 
 ## Next Action
 
-**All audit findings resolved through round 14** (2026-06-03).
+**All audit findings resolved through round 15** (2026-06-03).
 Audit rounds 3–14 complete. Round 14 fixes:
 - S-01: spawn KEEPASS_GATE_SH no longer exports KDBX_MASTER_PASSWORD; path only
 - S-02: hatchery_receiver warns to stderr at startup when no auth token configured
@@ -30,7 +30,13 @@ Audit rounds 3–14 complete. Round 14 fixes:
 - A-03: assert set(ALLOWED_ACTION_TYPES)==set(_HANDLERS.keys()) added at module load
 - A-04: confusing `and` idiom replaced with explicit if in continuous_assessment.py
 - A-05: html_base.py sync comment strengthened; test_html_base_sync.py added
-Tests: 3957 passed, 37 skipped.
+
+Round 15 fixes:
+- S-15.1 (HIGH): spawn_scripts.py generate_phase_01_proxmox — hatchery address and fingerprint shell-quoted
+- S-15.2 (HIGH): spawn_scripts.py generate_phase_04_k3s — k3s_role validated against allowed set; hostname shell-quoted
+- S-15.3 (MEDIUM): spawn_scripts.py generate_phase_03_cloudinit — VM ip/name shell-quoted in wait_ssh calls
+- S-15.4 (MEDIUM): broodforge_dashboard.py _remediation_card — onclick pid now uses json.dumps() for JS context (not HTML escaping)
+Tests: 3958 passed, 37 skipped.
 
 All roadmap items complete. Next: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py`
 on a Proxmox host to forge the first cell. See FORGING.md for operator runbook.

@@ -91,6 +91,14 @@ class TestPhase01Proxmox(unittest.TestCase):
     def test_pvecm_add(self): self.assertIn("pvecm add 192.168.1.10", self.s)
     def test_idempotent_check(self): self.assertIn("Already a cluster member", self.s)
     def test_checkpoint(self): self.assertIn("checkpoint_done", self.s)
+    def test_injection_safe_hatchery(self):
+        """Malicious cluster address must be shell-quoted in the pvecm command."""
+        from spawn_scripts import generate_phase_01_proxmox
+        plan = {**PLAN, "hatchery": {**PLAN["hatchery"], "proxmox_cluster_address": "host; rm -rf /"}}
+        s = generate_phase_01_proxmox(plan)
+        pvecm_line = s.split("pvecm add", 1)[-1].split("\n")[0]
+        # The value must be single-quoted so ; is not interpreted as a command separator
+        self.assertIn("'host; rm -rf /'", pvecm_line)
 
 
 class TestPhase02Vms(unittest.TestCase):

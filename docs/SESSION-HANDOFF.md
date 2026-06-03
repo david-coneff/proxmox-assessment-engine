@@ -44,6 +44,22 @@ All 14 findings fixed in a single pass:
 
 **Tests: 3957 passed, 37 skipped** (+166 vs round 13).
 
+### Audit round 15 (completed)
+
+- **S-15.1/15.2 (HIGH)**: `spawn_scripts.py generate_phase_01_proxmox` — `hatchery` (cluster address)
+  and `fingerprint` embedded in `pvecm add` command without shell-quoting. Applied `shlex.quote()`.
+  Added injection-safety test.
+- **S-15.3 (HIGH)**: `generate_phase_04_k3s` — `k3s_role` embedded in ansible `--tags` without
+  validation. Added `if k3s_role not in ("worker","server"): raise ValueError(...)`. Hostname in
+  inventory filename shell-quoted.
+- **S-15.4 (MEDIUM)**: `generate_phase_03_cloudinit` — VM ip/name embedded in `wait_ssh` calls
+  inside double quotes. Changed to use `shlex.quote()` on both.
+- **XSS (MEDIUM)**: `broodforge_dashboard._remediation_card()` — onclick handlers used `_e(raw_pid)`
+  (HTML entity escaping) in JavaScript string context. HTML entities are decoded before JS parsing,
+  allowing injection. Fixed: `pid_js = json.dumps(raw_pid)` (proper JS string literal).
+
+**Tests: 3958 passed, 37 skipped** (+1 injection-safety test).
+
 ---
 
 ### Audit round 13 — Cycles 1–5 (completed)

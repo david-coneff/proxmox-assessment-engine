@@ -376,14 +376,16 @@ def _remediation_card(p: dict) -> str:
     ts    = _e((p.get("proposed_at") or "")[:16])
     raw_pid = p.get("proposal_id", "")
 
+    # json.dumps produces a properly JS-escaped string literal (handles quotes, backslashes)
+    pid_js = json.dumps(raw_pid)
     approve_btn = (
         f'<button class="btn-approve" '
-        f'onclick="approveProposal(\'{_e(raw_pid)}\',this)">'
+        f'onclick="approveProposal({pid_js},this)">'
         f'Approve</button>'
     )
     reject_btn = (
         f'<button class="btn-reject" '
-        f'onclick="rejectProposal(\'{_e(raw_pid)}\',this)">'
+        f'onclick="rejectProposal({pid_js},this)">'
         f'Reject</button>'
     )
     kp_badge = '<span class="kp-badge">🔑 KeePass</span>' if kp else ""
