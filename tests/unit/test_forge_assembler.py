@@ -91,9 +91,21 @@ class TestForgeScripts:
         s = _fs.generate_phase_02_sh(_manifest())
         assert "forge_validator" in s
 
+    def test_phase_02_no_file_dunder_in_heredoc(self):
+        # __file__ is undefined in python3 - <<'PYEOF' heredocs; must use SCRIPT_DIR env.
+        # Check that the Python code uses os.environ.get("SCRIPT_DIR") not __file__.
+        s = _fs.generate_phase_02_sh(_manifest())
+        assert "os.environ" in s and "SCRIPT_DIR" in s
+        assert 'abspath(__file__)' not in s
+
     def test_phase_02_blocks_on_red(self):
         s = _fs.generate_phase_02_sh(_manifest())
         assert "sys.exit(1)" in s
+
+    def test_phase_03_no_file_dunder_in_heredoc(self):
+        # Phase 03 passphrase suggestion heredoc must not use __file__ (undefined in stdin mode).
+        s = _fs.generate_phase_03_sh(_manifest())
+        assert 'abspath(__file__)' not in s
 
     def test_phase_03_hostname_set(self):
         s = _fs.generate_phase_03_sh(_manifest())

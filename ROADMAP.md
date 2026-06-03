@@ -1270,7 +1270,7 @@ never needs to ask the operator what is already taken.
       - k3s join token embedded in Ansible role vars (from spawn manifest)
 
 - [x] 12.E.6: **Spawn scripts** — generated shell scripts using the same
-      checkpoint/failure-package/ODS-update library as recovery scripts.
+      checkpoint/failure-package/workbook-update library as recovery scripts.
       All scripts read from spawn-plan.json; bridge names, pool names, and IPs
       are consistent across phases because phase-00 creates what later phases reference.
 
@@ -1345,7 +1345,7 @@ never needs to ask the operator what is already taken.
 
 - [x] 12.E.7: **Spawn package assembler** (`proxmox-bootstrap/assemble-spawn-package.py`) —
       bundles spawn-manifest.json, spawn-plan-{hostname}.json, generated scripts,
-      OpenTofu tfvars, Cloud-Init snippets, Ansible additions, spawn workbook ODS,
+      OpenTofu tfvars, Cloud-Init snippets, Ansible additions, spawn workbook HTML,
       and the shared script library into:
       `spawn-package-{cell_id}-{hostname}-{YYYY-MM-DD_HH_MM_SS}.tar.gz`
       The package is self-contained and offline-capable: the broodling does not need
@@ -1362,7 +1362,7 @@ never needs to ask the operator what is already taken.
       In autonomous mode, this is the only prompt before fully automated execution.
       In interactive mode, this gate is followed by the service selection prompt.
 
-- [x] 12.E.8: **Spawn workbook** (ODS) — embedded in the spawn package; tracks
+- [x] 12.E.8: **Spawn workbook** (HTML) — embedded in the spawn package; tracks
       each phase with the same checkpoint/status/timestamp/validation pattern as
       the recovery workbook:
       - Sheets: Overview, Discovery, Storage, Network, Proxmox-Join, VMs, k3s-Join, Validation

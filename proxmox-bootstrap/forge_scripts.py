@@ -294,7 +294,8 @@ if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_start "$step"
   python3 - <<'PYEOF'
 import json, sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxmox-bootstrap"))
+# __file__ is undefined in heredoc stdin mode; use $SCRIPT_DIR (set by the calling shell).
+sys.path.insert(0, os.path.join(os.environ.get("SCRIPT_DIR", "."), "proxmox-bootstrap"))
 from forge_validator import validate_forge_hardware, is_forge_valid, summarise_forge_findings
 
 try:
@@ -338,7 +339,8 @@ NETWORK_PROFILE="{profile}"
 # The suggestion is shown ONCE and is never stored by broodforge.
 python3 - >/dev/tty 2>/dev/null <<'SUGGEST_EOF'
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+# __file__ is undefined in heredoc stdin mode; use $SCRIPT_DIR (set by the calling shell).
+sys.path.insert(0, os.path.join(os.environ.get("SCRIPT_DIR", "."), "lib"))
 try:
     from passphrase import generate_master_password_suggestion
     suggestion, source = generate_master_password_suggestion()

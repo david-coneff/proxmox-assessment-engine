@@ -5,6 +5,11 @@ Date: 2026-06-02 UTC (updated from v7.0 — adds Hatchery/Stargate/Phase 12.E sp
 Status: Current
 Supersedes: v7.0 (2026-05-31), v6.0, v5.0, v4.0 (all retired to deprecated/)
 
+> **Note (2026-06-03):** References to ODS/ODT workbooks and `ods-update.sh` throughout
+> this document describe an earlier design. The active codebase generates HTML documents
+> only; ODS/ODT renderers are preserved in `doc-gen/renderers/deprecated/` for reference.
+> ARCHITECTURE.md AD-055 captures this change.
+
 ---
 
 ## 1. Foundational Philosophy
