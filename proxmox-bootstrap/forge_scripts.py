@@ -402,9 +402,9 @@ topo = "mirror" if n == 2 else ("raidz1" if n <= 5 else ("raidz2" if n <= 8 else
 if n == 1: topo = ""  # stripe
 cmd = ["zpool", "create", "-f", "rpool"] + ([topo] if topo else []) + disk_devs
 print(f"[phase-03] Creating ZFS pool: " + " ".join(cmd))
-subprocess.run(cmd, check=True)
+subprocess.run(cmd, check=True, timeout=300)
 subprocess.run(["pvesm", "add", "zfspool", "local-zfs",
-                "--pool", "rpool/data", "--sparse", "1"], check=False)
+                "--pool", "rpool/data", "--sparse", "1"], check=False, timeout=30)
 PYEOF
   checkpoint_done "$step"
 fi

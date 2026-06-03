@@ -63,17 +63,19 @@ cat forge-manifest.json
 On your **workstation**, generate the self-contained forge package:
 
 ```bash
-bash forge-pack.sh --manifest forge-manifest.json
+python3 proxmox-bootstrap/assemble-forge-package.py --manifest forge-manifest.json
 ```
 
-This produces:
+This produces a package in the current directory:
 ```
-dist/forge-package-{cell_id}-{timestamp}.tar.gz
+forge-package-{cell_id}-{timestamp}.tar.gz
 ```
 
 To embed the KeePass database in the package (convenient for offline use):
 ```bash
-bash forge-pack.sh --manifest forge-manifest.json --embed-kdbx /path/to/keepass.kdbx
+python3 proxmox-bootstrap/assemble-forge-package.py \
+    --manifest forge-manifest.json \
+    --kdbx /path/to/keepass.kdbx
 ```
 
 **Security note:** The forge package never contains secret values — only KeePass paths
@@ -85,7 +87,7 @@ unlock. Without the database, the KeePass gate will prompt for the path at runti
 ## Step 3 — Copy the forge package to the target host
 
 ```bash
-scp dist/forge-package-*.tar.gz root@<hatchery-ip>:/root/
+scp forge-package-*.tar.gz root@<hatchery-ip>:/root/
 ```
 
 ---

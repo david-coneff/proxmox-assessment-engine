@@ -1,7 +1,7 @@
 # Broodforge — Roadmap
 
 Version: 7.1
-Last updated: 2026-06-03 (audit round 10: subprocess timeouts, stale doc refs)
+Last updated: 2026-06-03 (audit round 10: subprocess timeouts, drill outcome bugs, schema gap, doc mismatches)
 Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
 
 ---
@@ -129,6 +129,19 @@ Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
           collect_tier2.py SSH timeout=30, remediation_executor.py timeout=300,
           setup_ddns.py lexicon timeout=30.
       Tests: 3781 passed, 4 skipped.
+- [x] **Full-stack audit findings (round 10)** — 8 fixes (Cycles 1–4):
+      Cycle 1 — S1: 5 subprocess timeouts (backup.py git remote, forge_keepass_init.py bash
+          loop, init-bootstrap-state.py wizard spawn); D1: NODE-SPAWNING.md stale ODS ref fixed.
+      Cycle 2 — I1: bootstrap-state-schema.json security_scan property added; S1: silent
+          exception in analyze_all_unanalyzed() now prints warning; D1/D2: RECONSTRUCTION-DRILL.md
+          CLI examples replaced (removed fake --mode/--record-manual flags); readiness.py
+          docstring corrected (removed false "last scan overdue" claim).
+      Cycle 3 — I1: reconstruction-drill.py complete gains --gaps argument; RECONSTRUCTION-DRILL.md
+          updated with --gaps example.
+      Cycle 4 — B1: _score_reconstruction_drill() handles in_progress drills (YELLOW);
+          B2: reconstruction-drill.py complete outcome choices fixed (success/partial/failed/aborted);
+          B3: partial outcome now correctly scored as ORANGE.
+      Tests: 3780 passed, 6 skipped.
 - [x] **Full-stack audit findings (round 3)** — all MEDIUM and LOW items resolved:
       S1: secrets.compare_digest in hatchery_receiver; I1: security scan wired into operational;
       I2: 9.T migration tier (above); S2: no-token startup warning in dashboard;

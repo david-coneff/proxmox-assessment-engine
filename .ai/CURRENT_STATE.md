@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-06-03 UTC (audit round 10 — cycles 1+2: timeouts, schema gap, doc/code mismatch)
+Last updated: 2026-06-03 UTC (audit round 10 — cycles 1–4: timeouts, schema gap, doc/code mismatch, drill outcome bugs)
 
 ## Active Architecture: v7.1
 
@@ -14,13 +14,10 @@ Digital Twin + Federation, and Autonomous Operations (Phase 26 — all sub-phase
 
 ## Next Action
 
-**All audit findings resolved** (2026-06-02 round 3). MEDIUM and LOW findings fixed:
-S1 (timing-safe token), I1 (security scan operational wiring), I2 (9.T migration tier),
-S2/S3 (WAN/token warnings), S4/I4 (--verbose + logging), S5 (collector_utils shared runner),
-I3 (DASHBOARD_VERSION 7.1). Tests: 3732 passed, 4 skipped.
-
-**9.T migration tier (9.T.9–9.T.11) implemented**: migrate_k3s_lib.py, migrate-k3s-to-talos.py,
-migrate-k3s-to-ubuntu.py, migration_history schema, 48 tests.
+**All audit findings resolved through round 11 cycle 1** (2026-06-03).
+Audit rounds 3–11 complete. Latest fixes: FORGING.md forge-pack.sh → assemble-forge-package.py,
+forge_scripts.py heredoc subprocess timeouts, ROADMAP/CURRENT_STATE sync.
+Tests: 3909 passed, 37 skipped (including all pre-existing env failures as expected).
 
 All roadmap items complete. Next: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py`
 on a Proxmox host to forge the first cell. See FORGING.md for operator runbook.
