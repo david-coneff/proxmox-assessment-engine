@@ -1,8 +1,37 @@
 # Session Handoff
 
-Last updated: 2026-06-02 UTC
+Last updated: 2026-06-03 UTC
 
 ## What Was Done This Session (current)
+
+### Audit round 9 — Round 1 fixes complete, Round 2 in progress
+
+**Already-done (verified):** S1 (tty print), S2 (RESTIC_PASSWORD scope), S3 (auth key not printed),
+D1/I4 (reconstruction-drill.py CLI), I2 (migration git commit), I5 (collector_utils import),
+A2 (no private alias in collectors), I3 implementation (_score_migration_health wired).
+
+**Fixed in round 9:**
+
+**A1:** Copied `doc-gen/renderers/html_base.py` to `proxmox-bootstrap/html_base.py`.
+Removed sys.path.insert blocks from all 4 workbook modules:
+`html_forge_workbook.py`, `html_phoenix_workbook.py`, `html_spawn_workbook.py`, `federation_docs.py`.
+These files now import `from html_base import (...)` directly without path manipulation.
+
+**I1 (test coverage):** Created `tests/unit/test_hatchery_receiver_wiring.py` (16 tests) covering:
+- `build_spawn_result` + `update_state_after_spawn` round-trip (the exact chain called by hatchery_receiver)
+- `_ReceiverHandler.do_POST` routes `/api/spawn-complete` to `_handle_spawn_complete`
+- Generated `phase-06-verify.sh` contains `HATCHERY_URL` + `api/spawn-complete` POST
+
+**I3 (test coverage):** Added `TestScoreMigrationHealth` (6 tests) to `test_readiness.py`.
+Imports `_score_migration_health` from readiness. Covers: empty→[], failed→ORANGE,
+rolled_back→YELLOW, completed→[], mixed→both, multiple-failed→multiple ORANGE.
+
+**D2:** Updated `update_state_after_spawn.py` docstring (line 14–16) to remove false claim
+that the caller commits to Forgejo. Now correctly describes the responsibility split.
+
+**Tests: 3781 passed, 4 skipped** (commit: 9ec1c3d)
+
+---
 
 ### Comprehensive audit round (final) — 4 findings fixed
 

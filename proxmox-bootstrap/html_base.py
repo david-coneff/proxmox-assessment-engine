@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# COPY of doc-gen/renderers/html_base.py — keep in sync when editing either file.
 """
 html_base.py — Shared HTML rendering infrastructure for broodforge documents.
 

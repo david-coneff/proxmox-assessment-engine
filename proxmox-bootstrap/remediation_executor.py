@@ -105,6 +105,7 @@ class RemediationExecutor:
             capture_output=True,
             text=True,
             cwd=cwd or ".",
+            timeout=300,
         )
         return result.returncode, result.stdout, result.stderr
 

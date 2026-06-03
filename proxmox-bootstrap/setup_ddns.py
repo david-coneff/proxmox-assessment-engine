@@ -252,7 +252,7 @@ def update_via_lexicon(token, ip):
     result = subprocess.run(
         ["lexicon", DNS_PROVIDER, "update", DNS_ZONE, "A",
          "--name", DNS_RECORD, "--content", ip],
-        env=env, capture_output=True, text=True
+        env=env, capture_output=True, text=True, timeout=30,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip())

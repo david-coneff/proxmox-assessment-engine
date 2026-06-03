@@ -77,6 +77,7 @@ class SSHClient:
             cmd,
             capture_output=True,
             text=True,
+            timeout=30,
         )
         if result.returncode != 0:
             raise RuntimeError(
