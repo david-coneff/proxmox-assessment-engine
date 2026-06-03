@@ -32,6 +32,7 @@ Stdlib only.
 
 import argparse
 import hashlib
+import html as _html
 import http.server
 import json
 import os
@@ -45,6 +46,10 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
+
+def _e(text: object) -> str:
+    """HTML-escape a value from bootstrap-state or external data."""
+    return _html.escape(str(text) if text is not None else "")
 
 
 # ---------------------------------------------------------------------------
@@ -304,22 +309,22 @@ def _score_badge(abbr: str, level: str) -> str:
 
 
 def _node_card(node: dict) -> str:
-    hostname = node.get("hostname", "unknown")
-    role     = node.get("role", "")
-    ip       = node.get("ip", "")
+    hostname = _e(node.get("hostname", "unknown"))
+    role     = _e(node.get("role", ""))
+    ip       = _e(node.get("ip", ""))
     status   = node.get("status", "unknown")
     disp     = node.get("disposition") or {}
     services = disp.get("services", [])
     status_color = "#a6e3a1" if status == "running" else "#f38ba8" if status == "error" else "#f9e2af"
     svc_html = "".join(
-        f'<span class="svc-badge">{s}</span>' for s in services[:8]
+        f'<span class="svc-badge">{_e(s)}</span>' for s in services[:8]
     ) if services else '<span style="color:var(--muted);font-size:.8em">No declared services</span>'
     return f"""
 <div class="node-card">
   <div class="node-header">
     <span class="node-hostname">{hostname}</span>
     <span class="node-role">{role}</span>
-    <span class="node-status" style="color:{status_color}">{status}</span>
+    <span class="node-status" style="color:{status_color}">{_e(status)}</span>
   </div>
   <div class="node-ip"><code>{ip}</code></div>
   <div class="node-services">{svc_html}</div>
@@ -327,12 +332,12 @@ def _node_card(node: dict) -> str:
 
 
 def _failure_row(pkg: dict) -> str:
-    fname    = pkg.get("filename", "unknown")
+    fname    = _e(pkg.get("filename", "unknown"))
     recv     = pkg.get("received_at", "")
     analyzed = pkg.get("analyzed", False)
-    etype    = pkg.get("error_type", "")
-    phase    = pkg.get("failed_phase", "")
-    host     = pkg.get("broodling_host", "")
+    etype    = _e(pkg.get("error_type", ""))
+    phase    = _e(pkg.get("failed_phase", ""))
+    host     = _e(pkg.get("broodling_host", ""))
     dot_color = "#a6e3a1" if analyzed else "#f9e2af"
     detail   = f"<code>{phase}</code> · <code>{etype}</code>" if etype else ""
     return f"""
@@ -341,7 +346,7 @@ def _failure_row(pkg: dict) -> str:
   <td><code style="font-size:.82em">{fname}</code></td>
   <td>{host}</td>
   <td>{detail}</td>
-  <td style="color:var(--muted);font-size:.82em">{recv[:19] if recv else '—'}</td>
+  <td style="color:var(--muted);font-size:.82em">{_e(recv[:19]) if recv else '—'}</td>
   <td>{'<span style="color:var(--green)">✓ analyzed</span>' if analyzed else '<span style="color:var(--yellow)">pending</span>'}</td>
 </tr>"""
 
@@ -349,31 +354,32 @@ def _failure_row(pkg: dict) -> str:
 def _remediation_card(p: dict) -> str:
     sev   = p.get("severity", "YELLOW")
     sev_c = {"RED": "var(--red)", "ORANGE": "var(--orange)", "YELLOW": "var(--yellow)"}.get(sev, "var(--muted)")
-    pid   = p.get("proposal_id", "")[:8]
-    atype = p.get("action_type", "")
-    target= p.get("target", "")
-    desc  = p.get("action_description", "")
-    rev   = p.get("reversibility", "")
+    pid   = _e(p.get("proposal_id", "")[:8])
+    atype = _e(p.get("action_type", ""))
+    target= _e(p.get("target", ""))
+    desc  = _e(p.get("action_description", ""))
+    rev   = _e(p.get("reversibility", ""))
     kp    = p.get("keepass_gated", False)
     status= p.get("status", "proposed")
-    ts    = (p.get("proposed_at") or "")[:16]
+    ts    = _e((p.get("proposed_at") or "")[:16])
+    raw_pid = p.get("proposal_id", "")
 
     approve_btn = (
         f'<button class="btn-approve" '
-        f'onclick="approveProposal(\'{p.get("proposal_id","")}\',this)">'
+        f'onclick="approveProposal(\'{_e(raw_pid)}\',this)">'
         f'Approve</button>'
     )
     reject_btn = (
         f'<button class="btn-reject" '
-        f'onclick="rejectProposal(\'{p.get("proposal_id","")}\',this)">'
+        f'onclick="rejectProposal(\'{_e(raw_pid)}\',this)">'
         f'Reject</button>'
     )
     kp_badge = '<span class="kp-badge">🔑 KeePass</span>' if kp else ""
 
     return f"""
-<div class="rem-card" data-id="{p.get('proposal_id','')}">
+<div class="rem-card" data-id="{_e(raw_pid)}">
   <div class="rem-header">
-    <span class="rem-sev" style="color:{sev_c};border-color:{sev_c}">{sev}</span>
+    <span class="rem-sev" style="color:{sev_c};border-color:{sev_c}">{_e(sev)}</span>
     <span class="rem-type">{atype}</span>
     <code class="rem-target">{target}</code>
     {kp_badge}
