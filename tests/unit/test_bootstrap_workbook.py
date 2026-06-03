@@ -1,33 +1,28 @@
 #!/usr/bin/env python3
 """
-Tests for doc-gen/renderers/deprecated/workbook.py — build_bootstrap_workbook().
+Tests for bootstrap workbook registry helpers and HTML workbook generation.
 
-NOTE: workbook.py (ODS) is deprecated. The active output format is HTML via
-html_bootstrap.py. This test is preserved because the registry-lookup helpers
-(_registry_ip_for_bootstrap_vm, _registry_iso_path) contain tested logic.
+Covers:
+  - registry_ip_for_bootstrap_vm(): DNS registry lookup for infra-bootstrap VM
+  - registry_iso_path(): ISO path derivation from base_images + storage_config
+  - build_bootstrap_workbook_html(): Stage 03 pre-population from registries
 
-Verifies that Stage 03 fields are pre-populated from the DNS and template
-registries when bootstrap-state.json data is available in the manifest, and
-fall back to HUMAN prompts when registries are absent.
+NOTE: The ODS workbook (workbook.py) is deprecated. Tests now use
+html_bootstrap.py — the active output format.
 """
 
-import io
 import sys
 import unittest
-import zipfile
 from pathlib import Path
 
-# Ensure doc-gen and doc-gen/renderers are importable
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
 sys.path.insert(0, str(REPO_ROOT / "doc-gen" / "renderers"))
-# workbook.py is deprecated — now lives in renderers/deprecated/
-sys.path.insert(0, str(REPO_ROOT / "doc-gen" / "renderers" / "deprecated"))
 
-from workbook import (
-    build_bootstrap_workbook,
-    _registry_ip_for_bootstrap_vm,
-    _registry_iso_path,
+from html_bootstrap import (
+    registry_ip_for_bootstrap_vm,
+    registry_iso_path,
+    build_bootstrap_workbook_html,
 )
 
 
@@ -69,49 +64,44 @@ FULL_MANIFEST = {
     "bootstrap_state_storage": STORAGE_CONFIG,
 }
 
-EMPTY_RESOLVED = {}
-EMPTY_META = {"field_counts": {"AUTO": 0, "DERIVED": 0, "HUMAN": 0, "UNRESOLVED": 0}}
-
-
-def _extract_content_xml(ods_bytes: bytes) -> str:
-    """Extract content.xml text from an ODS byte stream."""
-    buf = io.BytesIO(ods_bytes)
-    with zipfile.ZipFile(buf, "r") as zf:
-        return zf.read("content.xml").decode("utf-8")
+META = {
+    "generated_at": "2026-06-01T00:00:00Z",
+    "generated_at_display": "2026-06-01 00:00:00 UTC",
+}
 
 
 # ---------------------------------------------------------------------------
-# _registry_ip_for_bootstrap_vm
+# registry_ip_for_bootstrap_vm
 # ---------------------------------------------------------------------------
 
 class TestRegistryIpForBootstrapVm(unittest.TestCase):
 
     def test_returns_ip_by_role(self):
         manifest = {"dns_registry": DNS_ENTRIES}
-        self.assertEqual(_registry_ip_for_bootstrap_vm(manifest), "192.168.1.20")
+        self.assertEqual(registry_ip_for_bootstrap_vm(manifest), "192.168.1.20")
 
     def test_returns_ip_by_hostname_prefix(self):
         entries = [{"hostname": "infra-bootstrap.internal", "ip": "10.0.0.5",
                     "vmid": None, "role": "other"}]
         manifest = {"dns_registry": entries}
-        self.assertEqual(_registry_ip_for_bootstrap_vm(manifest), "10.0.0.5")
+        self.assertEqual(registry_ip_for_bootstrap_vm(manifest), "10.0.0.5")
 
     def test_fallback_to_vmid_100(self):
         entries = [{"hostname": "bootstrap.internal", "ip": "10.0.0.9",
                     "vmid": 100, "role": "custom-role"}]
         manifest = {"dns_registry": entries}
-        self.assertEqual(_registry_ip_for_bootstrap_vm(manifest), "10.0.0.9")
+        self.assertEqual(registry_ip_for_bootstrap_vm(manifest), "10.0.0.9")
 
     def test_returns_none_when_no_registry(self):
-        self.assertIsNone(_registry_ip_for_bootstrap_vm({}))
+        self.assertIsNone(registry_ip_for_bootstrap_vm({}))
 
     def test_returns_none_when_empty_registry(self):
-        self.assertIsNone(_registry_ip_for_bootstrap_vm({"dns_registry": []}))
+        self.assertIsNone(registry_ip_for_bootstrap_vm({"dns_registry": []}))
 
     def test_returns_none_when_no_matching_entry(self):
         entries = [{"hostname": "forgejo.internal", "ip": "192.168.1.21",
                     "vmid": 101, "role": "forgejo"}]
-        self.assertIsNone(_registry_ip_for_bootstrap_vm({"dns_registry": entries}))
+        self.assertIsNone(registry_ip_for_bootstrap_vm({"dns_registry": entries}))
 
     def test_skips_entry_with_no_ip(self):
         entries = [
@@ -120,25 +110,24 @@ class TestRegistryIpForBootstrapVm(unittest.TestCase):
             {"hostname": "infra-bootstrap-v2.internal", "ip": "10.0.0.99",
              "vmid": 200, "role": "infra-bootstrap"},
         ]
-        # First entry has no IP — should fall through to second
-        result = _registry_ip_for_bootstrap_vm({"dns_registry": entries})
+        result = registry_ip_for_bootstrap_vm({"dns_registry": entries})
         self.assertEqual(result, "10.0.0.99")
 
 
 # ---------------------------------------------------------------------------
-# _registry_iso_path
+# registry_iso_path
 # ---------------------------------------------------------------------------
 
 class TestRegistryIsoPath(unittest.TestCase):
 
     def test_builds_path_from_base_image_and_storage(self):
         manifest = {"base_images": BASE_IMAGES, "bootstrap_state_storage": STORAGE_CONFIG}
-        self.assertEqual(_registry_iso_path(manifest),
+        self.assertEqual(registry_iso_path(manifest),
                          "local:iso/ubuntu-22.04.4-live-server-amd64.iso")
 
     def test_defaults_isos_store_when_storage_config_absent(self):
         manifest = {"base_images": BASE_IMAGES}
-        result = _registry_iso_path(manifest)
+        result = registry_iso_path(manifest)
         self.assertEqual(result, "local:iso/ubuntu-22.04.4-live-server-amd64.iso")
 
     def test_uses_storage_config_key(self):
@@ -146,94 +135,70 @@ class TestRegistryIsoPath(unittest.TestCase):
             "base_images": BASE_IMAGES,
             "bootstrap_state_storage": {"isos": "cephfs:iso"},
         }
-        self.assertEqual(_registry_iso_path(manifest),
+        self.assertEqual(registry_iso_path(manifest),
                          "cephfs:iso/ubuntu-22.04.4-live-server-amd64.iso")
 
     def test_returns_none_when_no_base_images(self):
-        self.assertIsNone(_registry_iso_path({}))
-        self.assertIsNone(_registry_iso_path({"base_images": []}))
+        self.assertIsNone(registry_iso_path({}))
+        self.assertIsNone(registry_iso_path({"base_images": []}))
 
     def test_returns_none_when_source_iso_missing(self):
         manifest = {"base_images": [{"name": "ubuntu-2204-base"}]}
-        self.assertIsNone(_registry_iso_path(manifest))
+        self.assertIsNone(registry_iso_path(manifest))
 
 
 # ---------------------------------------------------------------------------
-# build_bootstrap_workbook — Stage 03 registry pre-population
+# build_bootstrap_workbook_html — Stage 03 registry pre-population
 # ---------------------------------------------------------------------------
 
-class TestBuildBootstrapWorkbookStage03(unittest.TestCase):
+class TestHtmlBootstrapWorkbookStage03(unittest.TestCase):
 
-    def _content(self, manifest):
-        ods = build_bootstrap_workbook(manifest, EMPTY_RESOLVED, EMPTY_META)
-        return _extract_content_xml(ods)
+    def _html(self, manifest):
+        return build_bootstrap_workbook_html(manifest, META)
 
-    def test_returns_valid_ods_bytes_with_full_manifest(self):
-        ods = build_bootstrap_workbook(FULL_MANIFEST, EMPTY_RESOLVED, EMPTY_META)
-        self.assertIsInstance(ods, bytes)
-        self.assertTrue(len(ods) > 0)
-        buf = io.BytesIO(ods)
-        with zipfile.ZipFile(buf, "r") as zf:
-            self.assertIn("content.xml", zf.namelist())
+    def test_returns_valid_html(self):
+        html = self._html(FULL_MANIFEST)
+        self.assertIn("<!DOCTYPE html>", html)
+        self.assertIn("</html>", html)
 
     def test_ip_pre_populated_from_dns_registry(self):
-        content = self._content(FULL_MANIFEST)
-        self.assertIn("192.168.1.20", content)
-
-    def test_ip_field_class_is_auto_when_registry_present(self):
-        content = self._content(FULL_MANIFEST)
-        # AUTO class means the field was populated from the registry
-        self.assertIn("[AUTO]", content)
+        html = self._html(FULL_MANIFEST)
+        self.assertIn("192.168.1.20", html)
 
     def test_iso_path_pre_populated_from_template_registry(self):
-        content = self._content(FULL_MANIFEST)
-        self.assertIn("local:iso/ubuntu-22.04.4-live-server-amd64.iso", content)
+        html = self._html(FULL_MANIFEST)
+        self.assertIn("ubuntu-22.04.4-live-server-amd64.iso", html)
 
-    def test_iso_field_class_is_derived_when_registry_present(self):
-        content = self._content(FULL_MANIFEST)
-        self.assertIn("[DERIVED]", content)
+    def test_ssh_check_uses_real_ip(self):
+        html = self._html(FULL_MANIFEST)
+        self.assertIn("ssh ubuntu@192.168.1.20", html)
+        self.assertNotIn("ssh ubuntu@[VM_IP]", html)
 
-    def test_ssh_checkpoint_uses_real_ip(self):
-        content = self._content(FULL_MANIFEST)
-        self.assertIn("ssh ubuntu@192.168.1.20", content)
-        self.assertNotIn("ssh ubuntu@[VM_IP]", content)
-
-    def test_qm_create_note_references_ip(self):
-        content = self._content(FULL_MANIFEST)
-        self.assertIn("192.168.1.20", content)
-        self.assertNotIn("Replace [VM_IP]", content)
-
-    # Fallback behaviour when registries absent
-
-    def test_ip_falls_back_to_human_field_without_registry(self):
-        content = self._content(MINIMAL_MANIFEST)
-        self.assertIn("[HUMAN]", content)
-
-    def test_ssh_checkpoint_uses_placeholder_without_registry(self):
-        content = self._content(MINIMAL_MANIFEST)
-        self.assertIn("[VM_IP]", content)
-
-    def test_iso_falls_back_to_human_field_without_registry(self):
-        content = self._content(MINIMAL_MANIFEST)
-        # HUMAN field should appear for ISO path
-        self.assertIn("[HUMAN]", content)
+    def test_fallback_to_placeholder_without_registry(self):
+        html = self._html(MINIMAL_MANIFEST)
+        self.assertIn("[VM_IP]", html)
 
     def test_no_crash_with_empty_dns_registry(self):
         manifest = {**MINIMAL_MANIFEST, "dns_registry": []}
-        ods = build_bootstrap_workbook(manifest, EMPTY_RESOLVED, EMPTY_META)
-        self.assertIsInstance(ods, bytes)
+        html = self._html(manifest)
+        self.assertIn("<!DOCTYPE html>", html)
 
     def test_no_crash_with_empty_base_images(self):
         manifest = {**MINIMAL_MANIFEST, "base_images": []}
-        ods = build_bootstrap_workbook(manifest, EMPTY_RESOLVED, EMPTY_META)
-        self.assertIsInstance(ods, bytes)
+        html = self._html(manifest)
+        self.assertIn("<!DOCTYPE html>", html)
+
+    def test_stage_03_section_present(self):
+        html = self._html(FULL_MANIFEST)
+        self.assertIn("Stage 03", html)
 
     def test_partial_registry_dns_only(self):
         manifest = {**MINIMAL_MANIFEST, "dns_registry": DNS_ENTRIES}
-        content = self._content(manifest)
-        # IP populated, ISO still HUMAN
-        self.assertIn("192.168.1.20", content)
-        self.assertIn("[HUMAN]", content)
+        html = self._html(manifest)
+        # IP pre-populated from registry
+        self.assertIn("192.168.1.20", html)
+        # No base_images → no ISO path rendered
+        self.assertNotIn("ubuntu-22.04.4", html)
 
     def test_partial_registry_templates_only(self):
         manifest = {
@@ -241,32 +206,17 @@ class TestBuildBootstrapWorkbookStage03(unittest.TestCase):
             "base_images": BASE_IMAGES,
             "bootstrap_state_storage": STORAGE_CONFIG,
         }
-        content = self._content(manifest)
-        # ISO populated, IP still [VM_IP]
-        self.assertIn("local:iso/ubuntu-22.04.4-live-server-amd64.iso", content)
-        self.assertIn("[VM_IP]", content)
+        html = self._html(manifest)
+        self.assertIn("ubuntu-22.04.4-live-server-amd64.iso", html)
+        self.assertIn("[VM_IP]", html)
 
+    def test_checkboxes_present(self):
+        html = self._html(FULL_MANIFEST)
+        self.assertIn('type="checkbox"', html)
 
-# ---------------------------------------------------------------------------
-# build_bootstrap_workbook — ODS structure integrity
-# ---------------------------------------------------------------------------
-
-class TestBuildBootstrapWorkbookStructure(unittest.TestCase):
-
-    def test_ods_contains_required_sheets(self):
-        ods = build_bootstrap_workbook(MINIMAL_MANIFEST, EMPTY_RESOLVED, EMPTY_META)
-        content = _extract_content_xml(ods)
-        self.assertIn("Stage 01", content)
-        self.assertIn("Stage 02", content)
-        self.assertIn("Stage 03", content)
-        self.assertIn("Generation Report", content)
-
-    def test_ods_mimetype_is_correct(self):
-        ods = build_bootstrap_workbook(MINIMAL_MANIFEST, EMPTY_RESOLVED, EMPTY_META)
-        buf = io.BytesIO(ods)
-        with zipfile.ZipFile(buf, "r") as zf:
-            mimetype = zf.read("mimetype")
-        self.assertEqual(mimetype, b"application/vnd.oasis.opendocument.spreadsheet")
+    def test_self_contained(self):
+        html = self._html(FULL_MANIFEST)
+        self.assertNotIn("cdn.", html)
 
 
 if __name__ == "__main__":

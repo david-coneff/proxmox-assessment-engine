@@ -581,7 +581,10 @@ def main(argv=None):
           f"({summary['base_images_total']} total)")
 
     # Build service-state document from declared contracts + observed VMs
-    sys.path.insert(0, str(REPO_ROOT / "doc-gen"))
+    # doc-gen is a sibling directory; idempotent insert.
+    _doc_gen_path = str(REPO_ROOT / "doc-gen")
+    if _doc_gen_path not in sys.path:
+        sys.path.insert(0, _doc_gen_path)
     try:
         from service_state_collector import collect_service_state
         service_state = collect_service_state(

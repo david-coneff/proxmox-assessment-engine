@@ -201,9 +201,51 @@ def _wb_section_backup(manifest: dict) -> str:
     return section("Backup Configuration", parts, open_=False)
 
 
+def registry_ip_for_bootstrap_vm(manifest: dict) -> str | None:
+    """
+    Look up the IP for the infra-bootstrap VM from the DNS registry in manifest.
+    Returns the IP string if found, None otherwise.
+    Tries: role "infra-bootstrap", then hostname starting with "infra-bootstrap",
+    then VMID 100 as conventional fallback.
+    """
+    dns_entries = manifest.get("dns_registry") or []
+    for entry in dns_entries:
+        role = entry.get("role", "")
+        hostname = entry.get("hostname", "")
+        if role == "infra-bootstrap" or hostname.startswith("infra-bootstrap"):
+            ip = entry.get("ip") or entry.get("address")
+            if ip:
+                return ip
+    for entry in dns_entries:
+        try:
+            if int(entry.get("vmid", -1)) == 100:
+                ip = entry.get("ip") or entry.get("address")
+                if ip:
+                    return ip
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def registry_iso_path(manifest: dict) -> str | None:
+    """
+    Derive the Proxmox ISO path from the template registry and storage config.
+    Returns e.g. "local:iso/ubuntu-22.04.4-live-server-amd64.iso" or None.
+    """
+    base_images = manifest.get("base_images") or []
+    if not base_images:
+        return None
+    source_iso = base_images[0].get("source_iso") or base_images[0].get("path", "")
+    if not source_iso:
+        return None
+    storage_cfg = (manifest.get("bootstrap_state_storage")
+                   or manifest.get("storage_config") or {})
+    isos_store = storage_cfg.get("isos", "local:iso")
+    return f"{isos_store}/{source_iso}"
+
+
 def _wb_section_stage_03(manifest: dict) -> str:
     dns_reg = manifest.get("dns_registry") or []
-    templates = manifest.get("templates") or []
     base_images = manifest.get("base_images") or []
 
     items = [
@@ -212,6 +254,17 @@ def _wb_section_stage_03(manifest: dict) -> str:
         "dnsmasq configured and running",
         "Headscale installed and running (WAN profile only)",
     ]
+
+    # Infra-bootstrap VM IP from registry
+    bootstrap_ip = registry_ip_for_bootstrap_vm(manifest)
+    if bootstrap_ip:
+        items.append(f"Infra-bootstrap VM — IP: {_e(bootstrap_ip)}")
+        items.append(f"SSH check: ssh ubuntu@{_e(bootstrap_ip)} 'echo ok'")
+    else:
+        items.append("Infra-bootstrap VM — IP: [VM_IP] (populate dns-registry.yaml)")
+        items.append("SSH check: ssh ubuntu@[VM_IP] 'echo ok'")
+
+    # Per-VM IPs from dns_registry (all VMs)
     for vm in (manifest.get("vms") or []):
         ip = next(
             (e.get("ip") or e.get("address") for e in dns_reg
@@ -220,9 +273,14 @@ def _wb_section_stage_03(manifest: dict) -> str:
         )
         items.append(f"VM {_e(vm.get('name', '?'))} (VMID {vm.get('vmid', '?')}) — IP: {_e(str(ip))}")
 
-    iso_path = next((b.get("path") for b in base_images if b), None)
-    if iso_path:
-        items.append(f"Base ISO: {_e(iso_path)}")
+    # ISO path from template registry
+    iso = registry_iso_path(manifest)
+    if iso:
+        items.append(f"Base ISO: {_e(iso)}")
+    else:
+        iso_path = next((b.get("path") for b in base_images if b), None)
+        if iso_path:
+            items.append(f"Base ISO: {_e(iso_path)}")
 
     body = checkbox_list(items, id_prefix="stage03")
     return section("Stage 03 — VM Provisioning", body, open_=True)
