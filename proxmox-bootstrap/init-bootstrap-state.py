@@ -505,6 +505,7 @@ def main() -> None:
             subprocess.run(
                 [sys.executable, str(backup_wizard), "--bootstrap", str(out_path)],
                 check=False,
+                timeout=600,
             )
         else:
             print("  setup-external-backup.py not found — run it manually later.")

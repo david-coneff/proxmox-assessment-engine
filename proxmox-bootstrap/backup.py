@@ -442,17 +442,18 @@ def git_push_to_remote(
 
     # Set remote if not already set
     remotes_result = subprocess.run(
-        ["git", "remote"], capture_output=True, text=True, cwd=repo_path
+        ["git", "remote"], capture_output=True, text=True, cwd=repo_path,
+        timeout=10,
     )
     if "external-backup" not in remotes_result.stdout:
         subprocess.run(
             ["git", "remote", "add", "external-backup", remote_url],
-            cwd=repo_path, check=True,
+            cwd=repo_path, check=True, timeout=10,
         )
     else:
         subprocess.run(
             ["git", "remote", "set-url", "external-backup", remote_url],
-            cwd=repo_path, check=True,
+            cwd=repo_path, check=True, timeout=10,
         )
 
     result = subprocess.run(

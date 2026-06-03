@@ -1,7 +1,7 @@
 # Broodforge — Roadmap
 
 Version: 7.1
-Last updated: 2026-06-02 (9.T complete — all items 9.T.1–9.T.17 checked)
+Last updated: 2026-06-03 (audit round 10: subprocess timeouts, stale doc refs)
 Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
 
 ---

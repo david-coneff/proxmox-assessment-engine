@@ -531,7 +531,7 @@ The planner enforces a 90% RAM headroom limit:
 | `spawn_iac_generator.py` | Generates OpenTofu tfvars + Cloud-Init + Ansible |
 | `spawn_scripts.py` | Generates phase-00 through phase-06 bash scripts |
 | `assemble_spawn_package.py` | Bundles everything into a tar.gz |
-| `spawn_workbook.py` | Generates ODS tracking workbook |
+| `html_spawn_workbook.py` | Generates HTML tracking workbook |
 | `validate_spawn.py` | Conflict validator (VMID/IP/hostname/capacity) |
 | `hatchery_state.py` | Reads hatchery state → spawn manifest |
 | `update_state_after_spawn.py` | Merges broodling back into bootstrap-state.json |

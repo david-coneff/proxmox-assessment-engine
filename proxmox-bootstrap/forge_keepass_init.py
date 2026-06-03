@@ -383,6 +383,7 @@ if __name__ == "__main__":
             ["bash", "-c", cmd],
             capture_output=False,
             env={**os.environ, "KEEPASS_MASTER_PASSWORD": master_pw},
+            timeout=30,
         )
         if result.returncode != 0:
             print(f"[keepass-init] Command failed (exit {result.returncode}): {cmd[:80]}", file=sys.stderr)

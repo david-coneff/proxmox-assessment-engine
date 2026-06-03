@@ -4,6 +4,22 @@ Last updated: 2026-06-03 UTC
 
 ## What Was Done This Session (current)
 
+### Audit round 10 — Cycle 1: subprocess timeouts + stale doc refs
+
+**S1 — Missing subprocess timeouts (5 fixes):**
+- `backup.py:444` — `git remote` list: `timeout=10`
+- `backup.py:448` — `git remote add`: `timeout=10`
+- `backup.py:453` — `git remote set-url`: `timeout=10`
+- `forge_keepass_init.py:382` — keepassxc-cli bash loop: `timeout=30`
+- `init-bootstrap-state.py:505` — interactive setup wizard spawn: `timeout=600`
+
+**D1 — Stale doc ref:**
+- `NODE-SPAWNING.md:534`: `spawn_workbook.py` ODS → `html_spawn_workbook.py` HTML
+
+**Tests: 3779 passed, 6 skipped** (no change — fixes are non-test code)
+
+---
+
 ### Audit round 9 — Rounds 1 + 2 complete
 
 **Already-done (verified):** S1 (tty print), S2 (RESTIC_PASSWORD scope), S3 (auth key not printed),
