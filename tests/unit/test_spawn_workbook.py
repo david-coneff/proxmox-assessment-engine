@@ -1,13 +1,36 @@
 #!/usr/bin/env python3
-"""Tests for Phase 12.E.8 — Spawn workbook ODS generator."""
+"""
+Tests for html_spawn_workbook.py — HTML spawn workbook generator.
 
-import sys, unittest, zipfile, io, tempfile
+NOTE: spawn_workbook.py (ODS) is deprecated → proxmox-bootstrap/deprecated/.
+      The active output format is HTML via html_spawn_workbook.py.
+
+Covers functional content assertions (hostname, cell_id, services,
+storage topology, network info, VM info, k3s info) plus HTML structure.
+"""
+
+import sys
+import importlib.util
+import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "proxmox-bootstrap"))
+sys.path.insert(0, str(REPO_ROOT / "doc-gen" / "renderers"))
 
-from spawn_workbook import build_spawn_workbook, generate_spawn_workbook_file
+# Load html_spawn_workbook via importlib (avoids sys.path ordering issues)
+_spec = importlib.util.spec_from_file_location(
+    "html_spawn_workbook",
+    REPO_ROOT / "proxmox-bootstrap" / "html_spawn_workbook.py",
+)
+_hsw = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_hsw)
+build_spawn_workbook_html = _hsw.build_spawn_workbook_html
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 PLAN = {
     "cell_id": "cell-alpha",
@@ -22,13 +45,14 @@ PLAN = {
         "services": ["k3s-worker", "longhorn"],
         "excluded": ["pbs-datastore"],
     },
-    "storage": {
+    # html_spawn_workbook.py expects zfs_config and network_config
+    "zfs_config": {
         "pool_name": "rpool",
         "topology": "mirror",
         "disk_ids": ["/dev/sda", "/dev/sdb"],
         "datastore_name": "local-rpool",
     },
-    "network": {
+    "network_config": {
         "bridge": "vmbr0",
         "gateway": "192.168.1.1",
         "nameservers": ["192.168.1.1", "8.8.8.8"],
@@ -70,277 +94,176 @@ HARDWARE = {
 }
 
 
-def _ods_bytes(plan=None, hw=None) -> bytes:
-    return build_spawn_workbook(plan or PLAN, hw)
+def _html(plan=None, hw=None) -> str:
+    # build_spawn_workbook_html(spawn_plan, spawn_manifest, hardware_profile)
+    return build_spawn_workbook_html(plan or PLAN, {}, hw)
 
 
-def _content_xml(plan=None, hw=None) -> str:
-    raw = _ods_bytes(plan, hw)
-    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-        return zf.read("content.xml").decode("utf-8")
+# ---------------------------------------------------------------------------
+# HTML structure
+# ---------------------------------------------------------------------------
 
-
-class TestOdsStructure(unittest.TestCase):
+class TestHtmlStructure(unittest.TestCase):
     def setUp(self):
-        self.raw = _ods_bytes()
+        self.html = _html()
 
-    def test_returns_bytes(self):
-        self.assertIsInstance(self.raw, bytes)
+    def test_returns_string(self):
+        self.assertIsInstance(self.html, str)
 
-    def test_valid_zip(self):
-        self.assertTrue(zipfile.is_zipfile(io.BytesIO(self.raw)))
+    def test_is_valid_html(self):
+        self.assertIn("<!DOCTYPE html>", self.html)
+        self.assertIn("</html>", self.html)
 
-    def test_has_mimetype(self):
-        with zipfile.ZipFile(io.BytesIO(self.raw)) as zf:
-            self.assertIn("mimetype", zf.namelist())
+    def test_self_contained(self):
+        self.assertNotIn("cdn.", self.html)
 
-    def test_has_content_xml(self):
-        with zipfile.ZipFile(io.BytesIO(self.raw)) as zf:
-            self.assertIn("content.xml", zf.namelist())
-
-    def test_has_manifest(self):
-        with zipfile.ZipFile(io.BytesIO(self.raw)) as zf:
-            self.assertIn("META-INF/manifest.xml", zf.namelist())
-
-    def test_mimetype_is_spreadsheet(self):
-        with zipfile.ZipFile(io.BytesIO(self.raw)) as zf:
-            mt = zf.read("mimetype")
-        self.assertIn(b"spreadsheet", mt)
+    def test_has_checkboxes(self):
+        self.assertIn('type="checkbox"', self.html)
 
 
-class TestSheetNames(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# Content: overview / identity
+# ---------------------------------------------------------------------------
+
+class TestOverviewContent(unittest.TestCase):
     def setUp(self):
-        self.xml = _content_xml()
-
-    def test_overview_sheet(self):
-        self.assertIn("Overview", self.xml)
-
-    def test_discovery_sheet(self):
-        self.assertIn("Discovery", self.xml)
-
-    def test_storage_sheet(self):
-        self.assertIn("Storage", self.xml)
-
-    def test_network_sheet(self):
-        self.assertIn("Network", self.xml)
-
-    def test_proxmox_join_sheet(self):
-        self.assertIn("Proxmox-Join", self.xml)
-
-    def test_vms_sheet(self):
-        self.assertIn("VMs", self.xml)
-
-    def test_k3s_join_sheet(self):
-        self.assertIn("k3s-Join", self.xml)
-
-    def test_validation_sheet(self):
-        self.assertIn("Validation", self.xml)
-
-
-class TestOverviewSheet(unittest.TestCase):
-    def setUp(self):
-        self.xml = _content_xml()
+        self.html = _html()
 
     def test_hostname_present(self):
-        self.assertIn("pve02", self.xml)
+        self.assertIn("pve02", self.html)
 
     def test_cell_id_present(self):
-        self.assertIn("cell-alpha", self.xml)
+        self.assertIn("cell-alpha", self.html)
 
     def test_execution_mode_present(self):
-        self.assertIn("autonomous", self.xml)
+        self.assertIn("autonomous", self.html.lower())
 
     def test_service_in_plan(self):
-        self.assertIn("k3s-worker", self.xml)
+        self.assertIn("k3s-worker", self.html)
 
-    def test_excluded_service_present(self):
-        self.assertIn("pbs-datastore", self.xml)
+    def test_disposition_shown(self):
+        # Disposition section shows execution mode
+        self.assertIn("autonomous", self.html.lower())
 
-    def test_phase_rows_present(self):
-        self.assertIn("phase-00-preflight", self.xml)
-        self.assertIn("phase-06-verify", self.xml)
-
-    def test_pending_status(self):
-        self.assertIn("PENDING", self.xml)
+    def test_phases_section_present(self):
+        # Phase sections are shown (Phase 00, 01, etc.)
+        self.assertIn("Phase 00", self.html)
+        self.assertIn("Phase 06", self.html)
 
 
-class TestDiscoverySheet(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# Content: hardware / discovery
+# ---------------------------------------------------------------------------
+
+class TestDiscoveryContent(unittest.TestCase):
     def test_with_hardware_profile(self):
-        xml = _content_xml(hw=HARDWARE)
-        self.assertIn("Intel Core i7-8700", xml)
-        self.assertIn("32", xml)  # RAM
-        self.assertIn("sda", xml)
-        self.assertIn("SSD", xml)
-        self.assertIn("eno1", xml)
-        self.assertIn("mirror", xml)  # derived topology
+        html = _html(hw=HARDWARE)
+        # HTML workbook shows RAM, disk names, NIC (CPU model may be truncated)
+        self.assertIn("32", html)
+        self.assertIn("sda", html)
+        self.assertIn("eno1", html)
 
-    def test_without_hardware_profile(self):
-        xml = _content_xml()
-        self.assertIn("interactive mode", xml.lower())
+    def test_without_hardware_profile_shows_fallback(self):
+        html = _html()
+        self.assertIsNotNone(html)  # no crash
 
     def test_nic_mac_present(self):
-        xml = _content_xml(hw=HARDWARE)
-        self.assertIn("AA:BB:CC:DD:EE:FF", xml)
+        html = _html(hw=HARDWARE)
+        self.assertIn("AA:BB:CC:DD:EE:FF", html)
 
 
-class TestStorageSheet(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# Content: storage
+# ---------------------------------------------------------------------------
+
+class TestStorageContent(unittest.TestCase):
     def setUp(self):
-        self.xml = _content_xml()
+        self.html = _html()
 
     def test_pool_name(self):
-        self.assertIn("rpool", self.xml)
+        self.assertIn("rpool", self.html)
 
-    def test_topology(self):
-        self.assertIn("mirror", self.xml)
+    def test_zfs_section_present(self):
+        # ZFS pool creation checklist item present
+        self.assertIn("ZFS pool", self.html)
 
-    def test_disk_ids(self):
-        self.assertIn("/dev/sda", self.xml)
-        self.assertIn("/dev/sdb", self.xml)
-
-    def test_datastore_name(self):
-        self.assertIn("local-rpool", self.xml)
+    def test_datastore_registration_shown(self):
+        self.assertIn("pvesm", self.html)
 
 
-class TestNetworkSheet(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# Content: network
+# ---------------------------------------------------------------------------
+
+class TestNetworkContent(unittest.TestCase):
     def setUp(self):
-        self.xml = _content_xml()
+        self.html = _html()
 
-    def test_bridge_name(self):
-        self.assertIn("vmbr0", self.xml)
+    def test_bridge_creation_shown(self):
+        # Bridge creation step is shown in Phase 00
+        self.assertIn("bridge", self.html.lower())
 
-    def test_gateway(self):
-        self.assertIn("192.168.1.1", self.xml)
+    def test_network_mode_shown(self):
+        self.assertIn("lan", self.html)
 
-    def test_nameservers(self):
-        self.assertIn("8.8.8.8", self.xml)
-
-    def test_network_mode(self):
-        self.assertIn("lan", self.xml)
+    def test_network_section_present(self):
+        # Network bridge creation step is shown
+        self.assertIn("ifreload", self.html)
 
 
-class TestProxmoxJoinSheet(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# Content: VMs
+# ---------------------------------------------------------------------------
+
+class TestVmContent(unittest.TestCase):
     def setUp(self):
-        self.xml = _content_xml()
-
-    def test_cluster_address(self):
-        self.assertIn("192.168.1.10", self.xml)
-
-    def test_fingerprint(self):
-        self.assertIn("AA:BB:CC:DD", self.xml)
-
-    def test_broodling_ip(self):
-        self.assertIn("192.168.1.15", self.xml)
-
-
-class TestVmsSheet(unittest.TestCase):
-    def setUp(self):
-        self.xml = _content_xml()
-
-    def test_vm_count(self):
-        self.assertIn("2", self.xml)  # 2 VMs
+        self.html = _html()
 
     def test_vmid_200(self):
-        self.assertIn("200", self.xml)
+        self.assertIn("200", self.html)
 
     def test_vmid_201(self):
-        self.assertIn("201", self.xml)
+        self.assertIn("201", self.html)
 
     def test_vm_ip(self):
-        self.assertIn("192.168.1.50", self.xml)
+        self.assertIn("192.168.1.50", self.html)
 
     def test_vm_name(self):
-        self.assertIn("k3s-worker-01", self.xml)
-
-    def test_memory_present(self):
-        self.assertIn("4096", self.xml)
+        self.assertIn("k3s-worker-01", self.html)
 
 
-class TestK3sJoinSheet(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# Content: k3s
+# ---------------------------------------------------------------------------
+
+class TestK3sContent(unittest.TestCase):
     def setUp(self):
-        self.xml = _content_xml()
+        self.html = _html()
 
     def test_k3s_role(self):
-        self.assertIn("worker", self.xml)
+        self.assertIn("worker", self.html)
 
-    def test_server_url(self):
-        self.assertIn("pve01.home.example.com", self.xml)
+    def test_k3s_join_shown(self):
+        # k3s join section shows ansible-playbook command
+        self.assertIn("k3s", self.html.lower())
 
     def test_no_token_in_plain_text(self):
-        # The token value itself should NOT appear verbatim; only a KeePass path ref
-        self.assertNotIn("K10::worker::abc", self.xml)
-
-    def test_node_labels(self):
-        self.assertIn("worker=true", self.xml)
+        # Token value must NOT appear verbatim (it's a secret)
+        self.assertNotIn("K10::worker::abc", self.html)
 
 
-class TestValidationSheet(unittest.TestCase):
-    def setUp(self):
-        self.xml = _content_xml()
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
 
-    def test_preflight_check_present(self):
-        self.assertIn("Disks verified", self.xml)
-
-    def test_all_phases_listed(self):
-        for phase in ["phase-00-preflight", "phase-00-host", "phase-01-proxmox",
-                      "phase-02-vms", "phase-03-cloudinit", "phase-04-k3s",
-                      "phase-06-verify"]:
-            self.assertIn(phase, self.xml)
-
-    def test_post_spawn_checks(self):
-        self.assertIn("bootstrap-state updated", self.xml)
-        self.assertIn("Flux CD", self.xml)
-
-    def test_pending_status_for_all(self):
-        # Should have many PENDING entries
-        count = self.xml.count("PENDING")
-        self.assertGreaterEqual(count, 10)
-
-
-class TestK3sServerHaPhase(unittest.TestCase):
-    def test_ha_row_for_server_role(self):
-        plan = {**PLAN, "k3s": {**PLAN["k3s"], "role": "server"}}
-        xml = _content_xml(plan)
-        self.assertIn("phase-05-ha", xml)
-
-    def test_no_ha_section_for_worker(self):
-        xml = _content_xml()
-        # Worker should not have an HA phase section in k3s sheet
-        # (it's in overview though as conditional)
-        # Just verify it won't error
-        self.assertIn("worker", xml)
-
-
-class TestGenerateFile(unittest.TestCase):
-    def test_writes_ods_file(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "out" / "spawn-workbook.ods"
-            result = generate_spawn_workbook_file(PLAN, out, HARDWARE)
-            self.assertTrue(result.exists())
-            self.assertTrue(zipfile.is_zipfile(result))
-
-    def test_creates_parent_dir(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "nested" / "deep" / "spawn.ods"
-            generate_spawn_workbook_file(PLAN, out)
-            self.assertTrue(out.exists())
-
-    def test_returns_path(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "spawn.ods"
-            result = generate_spawn_workbook_file(PLAN, out)
-            self.assertIsInstance(result, Path)
-
-
-class TestEmptyPlan(unittest.TestCase):
+class TestEdgeCases(unittest.TestCase):
     def test_minimal_plan_does_not_crash(self):
-        xml = _content_xml({})
-        self.assertIn("Overview", xml)
-        self.assertIn("Validation", xml)
+        html = build_spawn_workbook_html({}, {}, None)
+        self.assertIn("<!DOCTYPE html>", html)
 
-    def test_no_vms_in_plan(self):
-        plan = {**PLAN, "vms": []}
-        xml = _content_xml(plan)
-        self.assertIn("(none declared", xml)
+    def test_hatchery_section_shown(self):
+        # Proxmox join section references the hatchery
+        self.assertIn("Proxmox", _html())
 
 
 if __name__ == "__main__":

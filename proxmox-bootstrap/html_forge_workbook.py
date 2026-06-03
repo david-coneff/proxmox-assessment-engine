@@ -58,7 +58,12 @@ def _section_overview(manifest: dict) -> str:
         ("Net Profile",  nt.get("profile") or "lan"),
         ("Generated",    manifest.get("generated_at") or "?"),
     ]
-    return section("Overview", dl(pairs), open_=True)
+    body = dl(pairs)
+    warnings = manifest.get("setup_warnings") or []
+    if warnings:
+        msgs = "<br>".join(_e(str(w)) for w in warnings)
+        body += callout("warn", f"<strong>Setup warnings:</strong><br>{msgs}")
+    return section("Overview", body, open_=True)
 
 
 def _section_hardware(hw: dict) -> str:
@@ -169,13 +174,18 @@ def _section_validation(findings: list | None) -> str:
     body = p("Check each phase as it completes.")
 
     if findings:
-        crit = [f for f in findings if f.get("severity") == "ERROR"]
-        warn = [f for f in findings if f.get("severity") == "WARNING"]
+        def _sev(f):
+            # Support both dict findings and ForgeValidationFinding dataclasses
+            return getattr(f, "severity", None) or (f.get("severity") if isinstance(f, dict) else None) or ""
+        def _msg(f):
+            return getattr(f, "message", None) or (f.get("message", "?") if isinstance(f, dict) else "?")
+        crit = [f for f in findings if _sev(f) in ("ERROR", "RED")]
+        warn = [f for f in findings if _sev(f) in ("WARNING", "YELLOW")]
         if crit:
-            msgs = "<br>".join(_e(f.get("message", "?")) for f in crit)
+            msgs = "<br>".join(_e(_msg(f)) for f in crit)
             body += callout("danger", f"<strong>{len(crit)} error(s):</strong><br>{msgs}")
         if warn:
-            msgs = "<br>".join(_e(f.get("message", "?")) for f in warn)
+            msgs = "<br>".join(_e(_msg(f)) for f in warn)
             body += callout("warn", f"<strong>{len(warn)} warning(s):</strong><br>{msgs}")
 
     body += checkbox_list(items, id_prefix="phases")
