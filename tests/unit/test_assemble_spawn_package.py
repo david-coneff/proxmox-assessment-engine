@@ -364,6 +364,71 @@ class TestInternalScriptGeneration(unittest.TestCase):
         # Worker nodes should not have the HA phase
         self.assertNotIn("phase-05-ha.sh", self.contents)
 
+    def test_phase_05_ha_included_for_server(self):
+        """Server nodes with VMs should get phase-05-ha.sh generated."""
+        import tempfile
+        ha_plan = dict(PLAN_WITH_VMS, k3s={"role": "server"})
+        with tempfile.TemporaryDirectory() as tmp:
+            pkg = assemble_spawn_package(ha_plan, MANIFEST, artifacts_dir=None,
+                                         output_dir=Path(tmp) / "out", now=_NOW)
+            contents = package_contents(pkg)
+        self.assertIn("phase-05-ha.sh", contents)
+
+
+class TestCLISpawnManifestGeneration(unittest.TestCase):
+    """CLI converts bootstrap-state.json to a proper spawn manifest with hatchery_url."""
+
+    def test_cli_generates_hatchery_url_from_bootstrap_state(self):
+        """When --state is a bootstrap-state.json, the CLI calls read_hatchery_state
+        to generate a spawn manifest with hatchery_url and receiver_token fields."""
+        import subprocess
+        import tarfile as tf
+        import tempfile
+
+        bootstrap_state = {
+            "cell_id": "cell-alpha",
+            "host_identity": {
+                "hostname": "pve01",
+                "fqdn": "pve01.home.example.com",
+            },
+            "network_topology": {"profile": "lan"},
+            "vms": [],
+        }
+        plan = {
+            "cell_id": "cell-alpha",
+            "hostname": "pve02",
+            "disposition": {"execution_mode": "autonomous"},
+            "k3s": {"role": "worker"},
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = Path(tmp) / "bootstrap-state.json"
+            plan_path  = Path(tmp) / "spawn-plan.json"
+            state_path.write_text(json.dumps(bootstrap_state))
+            plan_path.write_text(json.dumps(plan))
+
+            result = subprocess.run(
+                [sys.executable,
+                 str(REPO_ROOT / "proxmox-bootstrap" / "assemble-spawn-package.py"),
+                 "--plan", str(plan_path),
+                 "--state", str(state_path),
+                 "--output-dir", tmp],
+                capture_output=True, text=True, timeout=15,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+
+            # Find the generated package
+            packages = list(Path(tmp).glob("spawn-package-*.tar.gz"))
+            self.assertEqual(len(packages), 1)
+
+            with tf.open(packages[0], "r:gz") as tar:
+                manifest_bytes = tar.extractfile("spawn-manifest.json").read()
+            manifest_data = json.loads(manifest_bytes)
+
+            # read_hatchery_state generates hatchery_url from host_identity.fqdn
+            self.assertIn("hatchery_url", manifest_data)
+            self.assertIn("pve01.home.example.com", manifest_data.get("hatchery_url", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

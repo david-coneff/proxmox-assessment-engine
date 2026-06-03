@@ -270,8 +270,8 @@ def assemble_spawn_package(
             _add_dir(artifacts_dir / "ansible",    "ansible")
         elif _HAS_SPAWN_GEN:
             # Generate all scripts and IaC internally from plan (preferred path)
-            is_ha = (plan.get("k3s") or {}).get("role") == "server" and \
-                    (plan.get("k3s") or {}).get("promote_ha", False)
+            k3s_role = (plan.get("k3s") or {}).get("role", "worker")
+            is_ha = k3s_role == "server" and bool(plan.get("vms"))
             _add_str("spawn.sh",              generate_spawn_sh(plan),             mode=0o755)
             _add_str("phase-00-preflight.sh", generate_phase_00_preflight(plan),   mode=0o755)
             _add_str("phase-00-host.sh",      generate_phase_00_host(plan),        mode=0o755)

@@ -230,7 +230,7 @@ kubectl get pods -A
 flux get kustomizations
 
 # Check assessment engine
-python3 doc-gen/engine.py --mode bootstrap --state proxmox-bootstrap/bootstrap-state.json
+python3 doc-gen/engine.py --mode bootstrap --manifest proxmox-bootstrap/bootstrap-state.json
 
 # Access Forgejo web UI
 open https://forgejo.{your-domain}

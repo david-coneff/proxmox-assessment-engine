@@ -73,7 +73,19 @@ def main() -> None:
     with open(plan_path) as f:
         plan = json.load(f)
     with open(state_path) as f:
-        manifest = json.load(f)
+        raw_state = json.load(f)
+
+    # Convert bootstrap-state.json to a proper spawn manifest (adds hatchery_url,
+    # receiver_token, reserved VMIDs/IPs, etc.) if the state file is a bootstrap-state
+    # (identified by the absence of "schema_version" with value "spawn-manifest-*").
+    manifest = raw_state
+    try:
+        from hatchery_state import read_hatchery_state
+        spawn_manifest_version = raw_state.get("schema_version", "")
+        if not str(spawn_manifest_version).startswith("spawn-manifest"):
+            manifest = read_hatchery_state(raw_state).raw
+    except ImportError:
+        pass  # hatchery_state not available; use raw state as-is
 
     kdbx_path = Path(args.kdbx) if args.kdbx else None
     if kdbx_path and not kdbx_path.exists():
