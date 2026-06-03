@@ -374,6 +374,18 @@ class TestInternalScriptGeneration(unittest.TestCase):
             contents = package_contents(pkg)
         self.assertIn("phase-05-ha.sh", contents)
 
+    def test_wan_mode_spawn_sh_includes_tailscale_join(self):
+        """WAN network_mode should add tailscale-join phase to spawn.sh."""
+        import tempfile, tarfile as tf
+        wan_plan = dict(PLAN_WITH_VMS, disposition={"execution_mode": "autonomous",
+                                                     "network_mode": "wan"})
+        with tempfile.TemporaryDirectory() as tmp:
+            pkg = assemble_spawn_package(wan_plan, MANIFEST, artifacts_dir=None,
+                                         output_dir=Path(tmp) / "out", now=_NOW)
+            with tf.open(pkg, "r:gz") as tar:
+                spawn_sh = tar.extractfile("spawn.sh").read().decode()
+        self.assertIn("tailscale-join", spawn_sh)
+
 
 class TestCLISpawnManifestGeneration(unittest.TestCase):
     """CLI converts bootstrap-state.json to a proper spawn manifest with hatchery_url."""
