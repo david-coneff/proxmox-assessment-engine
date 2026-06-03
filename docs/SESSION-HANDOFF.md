@@ -4,6 +4,18 @@ Last updated: 2026-06-02 UTC
 
 ## What Was Done This Session (current)
 
+### Audit rounds 7 + 8 — clean cycle
+
+**Round 7:** `html_forge_workbook.py` and `html_phoenix_workbook.py` had zero test coverage;
+`TestHtmlForgeWorkbook` + `TestHtmlPhoenixWorkbook` added (4 tests each) to
+`test_html_renderers.py`. Tests: 3654 passed.
+
+**Round 8:** Full scan — zero new fixable issues found. All HTML builders covered.
+No remaining ODT/ODS refs in Python code or generated filenames. No broken imports.
+Session halted as "no more ideas" threshold reached for this audit cycle.
+
+---
+
 ### Audit round 6 — 7 findings fixed
 
 **HIGH — forge_scripts.py heredoc `__file__` bug**: `generate_phase_02_sh()` and
