@@ -225,5 +225,71 @@ class TestBuildSpawnResult(unittest.TestCase):
         self.assertNotIn(".", result.broodling_fqdn)
 
 
+class TestCLI(unittest.TestCase):
+    """Tests for the __main__ CLI entry point of update_state_after_spawn.py."""
+
+    def _plan(self):
+        return {
+            "hostname": "pve02",
+            "domain": "home.example.com",
+            "lan_ip": "192.168.1.15",
+            "vmid_block": [200, 201],
+            "ip_block": ["192.168.1.50", "192.168.1.51"],
+            "disposition": {
+                "execution_mode": "autonomous",
+                "services": ["k3s-worker"],
+                "excluded": [],
+            },
+            "k3s_role": "worker",
+            "package_id": "spawn-pkg-001",
+            "vms": [{"vmid": 200, "name": "k3s-worker-01"}],
+            "dns_entries": [{"hostname": "pve02.home.example.com", "ip": "192.168.1.15"}],
+        }
+
+    def test_cli_updates_state_file(self):
+        import json
+        import subprocess
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = Path(tmp) / "bootstrap-state.json"
+            plan_path  = Path(tmp) / "spawn-plan.json"
+            state_path.write_text(json.dumps({"cell_id": "cell-alpha", "vms": []}))
+            plan_path.write_text(json.dumps(self._plan()))
+
+            result = subprocess.run(
+                [sys.executable,
+                 str(REPO_ROOT / "proxmox-bootstrap" / "update_state_after_spawn.py"),
+                 "--state", str(state_path),
+                 "--plan", str(plan_path),
+                 "--spawned-at", "2026-06-01T12:00:00+00:00"],
+                capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            updated = json.loads(state_path.read_text())
+            self.assertEqual(len(updated["vms"]), 1)
+            self.assertIn("spawn_history", updated)
+
+    def test_cli_missing_plan_exits_1(self):
+        import subprocess
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = Path(tmp) / "bootstrap-state.json"
+            state_path.write_text('{"cell_id": "x"}')
+            result = subprocess.run(
+                [sys.executable,
+                 str(REPO_ROOT / "proxmox-bootstrap" / "update_state_after_spawn.py"),
+                 "--state", str(state_path),
+                 "--plan", str(Path(tmp) / "nonexistent.json")],
+                capture_output=True, text=True, timeout=10,
+            )
+            self.assertNotEqual(result.returncode, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

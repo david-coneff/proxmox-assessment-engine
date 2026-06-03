@@ -244,8 +244,7 @@ Proxmox cluster membership, k3s worker node, assessment visibility.
 python3 assemble-spawn-package.py \
     --plan spawn-plan-pve02.json \
     --state bootstrap-state.json \
-    --hardware hardware-profile-pve02.json \
-    [--embed-kdbx /path/to/vault.kdbx]  # optional — embed KeePass DB in package
+    [--kdbx /path/to/vault.kdbx]  # optional — embed KeePass DB in package
 ```
 
 Output: `spawn-package-cell-alpha-pve02-2026-06-01_12_00_00.tar.gz`
@@ -391,11 +390,16 @@ Assessment Engine will reassess on next collection cycle.
 
 ## Step 6 — Update Hatchery State
 
-After `spawn.sh` exits 0, run from the hatchery:
+**Automatic path (recommended):** `phase-06-verify.sh` (the last phase in `spawn.sh`)
+automatically POSTs to the hatchery's `/api/spawn-complete` endpoint. If the hatchery
+is running `hatchery_receiver.py`, it processes the event and updates
+`bootstrap-state.json` without any manual intervention.
+
+**Manual fallback** (when the hatchery receiver is not reachable):
 
 ```bash
-python3 update-state-after-spawn.py \
-    --state bootstrap-state.json \
+python3 proxmox-bootstrap/update_state_after_spawn.py \
+    --state proxmox-bootstrap/bootstrap-state.json \
     --plan spawn-plan-pve02.json \
     --hardware hardware-profile-pve02.json \
     --spawned-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -409,7 +413,7 @@ This merges:
 
 Commit the updated state to Forgejo:
 ```bash
-git -C /opt/broodforge add bootstrap-state.json
+git -C /opt/broodforge add proxmox-bootstrap/bootstrap-state.json
 git -C /opt/broodforge commit -m "spawn: pve02 joined — k3s-worker, longhorn"
 git -C /opt/broodforge push
 ```

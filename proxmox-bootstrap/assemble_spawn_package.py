@@ -57,6 +57,29 @@ except ImportError:
     _build_spawn_manifest_html = None  # type: ignore
     _HAS_PKG_MANIFEST = False
 
+try:
+    from spawn_scripts import (
+        generate_spawn_sh,
+        generate_phase_00_preflight,
+        generate_phase_00_host,
+        generate_phase_01_proxmox,
+        generate_phase_02_vms,
+        generate_phase_03_cloudinit,
+        generate_phase_04_k3s,
+        generate_phase_05_ha,
+        generate_phase_06_verify,
+    )
+    from spawn_iac_generator import (
+        generate_tfvars,
+        generate_cloudinit_user_data,
+        generate_cloudinit_network_config,
+        generate_ansible_inventory,
+        generate_ansible_k3s_vars,
+    )
+    _HAS_SPAWN_GEN = True
+except ImportError:
+    _HAS_SPAWN_GEN = False
+
 
 # ---------------------------------------------------------------------------
 # KeePass unlock gate — 12.E.7a
@@ -176,8 +199,8 @@ def _package_name(plan: dict, now: Optional[datetime] = None) -> str:
 def assemble_spawn_package(
     plan: dict,
     manifest: dict,
-    artifacts_dir: Path,
-    output_dir: Path,
+    artifacts_dir: Optional[Path] = None,
+    output_dir: Path = Path("."),
     kdbx_path: Optional[Path] = None,
     hardware_profile: Optional[dict] = None,
     now: Optional[datetime] = None,
@@ -187,10 +210,11 @@ def assemble_spawn_package(
 
     Args:
         plan:             spawn-plan.json dict
-        manifest:         spawn-manifest.json dict
-        artifacts_dir:    directory containing generated artifacts
-          (opentofu/, cloud-init/, ansible/, phase-*.sh, spawn.sh)
-        output_dir:       where to write the package
+        manifest:         spawn-manifest.json dict (hatchery state / bootstrap-state.json)
+        artifacts_dir:    optional directory with pre-generated artifacts
+                          (opentofu/, cloud-init/, ansible/, phase-*.sh, spawn.sh).
+                          If None, all scripts are generated internally from plan.
+        output_dir:       where to write the package (default: current directory)
         kdbx_path:        optional path to KeePass .kdbx to embed in package
         hardware_profile: optional hardware-profile dict to embed in workbook
         now:              injectable datetime for deterministic naming in tests
@@ -198,8 +222,7 @@ def assemble_spawn_package(
     Returns:
         Path to the generated .tar.gz file.
     """
-    output_dir   = Path(output_dir)
-    artifacts_dir = Path(artifacts_dir)
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     pkg_name = _package_name(plan, now)
@@ -207,11 +230,12 @@ def assemble_spawn_package(
 
     with tarfile.open(pkg_path, "w:gz") as tar:
 
-        def _add_str(arcname: str, content: str):
+        def _add_str(arcname: str, content: str, mode: int = 0o644):
             """Add a string as a file in the archive."""
             data  = content.encode("utf-8")
             info  = tarfile.TarInfo(name=arcname)
             info.size = len(data)
+            info.mode = mode
             tar.addfile(info, io.BytesIO(data))
 
         def _add_file(arcname: str, src: Path):
@@ -236,18 +260,39 @@ def assemble_spawn_package(
         _add_str("lib/checkpoint.sh",    CHECKPOINT_SH)
         _add_str("lib/keepass-gate.sh",  KEEPASS_GATE_SH)
 
-        # Phase scripts and spawn.sh
-        for script in sorted(artifacts_dir.glob("*.sh")):
-            tar.add(script, arcname=script.name)
-
-        # OpenTofu artifacts
-        _add_dir(artifacts_dir / "opentofu",    "opentofu")
-
-        # Cloud-Init snippets
-        _add_dir(artifacts_dir / "cloud-init",  "cloud-init")
-
-        # Ansible artifacts
-        _add_dir(artifacts_dir / "ansible",     "ansible")
+        if artifacts_dir is not None:
+            # Use pre-generated artifacts from disk
+            artifacts_dir = Path(artifacts_dir)
+            for script in sorted(artifacts_dir.glob("*.sh")):
+                tar.add(script, arcname=script.name)
+            _add_dir(artifacts_dir / "opentofu",   "opentofu")
+            _add_dir(artifacts_dir / "cloud-init", "cloud-init")
+            _add_dir(artifacts_dir / "ansible",    "ansible")
+        elif _HAS_SPAWN_GEN:
+            # Generate all scripts and IaC internally from plan (preferred path)
+            is_ha = (plan.get("k3s") or {}).get("role") == "server" and \
+                    (plan.get("k3s") or {}).get("promote_ha", False)
+            _add_str("spawn.sh",              generate_spawn_sh(plan),             mode=0o755)
+            _add_str("phase-00-preflight.sh", generate_phase_00_preflight(plan),   mode=0o755)
+            _add_str("phase-00-host.sh",      generate_phase_00_host(plan),        mode=0o755)
+            _add_str("phase-01-proxmox.sh",   generate_phase_01_proxmox(plan),     mode=0o755)
+            _add_str("phase-02-vms.sh",       generate_phase_02_vms(plan),         mode=0o755)
+            _add_str("phase-03-cloudinit.sh", generate_phase_03_cloudinit(plan),   mode=0o755)
+            _add_str("phase-04-k3s.sh",       generate_phase_04_k3s(plan),         mode=0o755)
+            if is_ha:
+                _add_str("phase-05-ha.sh",    generate_phase_05_ha(plan),          mode=0o755)
+            _add_str("phase-06-verify.sh",    generate_phase_06_verify(plan),      mode=0o755)
+            # IaC artifacts
+            hostname = plan.get("hostname", "unknown")
+            _add_str(f"opentofu/spawn-{hostname}.auto.tfvars", generate_tfvars(plan))
+            for vm in (plan.get("vms") or []):
+                vm_name = vm.get("name", "vm")
+                _add_str(f"cloud-init/snippets/user-data/{vm_name}.yaml",
+                         generate_cloudinit_user_data(vm, plan))
+                _add_str(f"cloud-init/snippets/network-config/{vm_name}.yaml",
+                         generate_cloudinit_network_config(vm, plan))
+            _add_str(f"ansible/spawn-{hostname}.ini", generate_ansible_inventory(plan))
+            _add_str("ansible/group_vars/k3s_all.yml", generate_ansible_k3s_vars(plan))
 
         # Human-readable package manifest (architecture requirement)
         if _HAS_PKG_MANIFEST and _build_spawn_manifest_html is not None:

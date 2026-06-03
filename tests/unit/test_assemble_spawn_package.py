@@ -305,5 +305,65 @@ class TestOutputDirCreated(unittest.TestCase):
         self._tmp.cleanup()
 
 
+PLAN_WITH_VMS = {
+    "cell_id": "cell-alpha",
+    "hostname": "pve02",
+    "package_id": "spawn-cell-alpha-pve02-ts",
+    "generated_at": "2026-06-01T12:00:00Z",
+    "disposition": {"execution_mode": "autonomous"},
+    "k3s": {"role": "worker"},
+    "vms": [{"name": "pve02-vm01", "vmid": 200, "ip": "192.168.1.50",
+             "cores": 2, "memory_mb": 4096, "disk_gb": 40}],
+}
+
+
+class TestInternalScriptGeneration(unittest.TestCase):
+    """When artifacts_dir=None, assemble_spawn_package generates scripts internally."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        tmp = Path(self._tmp.name)
+        self.pkg = assemble_spawn_package(PLAN_WITH_VMS, MANIFEST, artifacts_dir=None,
+                                          output_dir=tmp / "out", now=_NOW)
+        self.contents = package_contents(self.pkg)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_package_created(self):
+        self.assertTrue(self.pkg.exists())
+
+    def test_spawn_manifest_present(self):
+        self.assertIn("spawn-manifest.json", self.contents)
+
+    def test_spawn_plan_present(self):
+        self.assertIn("spawn-plan.json", self.contents)
+
+    def test_lib_checkpoint_present(self):
+        self.assertIn("lib/checkpoint.sh", self.contents)
+
+    def test_spawn_sh_generated(self):
+        self.assertIn("spawn.sh", self.contents)
+
+    def test_phase_00_preflight_generated(self):
+        self.assertIn("phase-00-preflight.sh", self.contents)
+
+    def test_phase_06_verify_generated(self):
+        self.assertIn("phase-06-verify.sh", self.contents)
+
+    def test_opentofu_tfvars_generated(self):
+        self.assertTrue(any("opentofu" in c and ".tfvars" in c for c in self.contents))
+
+    def test_cloud_init_generated(self):
+        self.assertTrue(any("cloud-init" in c for c in self.contents))
+
+    def test_ansible_inventory_generated(self):
+        self.assertTrue(any("ansible" in c for c in self.contents))
+
+    def test_no_phase_05_ha_for_worker(self):
+        # Worker nodes should not have the HA phase
+        self.assertNotIn("phase-05-ha.sh", self.contents)
+
+
 if __name__ == "__main__":
     unittest.main()

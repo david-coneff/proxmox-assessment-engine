@@ -182,3 +182,47 @@ def build_spawn_result(
         vms_deployed=spawn_plan.get("vms") or [],
         dns_entries=spawn_plan.get("dns_entries") or [],
     )
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point (manual fallback when hatchery receiver is not reachable)
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import argparse
+    import json
+    import sys
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Merge a completed spawn plan into bootstrap-state.json "
+                    "(manual fallback — normally done by hatchery_receiver.py automatically).",
+    )
+    parser.add_argument("--state", required=True, help="Path to bootstrap-state.json")
+    parser.add_argument("--plan", required=True, help="Path to spawn-plan-{hostname}.json")
+    parser.add_argument("--hardware", default=None,
+                        help="Path to hardware-profile-{hostname}.json (optional)")
+    parser.add_argument("--spawned-at", dest="spawned_at", default=None,
+                        help="ISO-8601 timestamp of spawn completion "
+                             "(default: current UTC time)")
+    args = parser.parse_args()
+
+    state_path = Path(args.state)
+    plan_path  = Path(args.plan)
+
+    if not state_path.exists():
+        print(f"[error] state not found: {state_path}", file=sys.stderr); sys.exit(1)
+    if not plan_path.exists():
+        print(f"[error] plan not found: {plan_path}", file=sys.stderr); sys.exit(1)
+
+    state = json.loads(state_path.read_text())
+    plan  = json.loads(plan_path.read_text())
+    hw    = json.loads(Path(args.hardware).read_text()) if args.hardware else None
+    ts    = args.spawned_at
+
+    result = build_spawn_result(plan, hw, now_fn=(lambda: ts) if ts else None)
+    updated = update_state_after_spawn(state, result, hw)
+
+    state_path.write_text(json.dumps(updated, indent=2))
+    print(f"[update] bootstrap-state.json updated — broodling: {result.broodling_hostname}")
+    print(f"[update] Commit with: git add {state_path} && git commit -m 'spawn: {result.broodling_hostname} joined'")

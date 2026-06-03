@@ -424,7 +424,7 @@ def main():
     print(f"  k3s role:        {plan.get('k3s', {}).get('role', '?')}")
     print(f"\n  Next steps:")
     print(f"    1. Review spawn-plan-{hostname}.json")
-    print(f"    2. Run: python3 assemble-spawn-package.py --plan {plan_path}")
+    print(f"    2. Run: python3 assemble-spawn-package.py --plan {plan_path} --state bootstrap-state.json")
     print(f"    3. Copy spawn package to broodling and run: bash spawn.sh")
     print()
 
