@@ -131,7 +131,7 @@ class TestForgeScripts:
         s = _fs.generate_phase_03_sh(_manifest(profile="lan"))
         # LAN profile should not run headscale setup
         # The WAN block is conditional on NETWORK_PROFILE=wan
-        assert 'NETWORK_PROFILE="lan"' in s
+        assert "NETWORK_PROFILE='lan'" in s
 
     def test_phase_04_tofu(self):
         s = _fs.generate_phase_04_sh(_manifest())

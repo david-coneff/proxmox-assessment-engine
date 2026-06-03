@@ -205,7 +205,7 @@ PHASES=(
 )
 
 echo "================================================================="
-echo " Broodforge Forge — {cell_id}"
+echo ' Broodforge Forge — {cell_id}'
 echo " $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "================================================================="
 echo ""
@@ -234,8 +234,8 @@ echo ""
 echo "================================================================="
 echo " Forge complete. Your hatchery is operational."
 echo ""
-echo " Hostname:  {hostname}"
-echo " Cell ID:   {cell_id}"
+echo ' Hostname:  {hostname}'
+echo ' Cell ID:   {cell_id}'
 echo ""
 echo " Next steps:"
 echo "   1. Push your GitOps repository to Forgejo"
@@ -327,10 +327,10 @@ def generate_phase_03_sh(manifest: dict) -> str:
 
     return _phase_header("phase-03-host", "Host configuration") + f"""\
 
-HOSTNAME="{hostname}"
-DOMAIN="{domain}"
-FQDN="{fqdn}"
-NETWORK_PROFILE="{profile}"
+HOSTNAME='{hostname}'
+DOMAIN='{domain}'
+FQDN='{fqdn}'
+NETWORK_PROFILE='{profile}'
 
 # ---- Master password suggestion (shown to operator before the gate) -------
 # Display is sent to /dev/tty so it reaches the operator regardless of log

@@ -62,16 +62,17 @@ def generate_spawn_sh(plan: dict, include_wan_phase: bool = False) -> str:
     vms        = plan.get("vms") or []
     k3s_role   = (plan.get("k3s") or {}).get("role", "worker")
     exec_mode  = plan.get("disposition", {}).get("execution_mode", "autonomous")
+    package_id = plan.get("package_id", "?")
     has_ha     = k3s_role == "server" and len(vms) > 0
 
     lines = [
         _plan_header(plan, "spawn.sh — orchestrated entry point"),
         f'exec > >(tee -a "$SPAWN_LOG") 2>&1',
-        f'echo "================================================================="',
-        f'echo " Broodforge Spawn — {hostname}"',
-        f'echo " Mode: {exec_mode}   k3s role: {k3s_role}"',
-        f'echo " Package: {plan.get("package_id", "?")}"',
-        f'echo "================================================================="',
+        f"echo '================================================================='",
+        f"echo ' Broodforge Spawn — {hostname}'",
+        f"echo ' Mode: {exec_mode}   k3s role: {k3s_role}'",
+        f"echo ' Package: {package_id}'",
+        f"echo '================================================================='",
         f'echo ""',
         f'',
     ]
@@ -112,15 +113,15 @@ def generate_spawn_sh(plan: dict, include_wan_phase: bool = False) -> str:
         ]
 
     lines += [
-        f'echo "================================================================="',
-        f'echo " Spawn complete: {hostname}"',
-        f'echo " Report success to hatchery to trigger bootstrap-state update."',
-        f'echo "================================================================="',
+        f"echo '================================================================='",
+        f"echo ' Spawn complete: {hostname}'",
+        f"echo ' Report success to hatchery to trigger bootstrap-state update.'",
+        f"echo '================================================================='",
         f'echo ""',
-        f'echo " Post-spawn validation:"',
-        f'echo "   qm list                     # all VMs running"',
-        f'echo "   kubectl get nodes            # all nodes Ready"',
-        f'echo "   flux get kustomizations      # Flux reconciled"',
+        f"echo ' Post-spawn validation:'",
+        f"echo '   qm list                     # all VMs running'",
+        f"echo '   kubectl get nodes            # all nodes Ready'",
+        f"echo '   flux get kustomizations      # Flux reconciled'",
     ]
     return "\n".join(lines) + "\n"
 
@@ -138,8 +139,10 @@ def generate_phase_00_preflight(plan: dict) -> str:
     vms      = plan.get("vms") or []
     host_ram_needed = sum(v.get("memory_mb", 4096) for v in vms) / 1024 * 1.1
 
+    pool_q   = shlex.quote(pool)
+    bridge_q = shlex.quote(bridge)
     disks_check = "\n".join(
-        f'  if [ ! -b "{d}" ]; then FAILS+=("Disk {d} not found"); fi'
+        f"  if [ ! -b {shlex.quote(d)} ]; then FAILS+=('Disk {d} not found'); fi"
         for d in disk_ids
     ) or '  echo "  No disk IDs in plan — skipping disk check"'
 
@@ -150,12 +153,12 @@ def generate_phase_00_preflight(plan: dict) -> str:
         f'# ── Disk presence ────────────────────────────────────────────────\n'
         + disks_check + "\n\n"
         f'# ── No conflicting ZFS pool ──────────────────────────────────────\n'
-        f'if zpool list {pool} &>/dev/null; then\n'
-        f'  FAILS+=("ZFS pool \\"{pool}\\" already exists — conflict with spawn plan")\n'
+        f'if zpool list {pool_q} &>/dev/null; then\n'
+        f"  FAILS+=('ZFS pool {pool} already exists — conflict with spawn plan')\n"
         f'fi\n\n'
         f'# ── No conflicting bridge ─────────────────────────────────────────\n'
-        f'if ip link show {bridge} &>/dev/null; then\n'
-        f'  echo "  Bridge {bridge} already exists — will verify config"\n'
+        f'if ip link show {bridge_q} &>/dev/null; then\n'
+        f"  echo '  Bridge {bridge} already exists — will verify config'\n"
         f'fi\n\n'
         f'# ── Sufficient RAM ───────────────────────────────────────────────\n'
         f'AVAIL_RAM_GB=$(awk \'/MemAvailable/{{printf "%.1f", $2/1048576}}\' /proc/meminfo)\n'
@@ -294,7 +297,7 @@ def generate_phase_02_vms(plan: dict) -> str:
         f'  cd "$SCRIPT_DIR/opentofu"\n'
         f'  tofu init -input=false\n'
         f'  tofu apply -input=false -auto-approve \\\n'
-        f'    -var-file="spawn-{hostname}.auto.tfvars"\n'
+        f"    -var-file='spawn-{hostname}.auto.tfvars'\n"
         f'  checkpoint_done "tofu-apply"\n'
         f'}}\n\n'
         f'# Verify VMs created\n'
@@ -466,12 +469,14 @@ def generate_phase_05_ha(plan: dict) -> str:
 # ---------------------------------------------------------------------------
 
 def generate_phase_06_verify(plan: dict) -> str:
-    hostname = plan.get("hostname", "unknown")
-    vms      = plan.get("vms") or []
-    gateway  = (plan.get("network") or {}).get("gateway", "")
+    hostname   = plan.get("hostname", "unknown")
+    vms        = plan.get("vms") or []
+    gateway    = (plan.get("network") or {}).get("gateway", "")
+    hostname_q = shlex.quote(hostname)
+    gateway_q  = shlex.quote(gateway) if gateway else ""
 
     vm_checks = "\n".join(
-        'qm status {} | grep -q running || FAILS+=("VM {} not running")'.format(
+        "qm status {} | grep -q running || FAILS+=('VM {} not running')".format(
             v.get("vmid", "?"), v.get("name", "?"))
         for v in vms
     )
@@ -483,11 +488,11 @@ def generate_phase_06_verify(plan: dict) -> str:
         + vm_checks + "\n\n"
         f'# ── k3s node visible ────────────────────────────────────────────\n'
         f'if command -v kubectl &>/dev/null; then\n'
-        f'  kubectl get node {hostname} &>/dev/null \\\n'
-        f'    || FAILS+=("k3s node {hostname} not found in cluster")\n'
+        f'  kubectl get node {hostname_q} &>/dev/null \\\n'
+        f"    || FAILS+=('k3s node {hostname} not found in cluster')\n"
         f'fi\n\n'
         f'# ── Network reachable ───────────────────────────────────────────\n'
-        + (f'ping -c 3 {gateway} &>/dev/null || FAILS+=("Gateway {gateway} unreachable")\n\n' if gateway else "")
+        + (f"ping -c 3 {gateway_q} &>/dev/null || FAILS+=('Gateway {gateway} unreachable')\n\n" if gateway else "")
         + f'# ── Result ───────────────────────────────────────────────────────\n'
         f'if [ ${{#FAILS[@]}} -gt 0 ]; then\n'
         f'  echo "[verify] FAILED — ${{#FAILS[@]}} issue(s):"\n'
