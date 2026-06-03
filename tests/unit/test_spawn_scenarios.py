@@ -29,7 +29,8 @@ from spawn_hardware_discovery import (
 )
 from spawn_iac_generator import generate_tfvars, generate_cloudinit_user_data, generate_ansible_inventory
 from spawn_scripts import (
-    generate_spawn_sh, generate_phase_00_host, generate_phase_04_k3s,
+    generate_spawn_sh, generate_tailscale_join_sh,
+    generate_phase_00_host, generate_phase_04_k3s,
     generate_phase_05_ha, generate_phase_06_verify,
 )
 from update_state_after_spawn import SpawnResult, update_state_after_spawn, build_spawn_result
@@ -671,13 +672,21 @@ class TestScenarioWanMode(unittest.TestCase):
             hostname=hostname, vmids=vmids, ips=ips,
             network_mode="wan", services=["k3s-worker"],
         )
-        # Add WAN-specific fields
-        self.plan["disposition"]["headscale_auth_key"] = "ts-key-ABCDE"
+        # Add WAN-specific fields (matching spawn_planner.py:509-510 field names)
+        self.plan["disposition"]["wan_auth_key"] = "ts-key-ABCDE"
         self.plan["hatchery"]["headscale_url"] = "https://pve01.home.example.com:8080"
 
     def test_wan_spawn_sh_includes_tailscale(self):
         sh = generate_spawn_sh(self.plan, include_wan_phase=True)
         self.assertIn("tailscale", sh.lower())
+
+    def test_wan_tailscale_join_sh_embeds_auth_key(self):
+        sh = generate_tailscale_join_sh(self.plan)
+        self.assertIn("ts-key-ABCDE", sh)
+
+    def test_wan_tailscale_join_sh_embeds_headscale_url(self):
+        sh = generate_tailscale_join_sh(self.plan)
+        self.assertIn("pve01.home.example.com:8080", sh)
 
     def test_headscale_url_in_plan(self):
         self.assertIn("headscale_url", self.plan["hatchery"])

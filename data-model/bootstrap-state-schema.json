@@ -208,6 +208,30 @@
           }
         }
       }
+    },
+
+    "spawn_history": {
+      "type": "array",
+      "description": "Ordered log of broodling spawn events (most recent first). Written by update_state_after_spawn() after each successful spawn.",
+      "items": {
+        "type": "object",
+        "required": ["spawned_at", "broodling_hostname", "k3s_role"],
+        "properties": {
+          "spawned_at":            { "type": "string", "format": "date-time" },
+          "spawn_package_id":      { "type": ["string", "null"] },
+          "broodling_hostname":    { "type": "string" },
+          "broodling_fqdn":        { "type": ["string", "null"] },
+          "broodling_lan_ip":      { "type": ["string", "null"] },
+          "broodling_tailnet_ip":  { "type": ["string", "null"] },
+          "k3s_role":              { "type": "string", "enum": ["worker", "server"] },
+          "execution_mode":        { "type": "string" },
+          "vmids_allocated":       { "type": "array", "items": { "type": "integer" } },
+          "ips_allocated":         { "type": "array", "items": { "type": "string" } },
+          "disposition_services":  { "type": "array", "items": { "type": "string" } },
+          "disposition_excluded":  { "type": "array", "items": { "type": "string" } },
+          "hardware_profile":      { "type": ["object", "null"] }
+        }
+      }
     }
   },
 
