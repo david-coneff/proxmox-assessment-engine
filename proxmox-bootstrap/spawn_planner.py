@@ -462,6 +462,11 @@ def build_spawn_plan(
         k3s_role = "server"
     k3s_cluster = bootstrap_state.get("k3s_cluster") or {}
     server_url  = k3s_cluster.get("server_url", "")
+    # k3s join tokens are the one secret the spawn package carries (README: included in
+    # the spawn package, valid only for the spawn window, rotated after the broodling
+    # joins). Carry them so generate_ansible_k3s_vars() emits a usable token instead of
+    # the unresolved "{{ vault_k3s_worker_token }}" placeholder, which nothing fills.
+    _k3s_secrets = bootstrap_state.get("k3s") or {}
 
     plan: dict = {
         "cell_id":       cell,
@@ -498,6 +503,8 @@ def build_spawn_plan(
             "role":               k3s_role,
             "server_url":         server_url,
             "node_labels":        [f"{k3s_role}=true"],
+            "worker_join_token":  _k3s_secrets.get("worker_join_token"),
+            "server_join_token":  _k3s_secrets.get("server_join_token"),
             "worker_token_path":  f"Infrastructure/k3s/worker-join-token",
             "server_token_path":  f"Infrastructure/k3s/server-join-token",
         },

@@ -189,6 +189,39 @@ passed, 1 skipped**. (Same fix shape as G4/G5/G6, which were verified functional
 
 ---
 
+## Audit cycle — 2026-06-04_13_25_31 UTC
+
+### Method
+
+Different class: **secret/value flow** through the spawn pipeline (not network fields).
+Traced the k3s join token from the hatchery state → spawn package → generated Ansible vars.
+
+### Findings
+
+| # | Area | Finding | Status |
+|---|---|---|---|
+| G8 | spawn k3s join | `build_spawn_plan()` put only the k3s **token KeePass paths** (`worker_token_path`) in `plan["k3s"]`, but `generate_ansible_k3s_vars()` reads token **values** (`worker_join_token`). With no value present it emitted `k3s_token: '{{ vault_k3s_worker_token }}'` — an unresolved Ansible-vault placeholder that **nothing fills** (no broker/runtime substitution exists). The broodling's k3s join would use that literal string and **fail**. | **[FIXED]** |
+
+### Fix + re-audit result
+
+The README documents k3s join tokens as the **one secret the spawn package carries**
+(embedded in the spawn manifest, valid only during the spawn window, rotated after the
+broodling joins). So the documented-model fix is to carry the real token: `build_spawn_plan`
+now copies `worker_join_token`/`server_join_token` from the hatchery's `bootstrap_state["k3s"]`
+into `plan["k3s"]` (keeping the `*_token_path` references too). Verified: `generate_ansible_k3s_vars`
+now emits the real token for both worker and server roles, with no `{{ vault_… }}` placeholder.
+Full suite **4000 passed, 1 skipped**.
+
+> **Security note for the operator (design decision):** this fix follows the *documented*
+> model (token in the package, short-lived, rotated post-join). The alternative — resolve the
+> token from KeePass at runtime via the secrets broker (the `*_token_path` references hint at
+> this) — would keep the token out of `spawn-plan.json` entirely. That is a more secure design
+> but requires a runtime resolver that does not exist yet. **Flagged for your call**; the
+> current fix makes the documented flow actually work. (Related: cycle-1 A1 redacts these same
+> tokens from the unauthenticated dashboard endpoint.)
+
+---
+
 ## Trailing history of fixes (cycles 1–7, this session)
 
 All verified by re-audit and the pytest suite (4000 passed, 1 skipped) at the time.
