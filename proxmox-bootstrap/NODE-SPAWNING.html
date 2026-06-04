@@ -140,6 +140,7 @@ python3 spawn_hardware_discovery.py \
     --user root \
     --password-prompt \
     --output hardware-profile-pve02.json</code></pre></div>
+<blockquote><strong>Note:</strong> <code>--password-prompt</code> (and <code>--password</code>) use <code>sshpass</code> for non-interactive password SSH to a fresh broodling — install it on the hatchery/workstation (<code>apt install sshpass</code>). Once the broodling has an SSH key (after spawn), use <code>--key</code> instead. The password is passed via the <code>SSHPASS</code> env var, never on the command line, so it does not appear in <code>ps</code>/process listings.</blockquote>
 <p><strong>Discovery output</strong> — <code>hardware-profile-pve02.json</code>:</p>
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>{
   "hostname": "pve02",

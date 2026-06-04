@@ -102,8 +102,10 @@ def zfs_topology_for_profile(profile: HardwareProfile) -> str:
 # ---------------------------------------------------------------------------
 
 def _default_ssh_run(cmd: list, env=None) -> tuple[int, str, str]:
+    import os
+    full_env = {**os.environ, **env} if env else None
     result = subprocess.run(
-        cmd, capture_output=True, text=True, timeout=30,
+        cmd, capture_output=True, text=True, timeout=30, env=full_env,
     )
     return result.returncode, result.stdout, result.stderr
 
@@ -221,14 +223,24 @@ def discover_hardware(
 
     def _ssh(remote_cmd: str) -> tuple[bool, str]:
         """Run a command on the remote host. Returns (ok, stdout)."""
-        cmd = ["ssh",
-               "-o", "StrictHostKeyChecking=accept-new",
-               "-o", "BatchMode=yes",
-               "-p", str(port)]
+        ssh_env = None
+        if password:
+            # Password auth via sshpass. The password is passed through the
+            # SSHPASS env var (read by `sshpass -e`), never on argv, so it does
+            # not leak via ps/aux. BatchMode is omitted so the password is used.
+            cmd = ["sshpass", "-e", "ssh",
+                   "-o", "StrictHostKeyChecking=accept-new",
+                   "-p", str(port)]
+            ssh_env = {"SSHPASS": password}
+        else:
+            cmd = ["ssh",
+                   "-o", "StrictHostKeyChecking=accept-new",
+                   "-o", "BatchMode=yes",
+                   "-p", str(port)]
         if key:
             cmd += ["-i", key]
         cmd += [f"{user}@{host}", remote_cmd]
-        rc, out, err = run(cmd, None)
+        rc, out, err = run(cmd, ssh_env)
         if rc != 0:
             errors.append(f"Command '{remote_cmd}' failed (exit {rc}): {err.strip()}")
             return False, ""
@@ -323,3 +335,59 @@ def dict_to_hardware_profile(d: dict) -> HardwareProfile:
         disks=disks,
         nics=nics,
     )
+
+
+# ---------------------------------------------------------------------------
+# CLI — used by NODE-SPAWNING.md autonomous Step 2 (hardware discovery)
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    import argparse
+    import getpass
+    import shutil
+    import sys
+
+    ap = argparse.ArgumentParser(
+        description="Discover a broodling's hardware over SSH and write a "
+                    "hardware-profile JSON for the spawn planner.",
+    )
+    ap.add_argument("--host", required=True, help="Broodling IP or hostname")
+    ap.add_argument("--user", default="root", help="SSH user (default: root)")
+    ap.add_argument("--port", type=int, default=22, help="SSH port (default: 22)")
+    ap.add_argument("--key", default=None, help="SSH private key path (key-based auth)")
+    ap.add_argument("--password", default=None,
+                    help="SSH password (prefer --password-prompt; requires sshpass)")
+    ap.add_argument("--password-prompt", action="store_true", dest="password_prompt",
+                    help="Prompt for the SSH password (requires sshpass on this machine)")
+    ap.add_argument("--output", required=True, help="Output hardware-profile JSON path")
+    args = ap.parse_args()
+
+    password = args.password
+    if args.password_prompt:
+        password = getpass.getpass(f"SSH password for {args.user}@{args.host}: ")
+
+    if password and shutil.which("sshpass") is None:
+        print("[discover] ERROR: password authentication requires 'sshpass' "
+              "(e.g. 'apt install sshpass'); alternatively use --key for key-based SSH.",
+              file=sys.stderr)
+        sys.exit(2)
+
+    profile, errors = discover_hardware(
+        host=args.host, user=args.user, port=args.port, key=args.key, password=password,
+    )
+    for e in errors:
+        print(f"[discover] WARNING: {e}", file=sys.stderr)
+
+    with open(args.output, "w", encoding="utf-8") as f:
+        json.dump(hardware_profile_to_dict(profile), f, indent=2)
+
+    print(f"[discover] hardware profile written to {args.output} "
+          f"({profile.cpu_cores} cores, {profile.ram_gb:.1f} GB RAM, "
+          f"{len(profile.disks)} disks, {len(profile.nics)} NICs)")
+    if errors:
+        print(f"[discover] {len(errors)} collection warning(s) — profile may be partial.",
+              file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

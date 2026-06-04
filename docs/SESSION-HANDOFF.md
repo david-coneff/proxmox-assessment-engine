@@ -117,6 +117,27 @@ Tests: 4000 passed, 1 skipped.
 
 Tests: 4000 passed, 1 skipped.
 
+### Audit cycle 5 — spawn hardware discovery had no CLI (fixed)
+
+NODE-SPAWNING.md's autonomous **Step 2** (the first real step of an autonomous spawn)
+documents `python3 spawn_hardware_discovery.py --host … --user … --password-prompt
+--output …`, but `spawn_hardware_discovery.py` had **no CLI at all** — the command did
+nothing. Worse, the underlying `discover_hardware()` accepted a `password` param it
+never used (the SSH helper hard-set `BatchMode=yes`, key-only), and `_default_ssh_run`
+ignored its `env` arg — so password-based discovery (required for a fresh broodling
+that only has a temporary root password) was non-functional at every layer.
+
+Fixes:
+- Added the `--host/--user/--port/--key/--password/--password-prompt/--output` CLI.
+- Wired password auth through `sshpass -e` with the password passed via the `SSHPASS`
+  env var (never argv → no ps/aux leak); `BatchMode` omitted only when a password is
+  used. Clear exit-2 error if `sshpass` is absent.
+- `_default_ssh_run` now honours its `env` argument (merged with os.environ).
+- NODE-SPAWNING.md notes the `sshpass` requirement for the password path.
+Verified: --help, sshpass guard, and a mocked-runner discovery (correct profile).
+
+Tests: 4000 passed, 1 skipped.
+
 ---
 
 ### Audit rounds 16–18 (completed)
