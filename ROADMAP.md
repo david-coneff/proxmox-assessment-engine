@@ -2,7 +2,7 @@
 
 Version: 7.1
 Last updated: 2026-06-03 (audit round 14: security hardening, HTML escaping, quoting, handler parity)
-Architecture: v7.1 (see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md)
+Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)
 
 ---
 
@@ -380,7 +380,7 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
         must delegate DNS management to Cloudflare (change nameservers in Squarespace
         dashboard → "Use Custom Nameservers" → enter Cloudflare NS records). After
         delegation, all DNS is managed via Cloudflare API — broodforge treats it as
-        a standard Cloudflare provider. See docs/DNS-UPDATE-SETUP.md.
+        a standard Cloudflare provider. See docs/CLOUDFLARE-SETUP.md.
 
       **forge-planner.py asks:**
         "Is your WAN IP static or dynamic?"
@@ -412,8 +412,9 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
         `network_topology.ddns_record` — the specific A record being updated (e.g. "hatchery")
         `network_topology.ddns_credential_reference` — KeePass path for API token/key
 
-      **Documentation:** docs/DNS-UPDATE-SETUP.md — step-by-step guides for each
-        provider including Squarespace → Cloudflare delegation walkthrough.
+      **Documentation:** docs/CLOUDFLARE-SETUP.md and docs/DUCKDNS-SETUP.md —
+        step-by-step guides for each provider including Squarespace → Cloudflare
+        delegation walkthrough.
 
 - [x] 1.F.8d: **Let's Encrypt TLS certificate automation** — runs after DNS is configured
       (1.F.8b + 1.F.8c); tool and method depend on which DNS provider was selected:

@@ -2,7 +2,8 @@
 
 Version: 7.1
 Date: 2026-05-31 UTC
-Full review: docs/ARCHITECTURE-REVIEW-v7.md
+Design history & rationale: docs/DESIGN-HISTORY.md
+Full historical reviews (v4–v7): deprecated/
 
 ---
 
@@ -340,8 +341,9 @@ See Phase 12.E in [ROADMAP.md](ROADMAP.md) for full milestone detail.
 | AD-053 | **Spawn completion reporting — /api/spawn-complete.** When phase-06-verify.sh on the broodling passes all health checks, it POSTs a JSON payload to `{hatchery_url}/api/spawn-complete` (the hatchery receiver endpoint). The payload includes the spawn-plan.json and hardware-profile.json. The hatchery calls `update_state_after_spawn()` to merge the broodling's allocated VMIDs, IPs, hostnames, and cluster role into bootstrap-state.json. The hatchery_url and optional receiver_token are embedded in spawn-manifest.json at package-generation time (derived from host_identity.fqdn and receiver port 9321). If the POST fails, the script logs a warning with manual fallback instructions. |
 | AD-054 | **Migration commit convention.** Both `migrate-k3s-to-talos.py` and `migrate-k3s-to-ubuntu.py` call `_commit_migration_record()` after successfully writing bootstrap-state.json. Performs `git add <state_path> && git commit -m "migrate: {node} {from}→{to}"`. Non-fatal: git failure logs a warning and continues. Dry-run skips the commit. Operator is responsible for `git push` to Forgejo to trigger Assessment Engine reassessment. |
 
-| AD-055 | **HTML is the sole output format for all generated documents.** ODS/ODT renderers (workbook.py, runbook.py, recovery_runbook.py, recovery_workbook.py, operational_report.py) are preserved in `doc-gen/renderers/deprecated/` for reference but are not called by `engine.py`. All new renderers must use `html_base.py` utilities and produce self-contained HTML. References to ODS/ODT as the workbook standard in `docs/ARCHITECTURE-REVIEW-v7.md` describe an earlier design and are superseded by this decision. |
+| AD-055 | **HTML is the sole output format for all generated documents.** ODS/ODT renderers (workbook.py, runbook.py, recovery_runbook.py, recovery_workbook.py, operational_report.py) are preserved in `doc-gen/renderers/deprecated/` for reference but are not called by `engine.py`. All new renderers must use `html_base.py` utilities and produce self-contained HTML. References to ODS/ODT as the workbook standard in the historical architecture reviews (`deprecated/ARCHITECTURE-REVIEW-v7.md` and earlier) describe an earlier design and are superseded by this decision. |
 
 | AD-056 | **Spawn package self-assembly — no pre-generated artifacts required.** `assemble_spawn_package()` generates all phase scripts (spawn.sh, phase-*.sh) and IaC artifacts (opentofu tfvars, cloud-init snippets, ansible inventory) internally from the spawn-plan.json, matching the forge assembler pattern. An optional `artifacts_dir` override remains for operators who need to supply custom scripts. When `assemble-spawn-package.py` receives a bootstrap-state.json via `--state`, it calls `read_hatchery_state()` to derive a proper spawn-manifest with `hatchery_url` and `receiver_token`. WAN-mode spawn plans (disposition.network_mode=wan) automatically include the tailscale-join phase. This makes the operator two-step workflow: `spawn-planner.py --state ... → assemble-spawn-package.py --plan ... --state ...`. |
 
-Full architectural rationale: docs/ARCHITECTURE-REVIEW-v7.md
+Full architectural rationale: docs/DESIGN-HISTORY.md (design evolution) +
+the AD table above (current decisions). Historical review text: deprecated/.

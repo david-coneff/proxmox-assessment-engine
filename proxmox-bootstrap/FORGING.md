@@ -90,6 +90,15 @@ unlock. Without the database, the KeePass gate will prompt for the path at runti
 scp forge-package-*.tar.gz root@<hatchery-ip>:/root/
 ```
 
+**Verify integrity after transfer.** The assembler prints the package SHA-256
+(`SHA-256: …`) when it finishes Step 2. Confirm the copy on the target host
+matches before extracting:
+
+```bash
+# On the target host:
+sha256sum forge-package-*.tar.gz   # compare against the value printed in Step 2
+```
+
 ---
 
 ## Step 4 — Execute the forge package
@@ -181,7 +190,7 @@ If you selected the WAN network profile:
 - **DDNS** timer is configured to update the external A record every 5 minutes
 
 **Before running phase 03 in WAN mode:**
-1. Ensure your domain's A record or DDNS is set up (see `docs/DNS-UPDATE-SETUP.md`)
+1. Ensure your domain's A record or DDNS is set up (see `docs/CLOUDFLARE-SETUP.md` or `docs/DUCKDNS-SETUP.md`)
 2. If using Cloudflare: have your API token ready (will be stored in KeePass)
 3. If using DuckDNS: have your token ready
 4. Configure port forwarding: 8080 → hatchery LAN IP (for Headscale)

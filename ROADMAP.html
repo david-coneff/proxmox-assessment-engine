@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Broodforge — Roadmap</title>
+<style>
+  :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
+    --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
+    --code-bg:#181b21;--radius:6px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    font-size:14px;line-height:1.6;padding:24px;max-width:1100px;margin:0 auto}
+  h1{color:var(--accent);font-size:1.7em;margin:18px 0 4px}
+  h2{color:var(--accent);font-size:1.05em;margin:24px 0 8px;text-transform:uppercase;letter-spacing:.05em;
+    border-bottom:1px solid var(--border);padding-bottom:4px}
+  h3{color:var(--accent);font-size:.95em;margin:14px 0 6px}
+  h4{color:var(--muted);font-size:.82em;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em}
+  h5,h6{color:var(--muted);font-size:.8em;margin:8px 0 4px}
+  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+  p{margin:8px 0}ul,ol{margin:8px 0 8px 22px}li{margin:4px 0}
+  li>ul,li>ol{margin:4px 0 4px 18px}
+  strong{color:var(--text);font-weight:600}
+  hr{border:none;border-top:1px solid var(--border);margin:20px 0}
+  blockquote{border-left:3px solid var(--accent);background:#1e2d3a;margin:10px 0;
+    padding:8px 14px;border-radius:0 var(--radius) var(--radius) 0;color:var(--text)}
+  code{background:var(--code-bg);color:var(--green);padding:1px 5px;border-radius:3px;
+    font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.9em}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 14px;overflow-x:auto;margin:10px 0;font-family:'Cascadia Code','Fira Code',Consolas,monospace;
+    font-size:.85em;color:var(--green);white-space:pre}
+  pre code{background:none;padding:0;color:inherit}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+  th{background:var(--bg2);color:var(--muted);text-align:left;padding:6px 8px;
+    border-bottom:1px solid var(--border);font-weight:600;font-size:.8em;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:5px 8px;border-bottom:1px solid var(--bg3);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .doc-meta{color:var(--muted);font-size:.8em;margin:4px 0 20px}
+  @media print{body{padding:12px;max-width:none}}
+</style>
+</head>
+<body>
+<div class="doc-meta">Generated from <code>ROADMAP.md</code> — self-contained · print-friendly</div>
+<h1>Broodforge — Roadmap</h1>
+<p>Version: 7.1 Last updated: 2026-06-03 (audit round 14: security hardening, HTML escaping, quoting, handler parity) Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)</p>
+<hr>
+<h2>Completed</h2>
+<ul>
+<li>[x] Phase 1: Core assessment engine (Tier 2 foundation)</li>
+<li>[x] Phase 2: Assessment history store</li>
+<li>[x] Phase 3: Forgejo integration and repository export</li>
+<li>[x] Phase 4: Bootstrap assessment package (proxmox-audit-package-v1)</li>
+<li>[x] Milestone 5.1: Data Model Formalization (five schemas)</li>
+<li>[x] Milestone 5.2: Tier 1 Bootstrap Assessment Rebuild</li>
+<li>[x] Milestone 5.3: Bootstrap Documentation Generator</li>
+<li>[x] Milestone 5.4: Recovery Documentation Generator</li>
+<li>[x] Milestone 5.5: Recovery Readiness Scoring (with backup inventory)</li>
+<li>[x] Milestone 5.6: Historical State Integration (drift detection, snapshot index, reproducibility)</li>
+<li>[x] Milestones 6.0–6.8: Bootstrap State schema, Cloud-Init templates, Secret/DNS registries,</li>
+</ul>
+<p>provenance tracking, template registry, Tier 2 SSH state collector, Bootstrap Workbook registry wiring</p>
+<ul>
+<li>[x] Milestones 7.1–7.4: Service contract implementation, service state schema and collection,</li>
+</ul>
+<p>external dependency state (cert expiry + recovery Appendix G), recovery documentation service layer (contract block, health checks, restart commands, Appendix A edge legend)</p>
+<ul>
+<li>[x] Phase 6.B: Backup infrastructure — restic + rclone engine, BackupNaming, SpaceProbe,</li>
+</ul>
+<p>ResticRunner, RcloneRunner, BackupEngine, RestoreEngine, run-backup.py, restore-from-backup.py, setup-backup.py, backup readiness scoring, Appendix H</p>
+<ul>
+<li>[x] Phase 8: Network topology as code — schema, collector, compare, merge, drift detection, Wave 0 runbook</li>
+<li>[x] Phase 9: Phoenix playbooks — schema, generator, wave scripts, validator, readiness scoring, phoenix-planner.py CLI</li>
+<li>[x] Phases 10–12: Operational report, capacity model, reconstruction drill framework</li>
+<li>[x] Phase 1.G: Guided setup framework — four modes, group selector, suggestion revision, conflict detection</li>
+<li>[x] Phase 1.F: Forge package assembly — forge.sh (8 phases), forge-pack.sh, forge-manifest.json,</li>
+</ul>
+<p>forge validator, passphrase generator, KeePass init, dnsmasq, Headscale, DDNS, TLS, FORGING.md</p>
+<ul>
+<li>[x] Phase 12.E: Node spawn bootstrap — hatchery state, conflict validator, spawn planner,</li>
+</ul>
+<p>hardware discovery, IaC generator, phase scripts, package assembler, KeePass gate, HTML workbook, disposition scoring, spawn scenarios, NODE-SPAWNING.md</p>
+<ul>
+<li>[x] Phases 13–18: Hardware, Platform, Cluster, Storage, Data Protection, Observability,</li>
+</ul>
+<p>Digital Twin foundation, Capability State, Secret Reference State</p>
+<ul>
+<li>[x] Phases 19–25: Federation State and Trust, Federation Documentation, Failure Domain Modeling,</li>
+</ul>
+<p>Multi-Level Readiness, Federated Reconstruction Planning, Continuous Assessment, Reconstruction Validation</p>
+<p><strong>Tests at completion: 3302 (3298 passed, 4 skipped)</strong></p>
+<h3>Remaining / Future Work</h3>
+<ul>
+<li>[x] <strong>Phase 26 — Autonomous Remediation</strong> (Track 4): Detect → Propose → Approve → Execute → Reassess loop.</li>
+</ul>
+<p>All phases 26.1–26.7 implemented. remediation_planner.py, remediation_queue.py, remediation_executor.py, remediation_policy.py, remediation-cli.py. Dashboard integration, operational report Section 8, schema additions. 94 tests.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings</strong> — all HIGH, MEDIUM, LOW items resolved:</li>
+</ul>
+<p>Phoenix assembler + CLI, security→state loop, AD dedup, StrictHostKeyChecking fixes, watch() continuous mode, recursive shell script scan, stale docs, dashboard WAN warning, phoenix KeePass gate + workbook, service-catalog disambiguation; forge manifest schema validation, receiver X-Broodforge-Token auth, flaky passphrase test fixed, dead code removed, deprecated/CONTAINER-COMPATIBILITY-PLAN.md, .ai/context.md updated. Tests: 3577 passed, 37 skipped, 3 pre-existing jsonschema env failures.</p>
+<ul>
+<li>[x] 9.T (foundation): Talos Linux alternative support — foundation tier complete.</li>
+</ul>
+<p><code>build-talos-template.sh</code>, <code>generate-talos-config.py</code> (library + CLI), <code>os_variant</code> added to base_image/vm_template/provenance_record schemas, talos-1x-base fixture entries, <code>_score_talos_config_completeness()</code> readiness scorer, Talos-specific Wave 2.5 template rebuild + Wave 3 VM reconstruction steps. 57 tests. See <code>docs/TALOS-ALTERNATIVE.md</code> for design and prerequisites.</p>
+<ul>
+<li>[x] 9.T (migration): Ubuntu↔Talos migration tier implemented (9.T.9–9.T.17, all complete).</li>
+</ul>
+<p><code>migrate_k3s_lib.py</code> (shared library: preflight, snapshot, drain, rollback, history), <code>migrate-k3s-to-talos.py</code> (Ubuntu→Talos 9-step wizard with auto-rollback), <code>migrate-k3s-to-ubuntu.py</code> (Talos→Ubuntu reverse wizard), <code>migration_history</code> array in bootstrap-state-schema.json, YAML parser fix in generate_talos_config.py, forge_validator.py field name fix. 48 tests. TALOS-ALTERNATIVE.md usage examples updated.</p>
+<ul>
+<li>[x] 9.T.12: Recovery runbook "OS Variant Migration" Appendix I — migration history table</li>
+</ul>
+<p>with per-record detail and manual rollback commands. ODT + HTML. 25 tests. Tests: 3757 passed, 37 skipped, 3 pre-existing jsonschema env failures.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 4)</strong> — all 13 findings resolved:</li>
+</ul>
+<p>S1: setup-secrets.py private key redirected to /dev/tty (not stdout/log); S2: RESTIC_PASSWORD env pattern documented as intentional (correct approach); S3: headscale auth key no longer partially printed to stdout; D1/I4: reconstruction-drill.py CLI wrapper created (start/complete/last/report); D2: update_state_after_spawn.py docstring corrected; I1: hatchery_receiver.py /api/spawn-complete endpoint; spawn verify script POSTs to hatchery on success; hatchery_url embedded in spawn manifest; I2: migration scripts commit bootstrap-state.json to git after migration; I3: readiness.py _score_migration_health() ORANGE(failed)/YELLOW(rolled_back); I5: migrate_k3s_lib.py imports from collector_utils (consistent with round 3 fix); A2: 5 state collector import aliases removed (local_runner not _local_runner); A3: same as S1. A1 (sys.path coupling) deferred — requires package restructure. 35 new tests. Tests: 3792 passed, 37 skipped, 3 pre-existing.</p>
+<ul>
+<li>[x] <strong>ODT/ODS renderer deprecation</strong> — all ODT/ODS renderers (recovery_runbook.py,</li>
+</ul>
+<p>runbook.py, operational_report.py, workbook.py) moved to renderers/deprecated/. HTML renderers improved during migration: Appendix C (DNS Registry) added to html_recovery_runbook.py; service contract blocks now wire correctly in restore waves; _health_check_cmds()/_service_restart_cmds() unified; html_operational_report gains backup failure actions + inline cert expiry computation. 9 test files migrated. Tests: 3745 passed, 37 skipped, 3 pre-existing.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 5)</strong> — 10 findings, all resolved:</li>
+</ul>
+<p>A1/I2: recovery_workbook.py (missed in ODT sweep) → moved to deprecated/; I1: TestHtmlRecoveryWorkbook (8 tests) added — html_recovery_workbook had no coverage; D1–D4: stale .ods/.odt refs in README, ROADMAP, NODE-SPAWNING.md updated to HTML. A2 (sys.path coupling) and A3 (deprecated ODS import in test) deferred. Tests: 3647 passed, 37 skipped, 3 pre-existing.</p>
+<ul>
+<li>[x] <strong>Security fix: /api/spawn-complete path traversal</strong> — hatchery_receiver.py was</li>
+</ul>
+<p>accepting state_path from POST body, allowing any filesystem path to be read+written. Fixed: body state_path now ignored; only server-configured --state path is used. 1 new test. Tests: 3648 passed.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 6)</strong> — 7 findings fixed:</li>
+</ul>
+<p>HIGH: forge_scripts.py heredoc __file__ bug (NameError in stdin mode) → SCRIPT_DIR env; A2: sys.path inserts in 5 proxmox-bootstrap/ workbook modules made idempotent; A3: test_bootstrap_workbook.py migrated to html_bootstrap.py; registry helpers extracted; D1–D4: stale ODS refs in ROADMAP, ARCHITECTURE-REVIEW-v7.md deprecation note, AD-055 added. Tests: 3646 passed, 37 skipped.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 7)</strong> — 2 findings:</li>
+</ul>
+<p>I1: html_forge_workbook.py + html_phoenix_workbook.py had zero test coverage; TestHtmlForgeWorkbook + TestHtmlPhoenixWorkbook added (8 tests total). Tests: 3654 passed, 37 skipped.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 8)</strong> — comprehensive scan, all findings fixed:</li>
+</ul>
+<p>D: spawn_workbook.py + forge_workbook.py moved to proxmox-bootstrap/deprecated/; tests migrated to HTML (56 tests); html_forge_workbook.py findings rendering bug fixed (RED/YELLOW severity handling for ForgeValidationFinding dataclasses); setup_warnings now rendered in Overview section. Tests: 3720 passed, 37 skipped.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 9)</strong> — 7 fixes (Round 1 + Round 2):</li>
+</ul>
+<p>Round 1 — A1: html_base.py copied to proxmox-bootstrap/; sys.path.insert removed from 4 workbook modules; I1: test_hatchery_receiver_wiring.py (16 tests); I3: TestScoreMigrationHealth (6 tests) to test_readiness.py; D2: docstring corrected. Round 2 (full-stack audit) — 3 HIGH subprocess timeout fixes: collect_tier2.py SSH timeout=30, remediation_executor.py timeout=300, setup_ddns.py lexicon timeout=30. Tests: 3781 passed, 4 skipped.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 10)</strong> — 8 fixes (Cycles 1–4):</li>
+</ul>
+<p>Cycle 1 — S1: 5 subprocess timeouts (backup.py git remote, forge_keepass_init.py bash loop, init-bootstrap-state.py wizard spawn); D1: NODE-SPAWNING.md stale ODS ref fixed. Cycle 2 — I1: bootstrap-state-schema.json security_scan property added; S1: silent exception in analyze_all_unanalyzed() now prints warning; D1/D2: RECONSTRUCTION-DRILL.md CLI examples replaced (removed fake --mode/--record-manual flags); readiness.py docstring corrected (removed false "last scan overdue" claim). Cycle 3 — I1: reconstruction-drill.py complete gains --gaps argument; RECONSTRUCTION-DRILL.md updated with --gaps example. Cycle 4 — B1: _score_reconstruction_drill() handles in_progress drills (YELLOW); B2: reconstruction-drill.py complete outcome choices fixed (success/partial/failed/aborted); B3: partial outcome now correctly scored as ORANGE. Tests: 3780 passed, 6 skipped.</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 11)</strong> — 9 fixes (Cycles 1–5):</li>
+</ul>
+<p>Cycle 1 — D1: FORGING.md forge-pack.sh→assemble-forge-package.py (wrong script ref); S1: forge_scripts.py heredoc subprocess timeout=300/30; D2: ROADMAP/CURRENT_STATE sync. Cycle 2 — I1: spawn package self-assembly (no pre-generated artifacts required); D1: assemble-spawn-package.py --artifacts optional, --state alias added; D2: spawn-planner.py next-steps complete command; D3: NODE-SPAWNING.md wrong flags; I2: update_state_after_spawn.py gains __main__ CLI block. Cycle 3 — S1: assemble_spawn_package is_ha logic bug (used non-existent promote_ha); D1: FORGING.md engine.py --state→--manifest; I1: bootstrap-state→spawn-manifest conversion in CLI (ensures hatchery_url in package). Cycle 4 — S1: WAN mode spawn scripts missing (include_wan_phase not passed). Cycle 5 — AD-056 added to ARCHITECTURE.md; docs synced. Tests: 3925 passed, 37 skipped (+16 new tests).</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 12)</strong> — 7 fixes (Cycles 1–3):</li>
+</ul>
+<p>Cycle 1 — schema_version check bug in assemble-spawn-package.py CLI fixed; phase-06-verify.sh error fallback message improved. Cycle 2 — hatchery_receiver target_hostname→hostname; html_package_manifest stale field names fixed (target_hostname→hostname, vmid_block dict→vms[] list, top-level execution_mode/network_mode→disposition.*). Cycle 3 — html_spawn_workbook network_mode from disposition; update_state_after_spawn vmid_block fallback to vms[].vmid (spawn history was empty). Tests: 3932 passed, 37 skipped (+7 new tests).</p>
+<ul>
+<li>[x] <strong>Full-stack audit findings (round 3)</strong> — all MEDIUM and LOW items resolved:</li>
+</ul>
+<p>S1: secrets.compare_digest in hatchery_receiver; I1: security scan wired into operational; I2: 9.T migration tier (above); S2: no-token startup warning in dashboard; S3: WAN exposure warning in receiver; S4+I4: HTTP request logging + --verbose flag; S5: _local_runner() extracted to collector_utils.py (5 collector modules updated); I3: DASHBOARD_VERSION synced to 7.1. Tests: 3732 passed, 4 skipped.</p>
+<hr>
+<h2>Roadmap Overview</h2>
+<h3>Three Processes — Three Package Types</h3>
+<table><thead><tr><th>Process</th><th>Package</th><th>Phases</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Forging</strong></td><td>Forge package</td><td>Phase 0–3 + Phase 1.F</td><td>Bare hardware → first operational hatchery</td></tr><tr><td><strong>Hatchery Process</strong></td><td>Spawn package</td><td>Phase 12.E</td><td>Hatchery → broodling joins without conflict</td></tr><tr><td><strong>Stargate Process</strong></td><td>Phoenix package</td><td>Phase 9 + Phase C/D</td><td>Failed node → identity resurrected</td></tr></tbody></table>
+<h3>Four Tracks</h3>
+<p><strong>Forging Foundation (Phases 0–3, Phase 1.F)</strong> Establish the metadata model and all Phase A tooling. Culminates in the forge package — a self-contained archive that takes bare hardware to an operational broodforge hatchery via eight automated phases.</p>
+<p><strong>Track 1 — Cell-Scoped Foundation (Phases 6–12.E)</strong> Complete the single-cell documentation, reconstruction, and spawn capability. Includes:</p>
+<ul>
+<li>Phase 9 (Stargate Process) — phoenix playbooks that reconstitute a failed node's</li>
+</ul>
+<p>identity on new hardware</p>
+<ul>
+<li>Phase 12.E (Hatchery Process) — spawn package that a broodling runs after bare</li>
+</ul>
+<p>Proxmox install to join the hatchery without VMID, IP, or hostname conflicts All schemas in this track carry <code>cell_id</code> (federation-readiness gate).</p>
+<p><strong>Track 2 — Expanded State Model (Phases 13–18)</strong> Add the new state categories: Hardware, Platform, Cluster, Storage, External Dependencies, Data Protection, Observability, Capability, Federation State.</p>
+<p><strong>Track 3 — Digital Twin and Federation (Phases 19–25)</strong> Build the Digital Twin platform, federation architecture, federated reconstruction, and continuous assessment capability.</p>
+<p><strong>Track 4 — Autonomous Operations (Phase 26)</strong> Close the detect → propose → approve → execute → reassess loop. The assessment engine has always found and scored gaps; Track 4 adds the ability to act on them, always gated by explicit human approval. No autonomous action without a recorded operator decision.</p>
+<p>Track 2 begins after Phase 12.E completes the single-cell + expansion foundation. Track 3 begins after Phase 18 completes the expanded state model. Track 4 begins after Track 3 and requires Phase 24 (continuous assessment) running.</p>
+<hr>
+<h2>Forging Foundation — Phase 0 through Phase 3</h2>
+<p>Phases 0–3 constitute the <strong>forging process</strong>: building the Phase A toolchain that can take bare hardware to an operational broodforge hatchery. These phases are complete. Phase 1.F (Forge Package Assembly) is the planned capstone.</p>
+<h3>Phase 1.F — Forge Package Assembly *(Forging Process capstone)*</h3>
+<p>*Assembles all Phase A tooling into a single self-contained forge package — the artifact an operator downloads and runs on bare Proxmox to forge the first hatchery.*</p>
+<ul>
+<li>[x] 1.F.1: <code>forge-pack.sh</code> — assembles forge package from current repo state:</li>
+</ul>
+<p>discovery scripts, planners, generators, opentofu/, ansible/, forge.sh + phases, forge-workbook.html template, lib/ (checkpoint, validation, failure-package)</p>
+<ul>
+<li>[x] 1.F.2: <code>forge.sh</code> — orchestrated entry point with 8 phases:</li>
+</ul>
+<p>phase-00 (discover) → phase-01 (plan) → phase-02 (validate, RED blocks) → phase-03 (host config) → phase-04 (VMs) → phase-05 (k3s) → phase-06 (Flux GitOps) → phase-07 (intelligence layer) → phase-08 (verify + commit)</p>
+<ul>
+<li>[x] 1.F.3: Forge workbook (HTML) — tracks forge execution with same checkpoint/status</li>
+</ul>
+<p>pattern as spawn and phoenix workbooks; committed to Forgejo on completion</p>
+<ul>
+<li>[x] 1.F.4: <code>forge-manifest.json</code> — cell identity snapshot embedded in package:</li>
+</ul>
+<p>declares cell_id, naming convention, hardware requirements, storage config, secret registry paths, target VM set (minimum viable broodforge stack only)</p>
+<ul>
+<li>[x] 1.F.5: Minimum viable forge validation — phase-02 checks that hardware meets</li>
+</ul>
+<p>minimum requirements for the broodforge stack (doc engine + assessment engine); user applications are not included in the forge package (added via GitOps after)</p>
+<ul>
+<li>[x] 1.F.5a: <strong>Proxmox subscription nag suppression</strong> — <code>lib/pve-suppress-nag.sh</code>:</li>
+</ul>
+<p>Patches the Proxmox web UI JavaScript to remove the non-enterprise subscription popup. Applied during phase-03 (host config) as part of standard host hardening.</p>
+<p>Implementation: patches <code>/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js</code> to neutralise the <code>Ext.Msg.show</code> call that renders the subscription dialog. Idempotent — detects if already applied and exits cleanly.</p>
+<p>Persistence: installs a dpkg post-invoke hook at <code>/etc/apt/apt.conf.d/85pve-nag-suppress</code> that re-applies the patch whenever <code>proxmox-widget-toolkit</code> or <code>pve-manager</code> packages are updated, so the suppression survives Proxmox upgrades without operator intervention.</p>
+<p>Note: Proxmox Community Edition (VE without subscription) is fully functional and free to use. The subscription nag is a commercial reminder, not a licence restriction. This script removes the UI interruption for homelab operators who do not hold an enterprise subscription.</p>
+<ul>
+<li>[x] 1.F.6: <strong>KeePass initialisation at forge time</strong> — phase-03 (host config) prompts</li>
+</ul>
+<p>the operator to set the KeePass master password before any secrets are generated:</p>
+<ul>
+<li>Broodforge offers a generated readable passphrase as the default suggestion</li>
+</ul>
+<p>(format: <code>Capital.word.phrase.9</code> — 20-30 chars, leading capital, lowercase, period separators, trailing digit; see AD-043)</p>
+<ul>
+<li>Operator may accept the suggestion, enter their own, or open the KeePass</li>
+</ul>
+<p>built-in generator for an alternative format</p>
+<ul>
+<li>Password confirmed by re-entry; never stored by broodforge</li>
+<li>KeePass database initialised and populated with generated service credential</li>
+</ul>
+<p>entries (paths only established here; values filled during service deployment)</p>
+<ul>
+<li>Operator selects whether to embed the database in subsequent spawn/phoenix</li>
+</ul>
+<p>packages (embedded = convenient but requires master password at gate; path-based = database stays off the package entirely)</p>
+<ul>
+<li>[x] 1.F.7: <strong>Readable passphrase generator</strong> (<code>lib/passphrase.py</code>) — stdlib only:</li>
+</ul>
+<p>Generates passwords in the <code>Capital.word.phrase.9</code> format from a curated word list. Used for master password suggestion, initial service credentials, and any operator-facing password output. Character set: A-Z (leading only), a-z, 0-9, <code>.</code></p>
+<ul>
+<li>[x] 1.F.8: <strong>Service password compatibility detector</strong> — if a service deployment phase</li>
+</ul>
+<p>fails with an authentication or credential-related error, the detector:</p>
+<ul>
+<li>Matches the failure pattern against known incompatibility signatures</li>
+</ul>
+<p>(common patterns: service rejects <code>.</code> or <code>_</code> in passwords)</p>
+<ul>
+<li>Offers to regenerate the affected credential as a plain alphanumeric password</li>
+</ul>
+<p>(letters + digits only, same length range — KeePass default format)</p>
+<ul>
+<li>Retries the failed deployment phase with the new credential</li>
+<li>Records the service name and character restriction in service-catalog metadata</li>
+</ul>
+<p>so the restriction is applied automatically in future deployments</p>
+<ul>
+<li>The service-specific format override is stored in service-catalog.yaml as</li>
+</ul>
+<p><code>password_format: alphanumeric</code> for any service known to require it</p>
+<ul>
+<li>[x] 1.F.8a: <strong>Headscale auto-configuration</strong> — installed and configured during phase-03</li>
+</ul>
+<p>(host config) so the hatchery is the tailnet coordinator from the moment it is forged:</p>
+<p><strong>Installation:</strong> Download headscale binary (or apt install headscale if available in repos) Generate headscale config: server_url, listen_addr, db_path, log_level server_url derived from the hatchery's discovered WAN/LAN address + port 8080 TLS: configured with self-signed cert for initial operation; operator can supply a proper cert or configure ACME after forging systemd service created and enabled: <code>headscale serve</code></p>
+<p><strong>Initial setup:</strong> Create a broodforge user/namespace in Headscale: <code>headscale users create broodforge</code> Register the hatchery's own Tailscale client with its own Headscale: <code>tailscale up --login-server https://{hatchery-address}:8080</code> (the hatchery is the first node on its own tailnet) Record the Headscale server URL in bootstrap-state.json as <code>network_topology.headscale_url</code> Store the Headscale API key in KeePass: <code>headscale apikeys create</code> → stored at <code>Infrastructure/headscale/api-key</code> The hatchery's tailnet IP (100.64.0.1 or similar) is also recorded in bootstrap-state.json alongside its LAN IP</p>
+<p><strong>Auth key generation for spawn packages:</strong> When spawn-planner.py runs in WAN mode, it calls: <code>headscale authkeys generate --expiration 1h --user broodforge</code> The resulting key (a short string, typeable or pasteable) is embedded in the spawn package. It is single-use and expires — not stored in KeePass.</p>
+<p><strong>LAN vs WAN detection:</strong> spawn-planner.py tries a direct connection to the broodling's reported IP. If unreachable within 5 seconds, prompts the operator: "Broodling appears unreachable on LAN. Use WAN mode (Headscale)?" Operator can also set --wan or --lan explicitly.</p>
+<ul>
+<li>[x] 1.F.8b: <strong>Split-horizon DNS server (dnsmasq)</strong> — deployed in phase-03 (host config),</li>
+</ul>
+<p>before any VMs exist, so DNS is available from the moment the hatchery can serve LAN:</p>
+<p><strong>Installation and configuration:</strong> apt install dnsmasq Generate /etc/dnsmasq.conf from dns-registry.yaml:</p>
+<ul>
+<li>One <code>address=/{fqdn}/{lan-ip}</code> line per dns-registry.yaml entry</li>
+<li><code>server=8.8.8.8</code> and <code>server=1.1.1.1</code> for upstream forwarding</li>
+<li><code>domain={operator-domain}</code> to make unqualified names resolvable</li>
+<li><code>listen-address={hatchery-lan-ip}</code> to bind to the LAN interface</li>
+</ul>
+<p>Generate via <code>proxmox-bootstrap/generate-dnsmasq-config.py</code>: reads dns-registry.yaml → writes /etc/dnsmasq.d/broodforge.conf Idempotent: re-run after any dns-registry.yaml update to reload config systemctl enable --now dnsmasq Update Proxmox host /etc/resolv.conf to point at itself (127.0.0.1)</p>
+<p><strong>The operator provides their domain during phase-01 (plan):</strong> forge-planner.py asks: "Your domain name (e.g. home.example.com): _" Stored in bootstrap-state.json as <code>host_identity.domain</code>. All node hostnames in the deployment use this domain suffix: hatchery.home.example.com, forgejo.home.example.com, etc. FQDN stored as <code>host_identity.fqdn</code> — the canonical address for all inbound connections (Headscale, Forgejo, and any WAN-reachable service).</p>
+<p><strong>Split-horizon behaviour:</strong> LAN clients with hatchery as DNS:   <code>hatchery.home.example.com</code> → LAN IP WAN clients using public DNS:        <code>hatchery.home.example.com</code> → WAN IP Same FQDN, same spawn package, same Headscale URL — works from everywhere.</p>
+<p><strong>Router/firewall requirements (operator-configured, not automated):</strong> Port forwarding: 8080 (Headscale) → hatchery LAN IP External DNS A record: <code>hatchery.{domain}</code> → operator's WAN IP The forge wizard reminds the operator of these requirements but cannot configure the upstream router automatically (out of scope for forge).</p>
+<ul>
+<li>[x] 1.F.8c: <strong>External DNS auto-update</strong> — for operators with dynamic WAN IPs:</li>
+</ul>
+<p><strong>Tool selection:</strong> Primary: <strong>dns-lexicon</strong> (pip install dns-lexicon) — 90+ providers, actively maintained, unified CLI/API. Providers: Cloudflare, GoDaddy, Namecheap, Route53, Porkbun, Gandi, OVH, DigitalOcean, Linode, Vultr, and 80+ more. Special case: <strong>DuckDNS</strong> — handled via a single HTTPS GET (no lexicon needed), suitable for operators who want a free subdomain rather than their own domain. DO NOT USE: inadyn — archived Oct 2025, no longer maintained.</p>
+<p><strong>Squarespace registrar note:</strong> Squarespace exposes no DNS API. Operators with Squarespace-registered domains must delegate DNS management to Cloudflare (change nameservers in Squarespace dashboard → "Use Custom Nameservers" → enter Cloudflare NS records). After delegation, all DNS is managed via Cloudflare API — broodforge treats it as a standard Cloudflare provider. See docs/CLOUDFLARE-SETUP.md.</p>
+<p><strong>forge-planner.py asks:</strong> "Is your WAN IP static or dynamic?" If dynamic: presents provider selection menu:</p>
+<ol>
+<li>Cloudflare (recommended — works for any registrar, including Squarespace)</li>
+<li>DuckDNS (free subdomain — no own domain needed)</li>
+<li>Other provider (Namecheap, GoDaddy, Route53, Porkbun, etc.) via dns-lexicon</li>
+<li>Skip — I will manage DNS records manually</li>
+</ol>
+<p><strong>Implementation:</strong> <code>proxmox-bootstrap/setup-ddns.py</code> — interactive configuration wizard: Walks operator through provider selection, credential entry, and writes config to /etc/broodforge/ddns.conf. Credentials stored in KeePass; references stored in bootstrap-state.json. Tests the update before saving (makes a real DNS call to verify credentials). <code>proxmox-bootstrap/update-dns.py</code> — update script (called by systemd timer): Detects current WAN IP (curl ifconfig.me / ipinfo.io, with fallback) Compares to cached last-known IP (/var/lib/broodforge/last-wan-ip) If changed: calls dns-lexicon or DuckDNS GET to update A record Logs outcome to systemd journal On failure: logs and retries on next timer tick (does not crash) systemd timer: broodforge-ddns.timer — runs every 5 minutes OnBootSec=60 (initial delay to let network settle) OnUnitActiveSec=5min</p>
+<p><strong>Configuration stored in bootstrap-state.json:</strong> <code>network_topology.ddns_provider</code> — "cloudflare" | "duckdns" | "lexicon:{name}" | null <code>network_topology.ddns_zone</code> — the DNS zone/domain being managed <code>network_topology.ddns_record</code> — the specific A record being updated (e.g. "hatchery") <code>network_topology.ddns_credential_reference</code> — KeePass path for API token/key</p>
+<p><strong>Documentation:</strong> docs/CLOUDFLARE-SETUP.md and docs/DUCKDNS-SETUP.md — step-by-step guides for each provider including Squarespace → Cloudflare delegation walkthrough.</p>
+<ul>
+<li>[x] 1.F.8d: <strong>Let's Encrypt TLS certificate automation</strong> — runs after DNS is configured</li>
+</ul>
+<p>(1.F.8b + 1.F.8c); tool and method depend on which DNS provider was selected:</p>
+<p><strong>Cloudflare path:</strong> Install certbot + python3-certbot-dns-cloudflare (apt) Write /etc/broodforge/cloudflare.ini using API token from KeePass (chmod 600 — certbot refuses to read world-readable credentials files) Issue wildcard cert: certbot certonly --dns-cloudflare --dns-cloudflare-credentials /etc/broodforge/cloudflare.ini --dns-cloudflare-propagation-seconds 30 -d {fqdn} -d "*.{domain}" --email {operator-email} --agree-tos --non-interactive Certs land at /etc/letsencrypt/live/{fqdn}/fullchain.pem + privkey.pem certbot.timer (installed by certbot) handles auto-renewal Deploy hook written to /etc/letsencrypt/renewal-hooks/deploy/: Reloads headscale and nginx after each successful renewal</p>
+<p><strong>DuckDNS path:</strong> Install acme.sh (curl https://get.acme.sh | sh) Issue wildcard cert: DuckDNS_Token={token from KeePass} acme.sh --issue --dns dns_duckdns -d {subdomain}.duckdns.org -d "*.{subdomain}.duckdns.org" --server letsencrypt --dnssleep 60 Install cert to stable path /etc/broodforge/ssl/ with --install-cert acme.sh cron entry handles auto-renewal (added during install) Reload command: systemctl reload headscale + sync-cert-to-k8s.sh</p>
+<p><strong>Both paths — Headscale TLS config:</strong> forge.sh writes the cert paths into /etc/headscale/config.yaml after cert issuance; Headscale is (re)started with TLS enabled</p>
+<p><strong>k3s ClusterIssuer (deployed in phase-06 Flux bootstrap):</strong> Cloudflare: ClusterIssuer with dns01.cloudflare solver + k8s secret from Cloudflare API token (written from KeePass during phase-06) DuckDNS: No native cert-manager DNS-01 support; forge generates sync-cert-to-k8s.sh which copies the acme.sh wildcard cert into k8s TLS secrets in each namespace; script is wired into acme.sh --reloadcmd and also runs as a weekly k8s CronJob to catch any drift</p>
+<p><strong>SSL config stored in bootstrap-state.json:</strong> network_topology.ssl_provider: "certbot" | "acme.sh" network_topology.ssl_method:   "dns-01-cloudflare" | "dns-01-duckdns" network_topology.ssl_cert_path: path to fullchain.pem network_topology.ssl_key_path:  path to privkey.pem</p>
+<p><strong>Documentation:</strong> docs/CLOUDFLARE-SETUP.md Part 3 and docs/DUCKDNS-SETUP.md Part 2</p>
+<ul>
+<li>[x] 1.F.9: <strong>Timezone preference at forge time</strong> — phase-01 (plan) prompts the</li>
+</ul>
+<p>operator to confirm or set their local timezone:</p>
+<ul>
+<li>Auto-detected from the host OS if available</li>
+<li>Stored in <code>bootstrap-state.json</code> as <code>vm_defaults.timezone</code></li>
+<li>Used by all documentation engine output (all timestamps show both UTC and local)</li>
+<li>Updatable after forging via <code>engine.py --set-timezone</code> without requiring a rebuild</li>
+</ul>
+<ul>
+<li>[x] 1.F.10: <strong>Backup destination setup at forge time</strong> — phase-01 (plan) walks the</li>
+</ul>
+<p>operator through configuring restic + rclone backup destinations:</p>
+<ul>
+<li>At least one destination required before forge proceeds (secrets must be backed up)</li>
+<li>Local destinations (filesystem path, USB mount point) need no credentials</li>
+<li>Cloud destinations require an API key, Application Key, or OAuth token — not</li>
+</ul>
+<p>username/password; operator directed to docs/CLOUD-STORAGE-SETUP.md for setup</p>
+<ul>
+<li>Destinations defined as an <strong>ordered chain</strong> per layer; no limit on chain depth</li>
+<li>Each destination attempted in sequence; each upload independently verified</li>
+<li>If a destination fails, the next in the chain is attempted automatically;</li>
+</ul>
+<p>the failure is reported to the operator but does not halt the process</p>
+<ul>
+<li>If every destination in the chain fails for a layer: RED alarm surfaced</li>
+</ul>
+<p>to operator via log, workbook, and next assessment run — never silent</p>
+<ul>
+<li>All backups encrypted by default with restic (encryption is mandatory, not optional);</li>
+</ul>
+<p>encryption password per restic repo stored in KeePass and retrieved by secrets broker at backup time — operator never manually handles backup decryption keys</p>
+<ul>
+<li>Separate choices for: (a) secrets / KeePass DB, (b) configuration state,</li>
+</ul>
+<p>(c) application data volumes (opt-in; not configured by default)</p>
+<ul>
+<li>Retention policy: number of versions to keep (default: 5); permanent checkpoint option</li>
+<li>All backup config stored in bootstrap-state.json as first-class readiness metadata</li>
+</ul>
+<ul>
+<li>[x] 1.F.11: Documentation: <code>FORGING.md</code> — operator runbook covering prerequisites,</li>
+</ul>
+<p>running forge-pack.sh on the repo, copying forge package to target host, executing forge.sh, verifying hatchery is operational</p>
+<h3>Phase 1.G — Guided Setup Framework *(cross-cutting: forge, spawn, phoenix)*</h3>
+<p>*A shared configuration guidance engine used by all three deployment packages. At every manual prompt the auto-suggestion is displayed and revised as the operator makes choices. Conflicts are detected and surfaced before commitment.*</p>
+<p><strong>Four configuration modes:</strong></p>
+<table><thead><tr><th>Mode</th><th>Operator interaction</th><th>When to use</th></tr></thead><tbody><tr><td><strong>Autonomous</strong> (default)</td><td>None — all settings calculated automatically</td><td>Standard deployment</td></tr><tr><td><strong>IP-Selective</strong></td><td>Choose IP addressing only; everything else is automatic</td><td>Operator has a specific IP plan</td></tr><tr><td><strong>Group-Manual</strong></td><td>Group selector → configure chosen groups manually, rest is automatic</td><td>Operator wants control over specific areas</td></tr><tr><td><strong>Full Manual</strong></td><td>Walk through all settings with auto-suggestions</td><td>Complete control</td></tr></tbody></table>
+<p><strong>Setting groups (available in Group-Manual and Full Manual modes):</strong></p>
+<table><thead><tr><th>Group</th><th>Settings covered</th></tr></thead><tbody><tr><td>Network</td><td>Management CIDR, gateway, bridge names, VLAN IDs, DNS, Headscale URL</td></tr><tr><td>Storage</td><td>ZFS pool topology, pool name, datastore names, disk assignment</td></tr><tr><td>VM Sizing</td><td>VMID block, per-VM RAM/CPU/disk, placement constraints</td></tr><tr><td>Identity</td><td>Hostname, domain, FQDN, cell_id, naming convention</td></tr><tr><td>Security</td><td>KeePass location, password format, SSH key references</td></tr><tr><td>k3s</td><td>Pod/service CIDR, CNI plugin, initial role (server/worker)</td></tr><tr><td>Backup</td><td>Restic destinations, retention policy, DDNS provider</td></tr></tbody></table>
+<p><strong>Suggestion revision:</strong> when the operator overrides a setting, all downstream auto-suggestions are revised to remain logically consistent. Example: choosing <code>192.168.50.0/24</code> as the management CIDR causes all subsequent VM IP suggestions to come from that range; choosing a custom pool name causes all datastore references to use that name.</p>
+<p><strong>Conflict detection:</strong> before accepting each override, the engine checks:</p>
+<ul>
+<li>VMID collisions with existing or other declared VMs</li>
+<li>IP address collisions with DNS registry or other declared VMs</li>
+<li>Subnet overlaps with k3s pod/service CIDR or other networks</li>
+<li>RAM allocation exceeding host total RAM</li>
+<li>ZFS pool or bridge names that already exist on the host</li>
+</ul>
+<p>Warnings are shown with specific conflict details. The operator may still proceed.</p>
+<ul>
+<li>[x] 1.G.1: <code>proxmox-bootstrap/guided_setup.py</code> — core engine:</li>
+</ul>
+<p><code>SETTING_GROUPS</code> — dict defining the seven groups and their constituent field paths <code>GuidedSetupSession</code> — session class that tracks: mode (autonomous|ip-selective|group-manual|full-manual) selected_groups (set of group names for group-manual mode) choices (field_path → {value, source: 'auto'|'manual'}) warnings (accumulated conflict messages) <code>suggest(field_path, session)</code> — returns auto-suggestion revised from current choices; subnet changes cascade to IP suggestions; hostname changes cascade to FQDN; etc. <code>set_value(field_path, value, session)</code> → list[str] conflict warnings; records choice; triggers suggestion revision for dependent fields <code>check_conflicts(field_path, value, session)</code> → list[str] warning messages</p>
+<ul>
+<li>[x] 1.G.2: Group selector interface:</li>
+</ul>
+<p><code>select_groups(session)</code> — displays group table with current auto-suggestions for a representative field in each group; operator toggles groups on/off; returns the set of groups to configure manually <code>prompt_field(field_path, label, session, choices=None)</code> → value; shows auto-suggestion, optional discrete choices, accepts free-text or selection; calls set_value() and surfaces any conflicts before returning</p>
+<ul>
+<li>[x] 1.G.3: IP-Selective mode specialization:</li>
+</ul>
+<p>Runs autonomously except for the Network group; <code>run_ip_selective(session)</code> — prompts only for CIDR, gateway, and VM IP assignments; all other settings auto-calculated; subsequent IP suggestions revised from choices</p>
+<ul>
+<li>[x] 1.G.3b: Network profiles (setup_network.py):</li>
+</ul>
+<p>LanNetworkConfig / WanNetworkConfig dataclasses; suggest_lan/wan() with field revision (cidr→gateway, domain→fqdn, dns_provider→tls_provider); validate_lan/wan_config() with errors/warnings; plan_migration_to_wan() (7-step plan, router step non-autonomous); plan_migration_to_lan() with preserve_headscale option; lan/wan_config_to_state() serialization; apply_network_config_to_state(); generate_dnsmasq_config() for both profiles. Schema: network_topology.profile + wan_config + lan_config + ssl_provider enum updated.</p>
+<ul>
+<li>[x] 1.G.4: Wire into forge (Phase 1.F):</li>
+</ul>
+<p>forge_planner.py (library) + forge-planner.py (CLI): ForgePlannerSession, step0_set_setup_mode, step1_run_guided_setup (autonomous/ip-selective/ group-manual/full-manual), step2_set_identity, step3_set_network_profile, record_manual_field, build_forge_manifest. Produces forge-manifest.json with setup_overrides embedded for manual choices. (64 tests)</p>
+<ul>
+<li>[x] 1.G.5: Wire into spawn (Phase 12.E):</li>
+</ul>
+<p>SpawnPlannerSession extended with guided_session + setup_overrides fields. step_guided_setup() helper (autonomous no-op; ip-selective pre-populates; group-manual + full-manual record field_values). Step 0.5 in spawn-planner.py CLI offers guided setup between network mode and execution mode. build_spawn_plan() embeds setup_overrides in spawn-plan.json.</p>
+<ul>
+<li>[x] 1.G.6: Wire into phoenix (Phase 9):</li>
+</ul>
+<p>phoenix_guided_setup.py: PhoenixGuidedSetupSession, restoration_wave_options, step0_set_restoration_scope (full/partial with wave selection), step1_run_identity_overrides (hostname/domain/fqdn/cell_id overrides with conflict detection), apply_overrides_to_playbook (scope filter + identity update + setup_overrides audit trail), build_phoenix_guided_session factory. phoenix-planner.py CLI. (63 tests)</p>
+<hr>
+<h2>Track 1 — Cell-Scoped Foundation</h2>
+<h3>Phase 6 — Bootstrap State</h3>
+<p><strong>6.0 — External Backup Setup and Recovery Runbook Integration</strong></p>
+<ul>
+<li>[x] <code>external_backup</code> section in bootstrap-state-schema.json</li>
+<li>[x] <code>backup.py</code> — archive naming, GPG encryption, transfer, listing, pruning</li>
+<li>[x] <code>setup-external-backup.py</code> — GitHub or encrypted-archive interactive wizard</li>
+<li>[x] <code>init-bootstrap-state.py</code> — prompts for external backup as part of init flow</li>
+<li>[x] Recovery runbook Step 0 — pre-populated bootstrap state retrieval commands</li>
+</ul>
+<p>derived from declared external_backup provider (git clone / rclone + gpg / UNRESOLVED)</p>
+<p><strong>6.1 — Bootstrap State Schema and Repository Structure</strong></p>
+<ul>
+<li>[x] <code>data-model/bootstrap-state-schema.json</code> (Cloud-Init, image registry, templates,</li>
+</ul>
+<p>provenance, secret registry, DNS registry, service contracts, hardware requirements)</p>
+<ul>
+<li>[x] <code>data-model/service-state-schema.json</code></li>
+<li>[x] <code>cell_id</code> field in both schemas</li>
+<li>[x] <code>proxmox-bootstrap/</code> repository structure</li>
+<li>[x] Schema validation tests (90 tests in test_bootstrap_service_schemas.py)</li>
+</ul>
+<p><strong>6.2 — Cloud-Init Template Library</strong></p>
+<ul>
+<li>[x] Cloud-Init user-data per VM role</li>
+<li>[x] Cloud-Init network-config per VM</li>
+<li>[x] Proxmox vendor-data snippet</li>
+<li>[x] Snippet upload procedure documentation (SNIPPET-UPLOAD.md)</li>
+</ul>
+<p><strong>6.3 — Secret Registry</strong></p>
+<ul>
+<li>[x] <code>secret-registry.yaml</code> schema with <code>owning_cell</code> field (federation-readiness)</li>
+<li>[x] Initial registry entries for all known secrets</li>
+<li>[x] Secret registry reader in doc-gen (<code>doc-gen/registries.py</code> — <code>SecretRegistry</code>)</li>
+<li>[x] Wire into recovery documentation (pre-populated "Secrets Required for Recovery" section + Appendix D)</li>
+<li>[x] Secret registry completeness in readiness scorer (ORANGE if missing)</li>
+</ul>
+<p><strong>6.4 — DNS Registry</strong></p>
+<ul>
+<li>[x] <code>dns-registry.yaml</code> schema</li>
+<li>[x] Initial registry entries for all VMs</li>
+<li>[x] DNS registry reader in doc-gen (<code>doc-gen/registries.py</code> — <code>DnsRegistry</code>)</li>
+<li>[x] Wire into recovery runbook (replace <code>[VM_IP]</code> placeholders with actual IPs + Appendix C)</li>
+<li>[x] DNS registry completeness in readiness scorer (YELLOW if missing)</li>
+</ul>
+<p><strong>6.5 — Deployment Provenance</strong></p>
+<ul>
+<li>[x] Provenance record schema (provenance_records in bootstrap-state-schema.json)</li>
+<li>[x] Provenance recorder (bootstrap-state.json provenance_records array)</li>
+<li>[x] Provenance collector in Tier 2 assessment</li>
+<li>[x] Provenance completeness in readiness scorer (YELLOW if missing, per VM)</li>
+<li>[x] Wire into recovery documentation (per-VM block + Appendix E)</li>
+</ul>
+<p><strong>6.6 — Template Registry and Base Image Tracking</strong></p>
+<ul>
+<li>[x] Template registry schema (base_images + templates arrays in bootstrap-state-schema.json)</li>
+<li>[x] Initial registry entries (ubuntu-2204-base ISO + template in bootstrap-state.json)</li>
+<li>[x] Template registry reader in doc-gen (doc-gen/template_registry.py — TemplateRegistry)</li>
+<li>[x] Template registry completeness in readiness scorer (ORANGE if missing)</li>
+<li>[x] Appendix F — Template Registry in recovery runbook</li>
+<li>[x] Template rebuild playbook format (Phase 9)</li>
+</ul>
+<p><strong>6.7 — Tier 2 Bootstrap State Collector</strong></p>
+<ul>
+<li>[x] <code>proxmox-bootstrap/collect_tier2.py</code> — SSH collector library (parse_qm_list,</li>
+</ul>
+<p>parse_qm_config, collect_templates, collect_provenance_records, merge_into_state)</p>
+<ul>
+<li>[x] <code>proxmox-bootstrap/collect-tier2.py</code> — CLI entry point (--host, --user, --port,</li>
+</ul>
+<p>--key, --state, --dry-run, --verbose)</p>
+<ul>
+<li>[x] <code>proxmox-bootstrap/TIER2-COLLECTION.md</code> — runbook: prerequisites, usage, merge</li>
+</ul>
+<p>behaviour, ISO name inference, post-collection steps, troubleshooting</p>
+<ul>
+<li>[x] <code>--dry-run</code> flag; merge-only logic (never overwrites existing manual entries)</li>
+<li>[x] Tests — 54 tests in test_tier2_collector.py</li>
+<li>[x] Cloud-Init snippet comparison (deployed vs. repository) — deferred to 6.8</li>
+<li>[x] Integration into Tier 2 manifest — deferred to 6.8</li>
+</ul>
+<p><strong>6.8 — Bootstrap Documentation Update</strong></p>
+<ul>
+<li>[x] Bootstrap Workbook Stage 03: VM IP from DNS registry; ISO path from template registry</li>
+<li>[x] Stage 03 validation checkpoint and qm create note pre-populated from registries</li>
+<li>[x] End-to-end test (28 tests)</li>
+</ul>
+<p><strong>6.B — Backup Infrastructure</strong> *(restic + rclone; KeePass, config state, app data)*</p>
+<ul>
+<li>[x] 6.B.1: <code>proxmox-bootstrap/setup-backup.py</code> — interactive backup configuration wizard:</li>
+<li>Installs restic and rclone on the host if not present</li>
+<li>Configures one or more backup layers:</li>
+</ul>
+<p>(a) Secrets / KeePass DB — always enabled when any destination configured (b) Configuration state — enabled by default (c) Application data volumes — opt-in per volume at service setup</p>
+<ul>
+<li>For each layer, builds an <strong>ordered destination chain</strong> (no limit on length):</li>
+</ul>
+<p>→ Enter destinations one at a time; add as many as desired → Each destination attempted in sequence when the previous one fails → All attempted; failures reported but chain continues; all-fail = RED</p>
+<ul>
+<li>Local destinations: filesystem path or USB mount point (no credentials)</li>
+<li>Cloud destinations: provider selection → API credential entry → rclone config</li>
+</ul>
+<p>written to <code>~/.config/rclone/rclone.conf</code>; restic repo initialised at destination Cloud destinations require API key / OAuth / Application Key — not user+password (see <code>docs/CLOUD-STORAGE-SETUP.md</code>)</p>
+<ul>
+<li><strong>Per-backup unique secrets (non-KeePass layers)</strong>:</li>
+</ul>
+<p>Each individual backup run generates a new unique restic repo password via <code>restic key add</code> + <code>restic key remove</code> (rewraps the master key; no data re-encryption). Stored in KeePass at a timestamped path per component: <code>Backup/{layer}/{component}/{YYYY-MM-DD_HH_MM_SS}/repo-password</code> A <code>current</code> alias key is also maintained: <code>Backup/{layer}/{component}/current</code> → latest timestamp subdirectory Secrets broker uses the snapshot timestamp to look up the exact key for any given snapshot at restore time. After <code>restic forget</code> prunes a snapshot, the corresponding KeePass entry is removed automatically. KeePass DB backup is exempt — its auth method (master password or configured token/key file) is never subject to per-backup rotation.</p>
+<ul>
+<li><strong>KeePass DB backup — no restic layer</strong>: the <code>.kdbx</code> file is already AES-256</li>
+</ul>
+<p>encrypted by KeePass; backed up as a plain rclone file copy to each configured destination; adding restic encryption would create a circular dependency (need the repo password from KeePass to decrypt backup of KeePass — irrecoverable)</p>
+<ul>
+<li><strong>KeePass backup transport credentials</strong> stored in <code>forge-manifest.json</code>, NOT in</li>
+</ul>
+<p>KeePass — the one exception to the "packages carry only KeePass references" rule; these credentials are embedded in forge/spawn/phoenix packages so a bare machine can retrieve the KeePass DB before KeePass is available</p>
+<ul>
+<li><strong>Secrets broker configuration</strong>: wizard records which KeePass path templates map</li>
+</ul>
+<p>to which components/layers so that automated backup and restore require no manual secret entry beyond the initial master password gate</p>
+<ul>
+<li><strong>Space-aware component routing</strong>: wizard records the target snapshot retention</li>
+</ul>
+<p>count and estimated component sizes; at runtime the backup engine probes available space before each run and routes individual components to destinations with sufficient room (see 6.B.3 for execution detail)</p>
+<ul>
+<li>Retention policy per layer: number of snapshots to keep (default 5);</li>
+</ul>
+<p>permanent checkpoint: any snapshot can be tagged <code>checkpoint</code> and is excluded from rotation regardless of retention count</p>
+<ul>
+<li><strong>Naming convention enforced by wizard</strong>: all repo paths, KeePass key paths,</li>
+</ul>
+<p>snapshot tags, and KeePass DB filenames are constructed programmatically from cell_id, component metadata, and UTC timestamps — operators do not name backup artifacts; see 6.B.2 naming convention for the full scheme</p>
+<ul>
+<li>All configuration serialised into <code>bootstrap-state.json</code> backup_config section</li>
+</ul>
+<ul>
+<li>[x] 6.B.2: <code>backup_config</code> section in <code>bootstrap-state-schema.json</code> — schema for:</li>
+</ul>
+<p><strong>Naming convention</strong> (enforced programmatically; operators do not name artifacts manually): Component prefixes: <code>kdbx</code> | <code>cell-config</code> | <code>node-{hostname}</code> | <code>vm-{name}-{vmid}</code> | <code>ct-{name}-{ctid}</code> | <code>vol-{vm_name}-{vol_name}</code> | <code>svc-{service_name}</code> Timestamp format: <code>YYYY-MM-DD_HH_MM_SS</code> (UTC; underscores; matches project convention) Hash: 8 hex chars — SHA-256 of file content (KeePass files) or first 8 of UUID/snapshot ID Restic repo paths: <code>{destination_root}/{cell_id}/{layer}/{component_prefix}/</code> KeePass DB files: <code>kdbx_{cell_id}_{timestamp}_{hash8}.kdbx</code> Snapshot set IDs: <code>{cell_id}_{timestamp}_{run_hash8}</code> (UUID first 8 chars) Restic snapshot tags: <code>cell:{cell_id}</code>, <code>set:{snapshot_set_id}</code>, <code>component:{prefix}</code>, <code>layer:{layer}</code>, <code>run:{timestamp}</code> KeePass key paths: <code>Backup/{layer}/{component_prefix}/{timestamp}/repo-password</code> and <code>Backup/{layer}/{component_prefix}/current</code> (alias to latest)</p>
+<ul>
+<li>Per-layer destination chain (ordered array; unlimited length):</li>
+</ul>
+<p>For config/appdata layers — each entry: <code>{type, rclone_remote, restic_repo_root, restic_repo_password_keepass_prefix, retention_count}</code> Restic repo path assembled as: <code>{restic_repo_root}/{cell_id}/{layer}/{component}/</code> For secrets/KeePass layer — each entry: <code>{type, rclone_remote, kdbx_destination_root}</code> Destination file named: <code>kdbx_{cell_id}_{timestamp}_{hash8}.kdbx</code> (no restic layer; transport credentials stored in forge-manifest.json)</p>
+<ul>
+<li>Permanent checkpoint tag name (default: <code>checkpoint</code>)</li>
+<li>Layer-level <code>all_failed_policy</code>: <code>alert</code> | <code>block_assessment</code> (default: both)</li>
+<li>Per-layer backup history (appended on each run; trimmed to last 100 entries):</li>
+</ul>
+<p><code>{run_at, snapshot_set_id, destinations_attempted, destinations_succeeded, consecutive_all_fail_count, components: [{component_id, component_prefix, destination, restic_snapshot_id, keepass_key_path, size_bytes, verified, routed_reason}]}</code> <code>snapshot_set_id</code>: <code>{cell_id}_{timestamp}_{run_hash8}</code> — human-readable; links all component snapshots belonging to the same logical backup point</p>
+<ul>
+<li>Space routing metadata per component per run (embedded in components[]):</li>
+</ul>
+<p><code>routed_reason</code>: <code>primary</code> | <code>space_fallback</code> | <code>chunked_split</code></p>
+<ul>
+<li>[x] 6.B.3: <code>proxmox-bootstrap/run-backup.py</code> — backup execution engine:</li>
+</ul>
+<p><strong>Naming — all names constructed programmatically, never entered manually:</strong></p>
+<ul>
+<li>Restic repo path: <code>{restic_repo_root}/{cell_id}/{layer}/{component_prefix}/</code></li>
+</ul>
+<p>e.g. <code>b2:cell-backup/proxmox-cell-a/config/vm-forgejo-101/</code></p>
+<ul>
+<li>KeePass DB copy: <code>kdbx_{cell_id}_{timestamp}_{sha256_of_file[:8]}.kdbx</code></li>
+</ul>
+<p>e.g. <code>kdbx_proxmox-cell-a_2026-06-01_03_00_00_a3f2b891.kdbx</code></p>
+<ul>
+<li>Snapshot set ID: <code>{cell_id}_{timestamp}_{snapshot_set_uuid[:8]}</code></li>
+</ul>
+<p>e.g. <code>proxmox-cell-a_2026-06-01_03_00_00_f7c1d3a2</code></p>
+<ul>
+<li>Restic snapshot tags applied at creation: <code>cell:{cell_id}</code>, <code>set:{snapshot_set_id}</code>,</li>
+</ul>
+<p><code>component:{component_prefix}</code>, <code>layer:{layer}</code>, <code>run:{timestamp}</code></p>
+<ul>
+<li>KeePass key path: <code>Backup/{layer}/{component_prefix}/{timestamp}/repo-password</code></li>
+</ul>
+<p><strong>Per-backup secret rotation:</strong></p>
+<ul>
+<li>For each component being backed up, generates a new unique passphrase</li>
+<li>Adds it to the restic repo: <code>restic key add</code> (new key now unlocks the repo)</li>
+<li>Stores it in KeePass at the timestamped path:</li>
+</ul>
+<p><code>Backup/{layer}/{component_prefix}/{YYYY-MM-DD_HH_MM_SS}/repo-password</code></p>
+<ul>
+<li>Updates the <code>current</code> alias in KeePass to point to the new timestamp path</li>
+<li>Removes the previous key from the repo: <code>restic key remove</code> (old password</li>
+</ul>
+<p>no longer works; only the newly generated key is valid going forward)</p>
+<ul>
+<li>On pruning (after <code>restic forget</code>): removes the corresponding KeePass entry</li>
+</ul>
+<p>for each pruned snapshot's timestamp path; <code>current</code> always points to latest</p>
+<ul>
+<li>KeePass master password gate fires once per session; all subsequent secret</li>
+</ul>
+<p>lookups and key rotations are automatic</p>
+<ul>
+<li><strong>KeePass database backup</strong>: triggered whenever configuration state backup runs;</li>
+</ul>
+<p>executed as a plain rclone copy of the <code>.kdbx</code> file — no restic layer, no key rotation; transport credentials read from <code>forge-manifest.json</code> (not KeePass); KeePass is already AES-256 encrypted and requires no additional encryption layer</p>
+<p><strong>Space-aware component routing:</strong></p>
+<ul>
+<li>Before backing up each component, probes available space at each destination</li>
+</ul>
+<p>in the chain using rclone's <code>about</code> command (or filesystem <code>statvfs</code> for local)</p>
+<ul>
+<li>Estimates required space: last snapshot size × 1.1 (10% growth headroom)</li>
+<li>Routing logic per component:</li>
+<li>Primary destination has space → back up there (routed_reason: <code>primary</code>)</li>
+<li>Primary is full or insufficient → try next destination in chain</li>
+</ul>
+<p>(routed_reason: <code>space_fallback</code>)</p>
+<ol>
+<li>No single destination has sufficient space, but multiple have partial space:</li>
+</ol>
+<p>→ Split by sub-components (e.g., each volume backed up independently to whichever destination has room for that volume) → Each sub-component gets its own restic repo, its own key rotation, its own KeePass path, and its own backup_history entry → The parent <code>snapshot_set_id</code> links all sub-component snapshots so restore knows they belong to the same logical backup point (routed_reason: <code>chunked_split</code>)</p>
+<ol>
+<li>Even sub-component splitting cannot fit within available space across all</li>
+</ol>
+<p>destinations → surfaces as a human-required decision; backup run records a BLOCKED status for the affected component; other components continue</p>
+<ul>
+<li>All routing decisions (destination chosen, available space at run time,</li>
+</ul>
+<p>routed_reason) recorded in the component entry in <code>backup_history</code></p>
+<ul>
+<li>Restore reads routing from <code>backup_history</code> → secrets broker retrieves the</li>
+</ul>
+<p>correct key per component+destination+timestamp → restores each piece from its actual destination → assembles the full snapshot set automatically</p>
+<p><strong>Ordered destination chain execution:</strong></p>
+<ul>
+<li>After space-aware routing determines where each component goes, backs up each</li>
+</ul>
+<p>component to its assigned destination</p>
+<ul>
+<li>On completion runs <code>restic stats</code> to verify upload integrity (snapshot count</li>
+</ul>
+<p>and size must be consistent with expectations)</p>
+<ul>
+<li>If verification fails or destination errors: logs with full error detail,</li>
+</ul>
+<p>marks destination as failed in this run, moves to next destination in chain</p>
+<ul>
+<li>If all destinations fail for a layer:</li>
+</ul>
+<p>→ Writes RED entry to backup_history → Increments <code>consecutive_all_fail_count</code> → Emits a structured failure record visible in the next assessment run → Never fails silently; surfaced in workbook, readiness report, and alerts</p>
+<p><strong>Retention and checkpoints:</strong></p>
+<ul>
+<li>Applies <code>restic forget --prune --keep-last N</code> per destination after each</li>
+</ul>
+<p>successful backup (only on destinations that succeeded this run)</p>
+<ul>
+<li>After pruning: removes corresponding per-snapshot KeePass entries; updates</li>
+</ul>
+<p><code>current</code> alias to remain valid</p>
+<ul>
+<li>Snapshots tagged <code>checkpoint</code> are excluded from forget regardless of N</li>
+<li>Prompts operator to create a checkpoint if none exists after &gt; 7 days</li>
+</ul>
+<p><strong>Run trigger:</strong></p>
+<ul>
+<li>Triggered by assessment engine on completion of a full cluster assessment</li>
+<li>Can also be run manually: <code>python3 proxmox-bootstrap/run-backup.py [--layer secrets|config|appdata]</code></li>
+<li>Dry-run mode: <code>--dry-run</code> shows what would be backed up, to which destinations,</li>
+</ul>
+<p>with current space probe results and routing decisions (no writes made)</p>
+<ul>
+<li>[x] 6.B.4: <strong>Simple mode</strong> — one wizard, uniform policy across layers:</li>
+<li>Operator defines a single ordered destination chain that applies to all layers</li>
+<li>Per-layer overrides available but not required</li>
+<li>Recommended starting point; detailed mode layers on top as needed</li>
+<li>[x] 6.B.5: <strong>Detailed mode</strong> — per-node, per-VM, per-container, per-volume heterogeneous policy:</li>
+<li>Each component defines its own ordered destination chain, retention count,</li>
+</ul>
+<p>and restic repo password (or inherits from parent explicitly)</p>
+<ul>
+<li>Inheritance chain: cell → node → VM → container → volume; each level can</li>
+</ul>
+<p>override any field while inheriting the rest from the parent</p>
+<ul>
+<li>Children create a sub-directory prefix at the inherited destination so backup</li>
+</ul>
+<p>data is co-located but separately addressable (<code>/cell/node/vm/volume/</code>)</p>
+<ul>
+<li>Siblings' destination chains auto-suggested as defaults when configuring a new</li>
+</ul>
+<p>sibling (enter once, reuse across all sibling components)</p>
+<ul>
+<li>Policy inheritance and credential reuse minimise repeated configuration entry</li>
+</ul>
+<p>while maintaining independent restic repos per component (dedup is per-repo)</p>
+<ul>
+<li>[x] 6.B.6: Backup readiness scoring in <code>readiness.py</code>:</li>
+<li>RED: no destination configured for secrets or configuration state layers</li>
+<li>RED: <code>consecutive_all_fail_count</code> ≥ 2 (two consecutive complete-chain failures)</li>
+<li>RED: last successful backup older than 3× schedule interval</li>
+<li>ORANGE: last successful backup older than 2× schedule interval</li>
+<li>ORANGE: any destination in chain has failed in last 3 runs (partial coverage)</li>
+<li>YELLOW: all destinations healthy but last backup older than 1× schedule interval</li>
+<li>YELLOW: no permanent checkpoint exists</li>
+<li>GREEN: all destinations reachable, last backup within schedule, checkpoint exists</li>
+<li>[x] 6.B.7: Backup status in recovery runbook — Appendix H:</li>
+<li>Per-layer: destination chain with last-run status per destination (✓ / ✗ / skipped),</li>
+</ul>
+<p>last successful backup timestamp, snapshot count, most recent permanent checkpoint</p>
+<ul>
+<li>All-fail history: if consecutive_all_fail_count &gt; 0, shown prominently</li>
+<li>Restic repo password KeePass paths listed (for manual recovery reference)</li>
+</ul>
+<ul>
+<li>[x] 6.B.8: <code>proxmox-bootstrap/restore-from-backup.py</code> — automated restore engine:</li>
+</ul>
+<p><strong>Design principle:</strong> maximise automation via secrets broker; operator enters master password once at the gate; everything else is automatic.</p>
+<p><strong>Snapshot discovery and selection:</strong></p>
+<ul>
+<li>Probes each configured destination (in chain order) for available restic snapshots</li>
+<li>Presents snapshot list: timestamp, tag, component, size</li>
+<li>Defaults to "latest" unless operator specifies a date or checkpoint tag</li>
+<li><code>--latest</code>, <code>--checkpoint</code> (most recent tagged snapshot), <code>--date YYYY-MM-DD</code>,</li>
+</ul>
+<p><code>--tag NAME</code> selection flags</p>
+<p><strong>Automated secret retrieval for per-backup keys:</strong></p>
+<ul>
+<li>For each component being restored, reads its <code>backup_history</code> entry to find:</li>
+</ul>
+<p><code>{destination, restic_snapshot_id, keepass_key_path, routed_reason}</code></p>
+<ul>
+<li>Resolves <code>keepass_key_path</code> (the timestamped per-backup path) via secrets broker</li>
+</ul>
+<p>— automatically retrieves the unique key that was current for that specific backup</p>
+<ul>
+<li>For chunked-split restores: reads all sub-component entries sharing the same</li>
+</ul>
+<p><code>snapshot_set_id</code>; resolves each sub-component's key independently; restores each piece from its actual destination; assembles full snapshot set</p>
+<ul>
+<li>For service-level restores (post-restic): retrieves service credentials from</li>
+</ul>
+<p>KeePass and re-injects into service config — no per-service password re-entry</p>
+<p><strong>Restore execution:</strong></p>
+<ul>
+<li>Restores to target path; verifies file integrity post-restore via <code>restic check</code></li>
+<li>For chunked-split snapshot sets: restores sub-components in dependency order</li>
+</ul>
+<p>(volumes before containers, containers before VMs), assembles into target path</p>
+<ul>
+<li>Generates structured restore report: component, destination, snapshot ID,</li>
+</ul>
+<p>timestamp, <code>routed_reason</code>, integrity verification result, KeePass path used</p>
+<ul>
+<li>If a destination is unreachable at restore time, tries other destinations that</li>
+</ul>
+<p>hold the same component (if any — depends on whether backup ran to multiple)</p>
+<ul>
+<li>Supports <code>--dry-run</code> (lists what would be restored, from where, which keys used)</li>
+<li>Supports <code>--component</code> flag: restore a single VM, container, or volume</li>
+<li>Supports <code>--snapshot-set</code> flag: restore all components of a specific backup point</li>
+</ul>
+<p>(identified by <code>snapshot_set_id</code> from <code>backup_history</code>)</p>
+<ul>
+<li>[x] 6.B.9: Documentation: <code>docs/CLOUD-STORAGE-SETUP.md</code> — step-by-step provider guides:</li>
+<li>Google Drive (OAuth2 / Service Account — most complex; full walkthrough) ✓ written</li>
+<li>Backblaze B2 (Application Key — simplest cloud option) ✓ written</li>
+<li>AWS S3 (IAM user, access key/secret) ✓ written</li>
+<li>Cloudflare R2 (S3-compatible, no egress fees) ✓ written</li>
+<li>Self-hosted MinIO (S3-compatible, full privacy) ✓ written</li>
+<li>Each guide dated; review reminder in document header</li>
+</ul>
+<h3>Phase 7 — Service State</h3>
+<p><strong>7.1 — Service Contract Implementation</strong></p>
+<ul>
+<li>[x] Service Contract YAML spec format</li>
+<li>[x] Initial contracts for all known VMs</li>
+<li>[x] Service contract reader in Tier 2 collector</li>
+<li>[x] Service contract validator (observed vs. declared)</li>
+<li>[x] Dependency graph builder updated to use contracts as primary source</li>
+</ul>
+<p><strong>7.2 — Service State Schema and Collection</strong></p>
+<ul>
+<li>[x] Finalise <code>service-state-schema.json</code> with <code>cell_id</code></li>
+<li>[x] Service state collector</li>
+<li>[x] Service state in Tier 2 manifest</li>
+<li>[x] Service contract completeness in readiness scorer</li>
+</ul>
+<p><strong>7.3 — External Dependency State (Phase 7 addition from v5.0)</strong></p>
+<ul>
+<li>[x] <code>data-model/external-dependency-state-schema.json</code></li>
+<li>[x] External dependency declaration format (DNS provider, SMTP, cert authority) — <code>external_dependencies</code> in bootstrap-state.json; <code>doc-gen/external_dependencies.py</code> ExternalDependencyRegistry</li>
+<li>[x] Certificate expiry monitoring (RED ≤ 7d, ORANGE ≤ 30d, YELLOW ≤ 60d) — <code>_score_external_dependency_state()</code> in readiness.py</li>
+<li>[x] External dependency section in Recovery Runbook — Appendix G (endpoint, type, required_by, cert expiry with severity callouts)</li>
+</ul>
+<p><strong>7.4 — Recovery Documentation Update (Service Layer)</strong></p>
+<ul>
+<li>[x] Service contract block per VM in restore sequence: provided interfaces,</li>
+</ul>
+<p>required interfaces, startup_after note, restart commands, secret references, per-interface health check checkboxes</p>
+<ul>
+<li>[x] Health check commands derived from contract: curl for HTTP/HTTPS (uses</li>
+</ul>
+<p>url_pattern when available, falls back to vm_ip:port), pg_isready for postgresql, nc for smtp, empty for ssh (already in standard block)</p>
+<ul>
+<li>[x] Service restart commands: ssh ubuntu@{ip} 'sudo systemctl restart {svc}'</li>
+<li>[x] Appendix A: edge type legend (SERVICE★/DEPENDS_ON/STORAGE/NETWORK/BACKUP)</li>
+<li>★ marker on SERVICE edges to distinguish contract-driven from heuristic</li>
+</ul>
+<h3>Phase 8 — Network Topology as Code</h3>
+<ul>
+<li>[x] 8.1: Network topology declaration format — <code>data-model/network-topology-schema.json</code></li>
+</ul>
+<p>(bridges, VLANs, firewall policy) + <code>network_topology_declared</code> section in bootstrap-state-schema.json + canonical fixture in bootstrap-state.json</p>
+<ul>
+<li>[x] 8.2: Network topology collector — <code>proxmox-bootstrap/network_topology_collector.py</code>:</li>
+</ul>
+<p>parse_interfaces_file() parses /etc/network/interfaces format; collect_observed_bridges() SSHes to host (injectable runner for tests); compare_topology() diffs declared vs observed; merge_observed_topology() writes drift results back into bootstrap-state.json</p>
+<ul>
+<li>[x] 8.3: Network topology drift detection — compare_topology() returns</li>
+</ul>
+<p>(drift_detected: bool, drift_details: str); merge_observed_topology() persists both fields; readiness scorer surfaces as ORANGE/RED</p>
+<ul>
+<li>[x] 8.4: Recovery documentation Wave 0 — build_recovery_runbook() now emits</li>
+</ul>
+<p>a full "Wave 0 — Network Reconstruction" section before the restore sequence: per-bridge IP, ports, vlan_aware; verify commands (ip link, ip addr); reconstruct commands (ifreload -a from /etc/network/interfaces); drift warning if drift_detected; "NOT DECLARED" UNRESOLVED field if absent</p>
+<ul>
+<li>[x] 8.5: Network topology completeness in readiness scorer —</li>
+</ul>
+<p>_score_network_topology_completeness(): YELLOW if not declared; ORANGE if drift detected; RED if all declared bridges are missing in observed state</p>
+<h3>Phase 9 — Phoenix Playbooks *(Stargate Process — reconstruction scripts)*</h3>
+<p>These are the playbooks that form the execution layer of the stargate process — per-wave, per-VM scripts that reconstitute a failed node's identity on new hardware. See Phase 12.E for the hatchery process playbooks (broodling spawn scripts).</p>
+<ul>
+<li>[x] 9.1: Phoenix playbook format and schema — <code>data-model/phoenix-playbook-schema.json</code>:</li>
+</ul>
+<p>schema_version, cell_id, target_node (hostname, role, k3s_role), identity (lan_ip, tailnet_ip, vmids, bridge_names, zfs_pool_name), hardware_profile, restoration_scope (full|partial|deferred), deferred_services, waves (playbook_wave → playbook_step with id, action, commands, validation, method, on_failure, secret_refs), estimated_total_minutes, validation_checklist</p>
+<ul>
+<li>[x] 9.2: Playbook generator — <code>proxmox-bootstrap/phoenix_playbook.py</code>:</li>
+</ul>
+<p>PhoenixPlaybookGenerator class + build_phoenix_playbook() factory; reads manifest (host_identity, vms, dns_registry, network_topology_declared, storage_config, provenance_registry); now_fn injectable for tests; _zfs_topology_from_disk_count() adapts topology to replacement hardware</p>
+<ul>
+<li>[x] 9.3: Wave 0 (network reconstruction) + Wave 1 (ZFS pool) + Wave 2 (host config) +</li>
+</ul>
+<p>Wave 3 (VM PBS restore, identity-preserving — same VMIDs, IPs, provenance info) + Wave 4 (k3s membership + Flux reconciliation) generated with pre-populated commands</p>
+<ul>
+<li>[x] 9.4: Wave 0.5 (template rebuild) playbook — _wave_05_template_rebuild() in</li>
+</ul>
+<p>PhoenixPlaybookGenerator; inserted at wave=2.5 between host config and VM restore; _os_variant_for_vm() reads k3s-cluster.yaml server_nodes[].os_variant; Ubuntu path: download ISO + qm create + qm template; Talos path scaffolded</p>
+<ul>
+<li>[x] 9.5: Per-VM RECREATE vs RESTORE decision — _vm_is_stateless() checks</li>
+</ul>
+<p>service_contract.backup_job==null AND provenance_registry.tofu_workspace present; stateless VMs: RECREATE (tofu apply + Ansible playbook); stateful VMs: RESTORE (qmrestore)</p>
+<ul>
+<li>[x] 9.6: Shell script generator — proxmox-bootstrap/phoenix_scripts.py:</li>
+</ul>
+<p>generate_wave_script(wave) → bash script with checkpoint tracking per step; generate_run_all_sh(playbook) → orchestrating entry point that calls each wave script in wave-number order with failure detection</p>
+<ul>
+<li>[x] 9.7: Playbook validator — proxmox-bootstrap/phoenix_validator.py:</li>
+</ul>
+<p>validate_playbook() → list of {severity, field, message} findings; ERROR: missing required fields, empty waves, duplicate wave/step IDs, invalid enum values, empty step commands; WARNING: missing vmids/bridges/pool in identity, non-ascending waves; is_valid() and summarise_findings() helper functions</p>
+<ul>
+<li>[x] 9.8: Playbook existence in readiness scorer — _score_phoenix_playbook_existence():</li>
+</ul>
+<p>YELLOW if neither phoenix_playbook nor phoenix_playbook_generated_at is present in the manifest; wired into score_graph() alongside other registry gap scorers</p>
+<p><strong>9.T — Talos Alternative Support</strong> *(optional; activate by setting os_variant: talos)*</p>
+<p>*Foundation — build and config tooling:*</p>
+<ul>
+<li>[x] 9.T.1: <code>docs/TALOS-ALTERNATIVE.md</code> — prerequisites, build procedure for talos-1x-base</li>
+</ul>
+<p>template, talosctl installation, machine config generation, migration checklist</p>
+<ul>
+<li>[x] 9.T.2: <code>proxmox-bootstrap/build-talos-template.sh</code> — downloads Talos ISO,</li>
+</ul>
+<p>creates Proxmox VM, converts to template (talos-1x-base, VMID 9001)</p>
+<ul>
+<li>[x] 9.T.3: <code>proxmox-bootstrap/generate-talos-config.py</code> — generates talos machine</li>
+</ul>
+<p>configs from k3s-cluster.yaml (control plane + worker patches); stdlib only</p>
+<ul>
+<li>[x] 9.T.4: Talos template entry in bootstrap-state.json template registry</li>
+</ul>
+<p>(talos-1x-base alongside ubuntu-2204-base; separate base_image entry)</p>
+<ul>
+<li>[x] 9.T.5: bootstrap-state-schema.json — add <code>os_variant</code> enum (ubuntu | talos)</li>
+</ul>
+<p>to template registry entries and provenance_records</p>
+<ul>
+<li>[x] 9.T.6: doc-gen readiness scorer — YELLOW if os_variant=talos but no Talos</li>
+</ul>
+<p>machine config found in repo (talos-configs/ directory absent)</p>
+<ul>
+<li>[x] 9.T.7: Recovery runbook — emit Talos-specific reconstruction steps</li>
+</ul>
+<p>(talosctl apply-config instead of Ansible) when os_variant=talos</p>
+<ul>
+<li>[x] 9.T.8: Tests for Talos config generator and runbook rendering (57 tests)</li>
+</ul>
+<p>*OS transition automation — Ubuntu → Talos:*</p>
+<ul>
+<li>[x] 9.T.9: <code>proxmox-bootstrap/migrate-k3s-to-talos.py</code> — automated migration script</li>
+</ul>
+<p>Steps: drain k3s node → snapshot VM → destroy Ubuntu VM → provision Talos VM from talos-1x-base template → apply machine config → verify cluster health → update bootstrap-state.json os_variant + provenance_records → commit to repo Flag: <code>--dry-run</code> prints plan without making changes Flag: <code>--skip-snapshot</code> for test environments where snapshot overhead is unwanted Guard: refuses to run if cluster health check fails pre-drain (RED readiness)</p>
+<ul>
+<li>[x] 9.T.10: Pre-migration checklist validator — confirms all prerequisites before</li>
+</ul>
+<p>migration begins: talos-1x-base template exists, machine config generated, Velero PVC backup current (ORANGE if any check fails; migration blocked until GREEN)</p>
+<ul>
+<li>[x] 9.T.11: Post-migration verifier — confirms k3s node rejoined cluster, all</li>
+</ul>
+<p>namespaces healthy, Flux reconciliation complete, PVCs reattached; writes migration completion record to bootstrap-state.json provenance_records</p>
+<ul>
+<li>[x] 9.T.12: Recovery runbook — "OS Variant Migration" appendix (Appendix I) documents</li>
+</ul>
+<p>all migration attempts from migration_history with per-record detail (node, direction, outcome, snapshot_vmid, error) and manual rollback commands. Both ODT and HTML renderers. 25 tests.</p>
+<p>*OS transition automation — Talos → Ubuntu:*</p>
+<ul>
+<li>[x] 9.T.13: <code>proxmox-bootstrap/migrate-k3s-to-ubuntu.py</code> — automated reverse migration</li>
+</ul>
+<p>Steps: drain k3s node → snapshot VM → destroy Talos VM → provision Ubuntu VM from ubuntu-2204-base template → apply Cloud-Init + Ansible k3s-server role → verify cluster health → update bootstrap-state.json → commit to repo Same flags as 9.T.9 (--dry-run, --skip-snapshot) Guard: refuses to run if cluster health check fails pre-drain</p>
+<ul>
+<li>[x] 9.T.14: Shared migration library <code>proxmox-bootstrap/migrate_k3s_lib.py</code></li>
+</ul>
+<p>Extract common steps from 9.T.9 and 9.T.13: drain, snapshot, VM destroy, health check, provenance record update. Both migration scripts import this.</p>
+<ul>
+<li>[x] 9.T.15: Migration state file <code>bootstrap-state.json migration_history</code> array</li>
+</ul>
+<p>Each completed migration appended: from_variant, to_variant, migrated_at, migrated_by, snapshot_vmid (for rollback), outcome</p>
+<ul>
+<li>[x] 9.T.16: Rollback procedure — if post-migration verifier fails, restore VM from</li>
+</ul>
+<p>pre-migration snapshot, update os_variant back, re-run health check; rollback outcome appended to migration_history (rollback() in migrate_k3s_lib.py)</p>
+<ul>
+<li>[x] 9.T.17: Tests for both migration scripts (mock Proxmox API + mock talosctl/ansible)</li>
+</ul>
+<p>48 tests in test_migration_k3s.py</p>
+<h3>Phase 10 — Operational Documentation</h3>
+<ul>
+<li>[x] 10.1: Operational documentation class design — <code>doc-gen/renderers/operational_report.py</code>;</li>
+</ul>
+<p>seven sections: overall readiness, drift summary, capacity, service health, secret completeness, external dependencies, time-sensitive actions</p>
+<ul>
+<li>[x] 10.2: Drift summary renderer — Section 2 reads manifest["drift"] (from compute_drift());</li>
+</ul>
+<p>shows from/to snapshot, severity, changed fields (capped at 30)</p>
+<ul>
+<li>[x] 10.3: Capacity trend renderer — Section 3 reads cpu/memory/storage from manifest;</li>
+</ul>
+<p>ORANGE/RED warnings on RAM ≥90% or storage ≥90% utilization</p>
+<ul>
+<li>[x] 10.4: Service health summary renderer — Section 4 reads manifest["service_state"];</li>
+</ul>
+<p>shows running/stopped/degraded counts and per-service status line</p>
+<ul>
+<li>[x] 10.5: Secret registry completeness renderer — Section 5 reads manifest["secret_registry"];</li>
+</ul>
+<p>shows total/with-path counts; lists secrets missing keepass_path</p>
+<ul>
+<li>[x] 10.6: Wire into engine.py — run_operational() function + <code>--mode operational</code> choice;</li>
+</ul>
+<p>loads all registries, computes drift + readiness, renders Operational-Report.html</p>
+<ul>
+<li>[x] 10.7: Scheduled refresh — <code>proxmox-bootstrap/setup-operational-schedule.sh</code> installs</li>
+</ul>
+<p>broodforge-operational.service + broodforge-operational.timer (every hour)</p>
+<h3>Phase 11 — Capacity Model</h3>
+<ul>
+<li>[x] 11.1: Capacity model schema — <code>capacity_model</code> section added to bootstrap-state-schema.json:</li>
+</ul>
+<p>thresholds (cpu/ram/storage warn/crit pcts + restoration_headroom_pct), observed (snapshot: ram/storage usage pcts + totals), trend (direction + days_to_full)</p>
+<ul>
+<li>[x] 11.2: Capacity tracking — <code>proxmox-bootstrap/capacity_collector.py</code>:</li>
+</ul>
+<p>collect_capacity_snapshot() reads cpu/memory/storage from manifest; merge_capacity_model() updates bootstrap-state.json with observed + trend</p>
+<ul>
+<li>[x] 11.3: Capacity validation in readiness scorer — _score_capacity_model():</li>
+</ul>
+<p>YELLOW: no capacity_model; YELLOW/ORANGE: RAM/storage above warn/crit threshold</p>
+<ul>
+<li>[x] 11.4: Trend analysis — compute_trend() derives direction (increasing/stable/decreasing)</li>
+</ul>
+<p>and days_to_full projection from ordered historical snapshots; uses linear rate</p>
+<ul>
+<li>[x] 11.5: ORANGE if target host cannot accommodate restored workload —</li>
+</ul>
+<p>check_restoration_headroom() compares sum(VM RAM) vs host RAM × (1 - headroom_pct)</p>
+<h3>Phase 12 — Full Single-Cell Reconstruction Test</h3>
+<ul>
+<li>[x] 12.1: End-to-end drill framework — <code>proxmox-bootstrap/reconstruction_drill.py</code>:</li>
+</ul>
+<p>DrillRecord (per-wave timing, gap tracking), start_drill() factory from phoenix playbook, save_drill_record() / get_last_drill() for bootstrap-state persistence, <code>reconstruction_drills[]</code> schema in bootstrap-state-schema.json; <code>docs/RECONSTRUCTION-DRILL.md</code> operator guide (live + tabletop modes)</p>
+<ul>
+<li>[x] 12.2: Reconstruction time measurement — DrillRecord.record_wave() tracks</li>
+</ul>
+<p>estimated vs actual minutes per wave; generate_drill_report() produces Markdown table with timing comparison and accuracy %; DrillRecord.accuracy_pct property</p>
+<ul>
+<li>[x] 12.3: Gap identification — DrillRecord.gaps_found/gaps_remediated; readiness scorer</li>
+</ul>
+<p>_score_reconstruction_drill(): YELLOW if no drill, YELLOW if &gt; 90 days stale, ORANGE if last drill was failed/aborted; wired into score_graph()</p>
+<ul>
+<li>[x] 12.4: Scheduled drill activity — <code>proxmox-bootstrap/schedule-reconstruction-drill.sh</code></li>
+</ul>
+<p>installs broodforge-drill-reminder.timer (fires every 90 days, logs journal reminder)</p>
+<p><strong>Gate:</strong> Phase 12 completion validates the single-cell foundation. Track 2 begins after Phase 12.</p>
+<h3>Phase 12.E — Node Spawn Bootstrap *(Hatchery Process)*</h3>
+<p>*The existing cluster is the hatchery. Additional nodes — broodlings — are spawned from it via the <strong>hatchery process</strong>. Phase 12.E adds the ability to run the hatchery process: the assessment engine produces a <strong>spawn package</strong> — a self-contained archive of scripts and a reserved-resource data dump — that is copied to a broodling after bare Proxmox installation and executed there. The broodling joins the existing Proxmox cluster and k3s cluster without VMID, IP, or hostname conflicts.*</p>
+<p><strong>Hatchery process vs stargate process:</strong> The hatchery process (this phase) assigns *new* identity — VMIDs, IPs, hostnames that don't conflict with anything already in the hatchery. The stargate process (Phase 9) preserves *existing* identity — the exact VMIDs, IPs, hostnames, and certs of a node that failed, reconstituted on new hardware.</p>
+<p><strong>Context:</strong> Phase 12 answers "can I rebuild this?" Phase 12.E answers "can I spawn a broodling into this datacenter?" The assessment engine knows everything the hatchery has reserved — IPs, VMIDs, hostnames, k3s join tokens, cluster topology — and encodes that knowledge into the spawn package so the broodling never needs to ask the operator what is already taken.</p>
+<ul>
+<li>[x] 12.E.1: <strong>Hatchery state reader</strong> — reads <code>bootstrap-state.json</code> and queries</li>
+</ul>
+<p>the live Assessment Engine API to extract a point-in-time reservation snapshot: all allocated VMIDs, all assigned IPs (from DNS registry + provenance records), all hostnames, Proxmox cluster join address, k3s server/worker counts, k3s join tokens (worker and server). Produces <code>spawn-manifest.json</code>. This is the authoritative "what the hatchery has reserved" data dump embedded in every spawn package.</p>
+<ul>
+<li>[x] 12.E.2: <strong>Conflict validator</strong> (<code>proxmox-bootstrap/validate-spawn.py</code>) —</li>
+</ul>
+<p>run before the spawn package is generated and again on the broodling before any deployment action:</p>
+<ul>
+<li>No VMID collisions (proposed new VMIDs vs all VMIDs in spawn-manifest.json)</li>
+<li>No IP collisions (proposed new IPs vs all IPs in spawn-manifest.json)</li>
+<li>No hostname collisions (proposed hostnames vs all hostnames in spawn-manifest.json)</li>
+<li>Placement policy satisfied (proposed roles are declared for this host type)</li>
+<li>Capacity check: broodling RAM sufficient for its assigned VM roles</li>
+</ul>
+<p>RED finding on any collision blocks spawn package generation until resolved. The validator is designed to be re-run on the broodling from the spawn package itself, using only the embedded manifest (no live API access required).</p>
+<ul>
+<li>[x] 12.E.3: <strong>Spawn planner with execution mode gate and service selection</strong></li>
+</ul>
+<p>(<code>proxmox-bootstrap/spawn-planner.py</code>) —</p>
+<p>The planner runs on the hatchery. <strong>Execution mode is the first question</strong>, because the answer determines whether service selection happens at all.</p>
+<p><strong>Step 0 — Network mode (asked before anything else):</strong></p>
+<p>Because the hatchery runs split-horizon DNS, the Headscale server URL in every spawn package is always the hatchery's FQDN (<code>host_identity.fqdn</code>): <code>https://hatchery.home.example.com:8080</code> LAN broodlings resolve this to the LAN IP via the hatchery's dnsmasq. WAN broodlings resolve this to the WAN IP via public DNS. The same spawn package works from both locations without modification.</p>
+<p>The planner still asks which network mode the broodling is on, because the SSH discovery path differs (direct IP vs tailnet IP):</p>
+<pre><code>      Is the broodling on the same LAN as the hatchery?
+      [auto-detecting — trying {broodling-ip} directly... timeout 5s]
+
+        1. Same LAN  — direct SSH using temporary root password
+        2. WAN       — Headscale tailnet (generates auth key; Headscale URL is
+                       hatchery.{domain} — already correct for both LAN and WAN)
+        3. Specify   — enter broodling IP / hostname manually
+
+      &gt; _</code></pre>
+<p><strong>LAN mode:</strong> proceeds with the existing temporary root password flow. Broodling is configured to use hatchery as its DNS server (via DHCP or static config in spawn package), so <code>hatchery.{domain}</code> resolves to LAN IP.</p>
+<p><strong>WAN mode:</strong> the planner calls: <code>headscale authkeys generate --expiration 1h --user broodforge</code> The auth key and <code>https://hatchery.{domain}:8080</code> are embedded in the spawn package. phase-00a on the broodling: Installs Tailscale: <code>curl -fsSL https://tailscale.com/install.sh | sh</code> Registers: <code>tailscale up --authkey {key} --login-server https://hatchery.{domain}:8080</code> (The FQDN resolves to WAN IP via public DNS, which routes to Headscale via the operator's router port forwarding.) Broodling appears on tailnet → hatchery SSHes to its tailnet IP for discovery. After spawn completes, Tailscale remains installed — the broodling is a permanent tailnet member. Its tailnet IP is recorded in bootstrap-state.json alongside its LAN IP (if any).</p>
+<p><strong>Step 1 — Execution mode (asked after network mode):</strong></p>
+<pre><code>      How should the spawn package run on the broodling?
+
+        1. Autonomous (default)  — finalise service selection now; spawn.sh runs
+                                   without prompting after the KeePass unlock gate
+        2. Interactive            — no selection needed now; spawn.sh evaluates the
+                                   broodling's hardware at runtime and presents the
+                                   service menu there
+
+      &gt; _</code></pre>
+<p><strong>If Interactive:</strong> the planner records <code>execution_mode: interactive</code> and proceeds directly to package assembly. No service selection on the hatchery. The package includes all available service scripts. Service selection happens entirely on the broodling at execution time against actual hardware.</p>
+<p><strong>If Autonomous:</strong> the planner continues to Step 2.</p>
+<p>For autonomous mode, the planner also generates a <strong>suggested temporary root password</strong> (readable passphrase format) at this point and displays it to the operator with the instruction to use it when setting the Proxmox root password during installation. The hatchery stores this password in memory for the duration of the spawn-planning session so it can use it for password-based SSH discovery without the operator re-entering it. The password is NOT stored in KeePass — it is temporary, replaced by a proper KeePass-managed credential during the spawn process.</p>
+<p><strong>Step 2 — Service selection (autonomous only):</strong></p>
+<p>The planner reads the service catalog (<code>metadata/service-catalog.yaml</code>) to know what the hatchery runs and the broodling's hardware profile to know what fits.</p>
+<p><strong>Mode 1 — Full mirror:</strong> Selects all services that fit the broodling's hardware. Services that don't fit are listed with a reason (RAM, disk, dependency) and excluded. The operator reviews the exclusion list and confirms or switches mode.</p>
+<p><strong>Mode 2 — Select by group:</strong> Services grouped by category (Infrastructure, Platform, Intelligence, Monitoring, Applications). Operator includes/excludes whole groups, then fine-tunes individual services within groups.</p>
+<p><strong>Mode 3 — Select individually:</strong> Every service listed with hardware fit status, resource requirements, and dependencies. The planner enforces dependencies: selecting nextcloud automatically selects longhorn if not already selected.</p>
+<p><strong>Hardware fit display for each service:</strong> [✓] fits — RAM available vs required shown; disk requirements shown [!] marginal — fits with reduced VM sizing; operator warned explicitly [✗] does not fit — specific shortfall shown (RAM delta, missing disk, etc.) Services marked [✗] are excluded regardless of selection.</p>
+<p><strong>The intelligence baseline is always included and cannot be deselected:</strong> Proxmox cluster membership, k3s worker, assessment/doc engine visibility, <code>bootstrap-state.json</code> contribution. This is the minimum viable participation.</p>
+<p><strong>Produces <code>spawn-plan-{hostname}.json</code> containing:</strong></p>
+<ul>
+<li><code>disposition.execution_mode</code> — <code>autonomous</code> | <code>interactive</code></li>
+<li><code>disposition.services</code> — selected service names (autonomous only; empty for interactive)</li>
+<li><code>disposition.mode</code> — <code>full-mirror</code> | <code>group</code> | <code>individual</code> (autonomous only)</li>
+<li><code>disposition.excluded</code> — services excluded with reason (autonomous only)</li>
+<li>Non-conflicting VMID block, IPs, hostnames</li>
+<li>ZFS pool topology from disk configuration</li>
+<li>For autonomous: only VM roles, Cloud-Init snippets, Ansible roles for selected services</li>
+<li>For interactive: full service catalog scripts included; selection deferred to broodling</li>
+<li>k3s node labels and taints (autonomous: derived from selection; interactive: set at runtime)</li>
+<li>Proxmox cluster join address (from manifest)</li>
+<li>k3s join token type: worker always; server only if k3s-server selected (or selectable)</li>
+<li>If 3rd server node possible: etcd migration plan included in interactive; locked in autonomous</li>
+</ul>
+<ul>
+<li>[x] 12.E.4: <strong>Spawn hardware discovery (autonomous mode only)</strong> — produces</li>
+</ul>
+<p><code>hardware-profile-{hostname}.json</code> before the spawn package is generated. This is the input to the spawn planner for hardware-specific adaptation: disk topology → ZFS pool type, NIC inventory → bridge definitions, RAM → VM sizing.</p>
+<p>Two discovery paths depending on network mode selected in Step 0 of 12.E.3:</p>
+<p><strong>LAN mode — password-based SSH (same-network broodling):</strong> The spawn planner generates a suggested temporary root password (readable passphrase format, e.g. <code>Ready.to.spawn.7</code>) at Step 0 selection time. The operator uses this password during Proxmox installation. The hatchery holds the password in session memory and SSHes directly: <code>python3 discover-hardware.py --host {broodling-lan-ip} --password-prompt</code> (password retrieved from session, not re-entered by the operator) → <code>hardware-profile-{hostname}.json</code> If the operator used a different password, they enter it when prompted. Password transmitted over the trusted LAN only. Valid from: Proxmox installation complete. Valid until: Cloud-Init sets the real KeePass-managed credential. Not stored in KeePass; not persisted after the spawn session.</p>
+<p><strong>WAN mode — Headscale tailnet (cross-network broodling):</strong> The spawn package contains the Headscale auth key and server URL. The broodling's <code>phase-00a</code> (runs before hardware pre-flight) installs Tailscale and registers with the hatchery's Headscale: <code>curl -fsSL https://tailscale.com/install.sh | sh</code> <code>tailscale up --authkey {key} --login-server {headscale_url}</code> Broodling appears on the tailnet → hatchery SSHes to its tailnet IP exactly as in LAN mode (temporary root password, same mechanism): <code>python3 discover-hardware.py --host {tailnet-ip} --password-prompt</code> No port forwarding required. The WireGuard tunnel is the transport; the temporary root password is still the authentication. After spawn completes, Tailscale remains — the broodling is a permanent tailnet member. Its tailnet IP is recorded in bootstrap-state.json.</p>
+<p><strong>Interactive mode:</strong> no hardware discovery on the hatchery is needed. spawn.sh discovers hardware locally on the broodling at runtime. In WAN mode, phase-00a (Tailscale join) still runs first so the hatchery can reach the broodling for any follow-up coordination.</p>
+<p>Discovery output is embedded in autonomous spawn packages so phase-00 can reference disk IDs and NIC layout without re-running discovery on the broodling.</p>
+<ul>
+<li>[x] 12.E.5: <strong>Spawn IaC and config generator</strong> — from <code>spawn-plan-{hostname}.json</code>:</li>
+<li>OpenTofu <code>.auto.tfvars</code> for this host's VM set</li>
+<li>Cloud-Init snippets with this host's allocated IPs (from spawn plan, not hatchery IPs)</li>
+<li>Ansible inventory additions (this host appended to existing groups)</li>
+<li>k3s join token embedded in Ansible role vars (from spawn manifest)</li>
+<li>[x] 12.E.6: <strong>Spawn scripts</strong> — generated shell scripts using the same</li>
+</ul>
+<p>checkpoint/failure-package/workbook-update library as recovery scripts. All scripts read from spawn-plan.json; bridge names, pool names, and IPs are consistent across phases because phase-00 creates what later phases reference.</p>
+<ul>
+<li><code>spawn.sh</code> — orchestrated entry point; runs all phases in order</li>
+</ul>
+<p>*Host-level phases (Proxmox host must be configured before VMs can exist):*</p>
+<ul>
+<li><code>phase-00-host-bootstrap.sh</code> — two sub-stages, always in order:</li>
+</ul>
+<p><strong>Sub-stage A: Hardware pre-flight (read-only, no changes made)</strong> Re-scans the broodling's actual hardware and compares against the embedded <code>hardware-profile.json</code> and <code>spawn-plan.json</code>. This catches any divergence between what was discovered on the hatchery and what is actually present now. Checks (all must pass before sub-stage B runs):</p>
+<ul>
+<li>Disk IDs in spawn plan exist on this host and have the expected capacity</li>
+<li>NIC names/MACs match the embedded hardware profile</li>
+</ul>
+<p>(Proxmox can renumber NICs after kernel updates or hardware changes)</p>
+<ul>
+<li>Available RAM ≥ sum of VM RAM in spawn plan + 10% host overhead</li>
+<li>No existing ZFS pool with a name that conflicts with the planned pool</li>
+<li>No existing network bridge with a name that conflicts with the plan</li>
+<li>Conflict re-validation: re-runs validate-spawn.py against spawn-manifest.json</li>
+</ul>
+<p>(catches any hatchery reservations made between package generation and now) On any mismatch: generates a failure package with a clear "hardware mismatch" or "stale manifest" diagnosis, prints the diff, and exits without making any changes to the broodling. The operator re-runs discovery on the hatchery and regenerates the spawn package. On pass: proceeds to sub-stage B.</p>
+<p><strong>Sub-stage B: Host configuration (writes config, creates pool, activates network)</strong> Must run before any VM creation because VMs reference bridges and datastores that only exist after this stage: set hostname + fix /etc/hosts (pvecm add fails if hostname → 127.0.0.1) write bridge definitions to /etc/network/interfaces (per NIC layout in plan) ifreload -a to activate bridges without full reboot zpool create per plan topology (disk IDs confirmed by pre-flight) pvesm add zfspool to register pool as Proxmox datastore configure apt repos (no-subscription or enterprise) Output: Proxmox host ready to accept VM provisioning and cluster join.</p>
+<ul>
+<li><code>phase-01-join-proxmox.sh</code> — <code>pvecm add &lt;hatchery-address&gt;</code> using Proxmox cluster</li>
+</ul>
+<p>join address and fingerprint from spawn manifest; idempotent (detects if already a member). New host now visible in Proxmox datacenter.</p>
+<p>*VM provisioning phases (depend on phase-00 bridge/datastore names existing):*</p>
+<ul>
+<li><code>phase-02-vms.sh</code> — <code>tofu apply</code> using tfvars from spawn plan; bridge</li>
+</ul>
+<p>names and datastore names in tfvars match what phase-00 created exactly.</p>
+<ul>
+<li><code>phase-03-cloudinit.sh</code> — install generated Cloud-Init snippets (user-data,</li>
+</ul>
+<p>network-config, vendor-data) into Proxmox snippet store on this host; start VMs; poll SSH readiness for each VM before proceeding.</p>
+<p>*Cluster join phases (depend on VMs running):*</p>
+<ul>
+<li><code>phase-04-join-k3s.sh</code> — run Ansible k3s-server or k3s-worker role against</li>
+</ul>
+<p>the new VMs using join token from spawn manifest; selects correct token type (worker or server) based on spawn plan role.</p>
+<ul>
+<li><code>phase-05-promote-ha.sh</code> (conditional) — SQLite → embedded etcd migration;</li>
+</ul>
+<p>only generated when this broodling creates the 3rd k3s server node. Existing hatchery cluster is quiesced, etcd promoted, control plane distributed. If this phase is not needed, it is omitted from the package entirely.</p>
+<ul>
+<li><code>phase-06-verify.sh</code> — cluster health check (all nodes Ready, all VMs</li>
+</ul>
+<p>running), re-runs conflict validator against live Proxmox and k3s state as final confirmation. Failure here generates a failure package.</p>
+<p>*[Automatic after phase-06 — no further operator action:]* *Flux CD detects new k3s nodes, schedules workloads per anti-affinity rules.* *Assessment Engine detects broodling in Proxmox API, updates scores.* *Documentation Engine regenerates topology with broodling included.*</p>
+<ul>
+<li>[x] 12.E.7: <strong>Spawn package assembler</strong> (<code>proxmox-bootstrap/assemble-spawn-package.py</code>) —</li>
+</ul>
+<p>bundles spawn-manifest.json, spawn-plan-{hostname}.json, generated scripts, OpenTofu tfvars, Cloud-Init snippets, Ansible additions, spawn workbook HTML, and the shared script library into: <code>spawn-package-{cell_id}-{hostname}-{YYYY-MM-DD_HH_MM_SS}.tar.gz</code> The package is self-contained and offline-capable: the broodling does not need to reach the hatchery's API during execution. <strong>The package never contains the KeePass database or any secret values.</strong> It contains only KeePass secret paths (references). See AD-042.</p>
+<ul>
+<li>[x] 12.E.7a: <strong>KeePass unlock gate in spawn.sh</strong> — before any phase accesses secrets,</li>
+</ul>
+<p><code>spawn.sh</code> prompts the operator to enter the KeePass master password and verifies it unlocks the operator's KeePass database (copied separately to the broodling or accessed via a known path). Scripts retrieve individual secrets programmatically from the unlocked database; no secret value is written to the broodling's disk in plain text. The gate runs regardless of execution mode (autonomous or interactive). In autonomous mode, this is the only prompt before fully automated execution. In interactive mode, this gate is followed by the service selection prompt.</p>
+<ul>
+<li>[x] 12.E.8: <strong>Spawn workbook</strong> (HTML) — embedded in the spawn package; tracks</li>
+</ul>
+<p>each phase with the same checkpoint/status/timestamp/validation pattern as the recovery workbook:</p>
+<ul>
+<li>Sheets: Overview, Discovery, Storage, Network, Proxmox-Join, VMs, k3s-Join, Validation</li>
+<li>Machine-updated by each spawn script phase</li>
+<li>Spawn failure package generated automatically if any phase fails</li>
+</ul>
+<ul>
+<li>[x] 12.E.9: <strong>Bootstrap-state.json updater</strong> — runs on the hatchery after the</li>
+</ul>
+<p>broodling reports successful spawn (phase-08-verify.sh exits 0); merges the broodling's hardware profile, allocated VMIDs, IPs, hostnames, and cluster role into <code>bootstrap-state.json</code>; adds provenance records for new VMs; commits to Forgejo. Assessment Engine reassessment triggered automatically by Forgejo webhook.</p>
+<ul>
+<li>[x] 12.E.10: <strong>Disposition-aware assessment scoring</strong> — the Assessment Engine</li>
+</ul>
+<p>reads <code>disposition.services</code> from each host's entry in <code>bootstrap-state.json</code> and adjusts placement compliance evaluation to match declared intent:</p>
+<ul>
+<li>Placement compliance is checked per service, per host: is this service</li>
+</ul>
+<p>running on the hosts that declared it in their disposition?</p>
+<ul>
+<li>A node without <code>prometheus</code> in its service list is not penalized for</li>
+</ul>
+<p>missing a Prometheus replica</p>
+<ul>
+<li>A node without <code>k3s-server</code> is not scored against HA control-plane</li>
+</ul>
+<p>distribution requirements</p>
+<ul>
+<li>A node without <code>pbs-datastore</code> is not flagged for missing backup targets</li>
+<li>The assessment report shows each host's <code>disposition.services</code> list</li>
+</ul>
+<p>alongside its scores — visible confirmation of what each node is expected to contribute and whether it is delivering</p>
+<ul>
+<li><code>disposition.excluded</code> (services that didn't fit at spawn time) is also</li>
+</ul>
+<p>shown, so the operator knows what was intentionally left out vs. what drifted away after deployment</p>
+<ul>
+<li>A mismatch between <code>disposition.services</code> and observed reality remains a</li>
+</ul>
+<p>RED finding — disposition does not excuse services that were selected but are not running</p>
+<ul>
+<li>[x] 12.E.11: <strong>Spawn scenarios tested:</strong></li>
+<li>Baseline only (small machine): joins cluster, visible to assessment, no workloads</li>
+<li>Compute disposition: k3s workers added, Flux schedules workloads</li>
+<li>Storage disposition: PBS datastore added, Longhorn replicas</li>
+<li>Control-plane disposition: HA promotion if 3rd server node</li>
+<li>Mixed disposition (compute + storage): combined deployment</li>
+<li>Hardware insufficient for selected flag: flag dropped with warning, rest proceeds</li>
+<li>Full peer disposition: matches hatchery capabilities</li>
+</ul>
+<p>All scenarios use fixture hardware profiles. Conflict detection validated with deliberate VMID/IP/hostname collision fixtures.</p>
+<ul>
+<li>[x] 12.E.12: <strong>Documentation:</strong> <code>proxmox-bootstrap/NODE-SPAWNING.md</code> — operator</li>
+</ul>
+<p>runbook covering: prerequisites (bare Proxmox installed, SSH access), running hardware discovery on the broodling, selecting disposition interactively on the hatchery, reviewing the spawn plan's hardware fit assessment and warnings, copying and executing the spawn package on the broodling, verifying cluster health, and confirming <code>bootstrap-state.json</code> is updated with the broodling's disposition and state.</p>
+<p><strong>Note on hardware heterogeneity:</strong> The spawn planner explicitly does NOT require identical hardware. A second host with 6 HDDs gets raidz1; the first host with 2 SSDs has a mirror. Both run the same VM roles and software stack. Only the hardware adaptation layer (ZFS topology, NIC bridge config, VM sizing within available RAM) differs between them.</p>
+<p><strong>Note on Talos variant:</strong> If <code>os_variant: talos</code> is declared for k3s-server nodes (see Milestone 9.T), the spawn planner emits Talos machine configs instead of Cloud-Init for server VMs on the broodling. The spawn plan records <code>os_variant</code> per VM, matching the existing cluster's declared variant.</p>
+<hr>
+<h2>Track 2 — Expanded State Model</h2>
+<h3>Phase 13 — Hardware and Platform State</h3>
+<ul>
+<li>[x] 13.1: <code>data-model/hardware-state-schema.json</code> (BIOS, firmware, disks, NICs, UPS)</li>
+<li>[x] 13.2: Hardware State Tier 1 collector (extend bootstrap assessment)</li>
+<li>[x] 13.3: <code>data-model/platform-state-schema.json</code> (Proxmox config, certs, packages)</li>
+<li>[x] 13.4: Platform State Tier 2 collector</li>
+<li>[x] 13.5: Hardware requirements declaration in Bootstrap State</li>
+<li>[x] 13.6: Pre-reconstruction hardware verification playbook</li>
+<li>[x] 13.7: Hardware and Platform readiness scoring</li>
+</ul>
+<h3>Phase 14 — Cluster and Storage State</h3>
+<ul>
+<li>[x] 14.1: <code>data-model/cluster-state-schema.json</code> (identity, topology, membership, history)</li>
+<li>[x] 14.2: Cluster State collector (Proxmox cluster API, Corosync, HA manager)</li>
+<li>[x] 14.3: <code>data-model/storage-state-schema.json</code> (ZFS, Ceph, CephFS, RBD, datastores)</li>
+<li>[x] 14.4: Storage State collector (ZFS CLI, Ceph status API)</li>
+<li>[x] 14.5: Ceph FSID in readiness scorer (RED if missing)</li>
+<li>[x] 14.6: Cluster and Storage waves in Reconstruction Playbook generator</li>
+</ul>
+<h3>Phase 15 — Data Protection State</h3>
+<ul>
+<li>[x] 15.1: <code>data-model/data-protection-state-schema.json</code> (PBS, jobs, retention, RTO/RPO)</li>
+<li>[x] 15.2: Data Protection collector (PBS API, backup job inventory, verification status)</li>
+<li>[x] 15.3: RTO/RPO declaration format and compliance scoring</li>
+<li>[x] 15.4: Backup encryption key recoverability check (RED if not recoverable)</li>
+<li>[x] 15.5: PBS self-recovery plan check (ORANGE if absent)</li>
+<li>[x] 15.6: Data Protection readiness scoring additions</li>
+</ul>
+<h3>Phase 16 — Observability State</h3>
+<ul>
+<li>[x] 16.1: <code>data-model/observability-state-schema.json</code> (monitoring stack, alerts, dashboards)</li>
+<li>[x] 16.2: Observability State collector</li>
+<li>[x] 16.3: Observability reconstruction in playbook generator</li>
+<li>[x] 16.4: Alert rule restoration in Recovery Runbook</li>
+</ul>
+<h3>Phase 17 — Digital Twin Foundation</h3>
+<ul>
+<li>[x] 17.1: Cell Identity schema and registry (<code>twin/federation/cells/</code>)</li>
+<li>[x] 17.2: Twin storage layout (full <code>twin/</code> directory structure)</li>
+<li>[x] 17.3: Twin state writer (all collectors write to twin, not only history/)</li>
+<li>[x] 17.4: Staleness manifest (per-field confidence and last-updated tracking)</li>
+<li>[x] 17.5: Twin consistency checker (stale, missing, conflicting state detection)</li>
+<li>[x] <strong>17.6: <code>cell_id</code> migration — all existing schemas updated (federation gate)</strong></li>
+</ul>
+<h3>Phase 18 — Capability and Secret Reference State</h3>
+<ul>
+<li>[x] 18.1: <code>data-model/capability-state-schema.json</code> (all capability categories)</li>
+<li>[x] 18.2: Capability declaration format and initial declaration</li>
+<li>[x] 18.3: Capability verification in Tier 2 assessment</li>
+<li>[x] 18.4: Capability index builder (aggregation across all cells)</li>
+<li>[x] 18.5: <code>data-model/secret-reference-state-schema.json</code> (standalone, with <code>owning_cell</code>)</li>
+<li>[x] 18.6: Secret Reference State migration (extract from Bootstrap State)</li>
+<li>[x] 18.7: Capability-based readiness scoring additions</li>
+</ul>
+<p><strong>Gate:</strong> Phase 18 completion validates the expanded state model. Track 3 begins after Phase 18.</p>
+<hr>
+<h2>Track 3 — Digital Twin and Federation</h2>
+<h3>Phase 19 — Federation State and Trust Model</h3>
+<ul>
+<li>[x] 19.1: <code>data-model/federation-state-schema.json</code> (cell registry, relationships, trust)</li>
+<li>[x] 19.2: Cell identity and federation registry</li>
+<li>[x] 19.3: Trust relationship schema and declaration format (all relationship types)</li>
+<li>[x] 19.4: Trust relationship verification procedure (CLI + automated check)</li>
+<li>[x] 19.5: Recovery relationship schema and declaration format</li>
+<li>[x] 19.6: Recovery relationship verification (backup reachable, history readable)</li>
+<li>[x] 19.7: Tier 3 assessment engine (cross-cell, federation-scope)</li>
+<li>[x] 19.8: Federation State tests</li>
+</ul>
+<h3>Phase 20 — Federation Documentation Generation</h3>
+<ul>
+<li>[x] 20.1: Federation Workbook renderer (all cells, all relationships, federation readiness)</li>
+<li>[x] 20.2: Federation Runbook renderer (coordination procedures)</li>
+<li>[x] 20.3: Cell Workbook (full 17-state view per cell)</li>
+<li>[x] 20.4: Cell Runbook (full cell reconstruction)</li>
+<li>[x] 20.5: Cluster Workbook and Runbook</li>
+<li>[x] 20.6: Node Workbook and Runbook</li>
+<li>[x] 20.7: Dependency Workbook (all five graph types, multi-cell scope)</li>
+<li>[x] 20.8: Command Reference Sheets (pre-populated for all known values)</li>
+<li>[x] 20.9: Validation Sheets (post-recovery checklists)</li>
+</ul>
+<h3>Phase 21 — Failure Domain Modeling</h3>
+<ul>
+<li>[x] 21.1: Failure domain taxonomy schema</li>
+<li>[x] 21.2: Failure propagation rules engine (storage → VMs → services propagation)</li>
+<li>[x] 21.3: Blast radius calculator (given failure at level X, enumerate affected)</li>
+<li>[x] 21.4: SPOF detection (components with no recovery alternative)</li>
+<li>[x] 21.5: Circular recovery dependency detection</li>
+<li>[x] 21.6: Failure domain analysis in readiness reports</li>
+</ul>
+<h3>Phase 22 — Multi-Level Readiness Assessment</h3>
+<ul>
+<li>[x] 22.1: Hardware-level readiness scoring (new inputs from Phase 13)</li>
+<li>[x] 22.2: Cluster-level readiness scoring (new inputs from Phase 14)</li>
+<li>[x] 22.3: Cell-level readiness (aggregation across all 17 state categories)</li>
+<li>[x] 22.4: Federation-level readiness (aggregation across all cells)</li>
+<li>[x] 22.5: Federation Readiness Report</li>
+<li>[x] 22.6: Tier 3 assessment integration with multi-level readiness</li>
+</ul>
+<h3>Phase 23 — Federated Reconstruction Planning</h3>
+<ul>
+<li>[x] 23.1: Recovery coordinator model (coordinator selection from capability index)</li>
+<li>[x] 23.2: Phoenix package assembly (history, docs, repos, secrets, backup locations)</li>
+<li>[x] 23.3: Capability matching (find available cells for each recovery need)</li>
+<li>[x] 23.4: Multi-phase reconstruction playbook generator (all 7 phases)</li>
+<li>[x] 23.5: Cross-cell trust establishment automation</li>
+<li>[x] 23.6: Temporary workload migration planning</li>
+<li>[x] 23.7: Federated reconstruction tests</li>
+</ul>
+<h3>Phase 24 — Continuous Assessment and Twin Maintenance</h3>
+<ul>
+<li>[x] 24.1: Scheduled assessment framework (cron-driven, cell-scoped)</li>
+<li>[x] 24.2: Repository ingestion hooks (git webhook → twin update on push)</li>
+<li>[x] 24.3: Deployment event hooks (tofu apply / ansible run → twin update)</li>
+<li>[x] 24.4: Staleness alerting (notify when state categories exceed threshold)</li>
+<li>[x] 24.5: Twin diff reporting (what changed in the twin since last report)</li>
+<li>[x] 24.6: PBS API integration for continuous Data Protection State updates</li>
+<li>[x] 24.7: Certificate expiry monitoring (continuous External Dependency State)</li>
+</ul>
+<h3>Phase 25 — Reconstruction Validation</h3>
+<ul>
+<li>[x] 25.1: Reconstruction drill framework (scheduled full-destroy + reconstruct)</li>
+<li>[x] 25.2: Reconstruction time measurement and RTO validation</li>
+<li>[x] 25.3: Automated post-reconstruction assessment and comparison</li>
+<li>[x] 25.4: Gap identification and remediation tracking</li>
+<li>[x] 25.5: Federation reconstruction drill (multi-cell coordinated scenario)</li>
+</ul>
+<hr>
+<h2>Track 4 — Autonomous Operations</h2>
+<p>*Prerequisite: Tracks 1–3 complete. The assessment engine must be operational, continuous assessment (Phase 24) running, and the digital twin current before autonomous remediation can propose meaningful actions.*</p>
+<h3>Design contract for autonomous remediation</h3>
+<p>The assessment engine has always surfaced gaps and scored them. Track 4 closes the loop: from detection → proposal → human approval → execution → reassessment.</p>
+<p><strong>The core constraint is this: remediation is proposed, not imposed.</strong> The system recommends; the operator approves; the system executes. No autonomous action changes infrastructure state without a recorded human approval. This constraint is not a configuration option — it is architectural.</p>
+<p><strong>Scope of autonomous action.</strong> The executor handles reversible, observable, low-blast-radius operations. It explicitly does not handle:</p>
+<ul>
+<li>Destruction of data, VMs, volumes, or snapshots</li>
+<li>Changes to Proxmox cluster membership (those go through forge/spawn/phoenix flows)</li>
+<li>Modifications to authoritative metadata YAML files</li>
+<li>KeePass credential changes (those require the KeePass gate in an operator session)</li>
+<li>Network topology declaration changes (operators must update the source of truth)</li>
+<li>Any operation the operator has not explicitly approved in this session</li>
+</ul>
+<p>Anything not on the allowed-action list is blocked at the executor layer, regardless of what the planner proposes. An overly broad proposal is rejected before it runs, not after.</p>
+<hr>
+<h3>Phase 26 — Autonomous Remediation</h3>
+<p>*Closes the assess → detect → propose → approve → execute → reassess loop.*</p>
+<p><strong>26.1 — Remediation Planner</strong> (<code>proxmox-bootstrap/remediation_planner.py</code>)</p>
+<p>Reads the current readiness report and twin state to produce a structured <code>RemediationPlan</code>: an ordered list of <code>RemediationProposal</code> objects, each with enough context for the operator to make an informed approval decision.</p>
+<p>Each proposal records:</p>
+<ul>
+<li><code>proposal_id</code> — stable UUID; survives across assessment cycles until resolved</li>
+<li><code>issue_id</code> — references the specific gap or readiness finding that triggered it</li>
+<li><code>severity</code> — mirrors the assessment score (YELLOW/ORANGE/RED) of the underlying issue</li>
+<li><code>action_type</code> — enumerated type (see below); determines which executor handler runs</li>
+<li><code>action_description</code> — human-readable "what will happen if you approve this"</li>
+<li><code>target</code> — component, service name, or node hostname the action affects</li>
+<li><code>dry_run_output</code> — what the action would produce, captured without making changes</li>
+<li><code>reversibility</code> — <code>reversible</code> | <code>irreversible</code> | <code>manual-rollback</code>; RED is blocked unless reversible</li>
+<li><code>estimated_duration_seconds</code> — from historical execution data</li>
+<li><code>proposed_at</code> — UTC timestamp</li>
+<li><code>prerequisite_ids</code> — other proposals that must execute successfully first</li>
+</ul>
+<p>Allowed action types (exhaustive list — anything not here is rejected at the executor):</p>
+<table><thead><tr><th>Action type</th><th>What it does</th><th>Reversibility</th></tr></thead><tbody><tr><td><code>restart-service</code></td><td><code>systemctl restart {svc}</code> on target VM</td><td>Reversible (stop again)</td></tr><tr><td><code>run-backup</code></td><td><code>python3 run-backup.py --layer {layer}</code></td><td>Reversible (restore from prior)</td></tr><tr><td><code>renew-cert</code></td><td><code>certbot renew</code> or <code>acme.sh --renew</code> for near-expiry cert</td><td>Reversible (prior cert still valid)</td></tr><tr><td><code>regenerate-phoenix</code></td><td>Re-run phoenix playbook generator for stale node package</td><td>Reversible (old package kept)</td></tr><tr><td><code>sync-cert-to-k8s</code></td><td>Re-run <code>sync-cert-to-k8s.sh</code> to push renewed cert into cluster secrets</td><td>Reversible (old secret restored from cert)</td></tr><tr><td><code>rotate-join-token</code></td><td>Generate new k3s join token; update bootstrap-state.json</td><td>Manual rollback</td></tr><tr><td><code>restart-assessment-timer</code></td><td><code>systemctl enable --now broodforge-operational.timer</code></td><td>Reversible</td></tr><tr><td><code>schedule-drill</code></td><td>Append a drill reminder entry to bootstrap-state.json</td><td>Reversible (delete entry)</td></tr><tr><td><code>flag-manual</code></td><td>Mark a finding for manual operator attention; no system change</td><td>N/A</td></tr></tbody></table>
+<p>The planner never proposes an action outside this list. Unknown findings produce <code>flag-manual</code> proposals, never executable ones.</p>
+<ul>
+<li>[x] 26.1.1: <code>RemediationProposal</code> dataclass and schema additions to <code>bootstrap-state-schema.json</code></li>
+<li>[x] 26.1.2: Planner logic — map each gap type to its allowed action type</li>
+<li>[x] 26.1.3: Dry-run execution for each action type (produces <code>dry_run_output</code> without making changes)</li>
+<li>[x] 26.1.4: Proposal deduplication — if an identical proposal already exists in the queue, update it rather than creating a duplicate</li>
+<li>[x] 26.1.5: Integration with <code>engine.py --mode operational</code> — proposals generated automatically at the end of each operational assessment run</li>
+<li>[x] 26.1.6: Tests (propose phase: 30+ cases covering all action types and edge cases)</li>
+</ul>
+<p><strong>26.2 — Approval Queue</strong> (<code>proxmox-bootstrap/remediation_queue.py</code>)</p>
+<p>Manages the lifecycle of proposals from creation through execution.</p>
+<p>State machine per proposal:</p>
+<pre><code>proposed → approved → executing → resolved
+        ↘ rejected
+        ↘ superseded   (newer proposal for same issue replaces this one)
+        ↘ expired      (underlying issue resolved by other means before approval)</code></pre>
+<p>Queue storage: <code>remediations</code> array in <code>bootstrap-state.json</code>. Each entry persists until resolved, rejected, or superseded. Queue is committed to Forgejo on every state change so the record is version-controlled and auditable.</p>
+<p>Approval record per transition:</p>
+<ul>
+<li><code>approved_by</code> — operator identifier (hostname + Unix user, or dashboard session token)</li>
+<li><code>approved_at</code> — UTC timestamp</li>
+<li><code>approval_channel</code> — <code>cli</code> | <code>dashboard</code> | <code>auto-policy</code></li>
+<li><code>approval_note</code> — optional free-text comment from operator</li>
+</ul>
+<p>Auto-approve policy (operator-configured, disabled by default):</p>
+<ul>
+<li><code>auto_approve_threshold</code>: <code>null</code> (disabled) | <code>YELLOW</code> | <code>ORANGE</code></li>
+<li>When set, proposals at or below the threshold are auto-approved on creation</li>
+<li>RED proposals are <strong>never</strong> auto-approved regardless of policy</li>
+<li><code>irreversible</code> proposals are <strong>never</strong> auto-approved regardless of policy</li>
+<li>Auto-approvals are recorded with <code>approval_channel: auto-policy</code></li>
+<li>[x] 26.2.1: Queue data model — <code>RemediationQueue</code>, state machine transitions, storage in bootstrap-state.json</li>
+<li>[x] 26.2.2: CLI for queue management (<code>python3 proxmox-bootstrap/remediation-cli.py</code>):</li>
+<li><code>list</code> — show pending proposals with dry-run summary</li>
+<li><code>approve {id}</code> — approve a single proposal</li>
+<li><code>approve-all --severity YELLOW</code> — batch approve by max severity</li>
+<li><code>reject {id} [--reason text]</code> — reject a proposal</li>
+<li><code>dry-run {id}</code> — re-run dry-run and display output</li>
+<li><code>history</code> — show resolved/rejected proposals</li>
+<li>[x] 26.2.3: Auto-approve policy configuration (stored in <code>bootstrap-state.json remediation_policy</code>)</li>
+<li>[x] 26.2.4: Proposal expiry — if the underlying issue is no longer present in the assessment, mark proposal as <code>expired</code> rather than leaving it in the queue</li>
+<li>[x] 26.2.5: Tests (queue lifecycle: 25+ cases)</li>
+</ul>
+<p><strong>26.3 — Executor</strong> (<code>proxmox-bootstrap/remediation_executor.py</code>)</p>
+<p>Executes approved proposals with the same checkpoint and failure-package semantics as spawn/forge/phoenix scripts.</p>
+<p>Execution contract:</p>
+<ol>
+<li><strong>Re-validate</strong> the proposal before running: confirm the underlying issue still</li>
+</ol>
+<p>exists and the action type is still on the allowed list. Cancel if either check fails.</p>
+<ol>
+<li><strong>Record the start</strong> in bootstrap-state.json (status → <code>executing</code>, <code>started_at</code>).</li>
+<li><strong>Dry-run first</strong> — re-run dry-run and diff against the original. If significantly</li>
+</ol>
+<p>different, pause and surface for re-approval rather than proceeding.</p>
+<ol>
+<li><strong>Execute</strong> the action.</li>
+<li><strong>Checkpoint</strong> at each meaningful step (mirrors spawn checkpoint pattern).</li>
+<li>On failure: generate a <code>RemediationFailurePackage</code> (same structure as spawn failure</li>
+</ol>
+<p>packages) and set status to <code>failed</code>. Never silently swallow errors.</p>
+<ol>
+<li>On success: record <code>resolved_at</code>, <code>outcome</code>, and transition to <code>resolved</code>.</li>
+<li><strong>Trigger reassessment</strong> — queue a fresh operational assessment run so the twin</li>
+</ol>
+<p>reflects the post-remediation state.</p>
+<p>KeePass gate: any action that requires secrets (e.g. <code>rotate-join-token</code>, <code>run-backup</code>) requires the KeePass gate to be unlocked for that session. The executor checks for the gate before starting; if not unlocked, it suspends execution and prompts via <code>/dev/tty</code> — it never starts a secrets-accessing action unattended.</p>
+<ul>
+<li>[x] 26.3.1: <code>RemediationExecutor</code> class — pre-validate, checkpoint, execute, post-record</li>
+<li>[x] 26.3.2: Handler per action type (one function per allowed action type from 26.1)</li>
+<li>[x] 26.3.3: KeePass gate integration — suspend if gate not unlocked for secrets-requiring actions</li>
+<li>[x] 26.3.4: <code>RemediationFailurePackage</code> — extends failure package format from spawn</li>
+<li>[x] 26.3.5: Post-execution reassessment trigger</li>
+<li>[x] 26.3.6: Tests (executor: 35+ cases, all action types + failure paths)</li>
+</ul>
+<p><strong>26.4 — Dashboard Integration</strong></p>
+<p>Expose the remediation queue in the broodforge sidecar dashboard (<code>broodforge_dashboard.py</code>) so operators can review and approve proposals from the browser.</p>
+<p>New endpoints:</p>
+<ul>
+<li><code>GET /api/remediations</code> — list proposals (filterable by status and severity)</li>
+<li><code>GET /api/remediations/{id}</code> — full proposal detail including dry-run output</li>
+<li><code>POST /api/remediations/{id}/approve</code> — approve (requires <code>X-Broodforge-Token</code> header)</li>
+<li><code>POST /api/remediations/{id}/reject</code> — reject with optional reason</li>
+<li><code>POST /api/remediations/approve-batch</code> — approve multiple by severity threshold</li>
+</ul>
+<p>Dashboard HTML additions:</p>
+<ul>
+<li>New <strong>Remediations</strong> section in the main dashboard page</li>
+<li>Pending proposals listed with: severity badge, action description, target, dry-run summary, approve/reject buttons</li>
+<li>Executed history section showing resolved and failed proposals</li>
+<li>Auto-approve policy display and toggle</li>
+</ul>
+<p>Token requirement: all POST endpoints require the <code>X-Broodforge-Token</code> header (already enforced for <code>analyze-failures</code>). A proposal approved from the dashboard records <code>approval_channel: dashboard</code>.</p>
+<ul>
+<li>[x] 26.4.1: <code>GET /api/remediations</code> and <code>GET /api/remediations/{id}</code> endpoints</li>
+<li>[x] 26.4.2: <code>POST</code> approval/rejection endpoints with token gate</li>
+<li>[x] 26.4.3: Dashboard HTML section — proposal cards with approve/reject buttons</li>
+<li>[x] 26.4.4: Batch approve endpoint with severity filter</li>
+<li>[x] 26.4.5: Tests (dashboard endpoints: 15+ cases)</li>
+</ul>
+<p><strong>26.5 — Feedback Loop and Reporting</strong></p>
+<p>Close the loop: verify that approved remediations actually resolved the issue, and surface the closed-loop record in operational reports.</p>
+<ul>
+<li><code>RemediationRecord</code> — links a proposal, its execution result, and the post-execution</li>
+</ul>
+<p>assessment delta (was the gap actually closed?)</p>
+<ul>
+<li>Operational Report (Section 8 — new) — Remediation Summary:</li>
+<li>Pending proposals awaiting approval (count by severity)</li>
+<li>Recently executed proposals (last 30 days) with outcomes</li>
+<li>Failed remediations requiring operator attention</li>
+<li>Issues that were auto-approved and resolved without intervention</li>
+<li>Issues that resisted remediation (executed but issue persists after reassessment)</li>
+<li>[x] 26.5.1: <code>RemediationRecord</code> — execution + post-assessment delta + closed-loop status</li>
+<li>[x] 26.5.2: Operational report Section 8 — Remediation Summary renderer</li>
+<li>[x] 26.5.3: HTML operational report update — Section 8 added to <code>html_operational_report.py</code></li>
+<li>[x] 26.5.4: <code>resists_remediation</code> flag — if an action executed successfully but the</li>
+</ul>
+<p>underlying issue is still present in the next assessment, the proposal is marked <code>resisted</code> and escalated to the operator</p>
+<ul>
+<li>[x] 26.5.5: Tests (feedback loop: 20+ cases)</li>
+</ul>
+<p><strong>26.6 — Policy Engine and Federation Remediation</strong></p>
+<p>*Advanced optional sub-phase.*</p>
+<p><strong>Policy engine</strong> (<code>proxmox-bootstrap/remediation_policy.py</code>): Fine-grained control over what can be auto-approved, what requires human approval, and what is blocked entirely. Per-action-type overrides supplement the global severity threshold.</p>
+<p>Policy fields (stored in <code>bootstrap-state.json remediation_policy</code>):</p>
+<ul>
+<li><code>auto_approve_threshold</code>: global max severity for auto-approval (default: null)</li>
+<li><code>blocked_action_types</code>: list of action types that are always blocked regardless of approval</li>
+<li><code>require_approval_action_types</code>: action types always requiring approval even if under threshold</li>
+<li><code>max_concurrent_executions</code>: number of proposals that can execute simultaneously (default: 1)</li>
+<li><code>execution_window</code>: time-of-day window when executions may run (cron-style expression)</li>
+<li><code>notify_on_proposal</code>: emit a structured log event when new proposals are generated</li>
+<li><code>notify_on_approval</code>: emit a structured log event when proposals are approved</li>
+<li><code>notify_on_outcome</code>: emit a structured log event when proposals complete or fail</li>
+</ul>
+<p><strong>Federation remediation</strong>: A federated remediation proposal is one that requires coordination across cells. Example: Cell A's backup is failing because Cell B (the backup destination) is full. The proposal must be visible to operators of both cells; approval from the "owning cell" operator is required before execution.</p>
+<p>Cross-cell proposals are stored in the federation state (Phase 19) alongside the originating cell's bootstrap-state.json. The federation runbook (Phase 20) gains a "Pending Remediations" section.</p>
+<ul>
+<li>[x] 26.6.1: <code>RemediationPolicy</code> dataclass and schema; CLI to update policy</li>
+<li>[x] 26.6.2: Execution window enforcement (don't execute outside configured hours)</li>
+<li>[x] 26.6.3: Concurrent execution limit (serialize by default; operator can allow parallel)</li>
+<li>[x] 26.6.4: Cross-cell proposal format — <code>owning_cell_id</code>, <code>requires_cell_approval[]</code></li>
+<li>[x] 26.6.5: Federation remediation view in Federation Workbook (Phase 20 extension)</li>
+<li>[x] 26.6.6: Tests (policy engine: 20+ cases; cross-cell: 10+ cases)</li>
+</ul>
+<p><strong>26.7 — Fully Autonomous Mode</strong> *(optional — must be explicitly enabled by an operator)*</p>
+<p>An opt-in execution mode in which the assessment engine detects issues, the planner generates proposals, and the executor runs them without waiting for per-action approval. The gated model (Phase 26.1–26.6) remains the default and is always available regardless of whether this mode is active.</p>
+<p><strong>This mode exists for operators who are comfortable with the bounded action list and want the platform to self-maintain without manual intervention on routine maintenance tasks.</strong> It is not the right mode for initial deployment, unstable environments, or any cell where operator oversight of each change is required.</p>
+<p>*Autonomous mode never changes which actions are possible — only who initiates execution. The bounded action-type list, the hard exclusions, and the full audit trail from Phases 26.1–26.6 apply without exception.*</p>
+<hr>
+<p><strong>Enabling ceremony — two-step confirmation required</strong></p>
+<p>Autonomous mode cannot be turned on by editing a config file directly. It requires a deliberate interactive ceremony so the operator understands exactly what they are enabling before it takes effect:</p>
+<pre><code>$ python3 proxmox-bootstrap/remediation-cli.py enable-autonomous
+
+Current policy review
+=====================
+Cell:            proxmox-cell-a
+Assessment:      operational (running every 1 hour)
+Pending queue:   3 proposals awaiting approval
+Action types in scope for autonomous execution:
+  restart-service, run-backup, renew-cert, regenerate-phoenix,
+  sync-cert-to-k8s, restart-assessment-timer, schedule-drill
+Maximum severity for autonomous execution: ORANGE
+Execution window: any time (no restriction)
+
+HARD EXCLUSIONS — these are NEVER executed autonomously regardless of policy:
+  ✗ Any action with reversibility: irreversible
+  ✗ RED-severity findings
+  ✗ Actions requiring KeePass gate (those remain per-action gated)
+  ✗ Cross-cell actions (those remain per-cell-operator gated)
+
+What will happen if you continue:
+  Approved: new proposals at or below ORANGE will execute automatically
+            on the next assessment cycle after they are proposed.
+  NOT approved: the 3 existing proposals in the queue still require
+                per-action approval — autonomous mode applies to new proposals
+                generated after this point, not retroactively.
+
+This mode will auto-disable after 30 days (2026-07-02) unless renewed.
+To disable at any time: remediation-cli.py disable-autonomous
+
+Type 'enable autonomous' to confirm, or Ctrl-C to cancel:
+&gt; _</code></pre>
+<p>The confirmation phrase must be typed exactly. A mistype aborts with no change. After confirmation the mode is recorded in <code>bootstrap-state.json</code> with:</p>
+<ul>
+<li><code>enabled_by</code> — Unix user + hostname at enable time</li>
+<li><code>enabled_at</code> — UTC timestamp</li>
+<li><code>enabled_via</code> — <code>cli</code> | <code>dashboard</code></li>
+<li><code>expires_at</code> — UTC timestamp (default 30 days; configurable; null = no expiry)</li>
+<li><code>scope</code> — the exact policy in effect at enable time (snapshot)</li>
+</ul>
+<p>The operator is shown a summary of the enabling record before the prompt returns, confirming what was stored.</p>
+<hr>
+<p><strong>Hard exclusions — enforced at the executor layer, not by policy</strong></p>
+<p>These restrictions cannot be overridden by any policy setting. They are checked inside the executor before any autonomous execution begins:</p>
+<table><thead><tr><th>Exclusion</th><th>Reason</th></tr></thead><tbody><tr><td><code>reversibility: irreversible</code> actions</td><td>Cannot be undone if the assessment was wrong</td></tr><tr><td>RED-severity findings</td><td>The system should not self-heal critical failures without a human confirming the diagnosis</td></tr><tr><td>KeePass-gated actions</td><td>Unattended secrets access requires a separate unlock mechanism not yet implemented; these remain per-action gated in all modes</td></tr><tr><td>Actions affecting more than one cell</td><td>Cross-cell blast radius requires coordinated approval</td></tr><tr><td>Actions on a cell whose last assessment is older than 2× the assessment interval</td><td>Stale state means the proposal may be based on outdated information</td></tr><tr><td>Actions during an active reconstruction drill</td><td>Do not remediate a cell that is deliberately in a degraded state for testing</td></tr></tbody></table>
+<hr>
+<p><strong>Scope constraints — set at enable time</strong></p>
+<p>The operator can restrict autonomous mode to a subset of actions and severity levels at enable time. Restrictions are stored in the enabling record and cannot be loosened without re-running the enabling ceremony.</p>
+<table><thead><tr><th>Constraint</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>autonomous_action_types</code></td><td>All safe types</td><td>List of action types that may execute autonomously; <code>rotate-join-token</code> excluded from default</td></tr><tr><td><code>autonomous_max_severity</code></td><td><code>ORANGE</code></td><td>Maximum severity level; cannot be set to <code>RED</code></td></tr><tr><td><code>autonomous_execution_window</code></td><td>Any time</td><td>Cron-style expression restricting when executions may run</td></tr><tr><td><code>autonomous_max_concurrent</code></td><td>1</td><td>How many proposals may execute in parallel</td></tr><tr><td><code>autonomous_expires_at</code></td><td>30 days</td><td>UTC timestamp after which mode auto-disables; <code>null</code> = no expiry</td></tr><tr><td><code>autonomous_notify</code></td><td><code>true</code></td><td>Emit a structured log event for every autonomous execution</td></tr></tbody></table>
+<hr>
+<p><strong>Notifications — what happens without per-action approval</strong></p>
+<p>Because the operator is not involved in each action, the platform must report what it did. Every autonomous execution emits a structured notification event that the operator can consume via:</p>
+<ul>
+<li>The dashboard <strong>Remediation History</strong> view (always)</li>
+<li>The operational report Section 8 "Autonomous Executions" subsection (always)</li>
+<li>SMTP email (if external SMTP dependency configured in bootstrap-state.json)</li>
+<li>A structured log entry in the systemd journal (always; can be monitored by any log aggregator)</li>
+</ul>
+<p>The notification includes: what issue was detected, what action ran, what changed, the outcome (success/failed/resisted), and the next scheduled reassessment time.</p>
+<p>If an autonomous execution fails or a remediated issue persists after reassessment (<code>resisted</code>), the finding is escalated: an immediate notification is sent and the specific proposal is moved back to the <code>gated</code> approval mode until the operator reviews it. Repeated failures disable autonomous mode for that action type automatically.</p>
+<hr>
+<p><strong>Disabling autonomous mode</strong></p>
+<p>Autonomous mode can be disabled at any time with no confirmation required:</p>
+<pre><code>$ python3 proxmox-bootstrap/remediation-cli.py disable-autonomous
+[remediation] Autonomous mode disabled.
+[remediation] Proposals in queue: 2 now require per-action approval.
+[remediation] Disable recorded: 2026-06-15T14:22:00Z by root@hatchery</code></pre>
+<p>Or from the dashboard via the "Disable autonomous mode" button (no confirmation prompt in the UI — disabling is always safe and immediate).</p>
+<p>Auto-disable triggers (without operator action):</p>
+<ul>
+<li><code>expires_at</code> timestamp reached</li>
+<li>N consecutive failed executions (configurable; default: 3)</li>
+<li>N consecutive <code>resisted</code> outcomes (configurable; default: 2 for the same issue)</li>
+<li>Cell readiness drops to RED (the platform self-demotes out of autonomous mode</li>
+</ul>
+<p>when the cell is in a critical state)</p>
+<p>Every auto-disable event is logged with the triggering reason and sent as a high-priority notification.</p>
+<hr>
+<p><strong>Dashboard integration</strong></p>
+<p>New elements in <code>broodforge_dashboard.py</code>:</p>
+<ul>
+<li>Prominent <strong>autonomous mode status badge</strong> in the topbar: <code>AUTO</code> (green) when enabled, <code>GATED</code> (muted) when not</li>
+<li><strong>Enable/Disable</strong> button in the Remediations section (Enable requires a confirmation modal that mirrors the CLI ceremony; Disable is immediate)</li>
+<li><strong>Autonomous executions</strong> subsection in Remediation History — separate from the manual-approval history</li>
+<li><strong>Scope display</strong> — shows the exact constraints in effect when autonomous mode is enabled</li>
+<li><strong>Auto-disable countdown</strong> — shows time remaining until expiry if <code>expires_at</code> is set</li>
+</ul>
+<hr>
+<ul>
+<li>[x] 26.7.1: <code>autonomous_mode</code> field group in <code>bootstrap-state-schema.json</code> and <code>RemediationPolicy</code></li>
+<li>[x] 26.7.2: Enabling ceremony in <code>remediation-cli.py</code> — two-step confirmation, scope review, enabling record</li>
+<li>[x] 26.7.3: Executor integration — skip approval-wait step for in-scope proposals when autonomous mode is active</li>
+<li>[x] 26.7.4: Hard exclusion enforcement in executor — checked independently of policy</li>
+<li>[x] 26.7.5: Auto-disable triggers (expiry, consecutive failures, RED cell state)</li>
+<li>[x] 26.7.6: Notification events — structured log + SMTP if configured + dashboard update</li>
+<li>[x] 26.7.7: Dashboard — autonomous mode badge, enable/disable controls, scope display, auto-disable countdown</li>
+<li>[x] 26.7.8: Stale-state guard — refuse autonomous execution if last assessment is older than 2× interval</li>
+<li>[x] 26.7.9: Drill guard — refuse autonomous execution while a reconstruction drill is active</li>
+<li>[x] 26.7.10: Tests:</li>
+<li>Enabling ceremony: confirmation phrase correct/wrong/abort</li>
+<li>Hard exclusions: RED, irreversible, KeePass-gated, stale-state, drill-active all blocked</li>
+<li>Scope constraints: action type filter, severity cap, execution window</li>
+<li>Auto-disable: expiry, consecutive failures, RED cell state</li>
+<li>Notification events: structured log fields, SMTP trigger conditions</li>
+<li>Re-enable after auto-disable: ceremony required again</li>
+</ul>
+<p>*(40+ test cases)*</p>
+<hr>
+<p><strong>Gate:</strong> Phase 26 completion (including 26.7) adds the full autonomous action layer. Phases 26.1–26.6 deliver human-gated remediation. Phase 26.7 adds fully autonomous execution as an explicit opt-in on top of that foundation.</p>
+<p><strong>Track 4 begins after Track 3. No Track 4 phase requires any Track 4 prerequisite beyond a working Phase 24 (continuous assessment) deployment.</strong></p>
+<hr>
+<h2>Design Principles</h2>
+<ol>
+<li><strong>Reconstruction is the objective.</strong> Every state category, metadata field, and</li>
+</ol>
+<p>documentation artifact is evaluated against: "Does this enable reconstruction from repository state after complete infrastructure loss?"</p>
+<ol>
+<li><strong>Documentation is generated, not authored.</strong> Technical infrastructure information</li>
+</ol>
+<p>is collected automatically. Operators provide only what cannot be discovered.</p>
+<ol>
+<li><strong>Cell scope is universal.</strong> <code>cell_id</code> is mandatory on every state document.</li>
+</ol>
+<p>No single-environment assumptions anywhere in the data model.</p>
+<ol>
+<li><strong>The Digital Twin is the source of truth.</strong> All outputs derive from the twin.</li>
+<li><strong>Recovery relationships are explicit.</strong> Which cell holds what for whom is</li>
+</ol>
+<p>declared and verified, not assumed.</p>
+<ol>
+<li><strong>Missing information is surfaced, never silently omitted.</strong> UNRESOLVED and</li>
+</ol>
+<p>STALE fields are always visible with reason, impact, and remediation guidance.</p>
+<ol>
+<li><strong>Trust is declared and verified.</strong> Inter-cell trust has expiry, is verified at</li>
+</ol>
+<p>Tier 3 assessment, and expired trust degrades federation readiness scores.</p>
+<ol>
+<li><strong>Historical snapshots are reproducible.</strong> Same twin state always produces same outputs.</li>
+<li><strong>Readiness scoring is honest.</strong> RED means recovery will likely fail.</li>
+<li><strong>Single-cell work must be federation-ready from the start.</strong> <code>cell_id</code> in all</li>
+</ol>
+<p>schemas. Recovery playbooks organized by cell. Documentation scoped by cell. The federation layer is added above, not retrofitted below.</p>
+<ol>
+<li><strong>Remediation is proposed, not imposed.</strong> The assessment engine recommends;</li>
+</ol>
+<p>the operator approves; the system executes. No autonomous action changes infrastructure state without a recorded human approval. This is an architectural constraint, not a configuration option.</p>
+</body>
+</html>

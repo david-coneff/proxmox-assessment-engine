@@ -6,7 +6,7 @@ Last updated: 2026-06-03 UTC (audit round 15: shell injection in pvecm, XSS in o
 
 Self-Documenting, Self-Assessing, Self-Recovering Infrastructure Platform.
   k3s + Flux CD + Proxmox + four intelligence layers.
-  See ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md for full detail.
+  See ARCHITECTURE.md and docs/DESIGN-HISTORY.md for full detail.
 Seventeen-state model. Six-layer lifecycle. Three assessment tiers. Five dependency graphs.
 Four tracks complete: Forging Foundation, Cell-Scoped Foundation, Expanded State Model,
 Digital Twin + Federation, and Autonomous Operations (Phase 26 — all sub-phases).

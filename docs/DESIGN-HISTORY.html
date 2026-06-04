@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Broodforge Design History</title>
+<style>
+  :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
+    --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
+    --code-bg:#181b21;--radius:6px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    font-size:14px;line-height:1.6;padding:24px;max-width:1100px;margin:0 auto}
+  h1{color:var(--accent);font-size:1.7em;margin:18px 0 4px}
+  h2{color:var(--accent);font-size:1.05em;margin:24px 0 8px;text-transform:uppercase;letter-spacing:.05em;
+    border-bottom:1px solid var(--border);padding-bottom:4px}
+  h3{color:var(--accent);font-size:.95em;margin:14px 0 6px}
+  h4{color:var(--muted);font-size:.82em;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em}
+  h5,h6{color:var(--muted);font-size:.8em;margin:8px 0 4px}
+  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+  p{margin:8px 0}ul,ol{margin:8px 0 8px 22px}li{margin:4px 0}
+  li>ul,li>ol{margin:4px 0 4px 18px}
+  strong{color:var(--text);font-weight:600}
+  hr{border:none;border-top:1px solid var(--border);margin:20px 0}
+  blockquote{border-left:3px solid var(--accent);background:#1e2d3a;margin:10px 0;
+    padding:8px 14px;border-radius:0 var(--radius) var(--radius) 0;color:var(--text)}
+  code{background:var(--code-bg);color:var(--green);padding:1px 5px;border-radius:3px;
+    font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.9em}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 14px;overflow-x:auto;margin:10px 0;font-family:'Cascadia Code','Fira Code',Consolas,monospace;
+    font-size:.85em;color:var(--green);white-space:pre}
+  pre code{background:none;padding:0;color:inherit}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+  th{background:var(--bg2);color:var(--muted);text-align:left;padding:6px 8px;
+    border-bottom:1px solid var(--border);font-weight:600;font-size:.8em;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:5px 8px;border-bottom:1px solid var(--bg3);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .doc-meta{color:var(--muted);font-size:.8em;margin:4px 0 20px}
+  @media print{body{padding:12px;max-width:none}}
+</style>
+</head>
+<body>
+<div class="doc-meta">Generated from <code>DESIGN-HISTORY.md</code> — self-contained · print-friendly</div>
+<h1>Broodforge Design History</h1>
+<p><strong>Status: durable record — not versioned.</strong> This document replaces the versioned <code>ARCHITECTURE-REVIEW-vN.md</code> series that the project iterated through during its formative design phase (v4 → v7). Rather than continue minting a new full-text review document at every architectural shift — each of which then had to be deprecated and replaced — this single durable record traces *how* the design arrived where it is and *why*, so future audits have the rationale trail without the churn.</p>
+<p>For the <strong>authoritative current architecture</strong>, see <a href="../ARCHITECTURE.md"><code>ARCHITECTURE.md</code></a> and its Architecture Decision (AD-022…AD-056) table. This document is history and rationale; <code>ARCHITECTURE.md</code> is truth.</p>
+<p>The full text of each historical review is preserved verbatim in <a href="../deprecated/"><code>deprecated/</code></a> for deep audits: <code>ARCHITECTURE-REVIEW-v4.md</code>, <code>-v5.md</code>, <code>-v6.md</code>, <code>-v7.md</code>.</p>
+<hr>
+<h2>Why the design evolved as it did</h2>
+<p>Broodforge began as a fairly conventional "provision some VMs with IaC" idea and was deliberately reframed four times. Each reframe sharpened a single question: *what is the platform's actual product?* The answer settled on <strong>reconstruction</strong> — the ability to rebuild any component, or the whole cell, from repository state after total loss. Every later decision is downstream of that answer.</p>
+<hr>
+<h2>The four reviews — what each introduced and why</h2>
+<h3>v4.0 — Infrastructure Lifecycle &amp; Reproducible Reconstruction *(2026-05-30)*</h3>
+<p>The first reframe. The prior thinking modeled infrastructure primarily as a set of running VMs. v4 reframed it as a <strong>reproducible lifecycle</strong>: Cloud-Init for first-boot identity, declarative state, and the explicit goal that the environment be reconstructable rather than merely runnable. This is the origin of the "reconstruction is the objective" principle.</p>
+<h3>v5.0 — Federated Infrastructure Digital Twin *(2026-05-31)*</h3>
+<p>Commissioned with an explicit instruction not to assume the existing design was correct. v5 introduced two ideas that survived everything after it:</p>
+<ul>
+<li><strong>Digital twin</strong> — the platform maintains a continuously-updated model of its own</li>
+</ul>
+<p>state (later realized as <code>bootstrap-state.json</code> + the assessment engine).</p>
+<ul>
+<li><strong>Federation / cell scope</strong> — <code>cell_id</code> as a universal, mandatory key on every</li>
+</ul>
+<p>schema document, so a federation layer can be added *above* without retrofitting *below*. This is why <code>cell_id</code> is a hard design constraint today.</p>
+<h3>v6.0 — Self-Documenting, Self-Recovering Platform *(2026-05-31)*</h3>
+<p>A complete reset rather than an increment. v6 established the framing the project still uses in its tagline and crystallized:</p>
+<ul>
+<li><strong>Documentation captures intent, not just state</strong> — "3 control-plane nodes</li>
+</ul>
+<p>*because* HA policy requires etcd quorum at ≥3 hosts," not just the count.</p>
+<ul>
+<li><strong>Recovery packages</strong> — self-contained, offline-capable, checkpoint-resumable</li>
+</ul>
+<p>archives as the unit of reconstruction (the seed of forge / spawn / phoenix).</p>
+<ul>
+<li><strong>Failure packages</strong> — structured, LLM-optimized artifacts emitted on any script</li>
+</ul>
+<p>step failure, feeding a continuous-improvement loop.</p>
+<h3>v7.0 → v7.1 — Self-Documenting, Self-Assessing, Self-Recovering *(2026-05-31 → 2026-06-02)*</h3>
+<p>v7 added the word <strong>assessing</strong> to the identity and made it concrete:</p>
+<ul>
+<li><strong>Assessment Engine as a first-class subsystem</strong> with five scored dimensions</li>
+</ul>
+<p>(ACS, RRS, DCS, CRS, OSS) aggregating into a Platform Health Score (PHS).</p>
+<ul>
+<li><strong>The assessment engine recommends; humans act</strong> — no autonomous infrastructure</li>
+</ul>
+<p>action without an explicit governance review (the safeguard later partially implemented in Phase 26's remediation policy).</p>
+<ul>
+<li><strong>Twelve-phase implementation roadmap</strong> (now tracked in <code>ROADMAP.md</code>).</li>
+<li><strong>v7.1</strong> added the three-process vocabulary that defines the platform today:</li>
+</ul>
+<p><strong>Forging</strong> (bare metal → hatchery), the <strong>Hatchery process</strong> (spawn packages for broodlings), and the <strong>Stargate process</strong> (phoenix packages for resurrection), plus the Phase 12.E spawn-bootstrap that lets a broodling join after a bare Proxmox install without querying the hatchery API.</p>
+<hr>
+<h2>Throughlines that survived every iteration</h2>
+<p>These are the invariants — present from the version that introduced them through to the current implementation:</p>
+<table><thead><tr><th>Throughline</th><th>Introduced</th><th>Status today</th></tr></thead><tbody><tr><td>Reconstruction is the objective</td><td>v4</td><td>Core design principle #1</td></tr><tr><td><code>cell_id</code> mandatory; federation above, not retrofitted below</td><td>v5</td><td>Hard schema constraint</td></tr><tr><td>Digital twin of own state</td><td>v5</td><td><code>bootstrap-state.json</code> + assessment engine</td></tr><tr><td>Documentation captures intent (what + why + policy)</td><td>v6</td><td>doc-engine output requirement</td></tr><tr><td>Self-contained, checkpoint-resumable recovery packages</td><td>v6</td><td>forge / spawn / phoenix packages</td></tr><tr><td>Failure packages feed an improvement loop</td><td>v6</td><td><code>failure_package_analyzer.py</code> + hatchery receiver</td></tr><tr><td>Assessment recommends; humans act</td><td>v7</td><td>Phase 26 remediation governance gate</td></tr><tr><td>Forge / Hatchery / Stargate three-process model</td><td>v7.1</td><td>The platform's operating model</td></tr></tbody></table>
+<hr>
+<h2>Subsequent decisions that superseded parts of the reviews</h2>
+<p>A few decisions made *after* v7 was written supersede portions of its text. These live in <code>ARCHITECTURE.md</code>'s AD table and take precedence over anything in the deprecated review documents:</p>
+<ul>
+<li><strong>AD-055 — HTML is the sole generated-document format.</strong> The reviews (notably v7)</li>
+</ul>
+<p>describe ODS/ODT workbooks and an <code>ods-update.sh</code> flow. That design was retired; the codebase generates self-contained HTML only. ODS/ODT renderers are preserved under <code>doc-gen/renderers/deprecated/</code> for reference.</p>
+<ul>
+<li><strong>AD-051 — every machine-readable manifest has an HTML equivalent.</strong> Formalized the</li>
+</ul>
+<p>human-readable-companion pattern the reviews only gestured at.</p>
+<ul>
+<li><strong>AD-039 through AD-056</strong> — the spawn/forge/phoenix package mechanics, network</li>
+</ul>
+<p>profiles, guided setup, backup architecture, and spawn-completion reporting were all specified in detail after the v7 prose and are authoritative in <code>ARCHITECTURE.md</code>.</p>
+<hr>
+<p>*When the architecture next shifts, update <code>ARCHITECTURE.md</code>'s AD table and add a short entry to this file — do not start <code>ARCHITECTURE-REVIEW-v8.md</code>.*</p>
+</body>
+</html>

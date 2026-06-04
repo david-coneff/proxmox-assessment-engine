@@ -14,7 +14,7 @@ Primary objectives:
 
 ## Architecture version
 
-v7.1 — see ARCHITECTURE.md and docs/ARCHITECTURE-REVIEW-v7.md for full detail.
+v7.1 — see ARCHITECTURE.md and docs/DESIGN-HISTORY.md for full detail.
 
 Seventeen-state model. Six-layer lifecycle. Three assessment tiers. Five dependency graphs.
 Four intelligence tracks complete: Forging Foundation, Cell-Scoped Foundation,
