@@ -40,7 +40,7 @@ Last updated: 2026-06-03 UTC
   FLUX_BRANCH, CLUSTER_PATH, K3S_SERVER_IP).
 - `setup_tls.py`: single-quote CERT, KEY, SECRET_NAME, NAMESPACES assignments.
 
-**Round 18 — Final broad scan:**
+**Round 18 — Broad scan:**
 - Zero remaining double-quoted bash variable assignments with unescaped manifest data.
 - Zero `send_error` calls leaking exception strings.
 - All HTML renderers verified to use `_e()` for user-controlled data.
@@ -48,7 +48,32 @@ Last updated: 2026-06-03 UTC
 - `html_package_manifest.py`, `html_forge_workbook.py`: verified pre-escaped HTML pattern
   is applied correctly throughout.
 
-**Tests: 3958 passed, 37 skipped** (no change from round 15 baseline).
+**Round 19 Cycle 1 — phoenix_scripts.py injection fixes:**
+- Import `shlex`.
+- `_step_block`: `shlex.quote(checkpoint_key)` for is_done/checkpoint_start/done/failed/skip
+  function arguments; single-quote step echo line.
+- `generate_wave_script`: single-quote wave echo lines (wave_num, wave_name, est_mins).
+- `generate_run_all_sh`: single-quote all echo lines embedding hostname/cell_id/scope/
+  est_total/generated/wave_name; use adjacent quoting `"$SCRIPT_DIR/"'script.sh'` for
+  bash invocation to prevent `$()` in wave_name from executing.
+
+**Round 19 Cycle 2 — keepass init + spawn fallback + k3s vars:**
+- `forge_keepass_init.render_init_commands`: `import shlex`; `shlex.quote(db)` on db_path
+  in all `bash -c` keepassxc-cli commands (prevents `$()` in path argument).
+- `spawn_scripts.generate_phase_06_verify`: single-quote manual hatchery fallback echo.
+- `spawn_iac_generator.generate_ansible_k3s_vars`: single-quote k3s_server_url, k3s_token,
+  k3s_node_name YAML values.
+
+**Round 19 confirmatory final scan:**
+- Zero plan-var-in-double-quote-bash injection risks.
+- Zero `send_error` leaks.
+- Remaining scan matches are FALSE POSITIVES:
+  - `spawn_scripts.py:108,110`: `phase_id`/`desc` from hardcoded Python constants.
+  - `spawn_scripts.py:378`: `k3s_role` already validated to "worker"/"server" only.
+  - HCL tfvars: `.auto.tfvars` values are literal strings, no template interpolation.
+  - `bash -c` in `forge_keepass_init.py`: now `shlex.quote()`-d.
+
+**Tests: 3958 passed, 37 skipped** (no change from round 15 baseline throughout all rounds).
 
 ---
 
