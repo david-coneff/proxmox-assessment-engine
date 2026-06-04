@@ -276,3 +276,60 @@ def config_to_dict(config: TlsConfig) -> dict:
         "key_path":                        config.key_path,
         "k8s_namespaces":                  list(config.k8s_namespaces or []),
     }
+
+
+# ---------------------------------------------------------------------------
+# CLI — used by forge phase-03 (WAN profile). Writes the cert-sync script and
+# prints the TLS-issuance commands; with --run it would execute them on the host.
+# ---------------------------------------------------------------------------
+
+def _cli_main() -> None:
+    import argparse
+    import json
+    import os
+    import sys
+
+    ap = argparse.ArgumentParser(description="Configure TLS (Let's Encrypt / self-signed) for the hatchery.")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--manifest", help="forge-manifest.json (or bootstrap-state.json)")
+    src.add_argument("--state", help="bootstrap-state.json (alias of --manifest)")
+    ap.add_argument("--output-dir", default=".",
+                    help="Where to write sync-cert-to-k8s.sh (default: current dir)")
+    ap.add_argument("--run", action="store_true",
+                    help="Execute the TLS-issuance commands (needs certbot/acme.sh on the host)")
+    args = ap.parse_args()
+
+    path = args.manifest or args.state
+    with open(path, encoding="utf-8") as f:
+        doc = json.load(f)
+    nt = doc.get("network_topology") or {}
+    hi = doc.get("host_identity") or {}
+
+    config = generate_tls_config(nt, hi)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    sync_path = os.path.join(args.output_dir, "sync-cert-to-k8s.sh")
+    with open(sync_path, "w", encoding="utf-8") as f:
+        f.write(render_sync_cert_sh(config))
+    print(f"[setup-tls] provider {config.provider}; wrote {sync_path}")
+
+    commands = render_tls_commands(config)
+    if args.run:
+        import subprocess
+        for cmd in commands:
+            if cmd.strip().startswith("#") or not cmd.strip():
+                continue
+            print(f"[setup-tls] $ {cmd}")
+            rc = subprocess.run(["bash", "-c", cmd], timeout=600).returncode
+            if rc != 0:
+                print(f"[setup-tls] command failed (exit {rc}); resolve and re-run.",
+                      file=sys.stderr)
+                sys.exit(1)
+    else:
+        print("[setup-tls] TLS-issuance commands (run on the host, or pass --run):")
+        for cmd in commands:
+            print(f"    {cmd}")
+
+
+if __name__ == "__main__":
+    _cli_main()

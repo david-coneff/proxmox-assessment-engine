@@ -89,7 +89,8 @@ def generate_dnsmasq_config(
 
     address_entries: list[tuple[str, str]] = []
     for entry in (dns_registry or []):
-        fqdn = entry.get("fqdn") or ""
+        # dns-registry.yaml entries use `hostname`; older callers used `fqdn`.
+        fqdn = entry.get("fqdn") or entry.get("hostname") or ""
         ip   = entry.get("ip")   or entry.get("lan_ip") or ""
         if not (fqdn and ip):
             continue
@@ -242,3 +243,71 @@ def config_to_dict(config: DnsmasqConfig) -> dict:
         "hatchery_lan_ip":  config.hatchery_lan_ip,
         "network_profile":  config.network_profile,
     }
+
+
+# ---------------------------------------------------------------------------
+# CLI — used by forge phase-03 (host config). Generates the dnsmasq config from
+# the manifest's network_topology + dns-registry.yaml.
+# ---------------------------------------------------------------------------
+
+def _read_dns_registry(path):
+    """Read dns_registry list from a YAML (PyYAML if present) or JSON file."""
+    import json as _json
+    import sys as _sys
+    text = open(path, encoding="utf-8").read()
+    try:
+        import yaml  # type: ignore
+        data = yaml.safe_load(text)
+    except Exception:
+        try:
+            data = _json.loads(text)
+        except Exception:
+            print(f"[setup-dnsmasq] WARNING: could not parse {path} (need PyYAML for "
+                  f"YAML) — proceeding with an empty registry.", file=_sys.stderr)
+            return []
+    if isinstance(data, dict):
+        return data.get("dns_registry") or []
+    return data or []
+
+
+def _cli_main() -> None:
+    import argparse
+    import json
+    import os
+    import sys
+
+    ap = argparse.ArgumentParser(description="Generate the dnsmasq config for the hatchery.")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--manifest", help="forge-manifest.json (or bootstrap-state.json)")
+    src.add_argument("--state", help="bootstrap-state.json (alias of --manifest)")
+    ap.add_argument("--dns-registry", dest="dns_registry",
+                    help="Path to dns-registry.yaml (else read from the manifest)")
+    ap.add_argument("--output", default="/etc/dnsmasq.d/broodforge.conf",
+                    help="Output path (default: /etc/dnsmasq.d/broodforge.conf)")
+    args = ap.parse_args()
+
+    path = args.manifest or args.state
+    with open(path, encoding="utf-8") as f:
+        doc = json.load(f)
+    nt = doc.get("network_topology") or {}
+
+    if args.dns_registry and os.path.exists(args.dns_registry):
+        registry = _read_dns_registry(args.dns_registry)
+    else:
+        registry = nt.get("dns_registry") or doc.get("dns_registry") or []
+
+    config = generate_dnsmasq_config(nt, registry)
+    conf = render_dnsmasq_conf(config)
+
+    out = args.output
+    parent = os.path.dirname(out)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(conf)
+    print(f"[setup-dnsmasq] wrote {out} "
+          f"({len(config.address_entries)} host mappings, domain {config.domain!r})")
+
+
+if __name__ == "__main__":
+    _cli_main()

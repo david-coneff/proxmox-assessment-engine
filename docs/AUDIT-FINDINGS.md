@@ -39,15 +39,31 @@ are *implementation* gaps where `forge.sh` invokes a tool that does not yet do i
 
 | # | Area | Finding | Status |
 |---|---|---|---|
-| F1 | forge phase-03 | `setup_dnsmasq.py` is library-only (no CLI); phase-03 invokes it → **no-op** (dnsmasq not configured, checkpoint marks success) | **[FIXING]** add CLI |
-| F2 | forge phase-03 | `setup_headscale.py` is library-only (no CLI); phase-03 invokes it → **no-op** | **[FIXING]** add CLI |
-| F3 | forge phase-03 | `setup_tls.py` is library-only (no CLI); phase-03 invokes it → **no-op** | **[FIXING]** add CLI |
+| F1 | forge phase-03 | `setup_dnsmasq.py` was library-only (no CLI); phase-03 invoked it → **no-op** | **[FIXED]** — added `_cli_main` (`--manifest`/`--state` + `--dns-registry` + `--output`); writes the dnsmasq conf |
+| F2 | forge phase-03 | `setup_headscale.py` was library-only (no CLI); phase-03 → **no-op** | **[FIXED]** — added CLI; writes `config.yaml` + systemd unit; `--run` prints init commands |
+| F3 | forge phase-03 | `setup_tls.py` was library-only (no CLI); phase-03 → **no-op** | **[FIXED]** — added CLI; writes `sync-cert-to-k8s.sh`; prints/executes (`--run`) issuance commands |
+| F6 | forge phase-03 | **Uncovered while verifying F1:** `generate_dnsmasq_config()` read `entry.get("fqdn")` but `dns-registry.yaml` uses `hostname` → the rendered config had **zero host mappings** | **[FIXED]** — now reads `hostname` (backward-compatible with `fqdn`) |
 | F4 | forge phase-04 | No `opentofu/` modules exist; phase-04 self-skips VM provisioning | **[DOCUMENTED]** deploy-to-hardware milestone (FORGING status table) |
-| F5 | forge phase-05 | `ansible/inventory/hosts.yaml` is not generated end-to-end; phase-05 self-skips | **[DOCUMENTED]** deploy-to-hardware milestone (FORGING status table) |
+| F5 | forge phase-05 | `ansible/inventory/hosts.yaml` not generated end-to-end; phase-05 self-skips | **[DOCUMENTED]** deploy-to-hardware milestone (FORGING status table) |
 
-### Fix attempt
+### Fix attempt + re-audit result
 
-(Recorded in the next cycle section below after fixes + re-audit.)
+**Attempt 1 — all targeted findings resolved on the first pass; no second round required.**
+
+Re-audit verification (each confirmed against the *original* problem):
+- **F1/F2/F3** — `--help` now prints usage for all three; each run exits 0 and **writes a
+  real config file** with a synthetic manifest (dnsmasq `.conf`, headscale `config.yaml` +
+  unit, TLS `sync-cert-to-k8s.sh`) — no longer no-ops.
+- **F6** — `generate_dnsmasq_config()` with real `hostname`-keyed registry entries now
+  produces 2/2 address mappings and detects the hatchery (was 0). 139 dnsmasq/headscale/
+  tls/network tests pass; full suite **4000 passed, 1 skipped**.
+- The import-aware flag cross-reference remains **0 mismatches**, and the Cycle-7
+  empty-`--help` set (`setup_dnsmasq/headscale/tls`) now all report usage.
+
+**F4/F5** remain genuine deploy-to-hardware implementation milestones (OpenTofu VM
+modules + end-to-end Ansible inventory generation), honestly documented in
+`proxmox-bootstrap/FORGING.md`'s phase-by-phase status table — a user following the docs
+is told these are manual today, so they are not *hidden* broken steps.
 
 ---
 

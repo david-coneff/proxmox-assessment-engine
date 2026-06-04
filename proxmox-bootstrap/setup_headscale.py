@@ -233,3 +233,59 @@ def config_to_dict(config: HeadscaleConfig) -> dict:
         "dns_base_domain":  config.dns_base_domain,
         "oidc_disabled":    config.oidc_disabled,
     }
+
+
+# ---------------------------------------------------------------------------
+# CLI — used by forge phase-03 (WAN profile). Writes the Headscale config.yaml +
+# systemd unit; with --run, prints the init commands to execute on the host.
+# ---------------------------------------------------------------------------
+
+def _cli_main() -> None:
+    import argparse
+    import json
+    import os
+    import sys
+
+    ap = argparse.ArgumentParser(description="Generate the Headscale coordinator config.")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--manifest", help="forge-manifest.json (or bootstrap-state.json)")
+    src.add_argument("--state", help="bootstrap-state.json (alias of --manifest)")
+    ap.add_argument("--output-dir", default="/etc/headscale",
+                    help="Where to write config.yaml (default: /etc/headscale)")
+    ap.add_argument("--unit-dir", default="/etc/systemd/system",
+                    help="Where to write the systemd unit (default: /etc/systemd/system)")
+    ap.add_argument("--run", action="store_true",
+                    help="Print the headscale init commands to execute on the host")
+    args = ap.parse_args()
+
+    path = args.manifest or args.state
+    with open(path, encoding="utf-8") as f:
+        doc = json.load(f)
+    nt = doc.get("network_topology") or {}
+    hi = doc.get("host_identity") or {}
+
+    config = generate_headscale_config(nt, hi)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    cfg_path = os.path.join(args.output_dir, "config.yaml")
+    with open(cfg_path, "w", encoding="utf-8") as f:
+        f.write(render_headscale_yaml(config))
+    print(f"[setup-headscale] wrote {cfg_path} (server_url {config.server_url})")
+
+    try:
+        os.makedirs(args.unit_dir, exist_ok=True)
+        unit_path = os.path.join(args.unit_dir, "headscale.service")
+        with open(unit_path, "w", encoding="utf-8") as f:
+            f.write(render_headscale_unit())
+        print(f"[setup-headscale] wrote {unit_path}")
+    except OSError as exc:
+        print(f"[setup-headscale] note: could not write systemd unit ({exc}).", file=sys.stderr)
+
+    if args.run:
+        print("[setup-headscale] run these on the host to finish setup:")
+        for cmd in headscale_init_commands(config):
+            print(f"    {cmd}")
+
+
+if __name__ == "__main__":
+    _cli_main()

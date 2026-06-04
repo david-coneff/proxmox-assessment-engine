@@ -218,7 +218,7 @@ The k3s join token is retrieved from KeePass automatically.
 | 00–02 | discover / plan / validate | ✅ Automated (read-only Python; no host changes) |
 | 03 | hostname, ZFS pool, apt repos | ✅ Automated |
 | 03 | KeePass DB init | ✅ Automated (`forge_keepass_init.py` has a CLI) |
-| 03 | **dnsmasq / Headscale / TLS** | ⚠️ **Manual for now** — `setup_dnsmasq.py` / `setup_headscale.py` / `setup_tls.py` are libraries without a runnable CLI yet; configure per `docs/CLOUDFLARE-SETUP.md` / `docs/DUCKDNS-SETUP.md` |
+| 03 | dnsmasq / Headscale / TLS | ✅ Config generated — `setup_dnsmasq.py` / `setup_headscale.py` / `setup_tls.py` now write the dnsmasq conf, Headscale `config.yaml` + unit, and TLS cert-sync script. The `apt`/`systemctl` install + Let's Encrypt issuance run on the host (Headscale/TLS via `--run`; see `docs/CLOUDFLARE-SETUP.md` / `docs/DUCKDNS-SETUP.md`) |
 | 03 | DDNS | ✅ Automated (`setup_ddns.py` CLI) |
 | 04 | VM provisioning (OpenTofu) | ⚠️ **Manual for now** — no `opentofu/` modules in the package yet; provision the Forgejo + operations VMs yourself |
 | 05 | k3s (Ansible) | ⚠️ **Manual for now** — needs a generated `ansible/inventory/hosts.yaml` (roles/playbooks are bundled) |

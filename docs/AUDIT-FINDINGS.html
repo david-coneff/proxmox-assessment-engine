@@ -125,9 +125,23 @@
 </ul>
 <p>The automated documented-command surface is <strong>clean</strong>. The remaining findings below are *implementation* gaps where <code>forge.sh</code> invokes a tool that does not yet do its job — surfaced by deep execution tracing, not by flag matching.</p>
 <h3>Findings this cycle</h3>
-<table><thead><tr><th>#</th><th>Area</th><th>Finding</th><th>Status</th></tr></thead><tbody><tr><td>F1</td><td>forge phase-03</td><td><code>setup_dnsmasq.py</code> is library-only (no CLI); phase-03 invokes it → <strong>no-op</strong> (dnsmasq not configured, checkpoint marks success)</td><td><strong>[FIXING]</strong> add CLI</td></tr><tr><td>F2</td><td>forge phase-03</td><td><code>setup_headscale.py</code> is library-only (no CLI); phase-03 invokes it → <strong>no-op</strong></td><td><strong>[FIXING]</strong> add CLI</td></tr><tr><td>F3</td><td>forge phase-03</td><td><code>setup_tls.py</code> is library-only (no CLI); phase-03 invokes it → <strong>no-op</strong></td><td><strong>[FIXING]</strong> add CLI</td></tr><tr><td>F4</td><td>forge phase-04</td><td>No <code>opentofu/</code> modules exist; phase-04 self-skips VM provisioning</td><td><strong>[DOCUMENTED]</strong> deploy-to-hardware milestone (FORGING status table)</td></tr><tr><td>F5</td><td>forge phase-05</td><td><code>ansible/inventory/hosts.yaml</code> is not generated end-to-end; phase-05 self-skips</td><td><strong>[DOCUMENTED]</strong> deploy-to-hardware milestone (FORGING status table)</td></tr></tbody></table>
-<h3>Fix attempt</h3>
-<p>(Recorded in the next cycle section below after fixes + re-audit.)</p>
+<table><thead><tr><th>#</th><th>Area</th><th>Finding</th><th>Status</th></tr></thead><tbody><tr><td>F1</td><td>forge phase-03</td><td><code>setup_dnsmasq.py</code> was library-only (no CLI); phase-03 invoked it → <strong>no-op</strong></td><td><strong>[FIXED]</strong> — added <code>_cli_main</code> (<code>--manifest</code>/<code>--state</code> + <code>--dns-registry</code> + <code>--output</code>); writes the dnsmasq conf</td></tr><tr><td>F2</td><td>forge phase-03</td><td><code>setup_headscale.py</code> was library-only (no CLI); phase-03 → <strong>no-op</strong></td><td><strong>[FIXED]</strong> — added CLI; writes <code>config.yaml</code> + systemd unit; <code>--run</code> prints init commands</td></tr><tr><td>F3</td><td>forge phase-03</td><td><code>setup_tls.py</code> was library-only (no CLI); phase-03 → <strong>no-op</strong></td><td><strong>[FIXED]</strong> — added CLI; writes <code>sync-cert-to-k8s.sh</code>; prints/executes (<code>--run</code>) issuance commands</td></tr><tr><td>F6</td><td>forge phase-03</td><td><strong>Uncovered while verifying F1:</strong> <code>generate_dnsmasq_config()</code> read <code>entry.get("fqdn")</code> but <code>dns-registry.yaml</code> uses <code>hostname</code> → the rendered config had <strong>zero host mappings</strong></td><td><strong>[FIXED]</strong> — now reads <code>hostname</code> (backward-compatible with <code>fqdn</code>)</td></tr><tr><td>F4</td><td>forge phase-04</td><td>No <code>opentofu/</code> modules exist; phase-04 self-skips VM provisioning</td><td><strong>[DOCUMENTED]</strong> deploy-to-hardware milestone (FORGING status table)</td></tr><tr><td>F5</td><td>forge phase-05</td><td><code>ansible/inventory/hosts.yaml</code> not generated end-to-end; phase-05 self-skips</td><td><strong>[DOCUMENTED]</strong> deploy-to-hardware milestone (FORGING status table)</td></tr></tbody></table>
+<h3>Fix attempt + re-audit result</h3>
+<p><strong>Attempt 1 — all targeted findings resolved on the first pass; no second round required.</strong></p>
+<p>Re-audit verification (each confirmed against the *original* problem):</p>
+<ul>
+<li><strong>F1/F2/F3</strong> — <code>--help</code> now prints usage for all three; each run exits 0 and **writes a</li>
+</ul>
+<p>real config file** with a synthetic manifest (dnsmasq <code>.conf</code>, headscale <code>config.yaml</code> + unit, TLS <code>sync-cert-to-k8s.sh</code>) — no longer no-ops.</p>
+<ul>
+<li><strong>F6</strong> — <code>generate_dnsmasq_config()</code> with real <code>hostname</code>-keyed registry entries now</li>
+</ul>
+<p>produces 2/2 address mappings and detects the hatchery (was 0). 139 dnsmasq/headscale/ tls/network tests pass; full suite <strong>4000 passed, 1 skipped</strong>.</p>
+<ul>
+<li>The import-aware flag cross-reference remains <strong>0 mismatches</strong>, and the Cycle-7</li>
+</ul>
+<p>empty-<code>--help</code> set (<code>setup_dnsmasq/headscale/tls</code>) now all report usage.</p>
+<p><strong>F4/F5</strong> remain genuine deploy-to-hardware implementation milestones (OpenTofu VM modules + end-to-end Ansible inventory generation), honestly documented in <code>proxmox-bootstrap/FORGING.md</code>'s phase-by-phase status table — a user following the docs is told these are manual today, so they are not *hidden* broken steps.</p>
 <hr>
 </div></details><details class="section" open><summary><h2>Trailing history of fixes (cycles 1–7, this session)</h2></summary><div class="sec-body">
 <p>All verified by re-audit and the pytest suite (4000 passed, 1 skipped) at the time.</p>
