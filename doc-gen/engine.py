@@ -898,17 +898,45 @@ def run_operational(args):
     print("=" * 60)
 
 
+def _set_timezone(state_path: str, tz: str) -> None:
+    """Update vm_defaults.timezone in bootstrap-state.json (AD-045) and return."""
+    import json as _json
+    import os as _os
+    import sys as _sys
+    if not _os.path.exists(state_path):
+        print(f"[engine] bootstrap-state not found: {state_path}", file=_sys.stderr)
+        _sys.exit(1)
+    with open(state_path) as f:
+        state = _json.load(f)
+    state.setdefault("vm_defaults", {})["timezone"] = tz
+    with open(state_path, "w") as f:
+        _json.dump(state, f, indent=2)
+    print(f"[engine] vm_defaults.timezone set to {tz!r} in {state_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Broodforge Documentation Generator"
     )
-    parser.add_argument("--mode", required=True, choices=["bootstrap", "recovery", "operational"],
+    parser.add_argument("--mode", choices=["bootstrap", "recovery", "operational"],
                         help="Documentation mode")
     parser.add_argument("--archive", help="Path to assessment .tar.gz archive")
-    parser.add_argument("--manifest", help="Path to manifest.json directly")
+    parser.add_argument("--manifest", help="Path to manifest.json (bootstrap-state.json) directly")
+    parser.add_argument("--set-timezone", dest="set_timezone", metavar="TZ",
+                        help="Update vm_defaults.timezone in bootstrap-state.json and exit (AD-045)")
+    parser.add_argument("--state", default="proxmox-bootstrap/bootstrap-state.json",
+                        help="bootstrap-state.json path used by --set-timezone "
+                             "(default: proxmox-bootstrap/bootstrap-state.json)")
 
     args = parser.parse_args()
 
+    # Standalone maintenance op — no --mode required.
+    if args.set_timezone:
+        _set_timezone(args.state, args.set_timezone)
+        return
+
+    if not args.mode:
+        parser.error("--mode is required (bootstrap | recovery | operational)")
     if not args.archive and not args.manifest:
         parser.error("Provide --archive or --manifest")
 

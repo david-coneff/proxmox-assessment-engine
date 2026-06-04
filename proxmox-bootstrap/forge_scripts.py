@@ -579,11 +579,10 @@ if is_done "$step"; then checkpoint_skip "$step"; else
     --manifest "$SCRIPT_DIR/forge-manifest.json" \\
     --output "$SCRIPT_DIR/proxmox-bootstrap/bootstrap-state.json"
 
-  # Generate first documentation set
+  # Generate first documentation set (engine.py takes --manifest = bootstrap-state.json)
   python3 "$SCRIPT_DIR/doc-gen/engine.py" \\
     --mode bootstrap \\
-    --state "$SCRIPT_DIR/proxmox-bootstrap/bootstrap-state.json" \\
-    --output "$SCRIPT_DIR/reports/" || \\
+    --manifest "$SCRIPT_DIR/proxmox-bootstrap/bootstrap-state.json" || \\
     echo "[phase-07] WARNING: doc engine failed — check bootstrap-state.json" >&2
 
   checkpoint_done "$step"

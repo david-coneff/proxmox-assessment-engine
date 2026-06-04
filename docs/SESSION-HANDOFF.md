@@ -102,6 +102,21 @@ Fixes:
 
 Tests: 4000 passed, 1 skipped.
 
+### Audit cycle 4 — doc-gen engine.py CLI mismatches (fixed)
+
+`doc-gen/engine.py` only accepts `--mode {bootstrap,recovery,operational}` + `--archive`
+/ `--manifest`. Two documented invocations used flags it doesn't have:
+- **forge phase-07** ran `engine.py --mode bootstrap --state … --output …` → `--state`
+  and `--output` are unrecognized, so the forge's first doc-generation always failed
+  (silently, behind its `|| echo WARNING`). Fixed to `--manifest bootstrap-state.json`.
+- **README "Documentation Timestamps and Timezone" + AD-045** documented
+  `engine.py --set-timezone "…"`, but no such flag existed (and `--mode` was required),
+  so the command failed outright. Implemented `--set-timezone TZ` (+ `--state PATH`)
+  as a standalone op that updates `vm_defaults.timezone` and exits; `--mode` is now
+  only required for the doc-gen modes. Verified both paths.
+
+Tests: 4000 passed, 1 skipped.
+
 ---
 
 ### Audit rounds 16–18 (completed)
