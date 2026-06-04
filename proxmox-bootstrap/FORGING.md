@@ -207,24 +207,32 @@ Runs the Ansible `k3s-server` playbook (`ansible/playbooks/04-k3s.yaml`) against
 the provisioned VMs, using the generated inventory at `ansible/inventory/hosts.yaml`.
 The k3s join token is retrieved from KeePass automatically.
 
-### Forge provisioning status (opentofu/ansible)
+### Forge provisioning status — what is automated today
 
-> **Implementation status — read before forging on real hardware.**
->
-> The forge package bundles the Ansible roles/playbooks (`ansible/`) and the IaC
-> generators (`proxmox-bootstrap/generators/`). The **OpenTofu modules** that
-> phase-04 applies, and the generated **Ansible inventory** (`ansible/inventory/
-> hosts.yaml`) that phase-05 needs, are the active *deploy-to-hardware* work and
-> are not yet produced end-to-end by the package.
->
-> Until that layer is complete, `forge.sh` runs all phases but **phase-04 and
-> phase-05 self-skip** with a clear message rather than failing. To forge a working
-> hatchery today, after phase-03 you provision the Forgejo + operations VMs and the
-> k3s server yourself (or supply your own `opentofu/` + `ansible/inventory/`), then
-> resume with `bash forge.sh --from 6` for the GitOps / intelligence / verify phases.
+> **Implementation status — read before forging on real hardware.** `forge.sh` runs
+> end-to-end, but several phases are part of the active *deploy-to-hardware* milestone
+> and currently self-skip or require manual completion rather than failing silently.
+
+| Phase | Step | Status today |
+|---|---|---|
+| 00–02 | discover / plan / validate | ✅ Automated (read-only Python; no host changes) |
+| 03 | hostname, ZFS pool, apt repos | ✅ Automated |
+| 03 | KeePass DB init | ✅ Automated (`forge_keepass_init.py` has a CLI) |
+| 03 | **dnsmasq / Headscale / TLS** | ⚠️ **Manual for now** — `setup_dnsmasq.py` / `setup_headscale.py` / `setup_tls.py` are libraries without a runnable CLI yet; configure per `docs/CLOUDFLARE-SETUP.md` / `docs/DUCKDNS-SETUP.md` |
+| 03 | DDNS | ✅ Automated (`setup_ddns.py` CLI) |
+| 04 | VM provisioning (OpenTofu) | ⚠️ **Manual for now** — no `opentofu/` modules in the package yet; provision the Forgejo + operations VMs yourself |
+| 05 | k3s (Ansible) | ⚠️ **Manual for now** — needs a generated `ansible/inventory/hosts.yaml` (roles/playbooks are bundled) |
+| 06 | Flux CD bootstrap | ✅ Scripted |
+| 07 | bootstrap-state init + first docs | ✅ Automated (seeds `bootstrap-state.json` from the forge manifest, non-interactively) |
+| 08 | verify + commit | ✅ Scripted |
+
+> **To forge a working hatchery today:** run `bash forge.sh` through phase-03 (host +
+> KeePass), complete dnsmasq/Headscale/TLS and the Forgejo + operations VMs + k3s
+> server manually (or supply your own `opentofu/` + `ansible/inventory/`), then resume
+> with `bash forge.sh --from 6` for GitOps → intelligence → verify.
 >
 > The **spawn** flow, by contrast, generates its IaC fully (`spawn_iac_generator.py`)
-> and provisions broodling VMs without this gap.
+> and provisions broodling VMs without these gaps.
 
 ### Phase 06 — Flux CD bootstrap
 

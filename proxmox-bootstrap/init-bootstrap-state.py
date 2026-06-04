@@ -460,6 +460,13 @@ def main() -> None:
     non_interactive = "--non-interactive" in args
     args = [a for a in args if a != "--non-interactive"]
 
+    manifest_path = None
+    if "--manifest" in args:
+        midx = args.index("--manifest")
+        manifest_path = Path(args[midx + 1]) if midx + 1 < len(args) else None
+        # Manifest-driven init (forge phase-07) is deterministic — never prompt.
+        non_interactive = True
+
     if "--output" in args:
         idx = args.index("--output")
         out_path = Path(args[idx + 1])
@@ -475,7 +482,18 @@ def main() -> None:
             print("  Aborted.")
             sys.exit(0)
 
-    state = build_bootstrap_state(non_interactive=non_interactive)
+    if manifest_path is not None:
+        # Seed bootstrap-state.json from the forge manifest, which already carries
+        # the operator's authoritative answers (cell_id, host_identity,
+        # network_topology, vm_defaults, …) from forge-planner. No re-prompting.
+        if not manifest_path.exists():
+            print(f"  Manifest not found: {manifest_path}", file=sys.stderr)
+            sys.exit(1)
+        with open(manifest_path, encoding="utf-8") as mf:
+            state = json.load(mf)
+        state.setdefault("schema_version", "1.0")
+    else:
+        state = build_bootstrap_state(non_interactive=non_interactive)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
@@ -492,11 +510,15 @@ def main() -> None:
     print("  Without it, recovery requires the operator to recreate bootstrap-state")
     print("  manually — or have kept a copy elsewhere.")
     print()
-    try:
-        setup_backup = input("  Set up external backup now? [Y/n]: ").strip().lower()
-    except (EOFError, KeyboardInterrupt):
+    if non_interactive:
+        # Never block on input() in scripted/forge contexts.
         setup_backup = "n"
-        print()
+    else:
+        try:
+            setup_backup = input("  Set up external backup now? [Y/n]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            setup_backup = "n"
+            print()
 
     if setup_backup in ("", "y", "yes"):
         backup_wizard = Path(__file__).parent / "setup-external-backup.py"

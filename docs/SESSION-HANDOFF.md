@@ -174,6 +174,29 @@ Added record/note blocks to FORGING.md + NODE-SPAWNING.md so they qualify. Refer
 docs (README, ROADMAP, setup guides) keep theme-toggle + copy only. Regenerated all
 generated HTML.
 
+### Audit cycle 7 — `--help` probe of every operator CLI; forge phase-03/07 (fixed)
+
+Probed `--help` on every doc-referenced CLI. Most are fine (reconstruction-drill
+subcommands, remediation-cli, migrate-k3s, setup/run/restore-backup, collect-tier2,
+update_state_after_spawn all match their docs). Found two forge-phase gaps:
+
+- **phase-07 / `init-bootstrap-state.py`**: ignored `--manifest` (only parsed
+  `--output`/`--non-interactive`) and phase-07 omitted `--non-interactive` → it would
+  run the **interactive wizard** and hang/EOF in `forge.sh`, never seeding state from
+  the forge manifest. Fixed: `--manifest PATH` now seeds `bootstrap-state.json`
+  directly from the manifest, deterministically (forces non-interactive; the backup
+  prompt is also guarded). phase-07 now passes `--non-interactive`. Verified with
+  stdin closed: exit 0, state seeded from manifest, no block.
+- **phase-03 host services**: `setup_dnsmasq.py` / `setup_headscale.py` /
+  `setup_tls.py` are **library-only (no CLI)**, so forge phase-03 invoked them as
+  no-ops (same pattern as the Cycle-6 ddns gap). Building+testing those 3 config
+  tools is genuine deploy-to-hardware work (apt/systemctl/cert issuance on a real
+  Proxmox host), so rather than half-build them, the **FORGING.md "Forge provisioning
+  status"** note was expanded into a phase-by-phase automation table that honestly
+  marks dnsmasq/Headscale/TLS (and opentofu VM/k3s) as manual-for-now.
+
+Tests: 4000 passed, 1 skipped.
+
 ---
 
 ### Audit rounds 16–18 (completed)

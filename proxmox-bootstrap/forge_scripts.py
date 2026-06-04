@@ -574,10 +574,11 @@ def generate_phase_07_sh(manifest: dict) -> str:
 step="phase07_assessment_engine"
 if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_start "$step"
-  # Initialise bootstrap-state.json from forge manifest
+  # Initialise bootstrap-state.json from forge manifest (deterministic, no prompts)
   python3 "$SCRIPT_DIR/proxmox-bootstrap/init-bootstrap-state.py" \\
     --manifest "$SCRIPT_DIR/forge-manifest.json" \\
-    --output "$SCRIPT_DIR/proxmox-bootstrap/bootstrap-state.json"
+    --output "$SCRIPT_DIR/proxmox-bootstrap/bootstrap-state.json" \\
+    --non-interactive
 
   # Generate first documentation set (engine.py takes --manifest = bootstrap-state.json)
   python3 "$SCRIPT_DIR/doc-gen/engine.py" \\
