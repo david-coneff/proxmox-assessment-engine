@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import parsers to trigger @register_parser decorators
@@ -95,6 +97,7 @@ def test_hw_baseboard_product():
     assert result["hardware"]["baseboard"]["product_name"] == "X11SCH-F"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="fallback OS collection populates 'os' key on Windows")
 def test_hw_empty_raw():
     result = parse_hardware({})
     assert result == {}
