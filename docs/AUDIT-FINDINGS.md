@@ -222,6 +222,34 @@ Full suite **4000 passed, 1 skipped**.
 
 ---
 
+## Audit cycle — 2026-06-04_13_29_26 UTC
+
+### Method
+
+Traced the **spawn-completion** contract: phase-06 POSTs `{spawn_plan, hardware_profile}`
+→ `build_spawn_result(spawn_plan)` → `update_state_after_spawn`. Cross-referenced every
+field `build_spawn_result` reads against what `build_spawn_plan` actually writes.
+
+### Findings
+
+| # | Area | Finding | Status |
+|---|---|---|---|
+| G9 | spawn-complete DNS | `update_state_after_spawn` documents "adds hostname→IP entries for broodling + its VMs" and iterates `result.dns_entries`, but `build_spawn_result` set `dns_entries = spawn_plan.get("dns_entries")` — a key the planner **never writes** → always `[]`, so **no DNS entries were registered after a spawn** (broodling + VMs unresolvable by name). | **[FIXED]** — derive `dns_entries` from the broodling host + its VMs when absent |
+
+Checked and **OK** (no fix needed): `vmid_block`/`ip_block` already fall back to deriving
+from `vms[]`; `tailnet_ip` absent is correct (assigned only after the broodling joins the
+tailnet); `domain`/`package_id` are written by the planner.
+
+### Fix + re-audit result
+
+`build_spawn_result` now derives `dns_entries` from `spawn_plan["lan_ip"]` (the broodling
+host) and each `vms[].ip` (with fqdn from the VM name + domain), matching the existing
+vmid/ip derivation. Verified end-to-end: a plan with 2 VMs yields 3 dns entries
+(broodling + 2 VMs) and `update_state_after_spawn` registers all three IPs into
+`dns_registry`. 451 spawn/update/receiver tests pass; full suite **4000 passed, 1 skipped**.
+
+---
+
 ## Trailing history of fixes (cycles 1–7, this session)
 
 All verified by re-audit and the pytest suite (4000 passed, 1 skipped) at the time.

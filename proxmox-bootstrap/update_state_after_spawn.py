@@ -166,6 +166,25 @@ def build_spawn_result(
     domain      = spawn_plan.get("domain", "")
     fqdn        = f"{hostname}.{domain}" if domain else hostname
 
+    # dns_entries: the planner does not emit these, so derive them from the broodling
+    # host + its VMs (mirrors the vmid/ip derivation below). Without this the
+    # spawn-complete flow registered nothing in dns_registry, contrary to this
+    # function's documented behaviour ("adds hostname→IP entries for broodling + VMs").
+    dns_entries = spawn_plan.get("dns_entries")
+    if not dns_entries:
+        dns_entries = []
+        if hostname and spawn_plan.get("lan_ip"):
+            dns_entries.append({"hostname": fqdn, "ip": spawn_plan.get("lan_ip"),
+                                "vmid": None, "role": "proxmox-host"})
+        for v in (spawn_plan.get("vms") or []):
+            ip = v.get("ip")
+            if not ip:
+                continue
+            nm = v.get("hostname") or v.get("name") or ""
+            vfqdn = f"{nm}.{domain}" if (domain and nm and "." not in nm) else nm
+            dns_entries.append({"hostname": vfqdn, "ip": ip,
+                                "vmid": v.get("vmid"), "role": v.get("role")})
+
     return SpawnResult(
         broodling_hostname=hostname,
         broodling_fqdn=fqdn,
@@ -182,7 +201,7 @@ def build_spawn_result(
         spawned_at=ts,
         spawn_package_id=spawn_plan.get("package_id"),
         vms_deployed=spawn_plan.get("vms") or [],
-        dns_entries=spawn_plan.get("dns_entries") or [],
+        dns_entries=dns_entries,
     )
 
 
