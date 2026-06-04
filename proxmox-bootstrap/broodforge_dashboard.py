@@ -419,11 +419,11 @@ def _remediation_history_row(p: dict) -> str:
     resisted = "⚠ resisted" if p.get("resisted") else ""
     return f"""
 <tr>
-  <td><span style="color:{sc}">{status}</span></td>
-  <td><span style="color:{sev_c}">{sev}</span></td>
+  <td><span style="color:{sc}">{_e(status)}</span></td>
+  <td><span style="color:{sev_c}">{_e(sev)}</span></td>
   <td>{_e(p.get("action_type",""))}</td>
   <td><code>{_e(p.get("target",""))}</code></td>
-  <td style="font-size:.82em;color:var(--muted)">{ts}</td>
+  <td style="font-size:.82em;color:var(--muted)">{_e(ts)}</td>
   <td style="font-size:.82em">{outcome} <span style="color:var(--orange)">{resisted}</span></td>
 </tr>"""
 
@@ -644,7 +644,7 @@ def generate_dashboard_html(
   <div class="section-wrap">
     <div class="stat-row">
       <div class="stat">
-        <div class="stat-val" style="color:{sec_score_c}">{sec_score}</div>
+        <div class="stat-val" style="color:{sec_score_c}">{_e(sec_score)}</div>
         <div class="stat-label">Security score</div>
       </div>
       <div class="stat">
@@ -660,7 +660,7 @@ def generate_dashboard_html(
         <div class="stat-label">YELLOW (review)</div>
       </div>
       <div class="stat">
-        <div class="stat-val" style="font-size:.85em;color:var(--muted)">{sec_scanned}</div>
+        <div class="stat-val" style="font-size:.85em;color:var(--muted)">{_e(sec_scanned)}</div>
         <div class="stat-label">Last scan</div>
       </div>
     </div>
