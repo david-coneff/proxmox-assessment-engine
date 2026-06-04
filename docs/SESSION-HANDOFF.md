@@ -73,7 +73,18 @@ Last updated: 2026-06-03 UTC
   - HCL tfvars: `.auto.tfvars` values are literal strings, no template interpolation.
   - `bash -c` in `forge_keepass_init.py`: now `shlex.quote()`-d.
 
-**Tests: 3958 passed, 37 skipped** (no change from round 15 baseline throughout all rounds).
+**Round 20 — Final deep XSS scan of dashboard (4 cycles):**
+- Cycle 1: `broodforge_dashboard`: `bkp_status` in backup span — `_e()` applied.
+- Cycle 2: `_remediation_history_row()`: `status`, `sev`, `ts` rendered bare — `_e()` applied.
+  `generate_dashboard_html`: `sec_score`, `sec_scanned` rendered bare — `_e()` applied.
+- Cycle 3: `generate_dashboard_html`: `cell_id` in `<title>` and topbar span; `hostname`
+  in topbar span; `cfg.listen_host` in footer — all wrapped with `_e()`.
+- Cycle 4: `sec_red`, `sec_orange`, `sec_yellow` security counts — `_e(str(...))` applied.
+- **Final scan result: ZERO findings.** Two confirmatory scans both returned zero:
+  1. Targeted `generate_dashboard_html` scan: ZERO unescaped state vars.
+  2. Broad S1/S2 scan: ZERO `send_error` leaks, ZERO double-quoted bash assignments.
+
+**Tests: 3958 passed, 37 skipped** (no change throughout all rounds).
 
 ---
 
