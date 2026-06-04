@@ -128,6 +128,32 @@ output (cloudflare WAN) straight into the generators:
 
 ---
 
+## Audit cycle — 2026-06-04_13_16_16 UTC
+
+### Method
+
+Extended the field-location audit to the **documentation readers** of `network_topology`
+(doc-gen renderers), not just the config generators.
+
+### Findings
+
+| # | Area | Finding | Status |
+|---|---|---|---|
+| G6 | bootstrap docs | `doc-gen/renderers/html_bootstrap.py` read `wan_config.headscale_url`, but `setup_network` writes `headscale_url` at the **top level** → the generated bootstrap **workbook** showed a blank Headscale URL and the bootstrap **runbook** skipped its "Headscale running" checklist item, even on a WAN cell. | **[FIXED]** — read `headscale_url` (and `ddns_provider`/`ssl_provider`) from `wan_config` *or* top level, in both the workbook overview and the runbook host-config section |
+
+### Fix attempt + re-audit result
+
+**Attempt 1 — resolved.** Note: there are **two** active builders — `build_bootstrap_workbook_html`
+(overview table) and `build_bootstrap_runbook_html` (Stage-03 host-config checklist) — both
+called by `engine.py`. Verified each separately with a `setup_network`-style state (top-level
+`headscale_url`):
+- **Workbook** overview now shows the Headscale URL (was blank).
+- **Runbook** host-config now includes the "Headscale running" checklist item (was skipped).
+
+256 bootstrap tests pass; full suite **4000 passed, 1 skipped**.
+
+---
+
 ## Trailing history of fixes (cycles 1–7, this session)
 
 All verified by re-audit and the pytest suite (4000 passed, 1 skipped) at the time.

@@ -99,9 +99,9 @@ def _wb_section_network(manifest: dict) -> str:
     wan = nt.get("wan_config") or {}
     if wan:
         pairs += [
-            ("Headscale URL", _str(wan.get("headscale_url"))),
-            ("DDNS Provider", _str(wan.get("dns_provider"))),
-            ("TLS Provider",  _str(wan.get("tls_provider"))),
+            ("Headscale URL", _str(wan.get("headscale_url") or nt.get("headscale_url"))),
+            ("DDNS Provider", _str(wan.get("dns_provider") or nt.get("ddns_provider"))),
+            ("TLS Provider",  _str(wan.get("tls_provider") or nt.get("ssl_provider"))),
         ]
 
     body = dl(pairs)
@@ -392,7 +392,7 @@ def _rb_section_host_config(manifest: dict) -> str:
         "ZFS pool created: zpool list",
         "dnsmasq running: systemctl status dnsmasq",
     ]
-    if wan.get("headscale_url"):
+    if wan.get("headscale_url") or nt.get("headscale_url"):
         items.append("Headscale running: systemctl status headscale")
         items.append("Hatchery registered with its own Headscale")
     items += [
