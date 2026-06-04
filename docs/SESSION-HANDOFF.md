@@ -81,6 +81,27 @@ phase-04 message made honest. README "feature-complete" claim corrected to name 
 forge VM-provisioning IaC as the one known gap. Verified: forge package bundles 18
 ansible + 15 generator files incl. the k3s playbook/role. Tests: 4000 passed, 1 skipped.
 
+### Audit cycle 3 — phoenix/stargate workflow missing entry point (fixed)
+
+The documented stargate process had a **broken first step**: `phoenix-planner.py` and
+`assemble-phoenix-package.py` both required an *existing* `--playbook`, but
+`phoenix_playbook.py` (which has `build_phoenix_playbook()`) had **no CLI**, and there
+was **no operator runbook** for phoenix (unlike FORGING.md / NODE-SPAWNING.md). The
+only way to produce the initial playbook was a `python -c` one-liner buried in the
+reconstruction drill doc.
+
+Fixes:
+- `phoenix-planner.py`: `--playbook` is now optional; when omitted it GENERATES the
+  base playbook from `--state` via `build_phoenix_playbook()` (new `--hardware` arg
+  for the replacement profile). Output defaults to `phoenix-playbook.json`. Verified
+  end-to-end: generate(state) → playbook → assemble → package (run-all.sh + 6 waves).
+- New `docs/PHOENIX.md` operator runbook (interactive HTML with templated commands +
+  note fields), linked from the README stargate section.
+- Reconstruction-drill pre-drill step now uses the clean `phoenix-planner.py` command
+  instead of the buried `python -c` snippet.
+
+Tests: 4000 passed, 1 skipped.
+
 ---
 
 ### Audit rounds 16–18 (completed)

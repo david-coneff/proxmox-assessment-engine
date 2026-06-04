@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHOENIX.md — Stargate Process Operator Runbook</title>
+<style>
+  :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
+    --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
+    --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a}
+  body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#d0d7de;--text:#1f2328;--muted:#57606a;
+    --accent:#0969da;--green:#1a7f37;--yellow:#9a6700;--orange:#bc4c00;--red:#cf222e;
+    --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    font-size:14px;line-height:1.6;padding:24px 24px 80px;max-width:1100px;margin:0 auto;
+    transition:background .15s,color .15s}
+  h1{color:var(--accent);font-size:1.7em;margin:18px 0 4px}
+  h2{color:var(--accent);font-size:1.05em;margin:24px 0 8px;text-transform:uppercase;letter-spacing:.05em;
+    border-bottom:1px solid var(--border);padding-bottom:4px}
+  h3{color:var(--accent);font-size:.95em;margin:14px 0 6px}
+  h4{color:var(--muted);font-size:.82em;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em}
+  h5,h6{color:var(--muted);font-size:.8em;margin:8px 0 4px}
+  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+  p{margin:8px 0}ul,ol{margin:8px 0 8px 22px}li{margin:4px 0}
+  li>ul,li>ol{margin:4px 0 4px 18px}
+  strong{color:var(--text);font-weight:600}
+  hr{border:none;border-top:1px solid var(--border);margin:20px 0}
+  blockquote{border-left:3px solid var(--accent);background:var(--bg2);margin:10px 0;
+    padding:8px 14px;border-radius:0 var(--radius) var(--radius) 0;color:var(--text)}
+  code{background:var(--code-bg);color:var(--code-text);padding:1px 5px;border-radius:3px;
+    font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.9em}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 14px;overflow-x:auto;margin:0;font-family:'Cascadia Code','Fira Code',Consolas,monospace;
+    font-size:.85em;color:var(--code-text);white-space:pre}
+  pre code{background:none;padding:0;color:inherit}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+  th{background:var(--bg2);color:var(--muted);text-align:left;padding:6px 8px;
+    border-bottom:1px solid var(--border);font-weight:600;font-size:.8em;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:5px 8px;border-bottom:1px solid var(--bg3);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .doc-meta{color:var(--muted);font-size:.8em;margin:4px 0 20px}
+  /* theme toggle */
+  #bf-theme-btn{position:fixed;top:14px;right:16px;z-index:50;background:var(--btn-bg);color:var(--text);
+    border:1px solid var(--border);border-radius:var(--radius);padding:5px 12px;cursor:pointer;
+    font-size:.8em;font-family:inherit}
+  #bf-theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+  /* code block + copy */
+  .codewrap{position:relative;margin:10px 0}
+  .copy-btn{position:absolute;top:6px;right:6px;background:var(--btn-bg);color:var(--muted);
+    border:1px solid var(--border);border-radius:4px;padding:2px 9px;cursor:pointer;font-size:.72em;
+    font-family:inherit;opacity:.55;transition:opacity .12s}
+  .codewrap:hover .copy-btn{opacity:1}
+  .copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .tpl{color:var(--orange);background:rgba(250,179,135,.13);border-radius:3px;padding:0 2px}
+  body.light .tpl{background:rgba(188,76,0,.10)}
+  /* parameters panel */
+  .params{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 16px;margin:14px 0 18px}
+  .params h3{margin:0 0 8px;color:var(--accent)}
+  .params .hint{color:var(--muted);font-size:.8em;margin-bottom:10px}
+  .param-row{display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap}
+  .param-row label{min-width:200px;font-family:monospace;font-size:.85em;color:var(--muted)}
+  .param-input,.note-input,.note-area,#bf-session-notes{background:var(--code-bg);color:var(--text);
+    border:1px solid var(--border);border-radius:4px;padding:5px 8px;font-family:'Cascadia Code',Consolas,monospace;
+    font-size:.85em;flex:1;min-width:220px}
+  .param-input:focus,.note-input:focus,.note-area:focus,#bf-session-notes:focus{outline:none;border-color:var(--accent)}
+  /* note fields */
+  .notefield{margin:10px 0}
+  .notefield label{display:block;font-size:.82em;color:var(--muted);margin-bottom:3px;font-weight:600}
+  .note-area,#bf-session-notes{width:100%;min-height:70px;resize:vertical;flex:none}
+  .session-notes{margin-top:36px;border-top:1px solid var(--border);padding-top:14px}
+  @media print{body{padding:12px;max-width:none}#bf-theme-btn,.copy-btn{display:none}
+    .param-input,.note-input,.note-area,#bf-session-notes{border:1px solid #999}}
+</style>
+</head>
+<body data-doc="phoenix-md-stargate-process-operator-runbook">
+<button id="bf-theme-btn" type="button">☀ Light</button>
+<div class="doc-meta">Generated from <code>PHOENIX.md</code> — self-contained · print-friendly · values saved in your browser</div>
+<div class="params"><h3>Parameters</h3><div class="hint">Fill these in — every command below updates live, and the Copy button copies the resolved command.</div><div class="param-row"><label for="p-STATE">STATE</label><input class="param-input" id="p-STATE" data-var="STATE" type="text" value="proxmox-bootstrap/bootstrap-state.json" placeholder="STATE"></div><div class="param-row"><label for="p-HARDWARE">HARDWARE</label><input class="param-input" id="p-HARDWARE" data-var="HARDWARE" type="text" value="hardware-profile-replacement.json" placeholder="HARDWARE"></div><div class="param-row"><label for="p-PLAYBOOK">PLAYBOOK</label><input class="param-input" id="p-PLAYBOOK" data-var="PLAYBOOK" type="text" value="phoenix-playbook.json" placeholder="PLAYBOOK"></div><div class="param-row"><label for="p-HATCHERY_IP">HATCHERY_IP</label><input class="param-input" id="p-HATCHERY_IP" data-var="HATCHERY_IP" type="text" value="192.168.1.20" placeholder="HATCHERY_IP"></div></div>
+<h1>PHOENIX.md — Stargate Process Operator Runbook</h1>
+<p><strong>The stargate process</strong> rebuilds a failed node back to its original identity on new hardware. This runbook covers generating and executing a <strong>phoenix package</strong> end-to-end. It is the recovery counterpart to <code>FORGING.md</code> (first node) and <code>NODE-SPAWNING.md</code> (additional nodes).</p>
+<p>Set the paths once in the <strong>Parameters</strong> panel at the top — every command on this page then uses your values, and each command's <strong>Copy</strong> button copies the resolved text.</p>
+<hr>
+<h2>When to use this</h2>
+<p>A node — the hatchery or any broodling — has suffered catastrophic hardware failure and you are rebuilding it on replacement hardware. The phoenix package <strong>preserves identity</strong> (same VMIDs, IPs, hostnames, k8s node name, cluster role) while <strong>adapting the physical layer</strong> (ZFS topology, bridges) to the new hardware.</p>
+<p>For a *new* node that should not conflict with existing identity, use the hatchery process (<code>NODE-SPAWNING.md</code>) instead.</p>
+<hr>
+<h2>Prerequisites</h2>
+<ul>
+<li>A current <code>bootstrap-state.json</code> for the cell (any node holds the full cell state).</li>
+<li>PBS backups of the failed node's VMs reachable from the recovery environment.</li>
+<li>The KeePass database (embedded in the package or on a known path) + master password.</li>
+<li>Replacement hardware with bare Proxmox installed.</li>
+</ul>
+<hr>
+<h2>Step 1 — Generate the phoenix playbook from cell state</h2>
+<p>The playbook is the machine-readable reconstruction plan. Generate the base playbook directly from <code>bootstrap-state.json</code>:</p>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>python3 proxmox-bootstrap/phoenix-planner.py \
+  --state <span class="tpl" data-var="STATE">proxmox-bootstrap/bootstrap-state.json</span> \
+  --hardware <span class="tpl" data-var="HARDWARE">hardware-profile-replacement.json</span> \
+  --output <span class="tpl" data-var="PLAYBOOK">phoenix-playbook.json</span></code></pre></div>
+<p>Omit <code>--hardware</code> if you do not yet have a replacement hardware profile — the planner will plan against the original topology and adapt at run time. If you already have a playbook to refine, pass it with <code>--playbook</code> instead of generating a new one.</p>
+<p>The planner prints the restoration scope and wave count. Record them:</p>
+<div class="notefield"><label>Restoration scope (full / partial)</label><input type="text" class="note-input" data-note="restoration-scope-full-partial" placeholder="record here…"></div>
+<div class="notefield"><label>Number of waves in the playbook</label><input type="text" class="note-input" data-note="number-of-waves-in-the-playbook" placeholder="record here…"></div>
+<div class="notefield"><label>Target node hostname (identity being restored)</label><input type="text" class="note-input" data-note="target-node-hostname-identity-being-restored" placeholder="record here…"></div>
+<hr>
+<h2>Step 2 — Assemble the phoenix package</h2>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>python3 proxmox-bootstrap/assemble-phoenix-package.py \
+  --playbook <span class="tpl" data-var="PLAYBOOK">phoenix-playbook.json</span> \
+  --output-dir .</code></pre></div>
+<p>To embed the KeePass database for offline recovery, add <code>--kdbx /path/to/cell.kdbx</code>.</p>
+<p>The assembler prints the package path and its <strong>SHA-256</strong>. Record the hash so you can verify the copy on the replacement host:</p>
+<div class="notefield"><label>Phoenix package filename</label><input type="text" class="note-input" data-note="phoenix-package-filename" placeholder="record here…"></div>
+<div class="notefield"><label>Package SHA-256 (from the assembler output)</label><input type="text" class="note-input" data-note="package-sha-256-from-the-assembler-output" placeholder="record here…"></div>
+<hr>
+<h2>Step 3 — Copy to the replacement hardware and verify</h2>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>scp phoenix-package-*.tar.gz root@<span class="tpl" data-var="HATCHERY_IP">192.168.1.20</span>:/root/</code></pre></div>
+<p>On the replacement host, verify integrity before extracting:</p>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>sha256sum phoenix-package-*.tar.gz   # compare against the hash from Step 2</code></pre></div>
+<hr>
+<h2>Step 4 — Execute the waves</h2>
+<p>On the <strong>replacement host</strong>:</p>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>cd /root
+tar xzf phoenix-package-*.tar.gz
+bash run-all.sh</code></pre></div>
+<p><code>run-all.sh</code> sources the KeePass gate (one master-password prompt), then runs each wave in order, checkpointing as it goes. If a wave fails, fix the cause and re-run <code>bash run-all.sh</code> — completed waves are skipped automatically.</p>
+<p>The waves (generated per node; see ARCHITECTURE.md for the model):</p>
+<table><thead><tr><th>Wave</th><th>What it restores</th></tr></thead><tbody><tr><td>0</td><td>Network reconstruction (bridges from declared topology)</td></tr><tr><td>1</td><td>ZFS pool restore/create (topology adapted to replacement disks)</td></tr><tr><td>2</td><td>Proxmox host configuration (hostname, /etc/hosts, datastores)</td></tr><tr><td>2.5</td><td>Template rebuild (conditional)</td></tr><tr><td>3</td><td>VM restore from PBS (identity-preserving; RECREATE where flagged)</td></tr><tr><td>4</td><td>k3s cluster membership (certs + node name preserved — rejoins)</td></tr><tr><td>5</td><td>Post-restore validation</td></tr></tbody></table>
+<p>Record per-wave timing and anything unexpected:</p>
+<div class="notefield"><label>Per-wave actual time + any deviations from the playbook</label><textarea class="note-area" data-note="per-wave-actual-time-any-deviations-from-the-pla" placeholder="record here…"></textarea></div>
+<hr>
+<h2>Step 5 — Verify identity restored</h2>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>qm list                          # original VMIDs present and running
+kubectl get nodes                # restored node Ready under its ORIGINAL name
+flux get kustomizations          # workloads reconciling</code></pre></div>
+<div class="notefield"><label>Restored node shows Ready under original hostname? (y/n)</label><input type="text" class="note-input" data-note="restored-node-shows-ready-under-original-hostnam" placeholder="record here…"></div>
+<p>After Wave 4 the node rejoins under its original identity; Flux then reconciles its disposition-appropriate workloads automatically.</p>
+<hr>
+<h2>If a wave fails</h2>
+<p>Every wave step failure writes a <strong>failure package</strong> (structured logs + a pre-composed LLM analysis prompt). Attach it when asking for help, or feed it to an LLM to diagnose. Fix the root cause, then resume with <code>bash run-all.sh</code>.</p>
+<hr>
+<h2>Notes</h2>
+<div class="notefield"><label>Anything that did not fit the steps above — unexpected prompts, hardware quirks, manual interventions</label><textarea class="note-area" data-note="anything-that-did-not-fit-the-steps-above-unexpe" placeholder="record here…"></textarea></div>
+<hr>
+<p>*Broodforge PHOENIX.md — Stargate Process | Architecture v7.1*</p>
+<div class="session-notes"><h2>Session Notes</h2><p style="color:var(--muted);font-size:.85em">Anything unexpected, or that did not fit the steps above. Saved in your browser.</p><textarea id="bf-session-notes" placeholder="notes…"></textarea></div>
+<script>
+(function(){
+  var ns = 'bf:' + (document.body.dataset.doc || 'doc') + ':';
+  // ---- theme ----
+  try{ if(localStorage.getItem('bf:theme')==='light') document.body.classList.add('light'); }catch(e){}
+  var tb = document.getElementById('bf-theme-btn');
+  function lbl(){ tb.textContent = document.body.classList.contains('light') ? '☾ Dark' : '☀ Light'; }
+  if(tb){ lbl(); tb.addEventListener('click', function(){
+    document.body.classList.toggle('light');
+    try{ localStorage.setItem('bf:theme', document.body.classList.contains('light')?'light':'dark'); }catch(e){}
+    lbl();
+  }); }
+  // ---- live template parameters ----
+  function applyVar(name, val){
+    var slots = document.querySelectorAll('.tpl[data-var="'+name+'"]');
+    for(var i=0;i<slots.length;i++){ slots[i].textContent = val; }
+  }
+  var inputs = document.querySelectorAll('.param-input');
+  for(var i=0;i<inputs.length;i++){
+    (function(inp){
+      var name = inp.dataset.var, k = ns+'param:'+name;
+      try{ var s = localStorage.getItem(k); if(s!==null) inp.value = s; }catch(e){}
+      applyVar(name, inp.value);
+      inp.addEventListener('input', function(){
+        applyVar(name, inp.value);
+        try{ localStorage.setItem(k, inp.value); }catch(e){}
+      });
+    })(inputs[i]);
+  }
+  // ---- note fields + session notes (persisted) ----
+  var notes = document.querySelectorAll('.note-input,.note-area,#bf-session-notes');
+  for(var j=0;j<notes.length;j++){
+    (function(el){
+      var id = el.dataset.note || el.id, k = ns+'note:'+id;
+      try{ var s = localStorage.getItem(k); if(s!==null) el.value = s; }catch(e){}
+      el.addEventListener('input', function(){ try{ localStorage.setItem(k, el.value); }catch(e){} });
+    })(notes[j]);
+  }
+  // ---- copy buttons ----
+  var btns = document.querySelectorAll('.copy-btn');
+  for(var b=0;b<btns.length;b++){
+    btns[b].addEventListener('click', function(){
+      var btn = this, pre = btn.parentElement.querySelector('pre');
+      var text = pre.innerText;
+      var done = function(){ var o=btn.textContent; btn.textContent='Copied!'; setTimeout(function(){btn.textContent=o;},1200); };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done, function(){ done(); });
+      } else {
+        var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+        ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); done();
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

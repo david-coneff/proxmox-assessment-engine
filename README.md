@@ -1190,6 +1190,11 @@ its identity through the gate and reconstituting it on new hardware.
 A **phoenix package** preserves the failed node's identity exactly, even if the
 physical hardware underneath has changed.
 
+> **Operator runbook:** [`docs/PHOENIX.md`](docs/PHOENIX.md) walks the full stargate
+> workflow end-to-end — generate the playbook from `bootstrap-state.json`
+> (`phoenix-planner.py --state … --output phoenix-playbook.json`), assemble the
+> package, copy + verify, and run the recovery waves.
+
 ### Hatchery Process vs Stargate Process — the core distinction
 
 | | Hatchery process → Spawn package | Stargate process → Phoenix package |

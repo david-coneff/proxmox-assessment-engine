@@ -39,6 +39,7 @@ from phoenix_guided_setup import (
     apply_overrides_to_playbook,
     build_phoenix_guided_session,
 )
+from phoenix_playbook import build_phoenix_playbook
 
 
 # ---------------------------------------------------------------------------
@@ -178,15 +179,33 @@ def _step1_identity(
 
 def main():
     parser = argparse.ArgumentParser(description="Broodforge phoenix planner")
-    parser.add_argument("--state",    required=True, help="Path to bootstrap-state.json")
-    parser.add_argument("--playbook", required=True, help="Path to phoenix-playbook.json")
-    parser.add_argument("--output",   default=None,  help="Output path (default: update in place)")
+    parser.add_argument("--state",    required=True,
+                        help="Path to bootstrap-state.json")
+    parser.add_argument("--playbook", default=None,
+                        help="Existing phoenix-playbook.json to customise "
+                             "(omit to GENERATE the base playbook from --state)")
+    parser.add_argument("--hardware", default=None,
+                        help="Replacement node hardware-profile.json (optional; "
+                             "used when generating from --state)")
+    parser.add_argument("--output",   default=None,
+                        help="Output path (default: phoenix-playbook.json, "
+                             "or update --playbook in place)")
     args = parser.parse_args()
 
     with open(args.state) as f:
         state = json.load(f)
-    with open(args.playbook) as f:
-        playbook = json.load(f)
+    if args.playbook:
+        with open(args.playbook) as f:
+            playbook = json.load(f)
+    else:
+        hardware = None
+        if args.hardware:
+            with open(args.hardware) as f:
+                hardware = json.load(f)
+        playbook = build_phoenix_playbook(
+            state, hardware_profile=hardware, generated_by="phoenix-planner"
+        )
+        print("  Generated base phoenix playbook from bootstrap-state.json.")
 
     cell_id   = state.get("cell_id", "unknown")
     node_name = (playbook.get("target_node") or {}).get("hostname", "unknown")
@@ -205,7 +224,7 @@ def main():
 
     updated = apply_overrides_to_playbook(session, playbook)
 
-    out = Path(args.output or args.playbook)
+    out = Path(args.output or args.playbook or "phoenix-playbook.json")
     out.write_text(json.dumps(updated, indent=2))
 
     _header("Phoenix Playbook Updated")
