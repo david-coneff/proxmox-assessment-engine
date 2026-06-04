@@ -492,7 +492,7 @@ def generate_dashboard_html(
     bkp_last  = backup.get("last_run") or "Never"
     bkp_status= backup.get("last_run_status") or "—"
     bkp_color = "#a6e3a1" if bkp_status == "success" else "#f38ba8" if bkp_status == "error" else "#f9e2af"
-    bkp_html  = f'<span style="color:{bkp_color}">{bkp_status}</span>' if bkp_dests else \
+    bkp_html  = f'<span style="color:{bkp_color}">{_e(bkp_status)}</span>' if bkp_dests else \
         '<span style="color:var(--muted)">Not configured</span>'
 
     return f"""<!DOCTYPE html>
