@@ -9,17 +9,22 @@
 | APDRP review ref | §"APDRP review" below (full four-perspective pass on this audit's central finding, F1) |
 | Audited at | 2026-06-07 |
 
-> **Status update (same day, recorded in place — original review text below
-> is otherwise untouched)**: of the four findings this review registered,
-> **F1 and F2 are now closed** — both were resolved hours after this review
-> was delivered, by the one party with standing to resolve them: broodforge's
-> own operator, who clarified original intent directly (see each finding's
-> in-place "Resolution" annotation, and `.ai/decisions.md` `AD-040`). **F3
-> remains open but explicitly deferred** by the same operator ("`new/` are
-> some proposed revisions that need to be analyzed... this is deferred for
-> the moment"). **F4** (an OBSERVATION, not an actionable finding) stands as
-> recorded. The readiness verdict (`ready`) is unchanged — it never depended
-> on F1/F2's resolution, since neither was ever BLOCKER-classified.
+> **Status update (recorded in place — original review text below is
+> otherwise untouched)**: of the four findings this review registered,
+> **F1, F2, and now F3 are closed**. F1 and F2 were resolved hours after this
+> review was delivered, by the one party with standing to resolve them:
+> broodforge's own operator, who clarified original intent directly (see each
+> finding's in-place "Resolution" annotation, and `.ai/decisions.md` `AD-040`).
+> **F3 — initially left open and explicitly deferred** ("`new/` are some
+> proposed revisions that need to be analyzed... this is deferred for the
+> moment") — **was subsequently un-deferred by direct operator instruction**
+> ("Analyze the `new/` directory ... and integrate relevant content into the
+> roadmap and architecture") and is now closed: see F3's in-place "Resolution"
+> annotation, `ROADMAP.md`'s "Proposed Future Work — from `new/` corpus
+> analysis" section, and `ARCHITECTURE.md` AD-057. **F4** (an OBSERVATION, not
+> an actionable finding) stands as recorded. The readiness verdict (`ready`)
+> is unchanged — it never depended on any of F1–F3's resolution, since none
+> was ever BLOCKER-classified.
 
 ## Scope statement (read this first)
 
@@ -241,6 +246,38 @@ claim and the actual trajectory of the project diverge further, for any reader
 relying on the governance corpus alone (precisely the Census concern PAP-State
 §5 names: "does the Repository Memory Structure still account for everything
 that exists, and does everything that should exist, exist?").
+
+**Resolution (recorded in place; original finding text above left untouched)**:
+**closed**. Initially the operator deferred this analysis ("this is deferred
+for the moment" — recorded in `pap/state/SESSION_HANDOFF.md` and
+`RESUME_BLOCK.md`'s `active_risks`). The operator subsequently issued a direct,
+scoped instruction to perform it: *"Analyze the `new/` directory ... and
+integrate relevant content into the roadmap and architecture,"* with explicit
+guidance on what to integrate (anything with "a realistic software
+implementation path... pre-install forge package creation, any management
+tooling, monitoring, orchestration, or documentation generation features") and
+what to defer (the corpus's "highly speculative, philosophical territory —
+e.g., cross-civilization knowledge transfer, 100-year planning scenarios").
+That analysis is now done: one concrete, additive roadmap item — **Phase 1.H,
+Pre-Install Forge Package and Image Builder** — was integrated (see
+`ROADMAP.md` "Proposed Future Work — from `new/` corpus analysis" and
+`ARCHITECTURE.md` AD-057); three areas (Documentation Engine, Runbook
+Generation, Reference UI/Visualization) were reviewed and found already
+substantially implemented; and the bulk of the corpus — federation/economic/
+knowledge-civilization specifications, century-scale succession planning, the
+RFC-graph self-governance series (Coherence Ledger, Master Control Plane,
+Orchestration Kernel, etc.), and the formal axiomatic-kernel proof series — was
+explicitly deferred as describing a different problem (governing the
+specification corpus itself, and multi-generational civilizational
+continuity) than the one broodforge actually solves (managing Proxmox/k3s
+home-lab infrastructure). Both halves of the original RISK are addressed: the
+**loss** risk, because `new/` is now referenced from governed artifacts
+(`ROADMAP.md`, `ARCHITECTURE.md`, this audit, `SESSION_HANDOFF.md`) rather than
+sitting as an unindexed untracked directory a `git clean` could silently
+destroy; and the **silent scope ambiguity** risk, because `NEXT_STEPS.md` /
+`CURRENT_STATE.md` now point at a named, triaged, durable record of what in
+`new/` is — and is not — part of broodforge's forward direction, rather than
+leaving that question to a future reader's guess.
 
 ### F4 — OBSERVATION: this audit corroborates, and now formally registers, a tension `pap/README.md` had already named in passing
 

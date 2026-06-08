@@ -1,7 +1,7 @@
 # Broodforge — Roadmap
 
 Version: 7.1
-Last updated: 2026-06-03 (audit round 14: security hardening, HTML escaping, quoting, handler parity)
+Last updated: 2026-06-07 (`new/` corpus analysis: Phase 1.H proposed — Pre-Install Forge Package and Image Builder; see "Proposed Future Work" below)
 Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)
 
 ---
@@ -171,6 +171,139 @@ Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY
       S5: _local_runner() extracted to collector_utils.py (5 collector modules updated);
       I3: DASHBOARD_VERSION synced to 7.1.
       Tests: 3732 passed, 4 skipped.
+
+---
+
+## Proposed Future Work — from `new/` corpus analysis (PROPOSED — NOT STARTED)
+
+The `new/` directory holds a large proposed-revision corpus (~25 chapters, ~115
+specifications/RFCs, plus a separate "axiomatic kernel" formal-methods series).
+It was deferred at intake (PAP-AUDIT finding F3 — see
+`pap/state/SESSION_HANDOFF.md`) and has now been triaged per direct operator
+instruction: items with a realistic implementation path in broodforge or its
+documentation tooling are integrated below; the remainder — multi-generational
+federation, "knowledge civilization" / cross-civilization exchange, century-scale
+succession planning, and the formal axiomatic-kernel/category-theoretic proof
+series (`broodforge_*_v1_*.pdf`) — is **explicitly deferred** as out of scope for
+broodforge's actual product (a Proxmox/k3s infrastructure platform), not as a
+quality judgment on the material itself. See "What was deferred and why" at the
+end of this section.
+
+### Phase 1.H — Pre-Install Forge Package and Image Builder *(proposed)*
+
+**Source:** `new/BroodForge_Chapter_16_Bootstrap_and_First_Node_Architecture.docx`,
+`new/BroodForge_Specification_70_Bootstrap_Forge_Package_and_First_Node_Deployment.docx`,
+`new/BroodForge_Specification_148_Canonical_Bootstrap_and_First_Node_Genesis_Framework.docx`.
+
+**The gap this names:** `FORGING.md` currently lists "Proxmox VE installed on
+the target host" as a software prerequisite — forge-manifest.json is generated
+entirely on the operator's workstation (Step 1), but the forge package itself
+still has to be copied onto an *already-installed* Proxmox host (Step 2+). The
+corpus's Chapter 16 names the gap directly: *"The first BroodForge node exists
+before infrastructure memory, assessment systems, and regeneration systems are
+operational... A BroodForge environment should be creatable without requiring
+an existing BroodForge deployment,"* and calls out "Image Builder Architecture"
+— generating "ISO images, USB installation media, appliance images... derived
+from infrastructure knowledge" — and "Bootstrap Bundle Deployment" as the
+concrete mechanism.
+
+**Proposed scope (additive — does not replace the existing path):**
+
+- [ ] `generate-bootstrap-image.py` — Image Builder CLI. Consumes
+      `forge-manifest.json` plus a Proxmox VE unattended-installer answer file
+      (`answer.toml`, Proxmox 8+ automated installer format) and produces a
+      single bootable ISO/USB image bundling: (a) the automated Proxmox VE
+      installer, (b) the assembled forge package, (c) a first-boot hook.
+- [ ] Answer-file template generator — derive `answer.toml` (disk layout,
+      network, root credentials, timezone) from the same `forge-manifest.json`
+      fields the guided-setup framework (AD-049) already collects, so the
+      operator answers setup questions exactly once.
+- [ ] First-boot automation hook — a systemd unit installed by the answer
+      file's post-install script that runs the embedded forge package's
+      `forge.sh` automatically on the freshly-installed host's first boot,
+      replacing the manual "SSH in and kick off forging" step.
+- [ ] Image artifact verification — hash/signature manifest for the generated
+      image, following the same supply-chain verification pattern already
+      established for forge/spawn/phoenix packages (AD-042 KeePass gating,
+      AD-051 HTML manifest alongside every machine-readable manifest).
+- [ ] `FORGING.md` gains an alternative "Step 0 — Build pre-install media
+      (optional)" path; the existing "Proxmox already installed" path remains
+      the supported baseline for operators who provision hosts another way
+      (existing Proxmox cluster, hosting-provider-imaged hardware, etc.).
+
+**Why this is additive, not a redesign:** the forge manifest is *already*
+generated entirely on the operator's workstation before any contact with the
+target host (FORGING.md Step 1). This phase only extends what that planning
+step can *output* — from "a package you copy onto an already-installed host"
+to "a bootable image that installs the host and then runs the package" —
+closing exactly the gap the corpus names as "creating the first node without
+requiring an existing deployment," using artifacts broodforge already builds.
+
+**Explicitly out of scope (do not expand into):** generic multi-hypervisor
+image builders, or "appliance images" for arbitrary target platforms. Chapter
+16 itself frames these as "future implementations" and Specification 70 is
+explicit that *"the initial implementation shall target the validated
+reference stack rather than attempting universal platform support"* — i.e.
+the corpus's own text agrees this stays Proxmox-VE-and-reference-hardware
+scoped, consistent with broodforge's existing AD-040.
+
+See AD-057 in `ARCHITECTURE.md` for the architecture-level decision record.
+
+### What was reviewed and found already covered
+
+- **Documentation Engine / Infrastructure Memory publication**
+  (`new/BroodForge_Specification_60...docx`) and **Runbook Generation /
+  Operational Workbook** (`new/BroodForge_Specification_82...docx`) describe,
+  at a conceptual level, almost exactly what `doc-gen/` + the Phoenix
+  playbook system (Phase 9) + Operational Documentation (Phase 10) already
+  do: generate runbooks, workbooks, and recovery documentation from
+  infrastructure state rather than hand-authoring them. No gap found.
+- **Reference UI and Knowledge Visualization**
+  (`new/BroodForge_Specification_88...docx`) names "capability maps,"
+  "dependency maps," "trust maps," and "regeneration maps" as desirable
+  dashboard features. `doc-gen/dependencies.py`, `capability_state.py`,
+  `failure_domain.py`, and the HTML recovery runbook/workbook renderers
+  already implement dependency-graph and capability-relationship
+  visualization in the generated documentation and dashboard. No gap found
+  worth a dedicated phase; incremental visualization improvements should
+  continue to ride along with the renderer work that already owns this area.
+- **Reference API/CLI** (`new/BroodForge_Specification_87...docx`) — "the
+  CLI is authoritative; APIs are built on the same capability model" matches
+  broodforge's existing pattern (every planner/assembler is CLI-first;
+  `hatchery_receiver.py` exposes the only HTTP API surface, deliberately
+  thin). No gap found.
+
+### What was deferred and why
+
+The remainder of the `new/` corpus describes a substantially different,
+larger architecture vision than broodforge's actual product line — most of
+it framed around governing *the specification corpus itself* (a "Global
+Coherence Ledger," "Coherence Certification Authority," "RFC Index,"
+"Master Control Plane," "Unified System Orchestration Kernel," "Bootstrap
+Order Generator" for reconstructing *the RFC graph*, federated "knowledge
+civilization" exchange, century-scale "knowledge commons" and succession
+planning, and a separate fully-formal "axiomatic kernel" series
+(`broodforge_*_v1_*.pdf` — category-theoretic abstraction, terminal
+synthesis theorems, metatheoretic irreducibility, etc.) — rather than
+managing Proxmox/k3s infrastructure, which is what broodforge actually does.
+`new/broodforge.json` itself frames this material as a `fidelity_translation_only`
+handoff that forbids "architecture_simplification… spec_rewrite… semantic_
+reinterpretation" — i.e. it is asking to be implemented verbatim as a
+parallel system, not mined for ideas. Per the operator's explicit
+instruction (and consistent with PAP-AUDIT finding F3's original framing —
+"highly speculative, philosophical territory"), none of this is integrated:
+- Federation/economic/marketplace/trust-scoring specifications (138–145)
+- Knowledge-preservation/civilization/century-scale specifications (116–132)
+- The RFC-graph self-governance series (Coherence Dashboard, Master Control
+  Plane, Orchestration Kernel, Coherence Ledger, Bootstrap Order Generator,
+  Post-Bootstrap Verification Framework) — these govern *the spec corpus as
+  a system*, which is a different problem than the one broodforge solves
+- The formal axiomatic-kernel / proof-system PDF series (v1.5–v1.27)
+
+If a future operator wants any of this revisited, the entry points are
+`new/claude prompt.txt` (the original analysis brief) and
+`new/BroodForge_Synthesis_Entry_For_Claude_Analysis_v1.docx` (the corpus's
+own "how to analyze me" document) — both still present, untouched.
 
 ---
 

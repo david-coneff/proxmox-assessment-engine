@@ -26,12 +26,20 @@ behavior, not its development process, and is out of scope for this artifact
   Operations) are complete, and the last `docs/SESSION-HANDOFF.md` entry
   (now superseded — see the transition record) named the platform's own next
   action as **"deploy to hardware"** (`python3 proxmox-bootstrap/forge-planner.py`
-  on a real Proxmox host; see `FORGING.md`).
+  on a real Proxmox host; see `FORGING.md`). One *proposed* (not-started)
+  development item now exists in `ROADMAP.md`: **Phase 1.H — Pre-Install
+  Forge Package and Image Builder** — surfaced by the (now-completed) `new/`
+  corpus analysis; see `active_risks` and `key_decisions_and_insights` in
+  `SESSION_HANDOFF.md` for the full record. It is a candidate for a future
+  session, not a mandate.
 
-- **active_milestone**: Post-Phase-26, pre-hardware-deployment. The
-  intelligence/development side of the project is feature-complete per its
-  own governance corpus; the next milestone named in that corpus is an
-  *operational* one (a real hardware run), not a development one.
+- **active_milestone**: Post-Phase-26, pre-hardware-deployment, post-`new/`-
+  analysis. The intelligence/development side of the project is
+  feature-complete per its own governance corpus; the next milestone named in
+  that corpus is an *operational* one (a real hardware run), not a
+  development one — though `ROADMAP.md` now also names one *proposed*
+  development item (Phase 1.H) for whenever the operator chooses to pick it
+  up.
 
 - **active_risks**:
   - **(Updated 2026-06-07, second milestone — F1 and F2 now CLOSED):** The
@@ -60,10 +68,23 @@ behavior, not its development process, and is out of scope for this artifact
       `pap/state/SESSION_HANDOFF.md`'s `key_decisions_and_insights` for the
       fuller account, and the audit record's own "Status update" banner and
       per-finding "Resolution" annotations for the canonical record.
-  - **F3 remains open and explicitly deferred by the operator**: an untracked
-    `new/` directory of ~25 proposed-revision documents sits outside
-    governance, at risk of loss or silent scope drift. Operator: "this is
-    deferred for the moment" — do not begin that analysis unprompted.
+  - **F3 — initially deferred, now CLOSED.** The untracked `new/` directory
+    (~165 proposed-revision documents, not ~25 — the smaller count was an
+    early estimate from filenames alone) was first explicitly deferred by
+    the operator ("this is deferred for the moment"), then **explicitly
+    un-deferred** by a later, separate, scoped instruction ("Analyze the
+    `new/` directory ... and integrate relevant content into the roadmap and
+    architecture" — with built-in guidance on what to integrate vs. defer).
+    That analysis is done: **one** concrete, additive item was integrated
+    (proposed **Phase 1.H — Pre-Install Forge Package and Image Builder**,
+    in `ROADMAP.md` + `ARCHITECTURE.md` AD-057); three other named areas were
+    checked and found already implemented; the rest — federation/
+    civilization/century-scale specs and a parallel "RFC-graph
+    self-governance" architecture series plus a formal axiomatic-kernel proof
+    series — was explicitly named and deferred as out of scope for
+    broodforge's actual product. See `SESSION_HANDOFF.md`'s third
+    `milestone_checklist` block and the audit's F3 "Resolution" annotation
+    for the full record. **Do not re-run this analysis** — read its output.
   - F4 (an OBSERVATION, not a finding requiring action) stands as recorded —
     see the audit's status banner.
   - One deferred technical item from the prior (now-superseded)
@@ -76,18 +97,24 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated 2026-06-07 — F1/F2 closed; this supersedes the
-  "triage F1–F3" framing below.)** Concretely, for whoever next picks up
-  broodforge's *codebase-development* thread (as distinct from its
+- **next_action**: **(Updated — F1, F2, AND F3 now closed; this supersedes
+  all earlier "triage F1–F3" framing below.)** Concretely, for whoever next
+  picks up broodforge's *codebase-development* thread (as distinct from its
   *operational* deployment thread, which `FORGING.md` already governs): there
-  is no mandatory next development action. F1 and F2 are closed and committed
-  (`b0a05ce`); F3 (`new/` analysis) remains explicitly deferred by the
-  operator — do not begin it unprompted; F4 is an observation requiring no
-  action. A resuming agent should wait for/follow new operator direction, or
-  — only if asked to find something to do — note the platform's own named
-  *operational* next step, "deploy to hardware" (see `active_objective`,
-  above, and `FORGING.md`). ~~triage the three open audit findings above
-  (F1–F3)~~ — superseded: only F3 remains open, and it is deferred.
+  is no mandatory next development action, and no open audit finding remains
+  that requires one (F1/F2/F3 closed, committed; F4 is an observation
+  requiring no action). One **proposed** (not mandatory) development item now
+  exists — **Phase 1.H, Pre-Install Forge Package and Image Builder** — the
+  single concrete idea the `new/` analysis surfaced; it sits in `ROADMAP.md`
+  as a candidate for whenever the operator chooses to schedule it, not as a
+  queued task. A resuming agent should: (a) wait for/follow new operator
+  direction (which may be "start Phase 1.H," "deploy to hardware," or
+  something else entirely), or (b) — only if asked to find something to do —
+  offer Phase 1.H or the platform's own named *operational* next step,
+  "deploy to hardware" (see `active_objective`, above, and `FORGING.md`), and
+  let the operator choose between a development thread and an operational one.
+  ~~triage the three open audit findings above (F1–F3)~~ — superseded: all
+  three are closed.
 
 ---
 

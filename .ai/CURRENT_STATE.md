@@ -41,6 +41,19 @@ Tests: 3958 passed, 37 skipped.
 All roadmap items complete. Next: **Deploy to hardware** — run `python3 proxmox-bootstrap/forge-planner.py`
 on a Proxmox host to forge the first cell. See FORGING.md for operator runbook.
 
+**`new/` corpus analysis complete** (2026-06-07): the previously-untracked
+`new/` directory (~165 proposed-revision documents, PAP-AUDIT finding F3) has
+been analyzed and triaged per direct operator instruction. One concrete,
+additive roadmap item was integrated — **Phase 1.H (proposed, not started):
+Pre-Install Forge Package and Image Builder** — closing the gap between
+today's only supported path (Proxmox VE already installed on the target) and
+true bare-metal bootstrapping (a single bootable image bundling the Proxmox
+installer + forge package + first-boot automation). See `ROADMAP.md`
+"Proposed Future Work — from `new/` corpus analysis", `ARCHITECTURE.md`
+AD-057, `.ai/NEXT_STEPS.md`, and `pap/state/SESSION_HANDOFF.md` for the full
+record of what was integrated, what was found already covered, and what was
+explicitly deferred (and why).
+
 ## Completed Milestones
 
 | Phase | Description | Status |

@@ -27,17 +27,20 @@ of what this transition exists to make durable.
 - **status**: IDLE — no active codebase-development session. All roadmap
   milestones and intelligence tracks are complete per `.ai/CURRENT_STATE.md`
   / `.ai/NEXT_STEPS.md`; the platform's own next named action is operational
-  ("deploy to hardware"), not developmental. **Updated same day** (this
-  artifact's own `update_trigger` — PAP-State §3/§4 — fired at the major
-  milestone described below; this is this file's first live exercise of its
-  own update discipline since being written).
+  ("deploy to hardware"), not developmental. One *proposed* (not-started)
+  development item now exists — Phase 1.H, see below. **Updated same day**
+  (this artifact's own `update_trigger` — PAP-State §3/§4 — fired at the
+  third milestone described below).
 
-- **objective**: None currently active. Two threads have completed since this
-  file was first written: (1) the continuity-transition this file is the
+- **objective**: None currently active. Three threads have completed since
+  this file was first written: (1) the continuity-transition this file is the
   centerpiece of (see `milestone_checklist`'s first six items, all `[x]`);
-  and (2), immediately after, **resolving PAP-AUDIT findings F1 and F2** —
-  see the new `milestone_checklist` entries and `key_decisions_and_insights`
-  below. Before either: the last active development objective (per the
+  (2) **resolving PAP-AUDIT findings F1 and F2**; and (3), **the `new/`
+  corpus analysis (F3)** — initially deferred, then explicitly un-deferred by
+  direct operator instruction ("Analyze the `new/` directory ... and
+  integrate relevant content into the roadmap and architecture"). See the
+  new `milestone_checklist` entries and `key_decisions_and_insights` below.
+  Before all three: the last active development objective (per the
   now-superseded `docs/SESSION-HANDOFF.md`'s final entry) was a "deep
   architecture-vs-docs audit + interactive HTML" pass, completed and closed
   with "4000 passed, 1 skipped (Windows-only). No regressions."
@@ -60,11 +63,21 @@ of what this transition exists to make durable.
     "Previous Sessions," test-count history, architecture notes). Preserved
     in full, moved (not deleted) — read it for *historical* development
     context; do not extend it further (extend this file instead).
-  - `new/claude prompt.txt` and the ~25 chapter documents alongside it —
-    a deferred, not-yet-analyzed proposed-revision corpus (PAP-AUDIT finding
-    F3; operator has explicitly named this "deferred for the moment" — see
-    this transition record's Provenance for the verbatim instruction).
-    Do not begin that analysis unprompted.
+  - `new/claude prompt.txt` and the ~165 chapter/spec/RFC documents alongside
+    it — **no longer a deferred corpus (F3 is now CLOSED)**. The operator
+    explicitly un-deferred this and commissioned its analysis ("Analyze the
+    `new/` directory ... and integrate relevant content into the roadmap and
+    architecture"). The analysis is done: see `ROADMAP.md`'s "Proposed Future
+    Work — from `new/` corpus analysis" section (Phase 1.H — Pre-Install
+    Forge Package and Image Builder, the one concrete item integrated, plus
+    "What was reviewed and found already covered" and "What was deferred and
+    why" — the latter explaining, by name, why the bulk of the corpus
+    — federation/civilization/century-scale specs, the RFC-graph
+    self-governance series, and the formal axiomatic-kernel proof series —
+    stays out of scope), `ARCHITECTURE.md` AD-057, and this audit's F3
+    "Resolution" annotation. **Do not re-run that analysis** — read its
+    output instead; if something looks missed, that is a finding to record
+    against the existing analysis, not grounds to redo it from scratch.
 
 - **key_decisions_and_insights** (conclusions already reached — do not
   re-derive):
@@ -113,6 +126,31 @@ of what this transition exists to make durable.
     only frame; only the artifact's author can answer them. Worth remembering
     the next time a finding's resolution looks like it depends on intent
     rather than evidence: name that plainly, and ask, rather than guess.
+  - **(Added same day, third milestone) F3 — "deferred" was a snapshot of
+    operator intent at a moment in time, not a permanent classification.**
+    The same operator who said "this is deferred for the moment" later, in
+    a separate instruction, explicitly un-deferred it — *with* scoping
+    guidance baked into the instruction itself ("some sections get into
+    highly speculative, philosophical territory... do NOT deeply integrate
+    or analyze those — defer them. Focus only on items that have a realistic
+    software implementation path"). The resulting analysis found the ~165
+    document corpus to be overwhelmingly *not* about broodforge's actual
+    product (a Proxmox/k3s home-lab platform) — most of it describes either
+    governing the specification corpus itself (a parallel "RFC graph"
+    self-governance architecture: Coherence Ledger, Master Control Plane,
+    Orchestration Kernel, etc.) or multi-generational/civilizational
+    continuity concerns at a scale far beyond broodforge's charter. Exactly
+    **one** concretely implementable, additive idea surfaced cleanly: a
+    pre-install "Image Builder" that closes the gap between "operator already
+    has Proxmox installed" (today's only path) and "bare metal, nothing
+    installed yet" (what Chapter 16/Spec 70/148 name as the unsolved case) —
+    recorded as proposed Phase 1.H. Three other named areas (documentation
+    engine, runbook generation, UI/visualization) were checked against the
+    existing codebase and found *already* substantially implemented — a
+    useful confirmation that broodforge's own independent design arrived at
+    similar conclusions to this corpus on the parts that actually overlap.
+    Don't re-derive any of this; read `ROADMAP.md`'s "Proposed Future Work"
+    section and `ARCHITECTURE.md` AD-057 for the full record.
 
 - **milestone_checklist**:
   - [x] Identify broodforge's pre-PAP session-continuity prototype mechanisms
@@ -161,29 +199,100 @@ of what this transition exists to make durable.
         Falsification perspective's named dissolution-condition to what then
         actually happened; strikethrough-preserved "Summary of suggested
         work" entries showing suggested-vs-actual remedy for a future reader.
+  - [x] Updated this file and `RESUME_BLOCK.md` to reflect the F1/F2
+        resolution milestone.
+
+  **— third milestone, same day: analyzing and integrating the `new/`
+  corpus (closing F3) —**
+  - [x] Operator issued a direct, scoped instruction to analyze `new/` and
+        integrate relevant content into `ROADMAP.md`/`ARCHITECTURE.md`,
+        explicitly un-deferring F3 — with scoping guidance built directly
+        into the instruction (integrate items with "a realistic software
+        implementation path... pre-install forge package creation, any
+        management tooling, monitoring, orchestration, or documentation
+        generation features"; defer "highly speculative, philosophical
+        territory — e.g., cross-civilization knowledge transfer, 100-year
+        planning scenarios").
+  - [x] Read `pap/state/SESSION_HANDOFF.md`/`RESUME_BLOCK.md` (this file's
+        own prior state — confirming F3's "deferred" framing) and the
+        existing `ROADMAP.md`/`ARCHITECTURE.md`/`.ai/CURRENT_STATE.md`
+        as the source-of-truth baseline before editing either.
+  - [x] Surveyed all ~165 documents in `new/` by filename + extracted and
+        read full text of the ~22 most plausibly relevant ones (bootstrap/
+        first-node architecture, forge package lifecycle, documentation
+        engine, runbook generation, reference UI/CLI/API, observability,
+        orchestration/control-plane, plus the corpus's own "how to read me"
+        entry document `BroodForge_Synthesis_Entry_For_Claude_Analysis_v1.docx`
+        and `broodforge.json`) and three "axiomatic kernel" PDFs, to confirm
+        the speculative/governance-of-specs framing extended through that
+        whole series before deferring it.
+  - [x] Identified exactly one concretely-implementable, additive gap: a
+        pre-install "Image Builder" — closing the difference between
+        broodforge's current only-supported path ("operator already has
+        Proxmox VE installed on the target host," per `FORGING.md`'s
+        prerequisites) and what Chapter 16/Spec 70/148 name as the unsolved
+        case ("a BroodForge environment should be creatable without
+        requiring an existing BroodForge deployment... Image Builder
+        Architecture may generate ISO images, USB installation media").
+        Recorded as proposed **Phase 1.H — Pre-Install Forge Package and
+        Image Builder** in `ROADMAP.md`'s new "Proposed Future Work" section,
+        and as **AD-057** in `ARCHITECTURE.md`.
+  - [x] Cross-checked three other corpus areas (Documentation Engine /
+        Spec 60, Runbook Generation / Spec 82, Reference UI-Visualization /
+        Spec 88, Reference API-CLI / Spec 87) against the existing codebase
+        (`doc-gen/`, `dependencies.py`, `capability_state.py`,
+        `failure_domain.py`, Phase 9/10 phoenix + operational documentation)
+        and recorded them as "already covered, no gap" rather than silently
+        dropping them — visible in `ROADMAP.md`'s "What was reviewed and
+        found already covered."
+  - [x] Recorded, by name, what was deferred and why — federation/economic/
+        marketplace/trust specs (138–145), knowledge-civilization/century-
+        scale/succession specs (116–132), the RFC-graph self-governance
+        series (Coherence Dashboard, Master Control Plane, Orchestration
+        Kernel, Coherence Ledger, Bootstrap Order Generator, Post-Bootstrap
+        Verification — these govern *the spec corpus as a system*, a
+        different problem than the one broodforge solves), and the formal
+        axiomatic-kernel/category-theoretic proof PDF series (v1.5–v1.27,
+        plus `broodforge.json`'s own `fidelity_translation_only` /
+        "forbidden: spec_rewrite, semantic_reinterpretation" framing, which
+        reads as "implement me verbatim as a parallel system" rather than
+        "mine me for ideas") — in `ROADMAP.md`'s "What was deferred and why."
+  - [x] Annotated `pap/audits/2026-06-07_broodforge-pap-audit.md` in place:
+        updated the status banner to record F3 as closed, and added an
+        in-place "Resolution" annotation on F3 itself (original finding text
+        untouched), addressing both halves of the original RISK (loss —
+        `new/` is now referenced from governed artifacts; silent scope
+        ambiguity — `ROADMAP.md`/`ARCHITECTURE.md` now name what in `new/`
+        is, and is not, part of broodforge's forward direction).
   - [x] Updated this file and `RESUME_BLOCK.md` to reflect the new state —
         the very update this protocol's `update_trigger` calls for at every
         major milestone (you are reading the result of that update now).
 
 - **last_completed_step**: Updated this handoff and `RESUME_BLOCK.md` to
-  describe the F1/F2 resolution milestone — the step you are reading. Before
-  that: wrote the in-place Charter Scope note, AD-034 Amendment, and AD-040;
-  wrote the audit record's Resolution annotations, status banner, APDRP
-  addendum, and suggested-vs-actual work annotations; committed all of it
-  (`b0a05ce`). Before *that*: completed and committed the continuity
-  transition itself (`6f0e9c8`) — see the first milestone-checklist block.
+  describe the `new/`-corpus-analysis milestone (closing F3) — the step you
+  are reading. Before that: wrote `ROADMAP.md`'s "Proposed Future Work —
+  from `new/` corpus analysis" section (Phase 1.H, "already covered," "what
+  was deferred and why"), `ARCHITECTURE.md` AD-057, and the audit's F3
+  status-banner update + Resolution annotation. Before *that*: completed and
+  committed the F1/F2 resolution milestone (`b0a05ce`) and, before that, the
+  continuity transition itself (`6f0e9c8`) — see the earlier
+  milestone-checklist blocks.
 
-- **next_action**: None mandatory — both completed threads (the transition,
-  and the F1/F2 resolution) are closed and committed. The one item this
-  artifact's `source_materials`/`active_risks` still names as open is **F3**
-  (the `new/` proposed-revision corpus) — and the operator has *explicitly
-  deferred* that ("this is deferred for the moment"). So, concretely: there
-  is no mandatory next development action right now. A resuming agent should
-  either (a) wait for/follow new operator direction, or (b) — only if asked
-  to find something to do — look to `RESUME_BLOCK.md`'s `next_action` and
-  the platform's own named operational next-step ("deploy to hardware," per
-  `.ai/NEXT_STEPS.md` / the now-superseded `docs/SESSION-HANDOFF.md`'s final
-  entry). Do not begin the `new/` analysis unprompted.
+- **next_action**: None mandatory — all three threads (the continuity
+  transition, the F1/F2 resolution, and the `new/`-corpus analysis closing
+  F3) are now closed. **Commit and push** this milestone's changes
+  (`ROADMAP.md`, `ARCHITECTURE.md`, the audit annotation, this file, and
+  `RESUME_BLOCK.md`) and push to origin — that is the one concrete mechanical
+  step remaining for whoever closes this session out, if it has not already
+  happened by the time you are reading this. Beyond that:
+  there is no mandatory next *development* action. The one net-new item this
+  analysis produced — **Phase 1.H (Pre-Install Forge Package and Image
+  Builder)** — is recorded as **proposed, not started**; it is a candidate
+  for a future development session, not a mandate. A resuming agent should
+  either (a) wait for/follow new operator direction (e.g. "start on Phase
+  1.H"), or (b) — only if asked to find something to do — look to
+  `RESUME_BLOCK.md`'s `next_action` and the platform's own named operational
+  next-step ("deploy to hardware," per `.ai/NEXT_STEPS.md`).
 
 - **resume_instructions**:
   1. Read `RESUME_BLOCK.md` (this file's `resume_block_ref`) for the

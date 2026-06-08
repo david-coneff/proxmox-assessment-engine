@@ -294,6 +294,88 @@ full pre-transition session history (1142 lines, "Previous Session Work"
 through "Architecture Notes") remains intact and readable at
 `docs/deprecated/SESSION-HANDOFF.md` and via `git log --follow`.
 
+## AD-041: `new/` proposed-revision corpus analyzed and triaged; one item (Pre-Install Forge Package and Image Builder) integrated as proposed Phase 1.H
+
+**Date:** 2026-06-07
+**Decision:** The previously-untracked `new/` directory (~165 `.docx`/`.pdf`
+documents — chapters, specifications, RFCs, and a separate formal
+"axiomatic-kernel" proof series — flagged as ungoverned by PAP-AUDIT finding
+F3) has been read, triaged, and selectively integrated, per direct operator
+instruction: *"Analyze the `new/` directory ... and integrate relevant
+content into the roadmap and architecture... Good candidates to integrate:
+anything about pre-install forge package creation ..., any management
+tooling, monitoring, orchestration, or documentation generation features
+[...] Some sections get into highly speculative, philosophical territory
+(e.g., cross-civilization knowledge transfer, 100-year planning scenarios).
+Do NOT deeply integrate or analyze those — defer them."*
+
+One concretely-implementable, additive gap surfaced cleanly: Chapter 16
+("Bootstrap and First-Node Architecture"), Specification 70 ("Bootstrap Forge
+Package and First-Node Deployment"), and Specification 148 ("Canonical
+Bootstrap and First-Node Genesis Framework") all name the same unsolved case
+— *"A BroodForge environment should be creatable without requiring an
+existing BroodForge deployment"* and an "Image Builder Architecture" that
+"may generate ISO images, USB installation media... derived from
+infrastructure knowledge." Broodforge's actual `FORGING.md` still lists
+"Proxmox VE installed on the target host" as a hard prerequisite — the forge
+manifest is generated entirely on the operator's workstation, but the forge
+package itself still requires an already-installed host to land on. This gap
+is now recorded as proposed (not started) **Phase 1.H — Pre-Install Forge
+Package and Image Builder** in `ROADMAP.md`'s new "Proposed Future Work —
+from `new/` corpus analysis" section, and as **AD-057** in `ARCHITECTURE.md`
+(architecture-level decision record with full proposed scope).
+
+Three other named areas — Documentation Engine (Spec 60), Runbook Generation
+(Spec 82), Reference UI/Knowledge Visualization (Spec 88), Reference API/CLI
+(Spec 87) — were checked against the existing codebase (`doc-gen/`,
+`dependencies.py`, `capability_state.py`, `failure_domain.py`, Phase 9/10)
+and found already substantially implemented; recorded in `ROADMAP.md` as
+"already covered, no gap" rather than silently dropped.
+
+The remainder — federation/economic/marketplace/trust-scoring specifications
+(138–145), knowledge-civilization/century-scale/succession specifications
+(116–132), an entire parallel "RFC-graph self-governance" architecture series
+(Coherence Dashboard, Master Control Plane, Unified System Orchestration
+Kernel, Global Coherence Ledger, Bootstrap Order Generator, Post-Bootstrap
+Verification Framework — these govern *the specification corpus itself as a
+system*, a different problem than the one broodforge actually solves), and a
+separate formal "axiomatic kernel" / category-theoretic proof PDF series
+(v1.5–v1.27) — is **explicitly deferred**, named individually in `ROADMAP.md`
+"What was deferred and why," not as a quality judgment on the material but
+because it describes a substantially larger and differently-scoped system
+than broodforge's charter (a Proxmox/k3s home-lab infrastructure platform).
+Notably, `new/broodforge.json` itself frames the corpus as a
+`fidelity_translation_only` handoff that forbids "architecture_simplification...
+spec_rewrite... semantic_reinterpretation" — i.e., it asks to be implemented
+verbatim as a parallel system, which is the opposite of "mine me for ideas
+that fit the existing architecture," reinforcing that selective triage (not
+wholesale adoption) was the correct posture.
+
+**Rationale:** PAP-AUDIT finding F3 named two real risks in leaving `new/`
+as an untracked, ungoverned directory: (a) **loss** — a `git clean` or
+careless `.gitignore` edit could destroy ~165 documents with no recovery
+path; (b) **silent scope ambiguity** — `.ai/NEXT_STEPS.md`'s "all phases
+complete" claim and the corpus's much larger implied trajectory would diverge
+further every day the question of "is this broodforge's future, or not?"
+went unanswered. Direct operator instruction (with scoping criteria supplied
+up front) resolved both: the corpus is now referenced from governed artifacts
+(`ROADMAP.md`, `ARCHITECTURE.md`, `.ai/NEXT_STEPS.md`, this file, the audit's
+F3 Resolution annotation, `pap/state/SESSION_HANDOFF.md`), and a durable,
+named record now exists of exactly what in it is — and is not — part of
+broodforge's forward direction, closing the ambiguity for any future reader.
+
+**Consequences:** `new/` remains in the working tree (untracked is now a
+choice, not an oversight — the operator may commit it, archive it, or leave
+it as reference material; that decision was not asked of this analysis and is
+not made here). One new proposed roadmap item exists, **Phase 1.H**, ready
+to be picked up in a future development session at the operator's discretion
+— it is *not* queued or scheduled. PAP-AUDIT finding F3 is now CLOSED (see
+`pap/audits/2026-06-07_broodforge-pap-audit.md`'s in-place Resolution
+annotation and updated status banner). Full record:
+`ROADMAP.md` "Proposed Future Work — from `new/` corpus analysis",
+`ARCHITECTURE.md` AD-057, `.ai/NEXT_STEPS.md`, `pap/state/SESSION_HANDOFF.md`
+and `pap/state/RESUME_BLOCK.md`.
+
 ## AD-040: Charter SHALL-NOT scope clarified; AD-034 phrasing amended to license safeguarded autonomous action
 **Date:** 2026-06-07
 **Decision:** Two coordinated clarifications of original intent — made
