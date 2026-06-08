@@ -657,15 +657,58 @@ of what this transition exists to make durable.
      `test_opentofu.py` failures). `docs/FEATURE-HISTORY.md`/`.html` and
      `ROADMAP.html` updated.
 
-  **Remaining, in the operator's given order**: Phase 1.K (AD-061, Scoped
-  Vault Hierarchy + User Provisioning) — UP NEXT; then Phase 1.J (AD-060,
-  Hypervisor Recovery — must respect the **firm AD-060 constraint**: no
-  autonomous pathway may read/wield full root against live hypervisors;
-  only node-spawn and phoenix-setup temporary credentials are exempt,
-  time-limited, and require operator rotation afterward). After each:
-  update FEATURE-HISTORY (+ HTML twin) and PAP-state, run the full suite,
-  commit, push — per the operator's standing `feature_revision_process` /
-  "push on commit" preferences.
+  4. **Phase 1.K / AD-061 (Granular Secret Access Silos: Vault Hierarchy
+     and User Provisioning) — DONE**, commit pending. Built as "more
+     vaults derived from the one vault" — no broker, no ACL layer, no live
+     KDBX manipulation, exactly AD-061's accepted design (the constraint:
+     `.kdbx` is single-master-password, no native per-user role layer).
+     `role-scope-registry.yaml` (new authoritative per-cell YAML, mirrors
+     `secret-registry.yaml`'s documented-header style and sits beside it —
+     a `data-model/` JSON-Schema pair would be disproportionate for a
+     3-entry registry) declares named roles (`service-operator`/
+     `node-sysadmin`/`god-mode`), glob-pattern scopes over
+     `secret-registry.yaml`'s `owning_cell`/`required_by`/`secret_type`/
+     `required_for` vocabulary plus an `excludes` denylist facet, and role
+     holders. `_vault_hierarchy.py` + `derive-scoped-vault.py` (CLI) match
+     entries against scope globs (`fnmatch`), compose a derived-vault
+     *plan* — in-scope entries, a freshly-generated passphrase
+     (`generate_master_password_suggestion()`), the AD-044-pattern
+     KeePass record path `Vaults/{role}/{timestamp}/passphrase` for
+     vault-of-vaults bookkeeping in the parent vault, and the
+     `keepassxc-cli` command sequence an operator runs to build it
+     (mirrors `forge_keepass_init.py::render_init_commands()` — broodforge
+     never opens/writes binary `.kdbx` files anywhere, confirmed) — plus
+     an AD-051 HTML twin (`build_scoped_vault_plan_html`). The `god-mode`
+     tier is refused outright (`ValueError`) — deriving "everything" from
+     "everything" under a weaker fresh passphrase would be a strictly
+     worse duplicate. **Operator-directed expansions**: vault-of-vaults
+     recordkeeping (`vault_record_path()`) and user-provisioning
+     templates — `generate_vm_account_template()` produces an additive
+     Cloud-Init account block in the exact shape
+     `spawn_iac_generator.py::generate_cloudinit_user_data()` already
+     emits, `generate_proxmox_account_commands()` produces templated
+     `pveum user add`/`aclmod`/`user token add` sequences with role-tiered
+     PVE roles. **Authorization model / revocation=rotate+reissue**
+     documented as design statements (true by construction / honest
+     non-guarantees) in the registry header, `describe_vault_plan()`, and
+     HTML — deliberately *not* built as enforcement machinery (nothing to
+     check that isn't already true by construction). Generated passphrases
+     are shown once at CLI runtime only, never persisted — confirmed
+     absent from JSON/HTML artifacts by test. Ran the CLI end-to-end
+     against the real registries (`service-operator` → 9/11 entries,
+     `pve01-*` denylisted). 40 new tests (`test_vault_hierarchy.py`); full
+     suite 4292 passed, 1 skipped (same 4 pre-existing `test_opentofu.py`
+     failures). `docs/FEATURE-HISTORY.md`/`.html` updated.
+
+  **Remaining, in the operator's given order**: Phase 1.J (AD-060,
+  Hypervisor Recovery — the final phase, must respect the **firm AD-060
+  constraint**: no autonomous pathway may read/wield full root against
+  live hypervisors; only node-spawn and phoenix-setup temporary
+  credentials are exempt, time-limited, and require operator rotation
+  afterward). After it: update FEATURE-HISTORY (+ HTML twin) and
+  PAP-state, run the full suite, commit, push — per the operator's
+  standing `feature_revision_process` / "push on commit" preferences —
+  then report a summary of everything implemented this milestone.
 
   **`ROADMAP.md` "Proposed Future Work"** held zero items in "draft sketch,
   awaiting operator reaction" status entering this milestone — all four

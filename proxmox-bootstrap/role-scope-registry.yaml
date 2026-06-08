@@ -1,0 +1,112 @@
+# Role/Scope Registry (Phase 1.K, AD-061 — Granular Secret Access Silos)
+# Cell: proxmox-cell-a
+#
+# This file declares the *human-facing* roles that may hold a derived
+# (scoped) KeePass vault, and the scope each role is granted into the
+# canonical secret-registry.yaml. It is the input to derive-scoped-vault.py:
+# each role entry here becomes one derived-vault plan when fed alongside
+# secret-registry.yaml entries.
+#
+# It NEVER contains secret values, passphrases, or KeePass credentials of
+# any kind — only role declarations, glob-pattern scopes, and the names of
+# humans who currently hold each role. Treat it like secret-registry.yaml:
+# safe to commit, safe to read by anyone, because it is pure metadata about
+# *what is in scope*, not the secrets themselves.
+#
+# Format:
+#   role:           Stable unique role identifier (lowercase, hyphenated)
+#   description:    What this role is for / what kind of human holds it
+#   tier:           One of: service-operator | node-sysadmin | god-mode
+#                   (the three example tiers AD-061 names; "god-mode" is
+#                   always the canonical, undivided vault — it has no scope
+#                   globs because it is, by definition, everything)
+#   scope:          How entries from secret-registry.yaml are matched into
+#                   this role's derived vault. All sub-fields are optional;
+#                   an entry is in-scope if it matches ANY populated
+#                   sub-field (a union, not an intersection — a role sees
+#                   the union of everything its scope globs describe):
+#     required_by:    List of glob patterns matched against each element of
+#                     a secret-registry.yaml entry's `required_by` list
+#                     (the existing "type:name" vocabulary, e.g.
+#                     "host:pve01", "vm:infra-bootstrap" — globs such as
+#                     "host:*" or "vm:infra-*" follow the same vocabulary).
+#     owning_cell:    List of glob patterns matched against `owning_cell`.
+#     secret_type:    List of glob patterns matched against `secret_type`
+#                     (password | ssh-private-key | api-token |
+#                     certificate-private-key | other).
+#     required_for:   List of glob patterns matched against each element of
+#                     a secret-registry.yaml entry's `required_for` list.
+#   excludes:         Optional list of glob patterns matched against an
+#                     entry's `id`. An entry that matches `scope` but ALSO
+#                     matches any `excludes` pattern is dropped — this is
+#                     how a role can be granted a broad facet (e.g. "all
+#                     vm:* secrets") while still carving out a narrower
+#                     denylist (e.g. "but never *-root-password entries").
+#   holders:        List of human identifiers (names/handles) who currently
+#                   hold this role. Empty list is valid — a declared-but-
+#                   unassigned role (e.g. a template prepared ahead of an
+#                   org growing into it).
+#
+# Glob syntax: Python's fnmatch (stdlib) — "*" matches any run of characters,
+# "?" matches one character, "[seq]" matches a character in seq. Matching is
+# case-sensitive, consistent with the lowercase "type:name" vocabulary
+# already used throughout secret-registry.yaml's required_by/required_for.
+#
+# Authorization model (AD-061 — documented here, not enforced in code):
+# only a holder of the canonical (god-mode) vault can run derive-scoped-vault
+# to mint a new scoped vault or provisioning template — true by construction,
+# since minting requires reading secret-registry.yaml and the canonical
+# KeePass database in full. There is no separate permission check to bypass
+# because there is nothing to check: you cannot derive a scope you could not
+# already see in its entirety.
+#
+# Revocation = rotate + reissue (AD-061 — an honest non-guarantee, not a
+# gap): a derived vault has no live connection to the canonical vault and
+# cannot be remotely revoked. A lost, stale, or compromised scoped vault is
+# neutralized by rotating every secret it contained (per their
+# rotation_schedule, generalising the AD-044 per-backup-unique-secret
+# pattern) and reissuing a fresh derivative with a fresh passphrase. This is
+# a property of broodforge's offline-first model: a derived vault literally
+# cannot leak ciphertext it never received — arguably a *stronger* guarantee
+# than an access-list edit on a database the holder already possesses whole.
+
+roles:
+  - role: service-operator
+    description: >
+      Operates a single service or VM (deploys, restarts, reads its logs)
+      but has no path to host-level or hypervisor-level credentials. The
+      narrowest tier — sees only the secrets its own service needs.
+    tier: service-operator
+    scope:
+      required_by: ["vm:infra-bootstrap"]
+      secret_type: ["ssh-private-key", "password"]
+    excludes: ["pve01-*", "*-root-password"]
+    holders: []
+
+  - role: node-sysadmin
+    description: >
+      Administers one or more Proxmox hosts and the VMs running on them —
+      can reach host-level credentials and API tokens for their assigned
+      node(s), but not credentials scoped to other cells or to god-mode-only
+      facets (e.g. external-service tokens that span the whole platform).
+    tier: node-sysadmin
+    scope:
+      required_by: ["host:pve01", "vm:*"]
+      owning_cell: ["proxmox-cell-a"]
+    excludes: []
+    holders: []
+
+  - role: god-mode
+    description: >
+      Full, undivided access to every secret in the canonical vault —
+      broodforge's permanent single-operator-homelab default. This role
+      has no scope globs because it is defined as "everything"; it is
+      listed here only so the registry documents who currently holds it.
+      derive-scoped-vault.py refuses to build a derived vault for this
+      role (deriving "everything" from "everything" is a no-op that would
+      only create a second copy of the canonical vault under a weaker,
+      freshly-generated passphrase — see _vault_hierarchy.py).
+    tier: god-mode
+    scope: {}
+    excludes: []
+    holders: ["operator"]

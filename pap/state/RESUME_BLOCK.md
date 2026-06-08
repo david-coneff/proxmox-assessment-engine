@@ -255,14 +255,45 @@ behavior, not its development process, and is out of scope for this artifact
   (same 4 pre-existing `test_opentofu.py` failures). FEATURE-HISTORY +
   ROADMAP.html updated; commit pending alongside this PAP-state update.
 
-  **Remaining in the operator's given order**: (4) **Phase 1.K** (AD-061,
-  Scoped Vault Hierarchy + User Provisioning) — UP NEXT;
-  (5) **Phase 1.J** (AD-060, Hypervisor Recovery Constrained Accounts +
-  Pre-Generated Spawn Media — must respect the **firm AD-060 constraint**:
-  no autonomous pathway may read/wield full root against live hypervisors;
-  only node-spawn and phoenix-setup temporary credentials are exempted).
-  After each phase: update FEATURE-HISTORY + HTML twin and PAP-state
-  (this file, SESSION_HANDOFF, CURRENT_STATE), run full suite, commit, push.
+  (4) **Phase 1.K** (AD-061, Scoped Vault Hierarchy + User Provisioning) —
+  **DONE**: `role-scope-registry.yaml` (new per-cell YAML beside
+  `secret-registry.yaml`, same documented-header style) declares roles
+  (`service-operator`/`node-sysadmin`/`god-mode`) with glob-pattern scopes
+  over the existing `owning_cell`/`required_by`/`secret_type`/
+  `required_for` vocabulary; `_vault_hierarchy.py` +
+  `derive-scoped-vault.py` match entries via `fnmatch`, compose a
+  derived-vault plan (in-scope entries, fresh passphrase via
+  `generate_master_password_suggestion()`, an AD-044-pattern
+  `Vaults/{role}/{timestamp}/passphrase` record path for vault-of-vaults
+  bookkeeping, and a `keepassxc-cli` command sequence — broodforge never
+  manipulates binary `.kdbx` files, confirmed; this mirrors
+  `forge_keepass_init.py::render_init_commands()`) + AD-051 HTML twin;
+  `god-mode` is refused by design (`ValueError` — deriving everything from
+  everything under a weaker passphrase is strictly worse). Operator
+  expansions: vault-of-vaults recordkeeping (`vault_record_path()`) and
+  user-provisioning templates (`generate_vm_account_template()` — additive
+  to `spawn_iac_generator.py::generate_cloudinit_user_data()`'s exact
+  Cloud-Init account-block shape; `generate_proxmox_account_commands()` —
+  templated `pveum user add`/`aclmod`/`user token add` sequences with
+  role-tiered PVE roles). Authorization-model/revocation=rotate+reissue
+  documented as design statements (true by construction), not enforcement
+  machinery. Generated passphrases shown once at CLI runtime only, never
+  persisted (test-confirmed absent from JSON/HTML). Ran end-to-end against
+  the real registries (`service-operator` → 9/11 entries, `pve01-*`
+  denylisted). 40 new tests; full suite 4292 passed, 1 skipped (same 4
+  pre-existing `test_opentofu.py` failures). FEATURE-HISTORY updated;
+  commit pending alongside this PAP-state update.
+
+  **Remaining in the operator's given order**: (5) **Phase 1.J** (AD-060,
+  Hypervisor Recovery Constrained Accounts + Pre-Generated Spawn Media —
+  the final phase; must respect the **firm AD-060 constraint**: no
+  autonomous pathway may read/wield full root against live hypervisors;
+  only node-spawn and phoenix-setup temporary credentials are exempted,
+  time-limited, operator-rotation-required afterward). After it: update
+  FEATURE-HISTORY + HTML twin and PAP-state (this file, SESSION_HANDOFF,
+  CURRENT_STATE), run full suite, commit, push — then report a summary of
+  everything implemented this milestone (per the operator's closing
+  instruction: "report a summary of what was implemented and committed").
 
   No open audit finding remains that requires action (F1/F2/F3/the
   Recovery-Readiness open-thread all closed and committed; F4 is an

@@ -13,6 +13,7 @@ Provides:
   build_phoenix_manifest_html(playbook) → str
   build_bootstrap_image_manifest_html(manifest, image_manifest) → str
   build_recovery_readiness_certificate_html(certificate) → str
+  build_scoped_vault_plan_html(plan_dict) → str
 
 All outputs are self-contained HTML files using broodforge's standard dark theme.
 They include: what's inside the package, what each component does, key settings,
@@ -796,6 +797,130 @@ def build_recovery_readiness_certificate_html(certificate: dict, now_fn=None) ->
         title=f"Recovery-Readiness Certificate — {cell_id}",
         cell_id=cell_id,
         subtitle=f"Recovery-Readiness Conformance Certificate · {cell_id} · {overall}",
+        body=body,
+        gen_at=gen_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Scoped vault plan HTML (Phase 1.K, AD-061)
+# ---------------------------------------------------------------------------
+
+def build_scoped_vault_plan_html(plan_dict: dict, now_fn=None) -> str:
+    """
+    Build a human-readable HTML twin for scoped-vault-plan-{role}-{timestamp}.json
+    (Phase 1.K, AD-061 — AD-051 manifest/HTML-twin pattern).
+
+    plan_dict: dict produced by _vault_hierarchy.plan_to_dict(plan, include_passphrase=False)
+               — the passphrase is NEVER embedded in this artifact (shown-once,
+               operator-recorded-only, mirroring _image_builder.py's install
+               passphrase handling).
+
+    Explains: what a derived vault is and is not (a smaller .kdbx with its own
+    passphrase, NOT a broker/ACL system — see AD-061), which canonical entries
+    are in scope and why (the role's glob-pattern scope), the vault-of-vaults
+    recordkeeping path where the (never-embedded) passphrase belongs, and the
+    authorization-model / revocation-is-rotate-and-reissue design statements
+    AD-061 frames as properties documented by construction, not enforced by
+    new machinery.
+    """
+    gen_at = (now_fn() if now_fn else plan_dict.get("generated_at")
+              or datetime.now(timezone.utc).isoformat())
+    role = plan_dict.get("role") or "unknown-role"
+    tier = plan_dict.get("tier") or "unknown-tier"
+
+    body = ""
+
+    body += "<h2>Derived Vault Identity</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="tip">A <b>derived vault</b> is a smaller, independent .kdbx file ' \
+            'containing only an in-scope subset of the canonical vault\'s secrets, with its ' \
+            'own freshly-generated passphrase — "more vaults derived from the one vault," ' \
+            'not a broker or per-user ACL layer bolted onto KeePass (which would require a ' \
+            'network-dependent identity service broodforge deliberately avoids — AD-061, ' \
+            'AD-042). broodforge does not open or write live .kdbx files: this plan is data ' \
+            'plus the keepassxc-cli command sequence an operator runs to build it.</div>'
+    body += _kv([
+        ("Role",              role),
+        ("Tier",              tier),
+        ("Description",       plan_dict.get("description")),
+        ("Generated",         (gen_at or "")[:19]),
+        ("Schema version",    plan_dict.get("schema_version")),
+        ("Derived vault path", plan_dict.get("db_path")),
+        ("Parent vault path", plan_dict.get("parent_db_path")),
+        ("Holders",           ", ".join(plan_dict.get("holders") or []) or "(none declared)"),
+    ])
+    body += "</div>"
+
+    body += "<h2>Scope Match</h2>"
+    body += '<div class="section-wrap">'
+    body += _kv([
+        ("Canonical entries considered", plan_dict.get("total_registry_count")),
+        ("In-scope entries",             plan_dict.get("entry_count")),
+        ("Excluded by scope/excludes",   plan_dict.get("excluded_count")),
+    ])
+    entries = plan_dict.get("entries") or []
+    if entries:
+        rows = [[e.get("id"), e.get("keepass_path"), e.get("secret_type"), e.get("description")]
+                for e in entries]
+        body += _table(["ID", "KeePass path", "Type", "Description"], rows)
+    body += "</div>"
+
+    body += "<h2>Vault-of-Vaults Recordkeeping</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="warn"><b>The generated passphrase is shown ONCE, at plan-generation ' \
+            'time, and is never written to this artifact or to disk by broodforge.</b> ' \
+            'Record it in the <i>parent</i> (next tier up — ultimately the canonical god-mode) ' \
+            'vault at the path below, generalising the AD-044 per-backup unique-secret ' \
+            'bookkeeping convention (<code>Backup/{layer}/{component}/{timestamp}/repo-password</code> ' \
+            '→ <code>Vaults/{role}/{timestamp}/passphrase</code>). This is what makes it a ' \
+            '"vault of vaults": a higher-tier holder can always recover any scoped vault\'s ' \
+            'passphrase from their own vault.</div>'
+    body += _kv([
+        ("Parent-vault record path", plan_dict.get("parent_record_path")),
+        ("Passphrase source",        plan_dict.get("passphrase_source")),
+    ])
+    body += "</div>"
+
+    body += "<h2>Authorization Model (documented by construction)</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="tip">Only someone who can already read <code>secret-registry.yaml</code> ' \
+            'and open the canonical vault in full could produce this plan — the same trust ' \
+            'boundary as running <code>forge-planner.py</code>/<code>spawn-planner.py</code> today. ' \
+            '<b>"You can only derive a scope you can already see in its entirety"</b> is true by ' \
+            'construction; AD-061 deliberately does not introduce a separate permission-check ' \
+            'system, because there is nothing left to check.</div>'
+    body += "</div>"
+
+    body += "<h2>Revocation = Rotate + Reissue (an honest non-guarantee)</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="warn">A derived vault has no live link back to the canonical vault and ' \
+            '<b>cannot be remotely revoked.</b> A lost, stale, or compromised scoped vault is ' \
+            'neutralized by rotating every secret it contains (per each entry\'s ' \
+            '<code>rotation_schedule</code>, generalising AD-044) and reissuing a fresh ' \
+            'derivative with a fresh passphrase — not by an in-database access-list edit. ' \
+            'Static derived vaults cannot support instant kick-out; that is a property of the ' \
+            'offline-first model, not a flaw specific to this design — and arguably a ' \
+            '<i>stronger</i> property than a layered ACL: a derived vault literally cannot leak ' \
+            'ciphertext it never received.</div>'
+    body += "</div>"
+
+    body += "<h2>User-Provisioning Templates</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="operator-task">VM-level accounts: an additive Cloud-Init account block ' \
+            f'(<code>{_e(role)}</code>, tier <code>{_e(tier)}</code>) referencing this scoped ' \
+            'vault for SSH-key lookup — generated alongside the existing <code>initial_user</code> ' \
+            'account in <code>spawn_iac_generator.py::generate_cloudinit_user_data()</code>, not ' \
+            'as a parallel system. Proxmox-level accounts: templated ' \
+            '<code>pveum user add</code>/<code>pveum aclmod</code>/<code>pveum user token add</code> ' \
+            'command sequences for an operator to run — broodforge has no live-Proxmox-API-' \
+            'mutation code path, and does not add one here.</div>'
+    body += "</div>"
+
+    return _page(
+        title=f"Derived Vault Plan — {role}",
+        cell_id=role,
+        subtitle=f"Scoped Vault Plan · role: {role} · tier: {tier}",
         body=body,
         gen_at=gen_at,
     )

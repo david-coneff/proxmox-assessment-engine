@@ -169,3 +169,28 @@ exactly as AD-059 scopes it.
 > Full suite: **4252 passed, 1 skipped** (same 4 pre-existing unrelated
 > `test_opentofu.py` failures, confirmed unchanged from clean `main`). New
 > tests: 56 (44 + 12).
+
+---
+
+**Cycle: 2026-06-08_20_15_00 UTC**
+
+## Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User Provisioning (AD-061) implemented
+
+Third of the four scoped phases the operator directed be implemented in
+order. Built as a "more vaults derived from the one vault" design — no
+broker, no ACL layer, no live KDBX manipulation — exactly as AD-061 scopes
+it (the constraint: `.kdbx` files are single-master-password with no native
+per-user role layer).
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| `role-scope-registry.yaml` — new authoritative per-cell YAML (mirrors `secret-registry.yaml`'s documented-header style, placed alongside it rather than adding a disproportionate `data-model/` JSON-Schema pair for a 3-entry registry) declaring named roles (`service-operator`/`node-sysadmin`/`god-mode`), glob-pattern scopes over `secret-registry.yaml`'s existing `owning_cell`/`required_by`/`secret_type`/`required_for` vocabulary (with an `excludes` denylist facet), and which humans hold each role | USER-REQUESTED (Roadmap Phase 1.K checklist item 1, AD-061) | Implemented | unit (`test_vault_hierarchy.py`: registry-loading + scope-matching classes) |
+| `_vault_hierarchy.py` + `derive-scoped-vault.py` — `derive-scoped-vault` generator: matches `secret-registry.yaml` entries against a role's scope globs (stdlib `fnmatch`), composes a derived-vault *plan* (in-scope entries, a freshly-generated passphrase via `lib/passphrase.py::generate_master_password_suggestion()`, the AD-044-style KeePass record path `Vaults/{role}/{timestamp}/passphrase` for the parent-vault bookkeeping entry, and the `keepassxc-cli` command sequence an operator runs to actually build it) + AD-051 HTML twin (`build_scoped_vault_plan_html`) | USER-REQUESTED (Roadmap Phase 1.K checklist item 2, AD-061) | Implemented | unit + smoke (ran against the real registries — `service-operator` → 9/11 entries with `pve01-*` denylisted; passphrase confirmed absent from persisted JSON/HTML, shown once at CLI runtime only) |
+| **No live KDBX manipulation, confirmed by design-pattern match**: verified no module in broodforge opens/writes binary `.kdbx` files or shells out to live Proxmox/KeePass APIs — `forge_keepass_init.py`/`setup-secrets.py` both *generate command strings* for an operator to run. `_vault_hierarchy.py` follows that exact pattern (`render_derive_vault_commands()` mirrors `render_init_commands()`); the `god-mode` tier is refused outright (`build_derived_vault_plan` raises `ValueError`) since deriving "everything" from "everything" under a weaker fresh passphrase would only produce a strictly-worse duplicate of the canonical vault | GAP-FILL (closes the "how does this actually get built without a live KDBX-manipulation layer" question AD-061 leaves implicit) | Implemented | unit (`test_no_live_kdbx_manipulation`-equivalent assertions; god-mode-refusal test) |
+| Vault-of-vaults recordkeeping (operator-directed AD-061 expansion) — each derived vault's generated passphrase is recorded as a `KeePassEntry`-shaped bookkeeping record at a generated, AD-044-pattern path in the *next tier up*'s vault, so a higher-tier holder can always recover a lower-tier scoped vault's passphrase | USER-REQUESTED (Roadmap Phase 1.K checklist item 3, AD-061 expansion 1) | Implemented | unit (`vault_record_path()` path-construction tests) |
+| User-provisioning templates (operator-directed AD-061 expansion) — `generate_vm_account_template()` produces an additive Cloud-Init account block in the exact shape `spawn_iac_generator.py::generate_cloudinit_user_data()` already emits (for splicing into its `users:` list — not a parallel system); `generate_proxmox_account_commands()` produces templated `pveum user add`/`aclmod`/`user token add` command sequences with role-tiered PVE roles (`PVEVMUser`/`PVEAdmin`/`Administrator`) | USER-REQUESTED (Roadmap Phase 1.K checklist item 4, AD-061 expansion 2) | Implemented | unit (cloud-init account-block shape + pveum command-sequence tests) |
+| Authorization model ("only canonical-vault holders can mint scoped vaults — true by construction") and Revocation-as-rotate+reissue ("an honest non-guarantee — a derived vault cannot leak ciphertext it never received") documented as design statements (not enforcement machinery — there is nothing to check that isn't already true by construction) in the registry header, `describe_vault_plan()`'s human-readable output, and dedicated HTML sections | USER-REQUESTED (Roadmap Phase 1.K checklist items 5–6, AD-061) | Implemented | static (no permission-check system built — confirmed proportionate to scope) |
+
+> Full suite: **4292 passed, 1 skipped** (same 4 pre-existing unrelated
+> `test_opentofu.py` failures, confirmed unchanged from clean `main`). New
+> tests: 40 (`test_vault_hierarchy.py`).
