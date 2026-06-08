@@ -45,19 +45,42 @@ behavior, not its development process, and is out of scope for this artifact
   for a future session, not mandates — the three draft sketches additionally
   await operator reaction before any can become a candidate phase.
 
-- **active_milestone**: Post-Phase-26, pre-hardware-deployment, post-`new/`-
-  analysis, **mid-draft-sketch-thread** (three sketches now written —
-  Recovery-Readiness Conformance, Hypervisor Recovery Credentials, Granular
-  Secret Access Silos — all awaiting operator reaction). A
-  doc-self-consistency gap the operator spotted by inspection (`ROADMAP.html`
-  / `docs/ARCHITECTURE.html` stale relative to their `.md` sources, by up to
-  five days) was also closed this session via a new drift-detection test,
-  `tests/unit/test_meta_doc_sync.py`. The intelligence/development side of
-  the project is feature-complete per its own governance corpus; the next
-  milestone named in that corpus is an *operational* one (a real hardware
-  run), not a development one — though `ROADMAP.md` now also names one
-  *proposed* development item (Phase 1.H) and three *draft* items (the
-  sketches above) for whenever the operator chooses to engage with them.
+- **active_milestone**: (Updated — fifth milestone, same session.) The
+  operator reacted to the "Hypervisor Recovery Credentials" sketch
+  (endorsing its constrained-recovery-account "middle path") and, in the
+  same message, issued two further direct instructions, both now closed:
+  (1) **AD-058** — second-factor auth (TOTP-authenticator or YubiKey only,
+  *never* SMS/email) is now the **default**, not opt-in, for the KeePass
+  unlock gate (`KeePassInitConfig.mfa_method` / `--mfa` flipped `"none"` →
+  `"totp"`; the mechanism — `keepass_mfa.py` — already existed, fully
+  tested, and already excluded SMS/email by design; only the *default* and
+  documentation needed to change); one gap is named and deliberately left
+  open — `guided_setup.py`/`forge_planner.py` don't yet prompt for MFA
+  interactively. (2) `ROADMAP.html` (and, finding similar drift,
+  `docs/FEATURE-HISTORY.html`) **regenerated** via
+  `md_to_html.py --collapsible` — satisfying the operator's "revise the
+  roadmap to use collapsible sections, it's quite lengthy" request *and*
+  closing a content-drift gap worse than the one the prior milestone's new
+  `test_meta_doc_sync.py` checks for (that test compares date stamps only;
+  the hand-synced `ROADMAP.html` was actually missing entire `<h3>`
+  sections that exist in `ROADMAP.md` — true regeneration fixes content
+  drift, not just stamp drift). Both changes, plus AD-058's stamp-sync
+  follow-through in `ARCHITECTURE.md`/`docs/ARCHITECTURE.html`, are recorded
+  in a new dated cycle in `docs/FEATURE-HISTORY.md`
+  (`2026-06-08_04_54_51 UTC`). All tests green
+  (`test_meta_doc_sync.py`, `test_html_base_sync.py`, and the
+  `keepass or mfa or forge_init or secrets or meta_doc or html_base or
+  roadmap or feature_history` sweep — 156 passed). The three draft sketches
+  from the fourth milestone (Recovery-Readiness Conformance, Hypervisor
+  Recovery Credentials, Granular Secret Access Silos) remain in
+  `ROADMAP.md` "Proposed Future Work," still awaiting promotion to
+  phase/AD status. The intelligence/development side of the project remains
+  feature-complete per its own governance corpus; the next milestone named
+  in that corpus is an *operational* one (a real hardware run), not a
+  development one — though `ROADMAP.md` now also names one *proposed*
+  development item (Phase 1.H), three *draft* items (the sketches above),
+  and one newly-named *gap* (AD-058's guided-setup MFA prompt) for whenever
+  the operator chooses to engage with any of them.
 
 - **active_risks**:
   - **(Updated 2026-06-07, second milestone — F1 and F2 now CLOSED):** The
@@ -130,42 +153,47 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — three draft sketches now written;
-  awaiting operator reaction; this supersedes earlier framing for the
-  *draft-sketch* thread.)** `ROADMAP.md` "Proposed Future Work" now holds
+- **next_action**: **(Updated — fifth milestone: AD-058 + collapsible
+  roadmap done; commit/push is the remaining mechanical step.)** Two direct
+  operator instructions from this milestone are fully implemented, tested,
+  and documented — **AD-058** (second-factor auth, app/hardware-only,
+  defaults on for the KeePass unlock gate) and the **collapsible-roadmap
+  regeneration** (`ROADMAP.html` + `docs/FEATURE-HISTORY.html` regenerated
+  via `md_to_html.py --collapsible`, also closing a *content*-drift gap
+  `test_meta_doc_sync.py` couldn't see — it only checks date stamps). Both
+  are recorded in `docs/FEATURE-HISTORY.md`'s newest cycle
+  (`2026-06-08_04_54_51 UTC`) and `SESSION_HANDOFF.md`'s
+  `last_completed_step`. **Commit and push** this milestone's files (see
+  `SESSION_HANDOFF.md`'s `next_action` for the full list) — the one
+  concrete mechanical step remaining, if it has not already happened by the
+  time you are reading this. One real, **not-yet-actioned gap** is named in
+  AD-058 and worth surfacing if the operator asks "what's left": MFA
+  selection is still CLI-flag-only — wiring an interactive prompt into
+  `guided_setup.py`/`forge_planner.py` (so the new `"totp"` default is
+  *seen and confirmed*, not silently inherited) is a scoped, Phase-1.H-style
+  candidate. Beyond that: `ROADMAP.md` "Proposed Future Work" still holds
   three sketches — Recovery-Readiness Conformance, Hypervisor Recovery
-  Credentials, and Granular Secret Access Silos for Human Operators — each
-  written because the operator asked a specific question and invited a
-  draft/evaluation. The correct next move for all three is the same: **let
-  the operator react**, not pre-emptively promote any of them to a phase or
-  an AD. If the operator confirms a direction on one (e.g., "scope the
-  certificate idea," "build the constrained recovery accounts," "the silo
-  idea is worth keeping on the roadmap for later"), write *that one* up the
-  same way Phase 1.H was (scoped roadmap entry + AD in `ARCHITECTURE.md` +
+  Credentials (its constrained-account "middle path" was *endorsed* this
+  milestone, but the sketch itself is not yet promoted to phase/AD), and
+  Granular Secret Access Silos for Human Operators — each written because
+  the operator asked a specific question and invited a draft/evaluation.
+  The correct next move for all three remains the same: **let the operator
+  react**, not pre-emptively promote any of them to a phase or an AD. If
+  the operator confirms a direction on one (e.g., "scope the certificate
+  idea," "build the constrained recovery accounts," "the silo idea is worth
+  keeping on the roadmap for later"), write *that one* up the same way
+  Phase 1.H was (scoped roadmap entry + AD in `ARCHITECTURE.md` +
   `.ai/decisions.md`) — without touching the others. If the operator
   redirects or narrows any sketch, edit it in place rather than starting a
-  parallel one. Separately — and already done, not a pending action — a
-  **doc-self-consistency gap** the operator spotted by inspection
-  (`ROADMAP.html` / `docs/ARCHITECTURE.html` stale by up to five days
-  relative to their `.md` sources, plus `ARCHITECTURE.md`'s own header
-  stale relative to its body) was closed via a new test,
-  `tests/unit/test_meta_doc_sync.py`, which now keeps this honest going
-  forward — a resuming agent does not need to re-check this by hand; trust
-  the test. Beyond that thread: for whoever picks up broodforge's
-  *codebase-development* thread generally (as distinct from its
-  *operational* deployment thread, which `FORGING.md` already governs) —
-  there is no other mandatory development action, and no open audit finding
-  remains that requires one (F1/F2/F3 closed, committed; F4 is an observation
-  requiring no action). **Phase 1.H, Pre-Install Forge Package and Image
-  Builder** also remains a **proposed** (not mandatory) candidate. A
-  resuming agent should: (a) wait for/follow new operator direction (which
-  may be reaction to the draft sketch, "start Phase 1.H," "deploy to
-  hardware," or something else entirely), or (b) — only if asked to find
-  something to do — offer the draft sketch's open question, Phase 1.H, or
-  the platform's own named *operational* next step, "deploy to hardware"
-  (see `active_objective`, above, and `FORGING.md`).
-  ~~triage the three open audit findings above (F1–F3)~~ — superseded: all
-  three are closed.
+  parallel one. Beyond all of the above: there is no other mandatory
+  development action, and no open audit finding remains that requires one
+  (F1/F2/F3 closed, committed; F4 is an observation requiring no action).
+  **Phase 1.H, Pre-Install Forge Package and Image Builder** also remains a
+  **proposed** (not mandatory) candidate. A resuming agent should: (a) wait
+  for/follow new operator direction, or (b) — only if asked to find
+  something to do — offer the AD-058 guided-setup gap, a draft sketch,
+  Phase 1.H, or the platform's own named *operational* next step, "deploy
+  to hardware" (see `active_objective`, above, and `FORGING.md`).
 
 ---
 

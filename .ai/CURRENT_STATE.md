@@ -97,6 +97,41 @@ run (as intended), the drift was fixed, and it now passes — broodforge's own
 internal trigger for keeping its self-documentation honest, mirroring
 `doc-gen/drift.py`'s role for the infrastructure it manages.
 
+**Two more direct operator instructions landed the same session (2026-06-08
+UTC), both now fully implemented and tested — see `docs/FEATURE-HISTORY.md`'s
+newest cycle (`2026-06-08_04_54_51 UTC`) and `pap/state/SESSION_HANDOFF.md`'s
+`last_completed_step` for the full record:**
+
+- **AD-058 — second-factor auth is now the *default*, not opt-in, for the
+  KeePass unlock gate.** Operator instruction: "for high level functions of
+  any kind, we should be requiring 2nd factor authentication as a default,
+  not just a password — the 2nd factor method should be limited to
+  TOTP-authenticator or yubikey, not SMS based TOTP or email-based TOTP
+  since this have greater vulnerability to being hacked." broodforge
+  *already had* a complete, tested MFA mechanism matching this exactly
+  (`proxmox-bootstrap/keepass_mfa.py` — RFC 6238 TOTP + YubiKey
+  HMAC-SHA1, 49 tests) — it just defaulted to off. Flipped
+  `KeePassInitConfig.mfa_method` / `--mfa` default `"none"` → `"totp"`,
+  updated the pinned test, and added **AD-058** to `ARCHITECTURE.md`
+  recording the policy (and explicitly, permanently, ruling out SMS/email
+  OTP — never to be added as a choice). **Gap named, not yet closed**:
+  `guided_setup.py`/`forge_planner.py` still don't prompt for MFA
+  interactively — the new default is inherited silently, not seen and
+  confirmed. That's a scoped follow-up candidate for a future session.
+- **`ROADMAP.html` (and `docs/FEATURE-HISTORY.html`) regenerated with
+  collapsible sections.** Operator instruction: "broodforge's roadmap
+  should be revised to use collapsible sections, it's quite lengthy at this
+  point" (2459 lines). Used the existing, already-proven
+  `proxmox-bootstrap/md_to_html.py --collapsible` (the same generator
+  behind `FEATURE-HISTORY.html`) rather than hand-editing — which also
+  surfaced and fixed a *worse* doc-drift problem than the stamp-only
+  `test_meta_doc_sync.py` can detect: the hand-synced `ROADMAP.html` was
+  missing entire `<h3>` sections present in `ROADMAP.md` (the three draft
+  sketches above existed in the `.md` but not its HTML twin). True
+  regeneration guarantees full content sync, not just stamp sync.
+  `docs/ARCHITECTURE.html` was checked and confirmed to be a *different*,
+  hand-authored doc (no generator marker) — left untouched.
+
 ## Completed Milestones
 
 | Phase | Description | Status |

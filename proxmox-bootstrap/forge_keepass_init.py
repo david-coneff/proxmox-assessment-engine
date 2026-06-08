@@ -133,8 +133,15 @@ class KeePassInitConfig:
     # Whether to include WAN-specific entries (Cloudflare, DuckDNS, Headscale)
     include_wan_entries:    bool = False
 
-    # MFA configuration (TOTP or YubiKey — provisioned during forge)
-    mfa_method:             str = "none"     # "none" | "totp" | "yubikey"
+    # MFA configuration (TOTP or YubiKey — provisioned during forge).
+    # Defaults to "totp" (app-based, no extra hardware to source) per operator
+    # decision: high-level functions require a second factor by default — a
+    # password-only KeePass unlock gate is no longer the baseline. SMS- and
+    # email-based OTP are deliberately not offered as choices anywhere in this
+    # module; both are weaker factors (SIM-swap / mailbox-compromise exposure)
+    # than an authenticator app or a hardware key. "none" remains selectable
+    # for operators who explicitly choose to opt out.
+    mfa_method:             str = "totp"     # "none" | "totp" | "yubikey"
 
 
 # ---------------------------------------------------------------------------
@@ -332,7 +339,11 @@ if __name__ == "__main__":
     ap.add_argument("--plan",        action="store_true", help="Print init plan without executing")
     ap.add_argument("--include-wan", action="store_true", help="Include WAN-specific KeePass entries")
     ap.add_argument("--embed",       action="store_true", help="Mark database as embedded in packages")
-    ap.add_argument("--mfa",         default="none", choices=["none", "totp", "yubikey"])
+    ap.add_argument("--mfa",         default="totp", choices=["none", "totp", "yubikey"],
+                    help="Second factor for the KeePass unlock gate (default: totp — "
+                         "an authenticator app; 'yubikey' for a hardware key; 'none' "
+                         "to explicitly opt out of the default. SMS/email OTP are not "
+                         "offered — both are weaker factors than an app or hardware key.")
     args = ap.parse_args()
 
     with open(args.manifest) as f:

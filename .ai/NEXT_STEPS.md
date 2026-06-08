@@ -2,6 +2,24 @@
 
 All planned phases are complete.
 
+## Implemented this session (2026-06-08 UTC) — operator-directed, see AD-058
+
+- **Second-factor authentication is now the default for the KeePass unlock
+  gate** (was opt-in/off). Per direct operator instruction, `keepass_mfa.py`
+  (already implemented: RFC 6238 TOTP + YubiKey HMAC-SHA1, 49 tests, never
+  offered SMS/email OTP) is now reached by default —
+  `KeePassInitConfig.mfa_method` / `forge_keepass_init.py --mfa` flipped
+  `"none"` → `"totp"`. See `ARCHITECTURE.md` AD-058 for the full record,
+  including the **named, not-yet-closed gap**: `guided_setup.py`/
+  `forge_planner.py` don't yet prompt for MFA interactively (candidate for
+  a future scoped item, much like Phase 1.H).
+- **`ROADMAP.html` and `docs/FEATURE-HISTORY.html` regenerated with
+  collapsible (`<details>`/`<summary>`) sections** via the existing
+  `proxmox-bootstrap/md_to_html.py --collapsible`, per direct operator
+  request ("the roadmap... is quite lengthy"). Regeneration also closed a
+  content-drift gap (missing `<h3>` sections) that the stamp-only
+  `test_meta_doc_sync.py` could not detect.
+
 ## Proposed (scoped, not started)
 
 - **Phase 1.H — Pre-Install Forge Package and Image Builder** — surfaced by
@@ -34,8 +52,12 @@ All planned phases are complete.
   break-glass behind the *existing* human-unlock gate (AD-042) — no new
   autonomous pathway, (3) pre-generated spawn-media credentials with
   human-gated joining (the operator's own proposed safeguard, and cheap to
-  build). See `ROADMAP.md` "Proposed Future Work → DRAFT SKETCH — Hypervisor
-  Recovery Credentials."
+  build). **Operator endorsed this "middle path" (2026-06-08 UTC: "the
+  middle path you suggest ... seems like the reasonable approach rather
+  than storing root permanently in keepass")** — confirmation recorded;
+  the sketch itself is not yet promoted to a scoped phase/AD (would need a
+  follow-up "go ahead and scope this" to do so). See `ROADMAP.md` "Proposed
+  Future Work → DRAFT SKETCH — Hypervisor Recovery Credentials."
 - **Granular Secret Access Silos for Human Operators** — operator asked
   whether tiered, hierarchically-scoped human access to secrets is feasible
   (service operator vs. "god-mode" sysadmin; scoped to a cell/node/VM).

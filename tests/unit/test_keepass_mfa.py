@@ -304,8 +304,12 @@ class TestKeepassGateWithMfaSh:
 
 class TestForgeKeepassInitMfa:
     def test_mfa_method_field_default(self):
+        # Default is "totp", not "none" — operator decision: high-level
+        # functions require a second factor by default (app-based TOTP or a
+        # hardware key; SMS/email OTP are deliberately never offered as
+        # weaker factors). "none" remains selectable as an explicit opt-out.
         cfg = _ki.KeePassInitConfig()
-        assert cfg.mfa_method == "none"
+        assert cfg.mfa_method == "totp"
 
     def test_mfa_entries_in_initial_list(self):
         paths = {e.path for e in _ki.KEEPASS_INITIAL_ENTRIES}

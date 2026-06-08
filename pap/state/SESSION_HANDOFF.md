@@ -268,12 +268,87 @@ of what this transition exists to make durable.
         the very update this protocol's `update_trigger` calls for at every
         major milestone (you are reading the result of that update now).
 
-- **last_completed_step**: (Updated — fourth milestone, same session.)
-  Following direct operator instruction ("proceed with any autonomous
-  roadmap/architecture work that you can that doesn't require my decisions,
-  with the occasional session-handoff commit"), extended the draft-sketch
-  thread with two more sketches and closed a doc-drift gap the operator
-  spotted by inspection:
+- **last_completed_step**: (Updated — fifth milestone, same session.)
+  The operator reacted to the "Hypervisor Recovery Credentials" sketch and,
+  in the same message, issued two further direct instructions — both acted
+  on immediately as "autonomous work that doesn't require operator
+  decisions" once their shape was clear:
+  1. **Endorsed** the constrained-recovery-account "middle path" from that
+     sketch ("the middle path you suggest ... seems like the reasonable
+     approach rather than storing root permanently in keepass") — recorded
+     as confirmation; no further action required on that sketch itself.
+  2. **New security-policy directive**: "for high level functions of any
+     kind, we should be requiring 2nd factor authentication as a default,
+     not just a password — the 2nd factor method should be limited to
+     TOTP-authenticator or yubikey, not SMS based TOTP or email-based TOTP
+     since this have greater vulnerability to being hacked." Investigation
+     found broodforge **already has** a fully-implemented, fully-tested MFA
+     mechanism (`proxmox-bootstrap/keepass_mfa.py` — TOTP per RFC 6238 +
+     YubiKey HMAC-SHA1 challenge-response, 49 passing tests) that exactly
+     matches this requirement (app/hardware-based, never SMS/email) — the
+     gap was only that it **defaulted to off** (`mfa_method = "none"`) and
+     was reachable solely via an undocumented `--mfa` CLI flag, with no
+     guided-setup prompt surfacing the choice. Closed that gap with a
+     minimal, additive default-flip (no new mechanism):
+     - `KeePassInitConfig.mfa_method` default `"none"` → `"totp"`
+       (`proxmox-bootstrap/forge_keepass_init.py`)
+     - `--mfa` CLI flag default `"none"` → `"totp"`, with help text
+       documenting *why* SMS/email are never offered as choices
+     - `tests/unit/test_keepass_mfa.py::test_mfa_method_field_default`
+       updated to assert the new default (was pinned to `"none"`)
+     - **AD-058** added to `ARCHITECTURE.md`, recording the policy change,
+       quoting the operator's instruction verbatim, explicitly stating the
+       SMS/email exclusion as deliberate permanent design (not an oversight
+       to revisit), and naming the one **gap noted, not yet closed**: MFA
+       selection is still CLI-flag-only — `guided_setup.py`/`forge_planner.py`
+       do not yet prompt for it interactively, so the new default is
+       *inherited silently* rather than *seen and confirmed* — recorded as
+       a proposed follow-up for a future session, not actioned now.
+     Verified scope of the change with a codebase-wide grep for
+     `mfa_method`/`--mfa` (confined to exactly the three files touched) and
+     a broader sweep (`-k "keepass or mfa or forge_init or secrets"` — 152
+     passed).
+  3. **New formatting request**: "broodforge's roadmap should be revised to
+     use collapsible sections, it's quite lengthy at this point" (confirmed:
+     2459 lines). Found the exact tool already exists and is already proven
+     elsewhere — `proxmox-bootstrap/md_to_html.py --collapsible` (wraps each
+     `##` section in `<details>`/`<summary>`), already used to generate
+     `docs/FEATURE-HISTORY.html`. Regenerated `ROADMAP.html` with it
+     (`md_to_html.py ROADMAP.md ROADMAP.html --collapsible`) rather than
+     hand-adding `<details>` blocks — both because it is the established
+     pattern (consistent styling/toolbar/theme-toggle with
+     `FEATURE-HISTORY.html`) and because **doing so closed a second, worse
+     doc-drift gap than the one `test_meta_doc_sync.py` (added last
+     milestone) checks for**: that test only compares date *stamps* — it
+     turned out the prior hand-synced `ROADMAP.html` was missing entire
+     `<h3>` sections (the three draft sketches existed in `ROADMAP.md` but
+     not in its HTML twin), a content gap the stamp-only test cannot see.
+     True regeneration guarantees content sync, not just stamp sync — a
+     stronger remedy than the test alone for any doc that has a generator.
+     (The same regeneration was applied to `docs/FEATURE-HISTORY.md` →
+     `.html`, which had drifted similarly after this session's own edits to
+     it — both now byte-faithful to their `.md` sources.) `docs/
+     ARCHITECTURE.html` was checked and found to be a *different*,
+     hand-authored document (no `doc-meta`/generator marker) — left as-is,
+     not a candidate for this treatment. AD-058 was also folded into both
+     `ARCHITECTURE.md`'s and `docs/ARCHITECTURE.html`'s "Updated:" stamps
+     (previously named only AD-057), keeping `test_meta_doc_sync.py`
+     semantically honest. Recorded all of the above — the MFA-default flip
+     and the collapsible-roadmap regeneration — as a new dated cycle in
+     `docs/FEATURE-HISTORY.md` (USER-REQUESTED, `unit`/`smoke`/`static`
+     verification depths), per the operator's standing
+     `feature_revision_process` convention.
+  Verified: `tests/unit/test_meta_doc_sync.py` (2 passed),
+  `test_html_base_sync.py` (paired, 4 passed together), and the broader
+  `keepass or mfa or forge_init or secrets or meta_doc or html_base or
+  roadmap or feature_history` sweep (156 passed) all green after every
+  change in this milestone.
+
+  **Before this (fourth milestone, same session):** Following direct
+  operator instruction ("proceed with any autonomous roadmap/architecture
+  work that you can that doesn't require my decisions, with the occasional
+  session-handoff commit"), extended the draft-sketch thread with two more
+  sketches and closed a doc-drift gap the operator spotted by inspection:
   - Added **DRAFT SKETCH — Hypervisor Recovery Credentials**: the operator's
     requested "thorough evaluation" of permanently storing Proxmox root
     passwords in KeePass, written up as a recommendation *against* an
@@ -335,28 +410,40 @@ of what this transition exists to make durable.
   before that, the F1/F2 resolution milestone (`b0a05ce`) and the continuity
   transition itself (`6f0e9c8`) — see the earlier milestone-checklist blocks.
 
-- **next_action**: **Wait for operator reaction to the three draft
-  sketches** now in `ROADMAP.md` "Proposed Future Work" (Recovery-Readiness
-  Conformance, Hypervisor Recovery Credentials, Granular Secret Access
-  Silos) — all written *as drafts for discussion* per explicit operator
-  request, all deliberately stopped short of numbered-phase/AD status. If
-  the operator confirms a direction on any of them, write that one up the
-  same way Phase 1.H was — scoped roadmap entry plus an AD in
-  `ARCHITECTURE.md` and `.ai/decisions.md` — without pre-emptively promoting
-  the others. If the operator redirects or narrows any sketch, revise it in
-  place rather than starting a parallel one. **Commit and push** this
-  milestone's changes (`ROADMAP.md`, `ROADMAP.html`, `ARCHITECTURE.md`,
-  `docs/ARCHITECTURE.html`, `tests/unit/test_meta_doc_sync.py`,
-  `.ai/CURRENT_STATE.md`, `.ai/NEXT_STEPS.md`, this file, and
-  `RESUME_BLOCK.md`) — the one concrete mechanical step remaining, if it has
-  not already happened by the time you are reading this. Beyond the
-  draft-sketch thread: **Phase 1.H (Pre-Install Forge Package and Image
-  Builder)** also remains **proposed, not started** — a candidate for a
-  future session, not a mandate. A resuming agent should either (a) wait
+- **next_action**: **(Updated — fifth milestone.)** The MFA-default-policy
+  change (AD-058) and the collapsible-roadmap regeneration are both
+  implemented, tested, and documented (`docs/FEATURE-HISTORY.md` cycle
+  `2026-06-08_04_54_51 UTC`); **commit and push** is the one concrete
+  mechanical step remaining for this milestone's files (`ROADMAP.html`,
+  `docs/FEATURE-HISTORY.html`, `ARCHITECTURE.md`, `docs/ARCHITECTURE.html`,
+  `proxmox-bootstrap/forge_keepass_init.py`, `tests/unit/test_keepass_mfa.py`,
+  `docs/FEATURE-HISTORY.md`, this file, and `RESUME_BLOCK.md` — plus the
+  fourth milestone's still-pending files if not already pushed:
+  `ROADMAP.md`, `tests/unit/test_meta_doc_sync.py`, `.ai/CURRENT_STATE.md`,
+  `.ai/NEXT_STEPS.md`), per the operator's standing `feature_revision_process`
+  / "push on commit" preferences — if it has not already happened by the
+  time you are reading this. Beyond that: **wait for operator reaction to
+  the three draft sketches** still in `ROADMAP.md` "Proposed Future Work"
+  (Recovery-Readiness Conformance, Hypervisor Recovery Credentials —
+  endorsed in principle but not yet promoted to a phase/AD, Granular Secret
+  Access Silos) — all still *drafts for discussion*, deliberately short of
+  numbered-phase/AD status. If the operator confirms a direction on any of
+  them, write that one up the same way Phase 1.H was — scoped roadmap entry
+  plus an AD in `ARCHITECTURE.md` and `.ai/decisions.md` — without
+  pre-emptively promoting the others. If the operator redirects or narrows
+  any sketch, revise it in place rather than starting a parallel one. Also
+  worth surfacing to the operator if they ask "what's left": **AD-058 names
+  a real, not-yet-actioned gap** — wiring an interactive MFA prompt into
+  `guided_setup.py`/`forge_planner.py` so the new `"totp"` default is *seen
+  and confirmed* at forge time, not silently inherited; this is a natural,
+  scoped candidate for "start Phase-1.H-style work" if the operator wants
+  one. Beyond all of the above: **Phase 1.H (Pre-Install Forge Package and
+  Image Builder)** also remains **proposed, not started** — a candidate for
+  a future session, not a mandate. A resuming agent should either (a) wait
   for/follow new operator direction, or (b) — only if asked to find
-  something to do — look to `RESUME_BLOCK.md`'s `next_action` and the
-  platform's own named operational next-step ("deploy to hardware," per
-  `.ai/NEXT_STEPS.md`).
+  something to do — offer the AD-058 guided-setup gap, the draft sketches,
+  Phase 1.H, or the platform's own named operational next-step ("deploy to
+  hardware," per `.ai/NEXT_STEPS.md`).
 
 - **resume_instructions**:
   1. Read `RESUME_BLOCK.md` (this file's `resume_block_ref`) for the

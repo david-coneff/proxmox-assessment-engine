@@ -55,6 +55,15 @@
   .attach-list button{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);
     border-radius:4px;cursor:pointer;padding:1px 8px;font-size:.85em}
   .attach-list button:hover{border-color:var(--red);color:var(--red)}
+  /* collapsible sections (--collapsible) */
+  details.section{margin:8px 0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  details.section>summary{background:var(--bg2);color:var(--accent);cursor:pointer;user-select:none;
+    padding:9px 14px;font-weight:600;font-size:1.0em;list-style:none;text-transform:uppercase;letter-spacing:.04em}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'▶';font-size:.7em;color:var(--muted);margin-right:8px;transition:transform .15s}
+  details.section[open]>summary::before{transform:rotate(90deg)}
+  details.section>summary h2{display:inline;border:none;margin:0;padding:0;font-size:inherit;color:inherit;letter-spacing:inherit}
+  details.section .sec-body{padding:6px 16px 14px}
   /* code block + copy */
   .codewrap{position:relative;margin:10px 0}
   .copy-btn{position:absolute;top:6px;right:6px;background:var(--btn-bg);color:var(--muted);
@@ -89,9 +98,9 @@
 <div class="doc-meta">Generated from <code>ROADMAP.md</code> — self-contained · print-friendly · values saved in your browser</div>
 
 <h1>Broodforge — Roadmap</h1>
-<p>Version: 7.1 Last updated: 2026-06-07 (`new/` corpus analysis: Phase 1.H proposed — Pre-Install Forge Package and Image Builder; plus three draft sketches from operator follow-up — Recovery-Readiness Conformance, Hypervisor Recovery Credentials, and Granular Secret Access Silos for Human Operators — see &quot;Proposed Future Work&quot; in ROADMAP.md) Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)</p>
+<p>Version: 7.1 Last updated: 2026-06-07 (<code>new/</code> corpus analysis: Phase 1.H proposed — Pre-Install Forge Package and Image Builder; plus three draft sketches from operator follow-up — Recovery-Readiness Conformance, Hypervisor Recovery Credentials, and Granular Secret Access Silos for Human Operators — see "Proposed Future Work" below) Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)</p>
 <hr>
-<h2>Completed</h2>
+<details class="section" open><summary><h2>Completed</h2></summary><div class="sec-body">
 <ul>
 <li>[x] Phase 1: Core assessment engine (Tier 2 foundation)</li>
 <li>[x] Phase 2: Assessment history store</li>
@@ -205,7 +214,117 @@
 </ul>
 <p>S1: secrets.compare_digest in hatchery_receiver; I1: security scan wired into operational; I2: 9.T migration tier (above); S2: no-token startup warning in dashboard; S3: WAN exposure warning in receiver; S4+I4: HTTP request logging + --verbose flag; S5: _local_runner() extracted to collector_utils.py (5 collector modules updated); I3: DASHBOARD_VERSION synced to 7.1. Tests: 3732 passed, 4 skipped.</p>
 <hr>
-<h2>Roadmap Overview</h2>
+</div></details><details class="section" open><summary><h2>Proposed Future Work — from <code>new/</code> corpus analysis (PROPOSED — NOT STARTED)</h2></summary><div class="sec-body">
+<p>The <code>new/</code> directory holds a large proposed-revision corpus (~25 chapters, ~115 specifications/RFCs, plus a separate "axiomatic kernel" formal-methods series). It was deferred at intake (PAP-AUDIT finding F3 — see <code>pap/state/SESSION_HANDOFF.md</code>) and has now been triaged per direct operator instruction: items with a realistic implementation path in broodforge or its documentation tooling are integrated below; the remainder — multi-generational federation, "knowledge civilization" / cross-civilization exchange, century-scale succession planning, and the formal axiomatic-kernel/category-theoretic proof series (<code>broodforge_*_v1_*.pdf</code>) — is <strong>explicitly deferred</strong> as out of scope for broodforge's actual product (a Proxmox/k3s infrastructure platform), not as a quality judgment on the material itself. See "What was deferred and why" at the end of this section.</p>
+<h3>Phase 1.H — Pre-Install Forge Package and Image Builder *(proposed)*</h3>
+<p><strong>Source:</strong> <code>new/BroodForge_Chapter_16_Bootstrap_and_First_Node_Architecture.docx</code>, <code>new/BroodForge_Specification_70_Bootstrap_Forge_Package_and_First_Node_Deployment.docx</code>, <code>new/BroodForge_Specification_148_Canonical_Bootstrap_and_First_Node_Genesis_Framework.docx</code>.</p>
+<p><strong>The gap this names:</strong> <code>FORGING.md</code> currently lists "Proxmox VE installed on the target host" as a software prerequisite — forge-manifest.json is generated entirely on the operator's workstation (Step 1), but the forge package itself still has to be copied onto an *already-installed* Proxmox host (Step 2+). The corpus's Chapter 16 names the gap directly: *"The first BroodForge node exists before infrastructure memory, assessment systems, and regeneration systems are operational... A BroodForge environment should be creatable without requiring an existing BroodForge deployment,"* and calls out "Image Builder Architecture" — generating "ISO images, USB installation media, appliance images... derived from infrastructure knowledge" — and "Bootstrap Bundle Deployment" as the concrete mechanism.</p>
+<p><strong>Proposed scope (additive — does not replace the existing path):</strong></p>
+<ul>
+<li>[ ] <code>generate-bootstrap-image.py</code> — Image Builder CLI. Consumes</li>
+</ul>
+<p><code>forge-manifest.json</code> plus a Proxmox VE unattended-installer answer file (<code>answer.toml</code>, Proxmox 8+ automated installer format) and produces a single bootable ISO/USB image bundling: (a) the automated Proxmox VE installer, (b) the assembled forge package, (c) a first-boot hook.</p>
+<ul>
+<li>[ ] Answer-file template generator — derive <code>answer.toml</code> (disk layout,</li>
+</ul>
+<p>network, root credentials, timezone) from the same <code>forge-manifest.json</code> fields the guided-setup framework (AD-049) already collects, so the operator answers setup questions exactly once.</p>
+<ul>
+<li>[ ] First-boot automation hook — a systemd unit installed by the answer</li>
+</ul>
+<p>file's post-install script that runs the embedded forge package's <code>forge.sh</code> automatically on the freshly-installed host's first boot, replacing the manual "SSH in and kick off forging" step.</p>
+<ul>
+<li>[ ] Image artifact verification — hash/signature manifest for the generated</li>
+</ul>
+<p>image, following the same supply-chain verification pattern already established for forge/spawn/phoenix packages (AD-042 KeePass gating, AD-051 HTML manifest alongside every machine-readable manifest).</p>
+<ul>
+<li>[ ] <code>FORGING.md</code> gains an alternative "Step 0 — Build pre-install media</li>
+</ul>
+<p>(optional)" path; the existing "Proxmox already installed" path remains the supported baseline for operators who provision hosts another way (existing Proxmox cluster, hosting-provider-imaged hardware, etc.).</p>
+<p><strong>Why this is additive, not a redesign:</strong> the forge manifest is *already* generated entirely on the operator's workstation before any contact with the target host (FORGING.md Step 1). This phase only extends what that planning step can *output* — from "a package you copy onto an already-installed host" to "a bootable image that installs the host and then runs the package" — closing exactly the gap the corpus names as "creating the first node without requiring an existing deployment," using artifacts broodforge already builds.</p>
+<p><strong>Explicitly out of scope (do not expand into):</strong> generic multi-hypervisor image builders, or "appliance images" for arbitrary target platforms. Chapter 16 itself frames these as "future implementations" and Specification 70 is explicit that *"the initial implementation shall target the validated reference stack rather than attempting universal platform support"* — i.e. the corpus's own text agrees this stays Proxmox-VE-and-reference-hardware scoped, consistent with broodforge's existing AD-040.</p>
+<p>See AD-057 in <code>ARCHITECTURE.md</code> for the architecture-level decision record.</p>
+<h3>What was reviewed and found already covered</h3>
+<ul>
+<li><strong>Documentation Engine / Infrastructure Memory publication</strong></li>
+</ul>
+<p>(<code>new/BroodForge_Specification_60...docx</code>) and <strong>Runbook Generation / Operational Workbook</strong> (<code>new/BroodForge_Specification_82...docx</code>) describe, at a conceptual level, almost exactly what <code>doc-gen/</code> + the Phoenix playbook system (Phase 9) + Operational Documentation (Phase 10) already do: generate runbooks, workbooks, and recovery documentation from infrastructure state rather than hand-authoring them. No gap found.</p>
+<ul>
+<li><strong>Reference UI and Knowledge Visualization</strong></li>
+</ul>
+<p>(<code>new/BroodForge_Specification_88...docx</code>) names "capability maps," "dependency maps," "trust maps," and "regeneration maps" as desirable dashboard features. <code>doc-gen/dependencies.py</code>, <code>capability_state.py</code>, <code>failure_domain.py</code>, and the HTML recovery runbook/workbook renderers already implement dependency-graph and capability-relationship visualization in the generated documentation and dashboard. No gap found worth a dedicated phase; incremental visualization improvements should continue to ride along with the renderer work that already owns this area.</p>
+<ul>
+<li><strong>Reference API/CLI</strong> (<code>new/BroodForge_Specification_87...docx</code>) — "the</li>
+</ul>
+<p>CLI is authoritative; APIs are built on the same capability model" matches broodforge's existing pattern (every planner/assembler is CLI-first; <code>hatchery_receiver.py</code> exposes the only HTTP API surface, deliberately thin). No gap found.</p>
+<h3>What was deferred and why</h3>
+<p>The remainder of the <code>new/</code> corpus describes a substantially different, larger architecture vision than broodforge's actual product line — most of it framed around governing *the specification corpus itself* (a "Global Coherence Ledger," "Coherence Certification Authority," "RFC Index," "Master Control Plane," "Unified System Orchestration Kernel," "Bootstrap Order Generator" for reconstructing *the RFC graph*, federated "knowledge civilization" exchange, century-scale "knowledge commons" and succession planning, and a separate fully-formal "axiomatic kernel" series (<code>broodforge_*_v1_*.pdf</code> — category-theoretic abstraction, terminal synthesis theorems, metatheoretic irreducibility, etc.) — rather than managing Proxmox/k3s infrastructure, which is what broodforge actually does. <code>new/broodforge.json</code> itself frames this material as a <code>fidelity_translation_only</code> handoff that forbids "architecture_simplification… spec_rewrite… semantic_ reinterpretation" — i.e. it is asking to be implemented verbatim as a parallel system, not mined for ideas. Per the operator's explicit instruction (and consistent with PAP-AUDIT finding F3's original framing — "highly speculative, philosophical territory"), none of this is integrated:</p>
+<ul>
+<li>Federation/economic/marketplace/trust-scoring specifications (138–145)</li>
+<li>Knowledge-preservation/civilization/century-scale specifications (116–132)</li>
+<li>The RFC-graph self-governance series (Coherence Dashboard, Master Control</li>
+</ul>
+<p>Plane, Orchestration Kernel, Coherence Ledger, Bootstrap Order Generator, Post-Bootstrap Verification Framework) — these govern *the spec corpus as a system*, which is a different problem than the one broodforge solves</p>
+<ul>
+<li>The formal axiomatic-kernel / proof-system PDF series (v1.5–v1.27)</li>
+</ul>
+<p>If a future operator wants any of this revisited, the entry points are <code>new/claude prompt.txt</code> (the original analysis brief) and <code>new/BroodForge_Synthesis_Entry_For_Claude_Analysis_v1.docx</code> (the corpus's own "how to analyze me" document) — both still present, untouched.</p>
+<h3>DRAFT SKETCH — Recovery-Readiness Conformance (operator follow-up, 2026-06-07)</h3>
+<p><strong>Status: draft for discussion — NOT a scoped phase, NOT started, NOT yet an AD.</strong> After the deferral above was recorded, the operator reconsidered one slice of it and asked for a draft of "what to do with these":</p>
+<blockquote>"the formal-proof series does in theory require software implementation of how broodforge documents itself to accommodate the proof process... It's about making sure that systems can prove their readiness to recover and/or that the state observed matches the intent manifest on record."</blockquote>
+<p>That is a narrower and more concrete claim than "implement the axiomatic kernel" — it says the ~13-document formal-proof/axiomatic-kernel series (<code>broodforge_formal_state_transition_proofs_v1_8</code>, <code>broodforge_compositional_proof_system_v1_11</code>, <code>broodforge_completeness_boundary_conditions_v1_7</code>, <code>broodforge_operational_validation_benchmarking_v1_23</code>, <code>broodforge_deployment_certification_conformance_v1_24</code>, <code>broodforge_root_manifest_crypto_spec_v0_4</code>, <code>broodforge_system_graph_schema_v0_5</code>, <code>broodforge_reconciliation_engine_spec_v0_6</code>, <code>broodforge_reconciliation_semantics_v0_2</code>, <code>broodforge_observability_audit_replay_v1_1</code>, <code>broodforge_security_proof_invariant_guarantees_v1_5</code>, <code>broodforge_failure_threat_model_hardening_v1_0</code>, <code>broodforge_action_runtime_idempotent_layer_v0_7</code>) names two real, narrow concerns underneath its category-theoretic dress:</p>
+<ol>
+<li><strong>Provable recovery readiness</strong> — not just "we scored GREEN," but a</li>
+</ol>
+<p>reproducible demonstration that reconstruction would succeed.</p>
+<ol>
+<li><strong>Observed-state ↔ intent-manifest conformance</strong> — a defensible answer to</li>
+</ol>
+<p>"does what's actually running match what we declared it should be?", with evidence, not just a diff.</p>
+<p>broodforge already has *informal* versions of every formal construct in that series. None of this needs a from-scratch "axiomatic kernel" — it needs the existing mechanisms drawn into one place and given a verifiable, replayable output. Translation table (formal concept → broodforge today → possible extension):</p>
+<table><thead><tr><th>Formal concept (PDF series)</th><th>broodforge today</th><th>Possible additive extension</th></tr></thead><tbody><tr><td>Root Manifest (hashed, Ed25519-signed, chained)</td><td><code>bootstrap-state.json</code> + 10 metadata YAMLs (plain JSON/YAML, git-tracked, KeePass-gated)</td><td>Add a canonical-serialization + SHA-256 content hash for the manifest set, recorded alongside each snapshot in <code>history/</code> — tamper-evidence without changing the trust model (git + KeePass + restic remain the actual trust anchors)</td></tr><tr><td>System Graph (content-addressed nodes/edges, <code>graph_hash</code>)</td><td>Five dependency graphs in <code>doc-gen/dependencies.py</code></td><td>Hash each graph's canonical form at generation time; store the hash next to the graph in the snapshot index so "the graph that produced this readiness score" is independently checkable</td></tr><tr><td>Reconciliation engine <code>R(actual, spec) → next</code>, fixed-point convergence</td><td><code>remediation_planner.py</code> / <code>remediation_queue.py</code> / <code>remediation_executor.py</code> (Phase 26)</td><td>Record, per remediation cycle, the pre-/post-state deviation vector and whether it shrank monotonically — turns "did remediation help?" into a measured, logged claim instead of an assumption</td></tr><tr><td>Drift classification + deviation vector δ, threshold δ_threshold</td><td><code>doc-gen/drift.py</code> field-level diff</td><td>Bucket existing drift findings into structural/behavioral/performance/security classes and attach a magnitude, so drift reports gain a comparable severity axis (this is a reclassification of existing output, not a new detector)</td></tr><tr><td>Benchmark scores (GFS/RCS/ADS/PCS)</td><td>RRS/ACS/DCS/CRS/OSS scores already in <code>readiness.py</code> / assessment engine</td><td>No new scores needed — the formal series is naming the same idea (composite, comparable health metrics) with different letters</td></tr><tr><td>Deployment Certificate (manifest hash + graph hash + conformance level)</td><td>Readiness scoring (GREEN…BLOCKED) + drift report + Phase 12 <code>DrillRecord</code>, generated separately</td><td><strong>The one genuinely new artifact worth drafting further</strong>: a single generated <code>recovery-readiness-certificate.json</code> (+ HTML) that bundles the manifest hash, graph hash, current readiness score, latest drift summary, and latest drill result into one timestamped, signed-by-reference object — "as of this run, here is the evidence that this cell could recover, and here is what it was declared to be"</td></tr><tr><td>Hash-chained event log + deterministic replay (Strict/Evaluated/Debug modes)</td><td><code>history/snapshots/</code> + provenance registry + audit logging already present</td><td>Add a <code>replay-snapshot.py</code> that re-derives a manifest's readiness score and drift report from a stored snapshot and asserts it matches what was recorded at the time — turns "snapshots are reproducible" (an existing design constraint, see <code>.ai/CURRENT_STATE.md</code> "Key Design Constraints") from an assumption into a checked, reportable fact</td></tr><tr><td>Idempotent action runtime, global invariants I1–I5</td><td>Remediation actions are already required to be idempotent (Phase 26 design); <code>ALLOWED_ACTION_TYPES</code>/<code>_HANDLERS</code> assertion in <code>continuous_assessment.py</code></td><td>Document the existing idempotency guarantees and the handler-set invariant explicitly as "invariants broodforge already enforces," rather than inventing new ones — most of I1–I5 already hold informally</td></tr><tr><td>Trusted/Controlled/Untrusted boundary, "Human Intervention Boundary," explicit non-guarantees</td><td>Implicit in KeePass-gated secrets, restic/rclone backup trust model, and the reconstruction-drill model (a human runs the drill)</td><td>Write down, in plain language, what broodforge does *not* promise to recover automatically (e.g., "if the KeePass database itself is lost, no amount of manifest replay restores secrets — that is the documented Human Intervention Boundary") — this is a documentation task, not a code task</td></tr></tbody></table>
+<p>**What this draft is *not* proposing:** the cryptographic apparatus (Ed25519 root-of-trust chains, category-theoretic compositional proof objects, formal certification "levels" with externally-audited conformance) is heavier than broodforge's actual threat model (a home-lab / small-cell operator using git + KeePass + restic as the trust anchors, per AD-040's SHALL-NOT scope). Building a parallel formal-verification subsystem would be exactly the kind of "implement the spec corpus verbatim" outcome the deferral above correctly avoided. The translation table above is deliberately phrased as *extensions to existing modules* (<code>readiness.py</code>, <code>drift.py</code>, <code>dependencies.py</code>, the snapshot/provenance store, Phase 12 drills) — additive scoring fields, one new generated artifact, and a documentation pass — not a rewrite.</p>
+<p><strong>If the operator wants to proceed</strong>, the natural next step is to scope the single new artifact — a <code>recovery-readiness-certificate.json</code>/HTML generator that composes existing scores, hashes, and the latest drill result into one timestamped record — as a numbered phase (tentatively "Phase 1.I"), the same way Phase 1.H was scoped from Chapter 16/Spec 70/Spec 148. This sketch deliberately stops short of that: it is the "what to do with these" the operator asked for, offered for reaction before being written into <code>ARCHITECTURE.md</code> as an AD or split into roadmap deliverables.</p>
+<h3>DRAFT SKETCH — Hypervisor Recovery Credentials (operator follow-up, 2026-06-07)</h3>
+<p><strong>Status: draft recommendation — NOT a scoped phase, NOT started, NOT yet an AD.</strong> The operator asked for a thorough evaluation of whether broodforge should start *permanently* storing each Proxmox host's root password in KeePass — reasoning that the hatchery already handles a *temporary* root passphrase during spawn discovery (<code>ARCHITECTURE.md</code> lines ~159–169: generated pre-install, used for SSH-based hardware discovery, discarded the moment Cloud-Init installs a KeePass-managed credential), and a permanent version would (a) close the gap where a node that boots to Proxmox but fails to bring up its VM/k3s layer is currently a dead end requiring physical console access, and (b) give broodforge "a genuinely complete keystore of all node root passwords," including the ability to autonomously pre-generate credentials for future spawns and embed them in install media (gated by human authorization before the resulting node is allowed to join — the operator's own proposed safeguard).</p>
+<p><strong>The benefit is real; so is the risk, and the risk dominates.</strong> Today, even a total compromise of the hatchery or KeePass yields, at worst, operational credentials for nodes mid-spawn — a narrow, time-boxed set, because the temporary passphrase dies the instant Cloud-Init replaces it. A permanent "complete keystore of all node root passwords" converts that same compromise into root on *every hypervisor in the cell — the substrate everything else runs on*. That is not a difference of degree; it is the difference between "compromise the secrets layer" and "own the entire infrastructure, permanently, with no expiry to bound the damage." The sharpest form of the danger is the one the operator named directly: an *autonomous* execution- broker pathway that can read and wield a permanent root password turns any bug, misconfiguration, or compromise of *that one pathway* into root on every hypervisor at once — a far larger escalation surface than anything that exists in broodforge today, and exactly the kind of unbounded autonomous action the newly-amended AD-034/AD-040 ("autonomous action is acceptable when bounded by safeguards and recoverability," per the F2 resolution recorded earlier today) was never meant to license, because root has no boundary by definition.</p>
+<p><strong>Recommended middle path — gets the recovery benefit without the liability:</strong></p>
+<ol>
+<li>**Constrained recovery accounts, not root, for the "diagnose a</li>
+</ol>
+<p>partially-failed node" case.** Provision a dedicated, narrowly-scoped account per hypervisor with a forced command (<code>ForceCommand</code> / <code>command=</code> in <code>authorized_keys</code>) limited to a fixed menu of read-only diagnostics and safe operations (status, logs, VM start/stop) — never an arbitrary shell. Even total compromise of that credential store yields only the fixed command surface, never root. Because its blast radius is bounded *by construction*, this is the one piece that could safely be queried autonomously.</p>
+<ol>
+<li><strong>Full root as break-glass, governed by the gate that already exists.</strong></li>
+</ol>
+<p>Where genuine root is unavoidable (e.g., filesystem repair), store it — but behind the *same human-unlock gate* that already protects every other secret in the system (AD-042), with <strong>no new autonomous pathway</strong>. This is functionally "the recovery runbook tells the operator where to find it and they type it themselves" — a storage change, not a privilege change. It delivers the "complete keystore, nothing orphaned" property on a trust boundary that is already trusted, at zero new attack-surface cost.</p>
+<ol>
+<li><strong>Pre-generated spawn-media credentials — adopt as described.</strong> This part</li>
+</ol>
+<p>of the proposal is sound as stated and cheap to build: it is the existing <code>AD-043</code> passphrase-generation pattern, just run earlier and shipped on media instead of typed by an operator at install time. The operator's own proposed safeguard — human authorization required before a node installed from such pre-made media is allowed to join — costs nothing architecturally; it slots into the same place the existing autonomous-mode service-selection confirmation already lives (AD-041).</p>
+<p><strong>The line this sketch recommends broodforge not cross:</strong> an autonomous pathway that can read and wield full root credentials against live hypervisors. Everything else the operator described — the complete keystore, pre-generated spawn media, human-gated joining — is reachable through the human-unlock gate (for break-glass root) and a constrained-command account (for routine diagnostics) without ever building that pathway. If the operator agrees with this direction, the natural next step is to scope items 1 and 3 above as a numbered phase and item 2 as a <code>secret-registry.yaml</code> / <code>SecretRegistry</code> schema extension (it already tracks <code>pve01-root-password</code> entries per <code>host:X</code> — see <code>proxmox-bootstrap/secret-registry.yaml</code> — so "break-glass root, human-unlock-gated" is closer to a documentation/policy annotation on an existing entry than a new mechanism).</p>
+<h3>DRAFT SKETCH — Granular Secret Access Silos for Human Operators (operator follow-up, 2026-06-07)</h3>
+<p><strong>Status: draft for discussion — NOT a scoped phase, NOT started, NOT yet an AD.</strong> The operator asked whether broodforge could support tiered, hierarchically-scoped secret access for *human* operators — e.g., a service operator who can manage their service but cannot reach the Proxmox root password, versus a sysadmin with "god-mode" access to everything, or to everything within a declared scope (a cell, a node, a VM). For the operator's own homelab, single-operator "god mode" is and remains the right default — this is explicitly framed as a "for a larger org" consideration, not an immediate need.</p>
+<p><strong>The constraint that shapes the design: KeePass/KDBX databases are single-master-password — there is no native per-user role layer inside one <code>.kdbx</code> file.</strong> Building real per-user ACLs would require either (a) an external identity-aware secrets broker (Vault-style) — which contradicts broodforge's offline-first, stdlib-only, "runs without network access" design constraints (<code>.ai/CURRENT_STATE.md</code> "Key Design Constraints"; AD-042's entire premise is that the KeePass file can be embedded in offline packages with no server dependency), or (b) <strong>multiple derived vaults</strong>, each scoped to a declared subset of secrets, each with its own independently-generated master password, distributed only to the humans who need that scope. (b) is the one that fits broodforge's existing architecture with no new dependency and no change to its trust-model foundations — it is "more vaults derived from the one vault," not "one vault with roles bolted on."</p>
+<p><strong>broodforge already has the data model this needs — it just isn't used for this yet.</strong> <code>proxmox-bootstrap/secret-registry.yaml</code> (<code>SecretRegistry</code>) already records, per secret: a stable <code>id</code>, a <code>keepass_path</code>, an <code>owning_cell</code>, and a <code>required_by</code> list using exactly the hierarchical vocabulary the operator described — <code>host:pve01</code>, <code>vm:infra-bootstrap</code>, etc. — plus <code>secret_type</code> and <code>rotation_schedule</code>. That is, in effect, an undeclared scope hierarchy (cell → host/node → vm → service) sitting in the registry today. Sketch of what an additive extension could look like:</p>
+<ul>
+<li><strong>A <code>Role</code>/<code>Scope</code> registry</strong> (a new authoritative YAML, following the</li>
+</ul>
+<p>existing 10-metadata-file pattern in <code>data-model/</code>): each entry names a role, a hierarchical scope expressed as glob patterns over the *existing* <code>owning_cell</code>/<code>required_by</code> vocabulary (<code>cell-1/*</code>, <code>cell-1/node-1/*</code>, <code>cell-1/node-1/vm-3/*</code>, or by <code>secret_type</code>/<code>required_for</code> facet — e.g., "all <code>service-credential</code> entries, no <code>password</code>-type host-root entries"), and which humans currently hold that role.</p>
+<ul>
+<li><strong>A <code>derive-scoped-vault</code> generator</strong>: reads the canonical KeePass DB plus</li>
+</ul>
+<p>the Role/Scope registry, and produces a derivative <code>.kdbx</code> containing *only* the entries whose <code>secret-registry.yaml</code> record matches the declared scope — with its own freshly-generated passphrase (reusing the existing <code>generate_master_password_suggestion()</code> / EFF passphrase generators, AD-043/AD-052). The canonical "god mode" database remains exactly what it is today — broodforge's default, and the homelab's permanent answer.</p>
+<ul>
+<li>**Authorization model: only holders of the canonical vault can mint scoped</li>
+</ul>
+<p>vaults.** This needs no new permission system — "you can only derive a scope you can already see the contents of" is true by construction, and matches who is trusted to run <code>forge-planner.py</code>/<code>spawn-planner.py</code> today.</p>
+<ul>
+<li><strong>Revocation = rotate + reissue</strong>, not real-time access removal — this is</li>
+</ul>
+<p>an honest *non-guarantee* worth documenting up front (an explicit "boundary," in the vocabulary the formal-proof-series sketch above borrowed): a lost or outdated scoped vault is neutralized by rotating the secrets it contained (generalizing the existing per-backup unique-secret rotation in AD-044) and reissuing a fresh derivative, not by some in-database access-list edit. Static derived vaults cannot support instant kick-out; that is a property of the offline-first model, not a flaw in this design specifically — and arguably a *feature* from a security-properties standpoint: a derived vault literally cannot leak what ciphertext it never received, which is a stronger guarantee than an ACL layered on top of a database the holder already possesses in full.</p>
+<p>**What this draft is *not* proposing:** real-time per-user audit logs of "who opened which secret when" (would require a broker/network dependency broodforge deliberately avoids — though correlating "scoped vault X was used" is possible for free, since each derived vault is a distinguishable credential), or cryptographic enforcement of scope beyond "the derived vault simply does not contain out-of-scope ciphertext" (which, as noted above, is arguably the more robust property anyway). Both are named here as explicit boundaries, not gaps to be closed later.</p>
+<p><strong>If the operator wants to proceed</strong> (most plausibly: "useful enough to keep on the roadmap for when this stops being a single-operator homelab"), the natural next step is to scope the <code>Role</code>/<code>Scope</code> registry and <code>derive-scoped-vault</code> generator as a numbered phase, the same way Phase 1.H and the items above would be scoped — additive to <code>SecretRegistry</code>, no change to the canonical trust model, "god mode" remaining the default for the single-operator case this system is built around today.</p>
+<hr>
+</div></details><details class="section" open><summary><h2>Roadmap Overview</h2></summary><div class="sec-body">
 <h3>Three Processes — Three Package Types</h3>
 <table><thead><tr><th>Process</th><th>Package</th><th>Phases</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Forging</strong></td><td>Forge package</td><td>Phase 0–3 + Phase 1.F</td><td>Bare hardware → first operational hatchery</td></tr><tr><td><strong>Hatchery Process</strong></td><td>Spawn package</td><td>Phase 12.E</td><td>Hatchery → broodling joins without conflict</td></tr><tr><td><strong>Stargate Process</strong></td><td>Phoenix package</td><td>Phase 9 + Phase C/D</td><td>Failed node → identity resurrected</td></tr></tbody></table>
 <h3>Four Tracks</h3>
@@ -224,7 +343,7 @@
 <p><strong>Track 4 — Autonomous Operations (Phase 26)</strong> Close the detect → propose → approve → execute → reassess loop. The assessment engine has always found and scored gaps; Track 4 adds the ability to act on them, always gated by explicit human approval. No autonomous action without a recorded operator decision.</p>
 <p>Track 2 begins after Phase 12.E completes the single-cell + expansion foundation. Track 3 begins after Phase 18 completes the expanded state model. Track 4 begins after Track 3 and requires Phase 24 (continuous assessment) running.</p>
 <hr>
-<h2>Forging Foundation — Phase 0 through Phase 3</h2>
+</div></details><details class="section" open><summary><h2>Forging Foundation — Phase 0 through Phase 3</h2></summary><div class="sec-body">
 <p>Phases 0–3 constitute the <strong>forging process</strong>: building the Phase A toolchain that can take bare hardware to an operational broodforge hatchery. These phases are complete. Phase 1.F (Forge Package Assembly) is the planned capstone.</p>
 <h3>Phase 1.F — Forge Package Assembly *(Forging Process capstone)*</h3>
 <p>*Assembles all Phase A tooling into a single self-contained forge package — the artifact an operator downloads and runs on bare Proxmox to forge the first hatchery.*</p>
@@ -440,7 +559,7 @@
 </ul>
 <p>phoenix_guided_setup.py: PhoenixGuidedSetupSession, restoration_wave_options, step0_set_restoration_scope (full/partial with wave selection), step1_run_identity_overrides (hostname/domain/fqdn/cell_id overrides with conflict detection), apply_overrides_to_playbook (scope filter + identity update + setup_overrides audit trail), build_phoenix_guided_session factory. phoenix-planner.py CLI. (63 tests)</p>
 <hr>
-<h2>Track 1 — Cell-Scoped Foundation</h2>
+</div></details><details class="section" open><summary><h2>Track 1 — Cell-Scoped Foundation</h2></summary><div class="sec-body">
 <h3>Phase 6 — Bootstrap State</h3>
 <p><strong>6.0 — External Backup Setup and Recovery Runbook Integration</strong></p>
 <ul>
@@ -1244,7 +1363,7 @@
 <p><strong>Note on hardware heterogeneity:</strong> The spawn planner explicitly does NOT require identical hardware. A second host with 6 HDDs gets raidz1; the first host with 2 SSDs has a mirror. Both run the same VM roles and software stack. Only the hardware adaptation layer (ZFS topology, NIC bridge config, VM sizing within available RAM) differs between them.</p>
 <p><strong>Note on Talos variant:</strong> If <code>os_variant: talos</code> is declared for k3s-server nodes (see Milestone 9.T), the spawn planner emits Talos machine configs instead of Cloud-Init for server VMs on the broodling. The spawn plan records <code>os_variant</code> per VM, matching the existing cluster's declared variant.</p>
 <hr>
-<h2>Track 2 — Expanded State Model</h2>
+</div></details><details class="section" open><summary><h2>Track 2 — Expanded State Model</h2></summary><div class="sec-body">
 <h3>Phase 13 — Hardware and Platform State</h3>
 <ul>
 <li>[x] 13.1: <code>data-model/hardware-state-schema.json</code> (BIOS, firmware, disks, NICs, UPS)</li>
@@ -1301,7 +1420,7 @@
 </ul>
 <p><strong>Gate:</strong> Phase 18 completion validates the expanded state model. Track 3 begins after Phase 18.</p>
 <hr>
-<h2>Track 3 — Digital Twin and Federation</h2>
+</div></details><details class="section" open><summary><h2>Track 3 — Digital Twin and Federation</h2></summary><div class="sec-body">
 <h3>Phase 19 — Federation State and Trust Model</h3>
 <ul>
 <li>[x] 19.1: <code>data-model/federation-state-schema.json</code> (cell registry, relationships, trust)</li>
@@ -1372,7 +1491,7 @@
 <li>[x] 25.5: Federation reconstruction drill (multi-cell coordinated scenario)</li>
 </ul>
 <hr>
-<h2>Track 4 — Autonomous Operations</h2>
+</div></details><details class="section" open><summary><h2>Track 4 — Autonomous Operations</h2></summary><div class="sec-body">
 <p>*Prerequisite: Tracks 1–3 complete. The assessment engine must be operational, continuous assessment (Phase 24) running, and the digital twin current before autonomous remediation can propose meaningful actions.*</p>
 <h3>Design contract for autonomous remediation</h3>
 <p>The assessment engine has always surfaced gaps and scored them. Track 4 closes the loop: from detection → proposal → human approval → execution → reassessment.</p>
@@ -1671,7 +1790,7 @@ Type 'enable autonomous' to confirm, or Ctrl-C to cancel:
 <p><strong>Gate:</strong> Phase 26 completion (including 26.7) adds the full autonomous action layer. Phases 26.1–26.6 deliver human-gated remediation. Phase 26.7 adds fully autonomous execution as an explicit opt-in on top of that foundation.</p>
 <p><strong>Track 4 begins after Track 3. No Track 4 phase requires any Track 4 prerequisite beyond a working Phase 24 (continuous assessment) deployment.</strong></p>
 <hr>
-<h2>Design Principles</h2>
+</div></details><details class="section" open><summary><h2>Design Principles</h2></summary><div class="sec-body">
 <ol>
 <li><strong>Reconstruction is the objective.</strong> Every state category, metadata field, and</li>
 </ol>
@@ -1706,7 +1825,7 @@ Type 'enable autonomous' to confirm, or Ctrl-C to cancel:
 <ol>
 <li><strong>Remediation is proposed, not imposed.</strong> The assessment engine recommends;</li>
 </ol>
-<p>the operator approves; the system executes. No autonomous action changes infrastructure state without a recorded human approval. This is an architectural constraint, not a configuration option.</p>
+<p>the operator approves; the system executes. No autonomous action changes infrastructure state without a recorded human approval. This is an architectural constraint, not a configuration option.</p></div></details>
 
 <div class="session-notes"><h2>Session Notes</h2><p style="color:var(--muted);font-size:.85em">Anything unexpected, or that did not fit the steps above. Saved in your browser.</p><textarea id="bf-session-notes" placeholder="notes…"></textarea></div>
 <script>
