@@ -23,7 +23,7 @@ Public API:
   RemediationExecutor
   RemediationFailurePackage
   execute_proposal(executor, queue, proposal_id, state, now_fn) → ExecutionResult
-  build_failure_package(proposal, error, steps_completed) → RemediationFailurePackage
+  build_failure_package(proposal, error, steps_completed, state, now_fn) → RemediationFailurePackage
 
 Stdlib only.
 """
@@ -116,6 +116,7 @@ def build_failure_package(
     error:           str,
     steps_completed: List[str],
     state:           dict = None,
+    now_fn:          Optional[Callable] = None,
 ) -> RemediationFailurePackage:
     from datetime import datetime, timezone
     return RemediationFailurePackage(
@@ -123,7 +124,7 @@ def build_failure_package(
         action_type=proposal.action_type,
         target=proposal.target,
         cell_id=proposal.cell_id or "unknown",
-        failed_at=datetime.now(timezone.utc).isoformat(),
+        failed_at=now_fn() if now_fn else datetime.now(timezone.utc).isoformat(),
         error_message=error,
         steps_completed=steps_completed,
         dry_run_output=proposal.dry_run_output,
@@ -167,6 +168,7 @@ def _exec_restart_service(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     steps = []
     svc = proposal.target
@@ -220,6 +222,7 @@ def _exec_run_backup(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     steps = []
     layer = proposal.target or "config"
@@ -243,6 +246,7 @@ def _exec_renew_cert(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     steps = []
     nt = state.get("network_topology") or {}
@@ -270,6 +274,7 @@ def _exec_regenerate_phoenix(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     steps = []
     node = proposal.target
@@ -292,6 +297,7 @@ def _exec_sync_cert_to_k8s(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     steps = []
     repo_dir = os.path.dirname(executor.state_path) if executor.state_path else "."
@@ -313,6 +319,7 @@ def _exec_rotate_join_token(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     steps = []
     step1 = ExecutionStep("rotate", "Rotate k3s join token")
@@ -331,6 +338,7 @@ def _exec_restart_assessment_timer(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     steps = []
     step1 = ExecutionStep("enable", "Enable broodforge-operational.timer")
@@ -351,17 +359,19 @@ def _exec_schedule_drill(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     steps = []
     from datetime import datetime, timezone, timedelta
-    now_dt = datetime.now(timezone.utc)
+    now_str = now_fn() if now_fn else datetime.now(timezone.utc).isoformat()
+    now_dt = datetime.fromisoformat(now_str.replace("Z", "+00:00"))
     due_at = (now_dt + timedelta(days=90)).isoformat()
 
     reminder = {
         "type":   "drill_reminder",
         "due_at": due_at,
         "added_by": "remediation-executor",
-        "added_at": now_dt.isoformat(),
+        "added_at": now_str,
     }
 
     step1 = ExecutionStep("schedule", "Append drill reminder to bootstrap-state.json")
@@ -389,6 +399,7 @@ def _exec_flag_manual(
     proposal: RemediationProposal,
     executor: RemediationExecutor,
     state:    dict,
+    now_fn:   Optional[Callable] = None,
 ) -> tuple[bool, str, List[ExecutionStep]]:
     step = ExecutionStep("flag", f"Mark {proposal.target} for manual attention")
     step.completed = True
@@ -475,7 +486,7 @@ def execute_proposal(
     # 5. Execute
     handler = _HANDLERS.get(proposal.action_type)
     if handler is None:
-        pkg = build_failure_package(proposal, "No handler for action type", [], state)
+        pkg = build_failure_package(proposal, "No handler for action type", [], state, now_fn=now_fn)
         mark_failed(queue, proposal_id, "No handler for action type", now_fn=now_fn)
         return ExecutionResult(
             proposal_id=proposal_id,
@@ -485,10 +496,10 @@ def execute_proposal(
         )
 
     try:
-        success, outcome, steps = handler(proposal, executor, state)
+        success, outcome, steps = handler(proposal, executor, state, now_fn=now_fn)
     except Exception as exc:
         outcome = f"Unexpected error during execution: {exc}"
-        pkg = build_failure_package(proposal, outcome, [], state)
+        pkg = build_failure_package(proposal, outcome, [], state, now_fn=now_fn)
         mark_failed(queue, proposal_id, outcome, now_fn=now_fn)
         return ExecutionResult(
             proposal_id=proposal_id,
@@ -509,7 +520,7 @@ def execute_proposal(
         )
     else:
         completed_steps = [s.step_id for s in steps if s.completed]
-        pkg = build_failure_package(proposal, outcome, completed_steps, state)
+        pkg = build_failure_package(proposal, outcome, completed_steps, state, now_fn=now_fn)
         mark_failed(queue, proposal_id, outcome, now_fn=now_fn)
         return ExecutionResult(
             proposal_id=proposal_id,

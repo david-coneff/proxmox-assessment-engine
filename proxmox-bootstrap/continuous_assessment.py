@@ -420,6 +420,7 @@ class PbsJobStatus:
 def collect_pbs_state_update(
     pbs_api_response: dict,
     cell_id:          str,
+    now_fn:           Optional[Callable[[], str]] = None,
 ) -> dict:
     """
     Parse a PBS API response and extract Data Protection State update.
@@ -456,7 +457,7 @@ def collect_pbs_state_update(
 
     return {
         "cell_id":      cell_id,
-        "collected_at": datetime.now(timezone.utc).isoformat(),
+        "collected_at": (now_fn or (lambda: datetime.now(timezone.utc).isoformat()))(),
         "backup_jobs":  [
             {
                 "job_id":     j.job_id,

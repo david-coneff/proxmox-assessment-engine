@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime, timezone
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -88,8 +89,7 @@ def cmd_complete(args: argparse.Namespace) -> None:
     outcome  = args.outcome or "success"
     last["outcome"]      = outcome
     last["completed_at"] = last.get("completed_at") or \
-        __import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc).isoformat()
+        datetime.now(timezone.utc).isoformat()
 
     # Record gaps if provided via --gaps
     if getattr(args, "gaps", None):

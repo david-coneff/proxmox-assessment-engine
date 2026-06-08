@@ -181,12 +181,16 @@ def _int(v: Any) -> Optional[int]:
 # Platform health aggregation (Phase 13.7)
 # ---------------------------------------------------------------------------
 
-def compute_platform_health(doc: PlatformStateDocument) -> dict:
+def compute_platform_health(
+    doc:    PlatformStateDocument,
+    now_fn: Optional[Callable[[], str]] = None,
+) -> dict:
     """Derive platform_health dict from PlatformStateDocument."""
     from datetime import datetime, timezone
 
     # Certs expiring within 30 days
-    now_ts = datetime.now(timezone.utc)
+    now_str = (now_fn or (lambda: datetime.now(timezone.utc).isoformat()))()
+    now_ts  = datetime.fromisoformat(now_str.replace("Z", "+00:00"))
     expiring_soon = []
     for c in doc.certificates:
         if c.not_after:
@@ -357,9 +361,12 @@ def collect_platform_state(
 # Serialisation
 # ---------------------------------------------------------------------------
 
-def platform_state_to_dict(doc: PlatformStateDocument) -> dict:
+def platform_state_to_dict(
+    doc:    PlatformStateDocument,
+    now_fn: Optional[Callable[[], str]] = None,
+) -> dict:
     """Convert PlatformStateDocument to a JSON-serialisable dict."""
-    health = compute_platform_health(doc)
+    health = compute_platform_health(doc, now_fn=now_fn)
     return {
         "schema_version":  "1.0",
         "cell_id":         doc.cell_id,
