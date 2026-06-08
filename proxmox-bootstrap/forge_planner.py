@@ -433,10 +433,20 @@ def build_forge_manifest(
     if profile == PROFILE_WAN and session.wan_config:
         manifest["network_topology"]["wan_config"] = dict(session.wan_config)
 
+    # MFA method for the KeePass unlock gate (AD-058 default: "totp").
+    # Guided sessions may have recorded an explicit operator choice under
+    # "security.mfa_method" — honour it; otherwise fall back to the default.
+    mfa_method = "totp"
+    if session.guided_session is not None:
+        gs_mfa = session.guided_session.get_value("security.mfa_method")
+        if gs_mfa:
+            mfa_method = gs_mfa
+
     # KeePass configuration (from step5)
     manifest["keepass_config"] = {
         "embed_in_packages":  session.keepass_embed_in_packages,
         "database_path_hint": None,
+        "mfa_method":         mfa_method,
     }
 
     # Backup destinations (from step5 — minimal at forge time)

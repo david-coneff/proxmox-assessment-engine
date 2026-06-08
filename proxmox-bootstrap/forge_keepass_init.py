@@ -173,6 +173,11 @@ def generate_keepass_init_config(
             pass
     db_path = "/etc/broodforge/keepass.kdbx"
 
+    # MFA method: honour an explicit guided-setup choice carried in the
+    # manifest's keepass_config.mfa_method (AD-058 — "seen and confirmed,"
+    # not silently inherited); fall back to the "totp" default otherwise.
+    mfa_method = (forge_manifest.get("keepass_config") or {}).get("mfa_method") or "totp"
+
     extra: list[KeePassEntry] = []
     if include_wan:
         # Add WAN-specific entries if not already in the base list
@@ -188,6 +193,7 @@ def generate_keepass_init_config(
         entries=list(KEEPASS_INITIAL_ENTRIES),
         extra_entries=extra,
         include_wan_entries=include_wan,
+        mfa_method=mfa_method,
     )
 
 

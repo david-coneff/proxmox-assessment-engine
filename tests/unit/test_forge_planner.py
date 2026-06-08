@@ -601,6 +601,20 @@ class TestStep5SetBackupConfig(unittest.TestCase):
         m = build_forge_manifest(sess)
         self.assertIn("keepass_config", m)
 
+    def test_mfa_method_defaults_to_totp(self):
+        sess = ForgePlannerSession()
+        step2_set_identity(sess, hostname="pve01", domain="home.example.com", cell_id="c")
+        m = build_forge_manifest(sess)
+        self.assertEqual(m["keepass_config"]["mfa_method"], "totp")
+
+    def test_mfa_method_from_guided_session(self):
+        sess = ForgePlannerSession(setup_mode=FORGE_MODE_FULL_MANUAL)
+        step1_run_guided_setup(sess)
+        record_manual_field(sess, "security.mfa_method", "yubikey")
+        step2_set_identity(sess, hostname="pve01", domain="home.example.com", cell_id="c")
+        m = build_forge_manifest(sess)
+        self.assertEqual(m["keepass_config"]["mfa_method"], "yubikey")
+
 
 if __name__ == "__main__":
     unittest.main()

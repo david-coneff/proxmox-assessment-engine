@@ -84,10 +84,11 @@ SETTING_GROUPS: dict[str, dict] = {
     },
     "security": {
         "label": "Security",
-        "description": "KeePass location, password format, SSH key references",
+        "description": "KeePass location, password format, second-factor method, SSH key references",
         "fields": [
             "security.kdbx_path",
             "security.password_format",
+            "security.mfa_method",
             "security.ssh_key_path",
         ],
         "representative_field": "security.kdbx_path",
@@ -330,6 +331,14 @@ def suggest(field_path: str, session: GuidedSetupSession) -> Any:
     if field_path == "security.password_format":
         return "passphrase"   # Capital.word.phrase.N
 
+    if field_path == "security.mfa_method":
+        # Per AD-058: second-factor auth defaults ON for the KeePass unlock
+        # gate. "totp" (authenticator app, no extra hardware to source) is
+        # the suggested baseline; "yubikey" suits operators who prefer a
+        # hardware key. SMS/email OTP are deliberately never suggested —
+        # both are weaker factors (SIM-swap / mailbox-compromise exposure).
+        return "totp"   # "none" | "totp" | "yubikey"
+
     if field_path == "security.ssh_key_path":
         return "~/.ssh/id_rsa"
 
@@ -464,6 +473,25 @@ def check_conflicts(field_path: str, value: Any, session: GuidedSetupSession) ->
                     )
             except ValueError:
                 pass
+
+    elif field_path == "security.mfa_method":
+        valid = {"none", "totp", "yubikey"}
+        if value not in valid:
+            return [
+                f"'{value}' is not a supported MFA method — choose one of "
+                f"{sorted(valid)} (SMS- and email-based OTP are not offered: "
+                f"both are weaker factors than an authenticator app or a "
+                f"hardware key)"
+            ]
+        if value == "none":
+            warnings.append(
+                "MFA method 'none' opts out of the default second-factor "
+                "protection (AD-058) for the KeePass unlock gate — the gate "
+                "will be reachable with the master password alone. This is "
+                "an explicit, deliberate choice; 'totp' (authenticator app) "
+                "or 'yubikey' (hardware key) is recommended for any "
+                "high-level function."
+            )
 
     elif field_path == "vms.default_ram_gb":
         try:

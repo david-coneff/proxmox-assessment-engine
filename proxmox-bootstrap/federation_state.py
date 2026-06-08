@@ -386,13 +386,18 @@ def verify_trust(
             verified_at=now_str,
         )
 
-    if relationship.is_expired:
-        return TrustVerificationResult(
-            relationship_id=relationship.relationship_id,
-            valid=False,
-            reason=f"Trust relationship expired at {relationship.expires_at}.",
-            verified_at=now_str,
-        )
+    if relationship.expires_at:
+        try:
+            expires = datetime.fromisoformat(relationship.expires_at.replace("Z", "+00:00"))
+            if now > expires:
+                return TrustVerificationResult(
+                    relationship_id=relationship.relationship_id,
+                    valid=False,
+                    reason=f"Trust relationship expired at {relationship.expires_at}.",
+                    verified_at=now_str,
+                )
+        except (ValueError, AttributeError):
+            pass
 
     # Check re-verification age
     rev_days = max_reverify_age_days or relationship.reverify_days

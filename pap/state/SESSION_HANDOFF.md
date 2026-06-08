@@ -268,7 +268,62 @@ of what this transition exists to make durable.
         the very update this protocol's `update_trigger` calls for at every
         major milestone (you are reading the result of that update now).
 
-- **last_completed_step**: (Updated — fifth milestone, same session.)
+- **last_completed_step**: (Updated — sixth milestone, new session, 2026-06-08.)
+  Resumed per the operator's standing instruction to "continue broodforge work
+  using PAP-state." On reading this file's own `next_action` (below, from the
+  fifth milestone) plus the working tree, found a prior session had left
+  exactly the gap this file already named — AD-058's "MFA selection is still
+  CLI-flag-only... inherited silently rather than seen and confirmed" — mid-
+  flight as **uncommitted partial edits** (`forge_keepass_init.py`,
+  `forge_planner.py`, `guided_setup.py`: `security.mfa_method` field added to
+  guided setup, `build_forge_manifest()` reading it into
+  `keepass_config.mfa_method`, and a local `mfa_method` variable computed in
+  `generate_keepass_init_config()` — but never passed to the returned
+  `KeePassInitConfig`, so the wiring was incomplete and untested). Completed
+  it rather than starting over or discarding:
+  - Added `mfa_method=mfa_method` to the `KeePassInitConfig(...)` constructor
+    call in `forge_keepass_init.py` (the one missing line closing the chain
+    guided-setup → forge-manifest → KeePass-init-config).
+  - Added test coverage for the now-complete chain: `test_guided_setup.py`
+    (`test_suggest_mfa_method_is_totp`, four `check_conflicts` cases —
+    totp/yubikey clean, `"none"` warns per AD-058, `"sms"` rejected as
+    unsupported) and `test_forge_planner.py`
+    (`test_mfa_method_defaults_to_totp`, `test_mfa_method_from_guided_session`
+    — confirms an explicit `"yubikey"` choice recorded via
+    `record_manual_field` propagates all the way to
+    `manifest["keepass_config"]["mfa_method"]`).
+  - Ran the full suite before declaring done (standing practice — never trust
+    "looks complete," verify): found **one pre-existing failure** unrelated to
+    this work — `test_phase19_federation.py::test_expiring_soon_still_valid`
+    — confirmed via `git stash` that it failed identically on the untouched
+    `main` tip, i.e. **not a regression from this session's edits**, but a
+    latent bug the calendar had just walked into: `verify_trust()` in
+    `federation_state.py` checked `relationship.is_expired` (a property that
+    calls real `datetime.now(timezone.utc)`) instead of comparing against the
+    function's own injected `now_fn` — so a test fixture pinned to "now =
+    2026-06-01" with an expiry of "2026-06-08" started failing the instant
+    real UTC crossed that date. Fixed by computing the expiry comparison
+    inline against the injected `now` (mirroring how the re-verification-age
+    check just below it already does it correctly) rather than calling the
+    real-clock property — a one-line-class fix to a real, dated bug, not a
+    test-tuning hack. Named here explicitly because it is exactly the kind of
+    "real-time call inside logic meant to be driven by an injected clock"
+    defect that PAP/audit work has repeatedly flagged elsewhere in this
+    codebase — worth a future grep sweep (`datetime.now(` / `datetime.utcnow(`
+    outside of `now_fn` plumbing) if the operator wants to harden against the
+    whole class, though that is **not** done here (scope discipline — fix the
+    one bug found, name the pattern, don't go hunting beyond what broke).
+  - Recorded the full cycle in `docs/FEATURE-HISTORY.md`
+    (`2026-06-08_12_36_41 UTC`, GAP-FILL — closes a named follow-up, not a
+    fresh operator request) and regenerated its HTML twin via
+    `md_to_html.py --collapsible` (the now-established pattern from the prior
+    milestone, keeping `test_meta_doc_sync.py`/`test_html_base_sync.py`
+    green). Updated `.ai/CURRENT_STATE.md` to index the closure.
+  Verified: full suite **3844 passed** (was 3843 passed + 1 pre-existing
+  failure — both the new MFA-chain tests and the federation fix are included
+  in that count; no regressions).
+
+  **Before this (fifth milestone, same prior session):**
   The operator reacted to the "Hypervisor Recovery Credentials" sketch and,
   in the same message, issued two further direct instructions — both acted
   on immediately as "autonomous work that doesn't require operator
@@ -410,40 +465,53 @@ of what this transition exists to make durable.
   before that, the F1/F2 resolution milestone (`b0a05ce`) and the continuity
   transition itself (`6f0e9c8`) — see the earlier milestone-checklist blocks.
 
-- **next_action**: **(Updated — fifth milestone.)** The MFA-default-policy
-  change (AD-058) and the collapsible-roadmap regeneration are both
-  implemented, tested, and documented (`docs/FEATURE-HISTORY.md` cycle
-  `2026-06-08_04_54_51 UTC`); **commit and push** is the one concrete
-  mechanical step remaining for this milestone's files (`ROADMAP.html`,
-  `docs/FEATURE-HISTORY.html`, `ARCHITECTURE.md`, `docs/ARCHITECTURE.html`,
-  `proxmox-bootstrap/forge_keepass_init.py`, `tests/unit/test_keepass_mfa.py`,
-  `docs/FEATURE-HISTORY.md`, this file, and `RESUME_BLOCK.md` — plus the
-  fourth milestone's still-pending files if not already pushed:
-  `ROADMAP.md`, `tests/unit/test_meta_doc_sync.py`, `.ai/CURRENT_STATE.md`,
-  `.ai/NEXT_STEPS.md`), per the operator's standing `feature_revision_process`
-  / "push on commit" preferences — if it has not already happened by the
-  time you are reading this. Beyond that: **wait for operator reaction to
-  the three draft sketches** still in `ROADMAP.md` "Proposed Future Work"
-  (Recovery-Readiness Conformance, Hypervisor Recovery Credentials —
-  endorsed in principle but not yet promoted to a phase/AD, Granular Secret
-  Access Silos) — all still *drafts for discussion*, deliberately short of
-  numbered-phase/AD status. If the operator confirms a direction on any of
-  them, write that one up the same way Phase 1.H was — scoped roadmap entry
-  plus an AD in `ARCHITECTURE.md` and `.ai/decisions.md` — without
-  pre-emptively promoting the others. If the operator redirects or narrows
-  any sketch, revise it in place rather than starting a parallel one. Also
-  worth surfacing to the operator if they ask "what's left": **AD-058 names
-  a real, not-yet-actioned gap** — wiring an interactive MFA prompt into
-  `guided_setup.py`/`forge_planner.py` so the new `"totp"` default is *seen
-  and confirmed* at forge time, not silently inherited; this is a natural,
-  scoped candidate for "start Phase-1.H-style work" if the operator wants
-  one. Beyond all of the above: **Phase 1.H (Pre-Install Forge Package and
-  Image Builder)** also remains **proposed, not started** — a candidate for
-  a future session, not a mandate. A resuming agent should either (a) wait
-  for/follow new operator direction, or (b) — only if asked to find
-  something to do — offer the AD-058 guided-setup gap, the draft sketches,
-  Phase 1.H, or the platform's own named operational next-step ("deploy to
-  hardware," per `.ai/NEXT_STEPS.md`).
+- **next_action**: **(Updated — sixth milestone.)** The AD-058 guided-setup
+  gap named at the end of the fifth milestone is now **closed** —
+  `security.mfa_method` is wired end-to-end (guided setup → forge manifest →
+  `KeePassInitConfig`), tested, and documented
+  (`docs/FEATURE-HISTORY.md` cycle `2026-06-08_12_36_41 UTC`); the latent
+  `federation_state.py` clock-injection bug found along the way is also fixed
+  and tested. **Commit and push** is the one concrete mechanical step
+  remaining (`proxmox-bootstrap/forge_keepass_init.py`,
+  `proxmox-bootstrap/forge_planner.py`, `proxmox-bootstrap/guided_setup.py`,
+  `proxmox-bootstrap/federation_state.py`, `tests/unit/test_forge_planner.py`,
+  `tests/unit/test_guided_setup.py`, `docs/FEATURE-HISTORY.md`,
+  `docs/FEATURE-HISTORY.html`, `.ai/CURRENT_STATE.md`, this file, and
+  `RESUME_BLOCK.md` — plus any still-pending files from the fifth milestone
+  if not already pushed), per the operator's standing
+  `feature_revision_process` / "push on commit" preferences — if it has not
+  already happened by the time you are reading this.
+
+  Beyond that, the picture is unchanged from the fifth milestone: **wait for
+  operator reaction to the three draft sketches** still in `ROADMAP.md`
+  "Proposed Future Work" (Recovery-Readiness Conformance, Hypervisor Recovery
+  Credentials — endorsed in principle but not yet promoted to a phase/AD,
+  Granular Secret Access Silos) — all still *drafts for discussion*,
+  deliberately short of numbered-phase/AD status. If the operator confirms a
+  direction on any of them, write that one up the same way Phase 1.H was —
+  scoped roadmap entry plus an AD in `ARCHITECTURE.md` and `.ai/decisions.md`
+  — without pre-emptively promoting the others. If the operator redirects or
+  narrows any sketch, revise it in place rather than starting a parallel one.
+
+  Worth naming to the operator if they ask "what's left" or "anything you
+  noticed": the **clock-injection bug class** — `verify_trust()` called a
+  real-wall-clock property (`relationship.is_expired` →
+  `datetime.now(timezone.utc)`) instead of comparing against its own injected
+  `now_fn`, which is exactly the kind of latent defect that surfaces only when
+  the calendar walks past a test fixture's pinned date (as it just did,
+  2026-06-01 → 2026-06-08). One instance is now fixed; a deliberate
+  `datetime.now(`/`datetime.utcnow(` sweep across the codebase (outside
+  `now_fn` plumbing itself) would be a reasonable, scoped GAP-FILL candidate
+  if the operator wants the whole class hardened — **not done here**, named
+  rather than chased, per scope discipline (fix what broke, don't go hunting
+  beyond it unasked).
+
+  Otherwise: **Phase 1.H (Pre-Install Forge Package and Image Builder)**
+  remains **proposed, not started** — a candidate for a future session, not a
+  mandate. A resuming agent should either (a) wait for/follow new operator
+  direction, or (b) — only if asked to find something to do — offer the
+  draft sketches, the clock-injection sweep, Phase 1.H, or the platform's own
+  named operational next-step ("deploy to hardware," per `.ai/NEXT_STEPS.md`).
 
 - **resume_instructions**:
   1. Read `RESUME_BLOCK.md` (this file's `resume_block_ref`) for the

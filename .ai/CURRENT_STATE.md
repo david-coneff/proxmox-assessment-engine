@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-06-03 UTC (audit round 15: shell injection in pvecm, XSS in onclick, k3s_role validation)
+Last updated: 2026-06-08 UTC (AD-058 follow-up closed: guided-setup MFA-method wiring + federation_state.py clock-injection fix)
 
 ## Active Architecture: v7.1
 
@@ -96,6 +96,25 @@ both several days stale relative to their `.md` sources). It failed on first
 run (as intended), the drift was fixed, and it now passes — broodforge's own
 internal trigger for keeping its self-documentation honest, mirroring
 `doc-gen/drift.py`'s role for the infrastructure it manages.
+
+**AD-058 follow-up closed (2026-06-08 UTC, later same-day session):** the gap
+named in the previous cycle — MFA method "inherited silently, not seen and
+confirmed" — is now closed end-to-end. `security.mfa_method` is a guided-setup
+field (`guided_setup.py`: suggest → `"totp"`, `check_conflicts` validates
+`{none, totp, yubikey}` and rejects SMS/email-style values); `forge_planner.py`
+`build_forge_manifest()` writes the operator's choice (or the `"totp"` default)
+into `keepass_config.mfa_method`; `forge_keepass_init.py`
+`generate_keepass_init_config()` reads it and threads it into
+`KeePassInitConfig`. (Resumed mid-flight: a prior session had left this wiring
+partially started — the manifest plumbing existed but `forge_keepass_init.py`
+computed `mfa_method` without passing it to the returned config; completed and
+tested.) Also fixed a latent clock bug surfaced by the calendar: `verify_trust()`
+in `federation_state.py` compared `relationship.is_expired` (real
+`datetime.now()`) against an injected `now_fn`, which flipped
+`test_phase19_federation.py::test_expiring_soon_still_valid` red the moment
+real UTC passed the fixture's fixed expiry date — now computes expiry from the
+injected `now` consistently. Full suite: **3844 passed**. See
+`docs/FEATURE-HISTORY.md` cycle `2026-06-08_12_36_41 UTC`.
 
 **Two more direct operator instructions landed the same session (2026-06-08
 UTC), both now fully implemented and tested — see `docs/FEATURE-HISTORY.md`'s

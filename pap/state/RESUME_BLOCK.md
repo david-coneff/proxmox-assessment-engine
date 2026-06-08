@@ -45,7 +45,35 @@ behavior, not its development process, and is out of scope for this artifact
   for a future session, not mandates — the three draft sketches additionally
   await operator reaction before any can become a candidate phase.
 
-- **active_milestone**: (Updated — fifth milestone, same session.) The
+- **active_milestone**: (Updated — sixth milestone, new session, 2026-06-08.)
+  Resumed per the operator's "continue using PAP-state" instruction; found a
+  prior session had left the AD-058 guided-setup gap (named at the end of the
+  fifth milestone, below) **mid-flight as uncommitted edits** — completed it:
+  `security.mfa_method` is now wired end-to-end, **guided setup → forge
+  manifest → `KeePassInitConfig`** (`guided_setup.py` suggest/check_conflicts,
+  `forge_planner.py build_forge_manifest()`, `forge_keepass_init.py
+  generate_keepass_init_config()` — the last of which had computed the value
+  but never passed it to the returned config; that one missing line was the
+  whole remaining gap). Added full test coverage
+  (`test_guided_setup.py`/`test_forge_planner.py`, 6 new cases). While running
+  the full suite to verify (standing practice before declaring done), found
+  **one pre-existing failure unrelated to this work** —
+  `test_phase19_federation.py::test_expiring_soon_still_valid` — confirmed via
+  `git stash` it failed identically on untouched `main` (not a regression):
+  `verify_trust()` in `federation_state.py` compared a real-wall-clock
+  property (`relationship.is_expired` → `datetime.now(timezone.utc)`) against
+  its own injected `now_fn`, so a fixture pinned to "now = 2026-06-01" with
+  expiry "2026-06-08" started failing the moment real UTC crossed that date.
+  Fixed it to compare against the injected `now` consistently (mirroring the
+  correct pattern already used two lines below it for re-verification age).
+  Recorded the full cycle in `docs/FEATURE-HISTORY.md`
+  (`2026-06-08_12_36_41 UTC`) and regenerated its HTML twin. **Full suite:
+  3844 passed** (was 3843 + 1 pre-existing failure — both now green, no
+  regressions). See `SESSION_HANDOFF.md`'s `last_completed_step` for the
+  complete account, including the named-but-deliberately-not-chased
+  `datetime.now(`/`datetime.utcnow(` sweep candidate this surfaced.
+
+  **Before this (fifth milestone, prior session, same day):** The
   operator reacted to the "Hypervisor Recovery Credentials" sketch
   (endorsing its constrained-recovery-account "middle path") and, in the
   same message, issued two further direct instructions, both now closed:
@@ -153,25 +181,23 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — fifth milestone: AD-058 + collapsible
-  roadmap done; commit/push is the remaining mechanical step.)** Two direct
-  operator instructions from this milestone are fully implemented, tested,
-  and documented — **AD-058** (second-factor auth, app/hardware-only,
-  defaults on for the KeePass unlock gate) and the **collapsible-roadmap
-  regeneration** (`ROADMAP.html` + `docs/FEATURE-HISTORY.html` regenerated
-  via `md_to_html.py --collapsible`, also closing a *content*-drift gap
-  `test_meta_doc_sync.py` couldn't see — it only checks date stamps). Both
-  are recorded in `docs/FEATURE-HISTORY.md`'s newest cycle
-  (`2026-06-08_04_54_51 UTC`) and `SESSION_HANDOFF.md`'s
-  `last_completed_step`. **Commit and push** this milestone's files (see
-  `SESSION_HANDOFF.md`'s `next_action` for the full list) — the one
-  concrete mechanical step remaining, if it has not already happened by the
-  time you are reading this. One real, **not-yet-actioned gap** is named in
-  AD-058 and worth surfacing if the operator asks "what's left": MFA
-  selection is still CLI-flag-only — wiring an interactive prompt into
-  `guided_setup.py`/`forge_planner.py` (so the new `"totp"` default is
-  *seen and confirmed*, not silently inherited) is a scoped, Phase-1.H-style
-  candidate. Beyond that: `ROADMAP.md` "Proposed Future Work" still holds
+- **next_action**: **(Updated — sixth milestone: AD-058 guided-setup gap now
+  CLOSED; commit/push is the remaining mechanical step.)** The MFA-method
+  wiring (guided setup → forge manifest → `KeePassInitConfig`) is complete,
+  tested (6 new cases across `test_guided_setup.py`/`test_forge_planner.py`),
+  and documented (`docs/FEATURE-HISTORY.md` `2026-06-08_12_36_41 UTC`); the
+  `federation_state.py` clock-injection bug found along the way is fixed and
+  tested too. **Commit and push** this milestone's files (see
+  `SESSION_HANDOFF.md`'s `next_action` for the full list) — the one concrete
+  mechanical step remaining, if it has not already happened by the time you
+  are reading this. **AD-058 now has no open gap** — both the default-flip
+  (fifth milestone) and the "seen and confirmed at forge time" wiring (this
+  milestone) are done. One thing worth surfacing if the operator asks "what
+  did you notice": the **clock-injection bug class** named in
+  `SESSION_HANDOFF.md` — one instance fixed, a codebase-wide
+  `datetime.now(`/`datetime.utcnow(` sweep (outside `now_fn` plumbing) named
+  as a reasonable scoped GAP-FILL candidate but **not done**, per scope
+  discipline. Beyond that: `ROADMAP.md` "Proposed Future Work" still holds
   three sketches — Recovery-Readiness Conformance, Hypervisor Recovery
   Credentials (its constrained-account "middle path" was *endorsed* this
   milestone, but the sketch itself is not yet promoted to phase/AD), and

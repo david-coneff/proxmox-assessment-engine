@@ -68,4 +68,26 @@ Timestamps are `YYYY-MM-DD_HH_MM_SS` UTC.
 |---|---|---|---|
 | KeePass unlock gate now defaults to second-factor (`mfa_method` / `--mfa` default flips `"none"` → `"totp"`; AD-058) | USER-REQUESTED ("for high level functions of any kind, we should be requiring 2nd factor authentication as a default, not just a password") | Implemented | unit (`test_keepass_mfa.py`, 49 passed; `test_mfa_method_field_default` updated to assert `"totp"`) |
 | MFA method constrained to authenticator-app TOTP or YubiKey only — SMS/email OTP deliberately never offered | USER-REQUESTED ("the 2nd factor method should be limited to TOTP-authenticator or yubikey, not SMS based TOTP or email-based TOTP since this have greater vulnerability to being hacked") | Implemented (pre-existing `keepass_mfa.py` already had no SMS/email path; default flip + AD-058 make the constraint the documented baseline) | unit + static (grep confirms no SMS/email OTP code path exists anywhere in `keepass_mfa.py` / `forge_keepass_init.py`) |
+
+---
+
+**Cycle: 2026-06-08_12_36_41 UTC**
+
+## AD-058 follow-up: MFA method now seen and confirmed at forge time (guided-setup gap closed)
+
+The prior cycle named one open gap: the `"totp"` MFA default was *inherited
+silently* — `guided_setup.py`/`forge_planner.py` didn't surface it for operator
+confirmation. This cycle closes that gap end-to-end (guided setup → forge
+manifest → KeePass init), completing work a prior session had left mid-flight
+(uncommitted edits found already started in the working tree on resume).
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| `security.mfa_method` added to the guided-setup `security` group (suggest → `"totp"`; `check_conflicts` validates against `{none, totp, yubikey}`, rejects SMS/email-style values, warns on `"none"` as an explicit AD-058 opt-out) | GAP-FILL (closes the named AD-058 follow-up — "seen and confirmed," not silently inherited) | Implemented | unit (`test_guided_setup.py`: suggest + 4 new `check_conflicts` cases) |
+| `build_forge_manifest()` writes `keepass_config.mfa_method` from the guided session's `security.mfa_method` choice when present, else the `"totp"` default | GAP-FILL | Implemented | unit (`test_forge_planner.py::test_mfa_method_defaults_to_totp`, `::test_mfa_method_from_guided_session`) |
+| `generate_keepass_init_config()` reads `forge_manifest["keepass_config"]["mfa_method"]` and threads it into the returned `KeePassInitConfig` (was computed but not wired through — completed the in-flight edit) | GAP-FILL | Implemented | unit (full `keepass`/`mfa`/`forge_planner`/`guided_setup` sweep: 363 passed) |
+| Fixed `verify_trust()` (`federation_state.py`) comparing `relationship.is_expired` (real wall-clock `datetime.now()`) against an injected `now_fn` — caused `test_phase19_federation.py::test_expiring_soon_still_valid` to flip red the moment real UTC time passed the fixture's fixed "soon" expiry date | GAP-FILL (latent bug surfaced by the calendar advancing past the test's fixed fixture date — same class of issue PAP/audit work has repeatedly flagged: real-time calls inside logic meant to be driven by injected clocks) | Implemented | unit (`test_phase19_federation.py`: 51 passed; full suite: 3844 passed) |
+
+> Full suite: **3844 passed** (was 3843 + 1 pre-existing failure from the
+> `federation_state.py` clock bug above — both now green).
 | `ROADMAP.html` regenerated with collapsible (`<details>`/`<summary>`) sections via `md_to_html.py --collapsible`, matching `FEATURE-HISTORY.html`'s pattern | USER-REQUESTED ("broodforge's roadmap should be revised to use collapsible sections, it's quite lengthy at this point") | Implemented | smoke (`<details>`/`</details>` balanced: 9/9; `test_meta_doc_sync.py` passes) — regeneration also closed a content-drift gap the prior hand-sync missed (three draft-sketch `<h3>` sections existed in `ROADMAP.md` but were absent from the old `ROADMAP.html`) |

@@ -195,6 +195,11 @@ class TestSuggestBase(unittest.TestCase):
         val = suggest("security.password_format", self.s)
         self.assertEqual(val, "passphrase")
 
+    def test_suggest_mfa_method_is_totp(self):
+        # AD-058: second-factor auth defaults ON; "totp" is the suggested baseline
+        val = suggest("security.mfa_method", self.s)
+        self.assertEqual(val, "totp")
+
 
 # ---------------------------------------------------------------------------
 # suggest() — revision from prior choices
@@ -337,6 +342,29 @@ class TestCheckConflicts(unittest.TestCase):
         set_value("network.management_cidr", "192.168.1.0/24", s, source="auto")
         warnings = check_conflicts("k3s.pod_cidr", "192.168.1.0/16", s)
         self.assertTrue(any("overlap" in w.lower() for w in warnings))
+
+    def test_mfa_method_totp_no_conflict(self):
+        s = _session()
+        warnings = check_conflicts("security.mfa_method", "totp", s)
+        self.assertEqual(warnings, [])
+
+    def test_mfa_method_yubikey_no_conflict(self):
+        s = _session()
+        warnings = check_conflicts("security.mfa_method", "yubikey", s)
+        self.assertEqual(warnings, [])
+
+    def test_mfa_method_none_is_warning(self):
+        # AD-058: opting out of the default second-factor protection is
+        # allowed but flagged — an explicit, deliberate choice.
+        s = _session()
+        warnings = check_conflicts("security.mfa_method", "none", s)
+        self.assertTrue(any("second-factor" in w.lower() for w in warnings))
+
+    def test_mfa_method_sms_rejected(self):
+        # SMS/email OTP are never offered as choices (AD-058).
+        s = _session()
+        warnings = check_conflicts("security.mfa_method", "sms", s)
+        self.assertTrue(any("not a supported mfa method" in w.lower() for w in warnings))
 
 
 # ---------------------------------------------------------------------------
