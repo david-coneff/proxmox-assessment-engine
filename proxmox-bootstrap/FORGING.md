@@ -34,6 +34,69 @@ forge workflow end-to-end.
 
 ---
 
+## Step 0 — Build pre-install media (optional)
+
+**This step is optional.** The supported baseline remains: install Proxmox VE
+on the target host yourself (official installer, an existing cluster,
+hosting-provider-imaged hardware — whatever works for you), then start at
+Step 1 below. Skip this section entirely if you already have Proxmox VE
+installed.
+
+For operators who want to collapse "install Proxmox" + "copy the forge
+package over" + "SSH in and run forge.sh" into a single boot-and-walk-away
+operation, the Image Builder (Phase 1.H, AD-057) generates a **bootstrap
+image staging bundle** — a structured archive that documents and stages
+everything you need to combine with the official Proxmox VE ISO to produce
+bootable pre-install media:
+
+```bash
+python3 proxmox-bootstrap/forge-planner.py            # Step 1 below — generates forge-manifest.json first
+python3 proxmox-bootstrap/generate-bootstrap-image.py --manifest forge-manifest.json
+```
+
+This produces `bootstrap-image-{cell_id}-{timestamp}.tar.gz`, containing an
+`iso-staging/` layout with:
+
+- `answer.toml` — a Proxmox VE 8+ automated-installer answer file, **derived
+  from `forge-manifest.json`** (hostname, domain, network, timezone) so you
+  answer setup questions exactly once, not twice
+- `forge-package.tar.gz` — the same forge package Step 2 below produces,
+  embedded so the new host can forge itself without a second copy step
+- `first-boot/` — a systemd oneshot unit + installer script that runs the
+  embedded forge package's `forge.sh` automatically on the new host's first
+  boot, replacing the manual "SSH in and run forge.sh" step (Step 4)
+- `bootstrap-image-manifest.{json,html}` — a hash/contents manifest for the
+  bundle (same SHA-256 verification pattern as the forge package, plus its
+  AD-051 HTML twin)
+- `README.md` — exact instructions for combining this bundle with the
+  official Proxmox VE ISO
+
+**Be clear about what this is.** broodforge cannot download, mount, or
+remaster the official Proxmox VE ISO in an offline/stdlib-only environment
+— and does not redistribute Proxmox's installer media. The generated bundle
+is **staging content**, not a literal bootable ISO: you still combine it with
+the official ISO yourself, using Proxmox's own documented tooling (e.g.
+`proxmox-auto-install-assistant prepare-iso`). The bundle's `README.md`
+documents those steps precisely — read it before proceeding.
+
+**Security note — the `answer.toml` root password.** The installer's answer
+file requires *some* root credential, and KeePass does not exist on the host
+yet at install time, so there is no reference-only option here. The Image
+Builder generates a **fresh, single-use discovery passphrase** (the exact
+pattern Cloud-Init already uses for spawned nodes — AD-039/AD-043), prints it
+once at build time, and embeds it in `answer.toml`. It is *not* a permanent
+credential and is never written to KeePass: the embedded forge package's
+phase-03 replaces it with a KeePass-managed credential during the automated
+forge run. **Note the passphrase down when the builder prints it — you cannot
+recover it from the bundle afterward — and rotate or discard it once forging
+completes.**
+
+If this step doesn't fit your situation (different hardware, different
+install method, you just prefer doing it by hand), skip it — Step 1 below is
+where every forge starts either way.
+
+---
+
 ## Step 1 — Generate the forge manifest
 
 On your **workstation**, generate the forge manifest using the interactive planner:

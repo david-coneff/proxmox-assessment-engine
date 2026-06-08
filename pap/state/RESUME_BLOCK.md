@@ -212,40 +212,37 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — seventh milestone: all three Roadmap draft
-  sketches now promoted to scoped phases with ADs; commit/push is the
-  remaining mechanical step.)** The operator reacted to "Recovery-Readiness
-  Conformance," "Hypervisor Recovery Credentials," and "Granular Secret
-  Access Silos for Human Operators" with itemized, exact decisions (quoted in
-  full in `key_decisions_and_insights`/`SESSION_HANDOFF.md`), and this
-  milestone wrote each one up: **Phase 1.I** (AD-059, Recovery-Readiness
-  Conformance Certificate), **Phase 1.J** (AD-060, Hypervisor Recovery:
-  Constrained Accounts and Pre-Generated Spawn Media — operating within a
-  **firm architectural constraint** the operator stated explicitly: no
-  autonomous pathway may read and wield full root credentials against live
-  hypervisors, with two narrow named exceptions for *temporary*,
-  session-scoped credentials in node spawning and phoenix recovery), and
-  **Phase 1.K** (AD-061, Granular Secret Access Silos: Vault Hierarchy and
-  User Provisioning — derived scoped vaults plus the operator's two
-  expansions: vault-of-vaults credential recordkeeping and VM/Proxmox-level
-  user-provisioning templates). `ROADMAP.md`, `ARCHITECTURE.md`, and
-  `.ai/decisions.md` all updated; this file and `SESSION_HANDOFF.md` record
-  the milestone. **Commit and push** these files — the one concrete
-  mechanical step remaining, if it has not already happened by the time you
-  are reading this.
+- **next_action**: **(Updated — eighth milestone: operator directed
+  implementation of all four scoped phases in order; sweep + Phase 1.H DONE
+  and committed/pushed, Phase 1.I is now in progress.)** Order given:
+  (1) repo-wide `datetime.now()`/`utcnow()` clock-injection sweep — **DONE**,
+  commit `c1aef50` (fixed `remediation_executor.build_failure_package` + 9
+  `_exec_*` handlers, `continuous_assessment.collect_pbs_state_update`,
+  `platform_state_collector.compute_platform_health`/`platform_state_to_dict`;
+  full suite 4134 passed before Phase 1.H's own additions); (2) **Phase 1.H**
+  (AD-057, Pre-Install Forge Package and Image Builder) — **DONE**:
+  `generate-bootstrap-image.py` + `_image_builder.py` produce a
+  `bootstrap-image-{cell_id}-{ts}.tar.gz` staging bundle (`answer.toml`
+  derived from forge-manifest.json, embedded forge package, first-boot
+  systemd hook, hash manifest + AD-051 HTML twin, operator README); root
+  password is a fresh single-use AD-039/AD-043-pattern discovery passphrase,
+  never fixed/predictable/KeePass-stored. `FORGING.md`/`.html` gained
+  "Step 0 — Build pre-install media (optional)". 62 new tests; full suite
+  4140 passed, 1 skipped (4 pre-existing unrelated `test_opentofu.py`
+  failures, confirmed present on `main` beforehand). FEATURE-HISTORY
+  updated; commit pending alongside this PAP-state update.
 
-  **`ROADMAP.md` "Proposed Future Work" now holds zero items in "draft
-  sketch, awaiting operator reaction" status** — Phase 1.H, 1.I, 1.J, and
-  1.K are all scoped, proposed-but-not-started phases with their own ADs,
-  the same status tier. None is started; none is mandatory. A resuming agent
-  asked "what's next" should offer: any of the four scoped phases (1.H/1.I/
-  1.J/1.K — equally available, no priority order implied by their letters),
-  the **AD-058 guided-setup-MFA gap is CLOSED** (no longer an offerable
-  item — see the sixth milestone below), the named-but-undone
-  **`datetime.now(`/`datetime.utcnow(` clock-injection sweep** (a scoped
-  GAP-FILL candidate surfaced by the sixth milestone's federation fix, not
-  yet picked up), or the platform's own named *operational* next step,
-  **"deploy to hardware"** (see `active_objective`, above, and `FORGING.md`).
+  **Remaining in the operator's given order**: (3) **Phase 1.I** (AD-059,
+  Recovery-Readiness Conformance Certificate — additive to `readiness.py`/
+  `drift.py`/`dependencies.py`/snapshot store/Phase 12 drills) — IN PROGRESS;
+  (4) **Phase 1.K** (AD-061, Scoped Vault Hierarchy + User Provisioning);
+  (5) **Phase 1.J** (AD-060, Hypervisor Recovery Constrained Accounts +
+  Pre-Generated Spawn Media — must respect the **firm AD-060 constraint**:
+  no autonomous pathway may read/wield full root against live hypervisors;
+  only node-spawn and phoenix-setup temporary credentials are exempted).
+  After each phase: update FEATURE-HISTORY + HTML twin and PAP-state
+  (this file, SESSION_HANDOFF, CURRENT_STATE), run full suite, commit, push.
+
   No open audit finding remains that requires action (F1/F2/F3/the
   Recovery-Readiness open-thread all closed and committed; F4 is an
   observation requiring no action). If the operator gives new direction on

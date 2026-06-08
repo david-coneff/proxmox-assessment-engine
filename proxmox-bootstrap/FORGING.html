@@ -118,6 +118,36 @@
 <li>Internet access from the hatchery host (for apt, Let's Encrypt, Flux CD)</li>
 </ul>
 <hr>
+<h2>Step 0 — Build pre-install media (optional)</h2>
+<p><strong>This step is optional.</strong> The supported baseline remains: install Proxmox VE on the target host yourself (official installer, an existing cluster, hosting-provider-imaged hardware — whatever works for you), then start at Step 1 below. Skip this section entirely if you already have Proxmox VE installed.</p>
+<p>For operators who want to collapse "install Proxmox" + "copy the forge package over" + "SSH in and run forge.sh" into a single boot-and-walk-away operation, the Image Builder (Phase 1.H, AD-057) generates a <strong>bootstrap image staging bundle</strong> — a structured archive that documents and stages everything you need to combine with the official Proxmox VE ISO to produce bootable pre-install media:</p>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>python3 proxmox-bootstrap/forge-planner.py            # Step 1 below — generates forge-manifest.json first
+python3 proxmox-bootstrap/generate-bootstrap-image.py --manifest forge-manifest.json</code></pre></div>
+<p>This produces <code>bootstrap-image-{cell_id}-{timestamp}.tar.gz</code>, containing an <code>iso-staging/</code> layout with:</p>
+<ul>
+<li><code>answer.toml</code> — a Proxmox VE 8+ automated-installer answer file, **derived</li>
+</ul>
+<p>from <code>forge-manifest.json</code>** (hostname, domain, network, timezone) so you answer setup questions exactly once, not twice</p>
+<ul>
+<li><code>forge-package.tar.gz</code> — the same forge package Step 2 below produces,</li>
+</ul>
+<p>embedded so the new host can forge itself without a second copy step</p>
+<ul>
+<li><code>first-boot/</code> — a systemd oneshot unit + installer script that runs the</li>
+</ul>
+<p>embedded forge package's <code>forge.sh</code> automatically on the new host's first boot, replacing the manual "SSH in and run forge.sh" step (Step 4)</p>
+<ul>
+<li><code>bootstrap-image-manifest.{json,html}</code> — a hash/contents manifest for the</li>
+</ul>
+<p>bundle (same SHA-256 verification pattern as the forge package, plus its AD-051 HTML twin)</p>
+<ul>
+<li><code>README.md</code> — exact instructions for combining this bundle with the</li>
+</ul>
+<p>official Proxmox VE ISO</p>
+<p><strong>Be clear about what this is.</strong> broodforge cannot download, mount, or remaster the official Proxmox VE ISO in an offline/stdlib-only environment — and does not redistribute Proxmox's installer media. The generated bundle is <strong>staging content</strong>, not a literal bootable ISO: you still combine it with the official ISO yourself, using Proxmox's own documented tooling (e.g. <code>proxmox-auto-install-assistant prepare-iso</code>). The bundle's <code>README.md</code> documents those steps precisely — read it before proceeding.</p>
+<p><strong>Security note — the <code>answer.toml</code> root password.</strong> The installer's answer file requires *some* root credential, and KeePass does not exist on the host yet at install time, so there is no reference-only option here. The Image Builder generates a <strong>fresh, single-use discovery passphrase</strong> (the exact pattern Cloud-Init already uses for spawned nodes — AD-039/AD-043), prints it once at build time, and embeds it in <code>answer.toml</code>. It is *not* a permanent credential and is never written to KeePass: the embedded forge package's phase-03 replaces it with a KeePass-managed credential during the automated forge run. <strong>Note the passphrase down when the builder prints it — you cannot recover it from the bundle afterward — and rotate or discard it once forging completes.</strong></p>
+<p>If this step doesn't fit your situation (different hardware, different install method, you just prefer doing it by hand), skip it — Step 1 below is where every forge starts either way.</p>
+<hr>
 <h2>Step 1 — Generate the forge manifest</h2>
 <p>On your <strong>workstation</strong>, generate the forge manifest using the interactive planner:</p>
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>python3 proxmox-bootstrap/forge-planner.py</code></pre></div>

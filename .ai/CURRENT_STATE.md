@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-06-08 UTC (operator decisions promoted all three Roadmap draft sketches to scoped phases — Phase 1.I/AD-059 Recovery-Readiness Conformance Certificate, Phase 1.J/AD-060 Hypervisor Recovery Constrained Accounts (within a firm new architectural constraint against autonomous full-root hypervisor pathways), Phase 1.K/AD-061 Granular Secret Access Silo Vault Hierarchy and User Provisioning; AD-058 follow-up closed earlier same day: guided-setup MFA-method wiring + federation_state.py clock-injection fix)
+Last updated: 2026-06-08 UTC (operator directed full implementation of all four scoped phases in order — datetime.now()/utcnow() clock-injection sweep DONE (commit c1aef50) and Phase 1.H/AD-057 Pre-Install Forge Package and Image Builder DONE (`generate-bootstrap-image.py` + `_image_builder.py`, 62 new tests, full suite 4140 passed/1 skipped); Phase 1.I/AD-059 Recovery-Readiness Conformance Certificate now in progress, then 1.K/AD-061, then 1.J/AD-060)
 
 ## Active Architecture: v7.1
 

@@ -579,35 +579,63 @@ of what this transition exists to make durable.
   before that, the F1/F2 resolution milestone (`b0a05ce`) and the continuity
   transition itself (`6f0e9c8`) — see the earlier milestone-checklist blocks.
 
-- **next_action**: **(Updated — seventh milestone.)** All three draft
-  sketches have now been **promoted to scoped phases with ADs**, per the
-  operator's itemized 2026-06-08 decisions (quoted in full in
-  `key_decisions_and_insights`): **Phase 1.I**/AD-059 (Recovery-Readiness
-  Conformance Certificate), **Phase 1.J**/AD-060 (Hypervisor Recovery:
-  Constrained Accounts and Pre-Generated Spawn Media — operating inside a
-  **firm architectural constraint**, AD-060, that the operator stated
-  explicitly: no autonomous pathway may read and wield full root credentials
-  against live hypervisors, with two narrow named exceptions for *temporary*,
-  session-scoped credentials in node spawning and phoenix recovery), and
-  **Phase 1.K**/AD-061 (Granular Secret Access Silos: Vault Hierarchy and
-  User Provisioning — the base derived-vault design plus the operator's two
-  expansions: vault-of-vaults credential recordkeeping and VM/Proxmox-level
-  user-provisioning templates). `ROADMAP.md`, `ARCHITECTURE.md`,
-  `.ai/decisions.md`, this file, and `RESUME_BLOCK.md` are all updated
-  in this milestone. **Commit and push** is the one concrete mechanical step
-  remaining (`ROADMAP.md`, `ROADMAP.html` if regenerated, `ARCHITECTURE.md`,
-  `.ai/decisions.md`, `.ai/CURRENT_STATE.md`, this file, and
-  `RESUME_BLOCK.md`, plus `docs/FEATURE-HISTORY.md`/`.html` if a cycle entry
-  was added), per the operator's standing `feature_revision_process` /
-  "push on commit" preferences — if it has not already happened by the time
-  you are reading this.
+- **next_action**: **(Updated — eighth milestone, in progress.)** The
+  operator gave a direct, ordered execution instruction: implement all four
+  scoped phases (1.H → 1.I → 1.K → 1.J) plus a clock-injection cleanup item,
+  fully autonomously, committing after each. Progress so far:
 
-  **`ROADMAP.md` "Proposed Future Work" now holds zero items in "draft
-  sketch, awaiting operator reaction" status.** Phase 1.H, 1.I, 1.J, and 1.K
-  all sit at the same tier — scoped, proposed, not started, each with its
-  own AD. There is no pending "wait for operator reaction" thread left from
-  this corpus; a resuming agent does not need to chase any of the three
-  sketches further (they are no longer sketches).
+  1. **`datetime.now()`/`utcnow()` clock-injection sweep — DONE**, commit
+     `c1aef50`/pushed. Fixed `remediation_executor.build_failure_package` +
+     all 9 `_exec_*` action handlers (audit-trail `failed_at`, drill
+     `due_at`/`added_at`), `continuous_assessment.collect_pbs_state_update`
+     (`collected_at`), `platform_state_collector.compute_platform_health`/
+     `platform_state_to_dict` (cert-expiry calc) — all now thread `now_fn`
+     instead of calling the real clock directly. Cleaned up an odd
+     `__import__("datetime")` lazy-import in `reconstruction-drill.py`.
+     Several other suspicious call sites were checked and left alone with
+     documented reasons (true CLI/HTTP leaf entry points with no `now_fn`
+     anywhere in their call chain — see the agent's report for the full list).
+  2. **Phase 1.H / AD-057 (Pre-Install Forge Package and Image Builder) —
+     DONE**, commit pending. `generate-bootstrap-image.py` (CLI) +
+     `_image_builder.py` (module) produce a `bootstrap-image-{cell_id}-
+     {timestamp}.tar.gz` "staging bundle": `answer.toml` (Proxmox 8+
+     automated-installer answer file derived from forge-manifest.json
+     `host_identity`/`network_topology`, AD-049 fields — answered once),
+     an embedded forge package (reuses `assemble_forge_package`), a
+     first-boot systemd unit + installer script that runs `forge.sh`
+     unattended, a hash/contents manifest + AD-051 HTML twin
+     (`build_bootstrap_image_manifest_html` in `html_package_manifest.py`),
+     and an operator README. **Honesty constraint honored**: explicitly
+     documented (CLI banner, README, HTML manifest) as a *staging bundle*
+     the operator combines with the official Proxmox VE ISO via
+     `proxmox-auto-install-assistant` — broodforge does not download, mount,
+     or redistribute Proxmox media (AD-040 reference-stack scope).
+     **Root-password handling**: `generate_install_passphrase()` produces a
+     fresh, single-use `Capital.boot.word.N` passphrase — same pattern as
+     the AD-039/AD-043 Cloud-Init discovery password, never fixed/
+     predictable/KeePass-stored, replaced by phase-03's vaulted credential,
+     printed once at build time, documented as one-time-use everywhere.
+     `FORGING.md`/`.html` gained "Step 0 — Build pre-install media
+     (optional)". 62 new tests (`test_image_builder.py`); full suite 4140
+     passed, 1 skipped (the same 4 pre-existing unrelated `test_opentofu.py`
+     failures, confirmed present on `main` before any of this work).
+     `docs/FEATURE-HISTORY.md`/`.html` updated with a new cycle entry.
+
+  **Remaining, in the operator's given order**: Phase 1.I (AD-059,
+  Recovery-Readiness Conformance Certificate) — IN PROGRESS now; then
+  Phase 1.K (AD-061, Scoped Vault Hierarchy + User Provisioning); then
+  Phase 1.J (AD-060, Hypervisor Recovery — must respect the **firm AD-060
+  constraint**: no autonomous pathway may read/wield full root against live
+  hypervisors; only node-spawn and phoenix-setup temporary credentials are
+  exempt, time-limited, and require operator rotation afterward). After each:
+  update FEATURE-HISTORY (+ HTML twin) and PAP-state, run the full suite,
+  commit, push — per the operator's standing `feature_revision_process` /
+  "push on commit" preferences.
+
+  **`ROADMAP.md` "Proposed Future Work"** held zero items in "draft sketch,
+  awaiting operator reaction" status entering this milestone — all four
+  phases were already scoped with their own ADs; this milestone is executing
+  them in the operator's specified order, not re-scoping them.
 
   Worth naming to the operator if they ask "what's left" or "anything you
   noticed": the **clock-injection bug class** named at the sixth milestone —

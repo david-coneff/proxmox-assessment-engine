@@ -118,3 +118,30 @@ touched, so no test run was required (per the operator's own execution rule).
 > "Proposed Future Work" now holds four scoped-but-not-started phases
 > (1.H/1.I/1.J/1.K), each with its own AD, none mandatory, no priority order
 > implied by their letters.
+
+---
+
+**Cycle: 2026-06-08_17_28_29 UTC**
+
+## Clock-injection sweep + Phase 1.H (AD-057) implemented
+
+Operator directed implementation of all four scoped-but-not-started phases in
+order, starting with a repo-wide sweep for `datetime.now()`/`utcnow()` calls
+that bypass the injected `now_fn` clock-injection convention (a recurring
+class of latent bug — see the AD-058-follow-up cycle above for one prior
+instance), then Phase 1.H.
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| Clock-injection sweep: `remediation_executor.build_failure_package` + all 9 `_exec_*` action handlers, `continuous_assessment.collect_pbs_state_update`, and `platform_state_collector.compute_platform_health`/`platform_state_to_dict` now thread `now_fn` instead of calling `datetime.now()` directly (audit-trail `failed_at`/drill `due_at`/`added_at`/PBS `collected_at`/cert-expiry timestamps are now deterministic under injected clocks); odd `__import__("datetime")` lazy-import in `reconstruction-drill.py` cleaned up to a normal top-level import | GAP-FILL (latent non-determinism — same class of bug AD-058-follow-up's `federation_state.verify_trust` fix addressed) | Implemented | unit (full suite: 4134 passed, 1 skipped — 4 pre-existing unrelated `test_opentofu.py` failures confirmed present on `main` before this change via `git stash`) |
+| **Phase 1.H — Pre-Install Forge Package and Image Builder (AD-057)**: `generate-bootstrap-image.py` CLI + `_image_builder.py` module produce a `bootstrap-image-{cell_id}-{timestamp}.tar.gz` "staging bundle" — `answer.toml` (Proxmox 8+ automated-installer answer file derived from `forge-manifest.json` host_identity/network_topology fields, AD-049), an embedded forge package (reuses `assemble_forge_package`), a first-boot systemd hook + installer script that runs `forge.sh` unattended on first boot, a hash/contents manifest + AD-051 HTML twin (`build_bootstrap_image_manifest_html` added to `html_package_manifest.py`), and an operator README explaining how to combine the bundle with the official Proxmox VE ISO via `proxmox-auto-install-assistant` | USER-REQUESTED (Roadmap Phase 1.H checklist, promoted from AD-057) | Implemented | unit (`test_image_builder.py`: 62 passed; full suite: 4140 passed, 1 skipped) |
+| `answer.toml` root-password handling: `generate_install_passphrase()` produces a fresh, single-use `Capital.boot.word.N` discovery passphrase (mirrors the AD-039/AD-043 Cloud-Init temporary-password pattern — never fixed/predictable, never written to KeePass, replaced by phase-03's KeePass-managed credential, printed once at build time and documented as one-time-use in the README/HTML manifest) | GAP-FILL (closes the "package never contains real secrets" invariant for the new artifact — `answer.toml` has no KeePass-reference indirection available at install time) | Implemented | unit (`test_no_fixed_default_password` asserts two generated `answer.toml`s never share a root-password line) |
+| `FORGING.md`/`FORGING.html` gain "Step 0 — Build pre-install media (optional)" — explicitly framed as an optional alternative; the existing "Proxmox already installed" path remains the supported baseline | USER-REQUESTED (Roadmap Phase 1.H checklist item) | Implemented | static (regenerated via `md_to_html.py`) |
+
+> Honesty constraint honored: the bundle is explicitly documented (CLI output,
+> README, HTML manifest) as a *staging bundle* an operator combines with the
+> official Proxmox VE ISO via Proxmox's own remastering tooling — broodforge
+> neither downloads, mounts, nor redistributes Proxmox media, consistent with
+> AD-040's reference-stack-only scope. Full suite: **4140 passed, 1 skipped**
+> (4 pre-existing unrelated `test_opentofu.py` failures, confirmed present on
+> `main` before any of this cycle's changes).

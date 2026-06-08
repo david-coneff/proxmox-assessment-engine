@@ -537,3 +537,131 @@ def build_phoenix_manifest_html(
         body=body,
         gen_at=gen_at,
     )
+
+
+# ---------------------------------------------------------------------------
+# Bootstrap image staging bundle HTML manifest (Phase 1.H, AD-057)
+# ---------------------------------------------------------------------------
+
+def build_bootstrap_image_manifest_html(
+    manifest: dict,
+    image_manifest: dict,
+    now_fn=None,
+) -> str:
+    """
+    Build a human-readable HTML manifest for a bootstrap image staging bundle.
+
+    manifest:       forge-manifest.json (cell identity snapshot)
+    image_manifest: bootstrap-image-manifest.json content (see _image_builder.
+                    build_image_manifest) — bundle contents + embedded forge
+                    package hash.
+
+    Explains: what the bundle is (and is NOT — a staging bundle, not a
+    bootable ISO), what's inside, the embedded forge package's verification
+    hash, and what the operator must do to turn it into bootable media.
+    """
+    gen_at = (now_fn() if now_fn else datetime.now(timezone.utc).isoformat())
+    cell_id = manifest.get("cell_id") or image_manifest.get("cell_id") or "unknown-cell"
+    hi = manifest.get("host_identity") or image_manifest.get("host_identity") or {}
+    hostname = hi.get("hostname") or hi.get("fqdn") or "unknown"
+    fqdn = hi.get("fqdn") or ""
+    nt = manifest.get("network_topology") or image_manifest.get("network_topology") or {}
+    mgmt_cidr = nt.get("management_cidr") or nt.get("cidr") or ""
+    gateway = nt.get("gateway") or ""
+
+    pkg = image_manifest.get("embedded_forge_package") or {}
+    pkg_name = pkg.get("name") or ""
+    pkg_sha = pkg.get("sha256") or ""
+    pkg_size = pkg.get("size_bytes") or 0
+    answer_sha = image_manifest.get("answer_toml_sha256") or ""
+    unit_name = image_manifest.get("first_boot_unit") or ""
+
+    body = ""
+
+    # Identity overview
+    body += "<h2>Bundle Identity</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="warn">This is a <b>staging bundle</b>, not a bootable ISO. ' \
+            'It contains everything cell-specific that an operator combines with the ' \
+            'official Proxmox VE ISO via their own remastering process. See README.md ' \
+            'inside the bundle for the exact steps.</div>'
+    body += _kv([
+        ("Cell ID",          cell_id),
+        ("Target hostname",  hostname),
+        ("FQDN",             fqdn),
+        ("Management CIDR",  mgmt_cidr),
+        ("Gateway",          gateway),
+        ("First-boot unit",  unit_name),
+        ("Generated",        gen_at[:19]),
+    ])
+    body += "</div>"
+
+    # What's in this bundle
+    body += "<h2>Bundle Contents</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="tip">Extract the bundle to get an <code>iso-staging/</code> ' \
+            'directory ready to overlay onto the official Proxmox VE ISO.</div>'
+    files = [
+        ("answer.toml",                       "Proxmox 8+ automated-installer answer file — derived from forge-manifest.json (network, hostname, disk layout, timezone)"),
+        ("forge-package.tar.gz",              "Embedded forge package — same artifact FORGING.md Step 2 produces; runs automatically on first boot"),
+        (f"first-boot/{unit_name}",           "Systemd oneshot unit — runs the embedded forge package's forge.sh on first boot"),
+        ("first-boot/install-first-boot-hook.sh", "Installer script invoked by answer.toml's post-install hook — stages the forge package and enables the first-boot unit"),
+        ("bootstrap-image-manifest.json",     "This bundle's machine-readable hash/contents manifest"),
+        ("bootstrap-image-manifest.html",     "This document — human-readable twin (AD-051)"),
+        ("README.md",                         "Remastering instructions — how to combine this bundle with the official Proxmox VE ISO"),
+    ]
+    rows = [[f"<code>{_e(f)}</code>", _e(d)] for f, d in files]
+    body += "<table><tr><th>File</th><th>Purpose</th></tr>" + \
+            "".join(f"<tr><td>{r[0]}</td><td>{r[1]}</td></tr>" for r in rows) + "</table>"
+    body += "</div>"
+
+    # Verification (AD-042/AD-051 supply-chain pattern)
+    body += "<h2>Artifact Verification</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="tip">Verify the embedded forge package before relying on this bundle — ' \
+            'the same SHA-256 pattern used for forge/spawn/phoenix packages.</div>'
+    body += _kv([
+        ("Embedded package",   pkg_name),
+        ("Package SHA-256",    pkg_sha),
+        ("Package size",       f"{pkg_size:,} bytes" if pkg_size else ""),
+        ("answer.toml SHA-256", answer_sha),
+    ])
+    body += f'<pre>sha256sum {_e(pkg_name)}\n# compare against: {_e(pkg_sha)}</pre>'
+    body += "</div>"
+
+    # Security note — single-use install passphrase
+    body += "<h2>Security Notes</h2>"
+    body += '<div class="section-wrap">'
+    body += '<div class="danger">The <code>root-password</code> in <code>answer.toml</code> is a ' \
+            '<b>freshly-generated, single-use discovery passphrase</b> (AD-039/AD-043 pattern) — ' \
+            'NOT a permanent credential and NOT stored in KeePass. The embedded forge package ' \
+            'replaces it with a KeePass-managed credential during phase-03. Note it down before ' \
+            'burning this bundle to media; rotate or discard it once forging completes.</div>'
+    body += '<p style="color:var(--muted);font-size:.88em">As with every broodforge package, this ' \
+            'bundle never embeds permanent secret values — only KeePass references (and this one ' \
+            'time-boxed install passphrase, which is not a permanent secret by design).</p>'
+    body += "</div>"
+
+    # What the operator must do
+    body += "<h2>Operator Checklist</h2>"
+    body += '<div class="section-wrap">'
+    tasks = [
+        "Extract this bundle to obtain the iso-staging/ directory",
+        "Download the official Proxmox VE ISO for your target version (operator-performed — broodforge does not redistribute it)",
+        "Use proxmox-auto-install-assistant (or the documented USB overlay method) to combine answer.toml from this bundle with that ISO",
+        "Burn/write the resulting media and boot the target host from it",
+        "Note down the answer.toml root-password (single-use discovery passphrase) before first boot — you cannot recover it from this bundle afterward",
+        "After the automated install completes: install-first-boot-hook.sh stages the forge package and enables the first-boot unit",
+        f"On first real boot, {unit_name} runs forge.sh unattended — turning bare metal into an operational hatchery",
+        "At the KeePass gate (forge phase-03): set your master password — the only manual input required",
+    ]
+    body += "".join(f'<div class="operator-task">{_e(t)}</div>' for t in tasks)
+    body += "</div>"
+
+    return _page(
+        title=f"Bootstrap Image — {cell_id}",
+        cell_id=cell_id,
+        subtitle=f"Bootstrap Image Staging Bundle · {cell_id} · {hostname}",
+        body=body,
+        gen_at=gen_at,
+    )
