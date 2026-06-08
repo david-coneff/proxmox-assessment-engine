@@ -268,59 +268,94 @@ of what this transition exists to make durable.
         the very update this protocol's `update_trigger` calls for at every
         major milestone (you are reading the result of that update now).
 
-- **last_completed_step**: Added a **DRAFT SKETCH** to `ROADMAP.md`'s
-  "Proposed Future Work" section — "Recovery-Readiness Conformance
-  (operator follow-up, 2026-06-07)" — in direct response to the operator
-  reconsidering part of the F3 deferral. After the F3 closure above, the
-  operator read the formal axiomatic-kernel/proof-system series differently
-  than its category-theoretic framing suggested: not as "implement a parallel
-  formal-verification system" (correctly out of scope — see "what was
-  deferred and why," still standing), but as naming two real, narrow
-  concerns — *provable recovery readiness* and *observed-state ↔
-  intent-manifest conformance* — and asked for a draft of "what to do with
-  these." The draft sketch reads all 13 of the series' PDFs in full, builds
-  a translation table mapping each formal construct (Root Manifest, System
-  Graph, Reconciliation Engine, drift classification, benchmark scores,
-  Deployment Certificate, hash-chained event log/replay, idempotent action
-  runtime/invariants, trust boundaries) to the broodforge mechanism that
-  *already* plays that role informally (`bootstrap-state.json`,
-  `dependencies.py`, Phase 26 remediation, `drift.py`, RRS/ACS/DCS/CRS/OSS
-  scores, readiness + drift + `DrillRecord`, `history/snapshots/` +
-  provenance, idempotent remediation actions, KeePass/restic/git trust
-  model) — and identifies **one genuinely new artifact** worth scoping
-  further: a single generated `recovery-readiness-certificate.json`/HTML
-  that bundles a manifest hash, graph hash, current readiness score, drift
-  summary, and latest drill result into one timestamped record. Marked
-  explicitly **draft / not a scoped phase / not an AD** — offered for
-  operator reaction before being written up as "Phase 1.I" or similar, the
-  same way Phase 1.H was scoped only after its source chapters were
-  identified. Before that: wrote `ROADMAP.md`'s "Proposed Future Work — from
+- **last_completed_step**: (Updated — fourth milestone, same session.)
+  Following direct operator instruction ("proceed with any autonomous
+  roadmap/architecture work that you can that doesn't require my decisions,
+  with the occasional session-handoff commit"), extended the draft-sketch
+  thread with two more sketches and closed a doc-drift gap the operator
+  spotted by inspection:
+  - Added **DRAFT SKETCH — Hypervisor Recovery Credentials**: the operator's
+    requested "thorough evaluation" of permanently storing Proxmox root
+    passwords in KeePass, written up as a recommendation *against* an
+    autonomous pathway that can wield full root against live hypervisors
+    (named as the one line broodforge should not cross — unbounded blast
+    radius, exactly the kind of autonomy the newly-amended AD-034/AD-040
+    "bounded by safeguards and recoverability" framing was not meant to
+    license), with a concrete middle path: constrained forced-command
+    recovery accounts, full root as break-glass behind the *existing*
+    human-unlock gate (AD-042, no new pathway), and pre-generated
+    human-gated spawn-media credentials (the operator's own proposal,
+    adopted as sound).
+  - Added **DRAFT SKETCH — Granular Secret Access Silos for Human
+    Operators**: the operator's question about tiered, hierarchically-scoped
+    human access to secrets (service operator vs. "god-mode" sysadmin,
+    scoped to cell/node/VM). Confirmed "god mode" is the right homelab
+    default (operator's own framing); sketched a design — derive scoped
+    sub-vaults from the canonical KeePass DB along the hierarchy
+    `secret-registry.yaml` *already* encodes (`owning_cell`, `required_by:
+    [host:X]/[vm:X]`) — that needs no new dependency and changes nothing
+    about the trust-model foundations, because KeePass/KDBX has no native
+    per-user role layer (named explicitly as the constraint that shapes the
+    whole design).
+  - Added **`tests/unit/test_meta_doc_sync.py`**, addressing the operator's
+    *first* observation this session — "roadmap.html and roadmap.md... is
+    not updated... we need to implement some way for changes to the
+    broodforge codebase to also trigger its own internal process for
+    updating its documentation." Investigation found the drift was worse
+    than the operator's example: `ROADMAP.html` (stamped 2026-06-03 vs. the
+    `.md`'s 2026-06-07) *and* `docs/ARCHITECTURE.html` (stamped 2026-06-02)
+    *and* `ARCHITECTURE.md`'s own header (stamped 2026-05-31, stale relative
+    to its own AD-057 entry from `bbc2bdd`) — three different stamps, none
+    agreeing. Rather than build a markdown→HTML generator (these `.html`
+    files are hand-styled with theme toggles/copy buttons — generating them
+    would destroy that), added a drift-detection test mirroring the existing
+    `test_html_base_sync.py` pattern: it extracts the version/date stamp
+    from each `.md` and its `.html` companion and fails the suite if they
+    disagree. Ran it — it failed immediately on the real drift (proving the
+    mechanism works), then synced all three stamps and it now passes. This
+    *is* the "trigger": broodforge's suite already runs every change cycle,
+    so a doc edit that forgets its companion now turns it red immediately —
+    the same self-documentation philosophy `doc-gen/drift.py` applies to the
+    managed infrastructure, pointed at broodforge's own meta-docs.
+  All three sketches are explicitly marked **draft / not phases / not ADs**
+  — exactly the "autonomous work that doesn't require operator decisions"
+  framing requested: they advance the roadmap's *thinking* without
+  committing the operator to anything. `.ai/NEXT_STEPS.md` and
+  `.ai/CURRENT_STATE.md` updated to index all three plus the new test.
+  Before this: wrote the first **DRAFT SKETCH — Recovery-Readiness
+  Conformance** (translation table mapping all 13 axiomatic-kernel/
+  proof-system PDFs' formal constructs to existing broodforge mechanisms;
+  identified the `recovery-readiness-certificate.json` artifact as the one
+  genuinely new piece) — in direct response to the operator reconsidering
+  part of the F3 deferral and asking to "start drafting what to do with
+  these." Before *that*: wrote `ROADMAP.md`'s "Proposed Future Work — from
   `new/` corpus analysis" section (Phase 1.H, "already covered," "what was
   deferred and why"), `ARCHITECTURE.md` AD-057, and the audit's F3
-  status-banner update + Resolution annotation (commit `bbc2bdd`). Before
-  *that*: completed and committed the F1/F2 resolution milestone (`b0a05ce`)
-  and, before that, the continuity transition itself (`6f0e9c8`) — see the
-  earlier milestone-checklist blocks.
+  status-banner update + Resolution annotation (commit `bbc2bdd`); and,
+  before that, the F1/F2 resolution milestone (`b0a05ce`) and the continuity
+  transition itself (`6f0e9c8`) — see the earlier milestone-checklist blocks.
 
-- **next_action**: **Wait for operator reaction to the draft sketch** in
-  `ROADMAP.md` "Proposed Future Work → DRAFT SKETCH — Recovery-Readiness
-  Conformance." It was written *as a draft for discussion* per the
-  operator's explicit phrasing ("start drafting what to do with these") —
-  it is deliberately not yet promoted to a numbered phase or an AD. If the
-  operator confirms the direction (most likely: "scope the
-  recovery-readiness-certificate idea as a phase"), the next step is to
-  write it up the same way Phase 1.H was — a scoped roadmap entry plus an
-  AD in `ARCHITECTURE.md` and `.ai/decisions.md`. If the operator redirects
-  or narrows it, revise the sketch in place rather than starting a parallel
-  one. **Commit and push** this milestone's changes (`ROADMAP.md`, this
-  file, and `RESUME_BLOCK.md`) — that is the one concrete mechanical step
-  remaining, if it has not already happened by the time you are reading
-  this. Beyond the draft-sketch thread: **Phase 1.H (Pre-Install Forge
-  Package and Image Builder)** also remains **proposed, not started** — a
-  candidate for a future session, not a mandate. A resuming agent should
-  either (a) wait for/follow new operator direction, or (b) — only if asked
-  to find something to do — look to `RESUME_BLOCK.md`'s `next_action` and
-  the platform's own named operational next-step ("deploy to hardware," per
+- **next_action**: **Wait for operator reaction to the three draft
+  sketches** now in `ROADMAP.md` "Proposed Future Work" (Recovery-Readiness
+  Conformance, Hypervisor Recovery Credentials, Granular Secret Access
+  Silos) — all written *as drafts for discussion* per explicit operator
+  request, all deliberately stopped short of numbered-phase/AD status. If
+  the operator confirms a direction on any of them, write that one up the
+  same way Phase 1.H was — scoped roadmap entry plus an AD in
+  `ARCHITECTURE.md` and `.ai/decisions.md` — without pre-emptively promoting
+  the others. If the operator redirects or narrows any sketch, revise it in
+  place rather than starting a parallel one. **Commit and push** this
+  milestone's changes (`ROADMAP.md`, `ROADMAP.html`, `ARCHITECTURE.md`,
+  `docs/ARCHITECTURE.html`, `tests/unit/test_meta_doc_sync.py`,
+  `.ai/CURRENT_STATE.md`, `.ai/NEXT_STEPS.md`, this file, and
+  `RESUME_BLOCK.md`) — the one concrete mechanical step remaining, if it has
+  not already happened by the time you are reading this. Beyond the
+  draft-sketch thread: **Phase 1.H (Pre-Install Forge Package and Image
+  Builder)** also remains **proposed, not started** — a candidate for a
+  future session, not a mandate. A resuming agent should either (a) wait
+  for/follow new operator direction, or (b) — only if asked to find
+  something to do — look to `RESUME_BLOCK.md`'s `next_action` and the
+  platform's own named operational next-step ("deploy to hardware," per
   `.ai/NEXT_STEPS.md`).
 
 - **resume_instructions**:

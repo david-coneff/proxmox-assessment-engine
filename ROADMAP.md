@@ -2,8 +2,10 @@
 
 Version: 7.1
 Last updated: 2026-06-07 (`new/` corpus analysis: Phase 1.H proposed — Pre-Install
-Forge Package and Image Builder; plus a draft sketch reframing the formal-proof
-series as "Recovery-Readiness Conformance" — see "Proposed Future Work" below)
+Forge Package and Image Builder; plus three draft sketches from operator
+follow-up — Recovery-Readiness Conformance, Hypervisor Recovery Credentials,
+and Granular Secret Access Silos for Human Operators — see "Proposed Future
+Work" below)
 Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)
 
 ---
@@ -380,6 +382,166 @@ way Phase 1.H was scoped from Chapter 16/Spec 70/Spec 148. This sketch
 deliberately stops short of that: it is the "what to do with these" the
 operator asked for, offered for reaction before being written into
 `ARCHITECTURE.md` as an AD or split into roadmap deliverables.
+
+### DRAFT SKETCH — Hypervisor Recovery Credentials (operator follow-up, 2026-06-07)
+
+**Status: draft recommendation — NOT a scoped phase, NOT started, NOT yet an
+AD.** The operator asked for a thorough evaluation of whether broodforge
+should start *permanently* storing each Proxmox host's root password in
+KeePass — reasoning that the hatchery already handles a *temporary* root
+passphrase during spawn discovery (`ARCHITECTURE.md` lines ~159–169: generated
+pre-install, used for SSH-based hardware discovery, discarded the moment
+Cloud-Init installs a KeePass-managed credential), and a permanent version
+would (a) close the gap where a node that boots to Proxmox but fails to bring
+up its VM/k3s layer is currently a dead end requiring physical console access,
+and (b) give broodforge "a genuinely complete keystore of all node root
+passwords," including the ability to autonomously pre-generate credentials for
+future spawns and embed them in install media (gated by human authorization
+before the resulting node is allowed to join — the operator's own proposed
+safeguard).
+
+**The benefit is real; so is the risk, and the risk dominates.** Today, even a
+total compromise of the hatchery or KeePass yields, at worst, operational
+credentials for nodes mid-spawn — a narrow, time-boxed set, because the
+temporary passphrase dies the instant Cloud-Init replaces it. A permanent
+"complete keystore of all node root passwords" converts that same compromise
+into root on *every hypervisor in the cell — the substrate everything else
+runs on*. That is not a difference of degree; it is the difference between
+"compromise the secrets layer" and "own the entire infrastructure,
+permanently, with no expiry to bound the damage." The sharpest form of the
+danger is the one the operator named directly: an *autonomous* execution-
+broker pathway that can read and wield a permanent root password turns any
+bug, misconfiguration, or compromise of *that one pathway* into root on every
+hypervisor at once — a far larger escalation surface than anything that exists
+in broodforge today, and exactly the kind of unbounded autonomous action the
+newly-amended AD-034/AD-040 ("autonomous action is acceptable when bounded by
+safeguards and recoverability," per the F2 resolution recorded earlier today)
+was never meant to license, because root has no boundary by definition.
+
+**Recommended middle path — gets the recovery benefit without the liability:**
+
+1. **Constrained recovery accounts, not root, for the "diagnose a
+   partially-failed node" case.** Provision a dedicated, narrowly-scoped
+   account per hypervisor with a forced command (`ForceCommand` /
+   `command=` in `authorized_keys`) limited to a fixed menu of read-only
+   diagnostics and safe operations (status, logs, VM start/stop) — never an
+   arbitrary shell. Even total compromise of that credential store yields
+   only the fixed command surface, never root. Because its blast radius is
+   bounded *by construction*, this is the one piece that could safely be
+   queried autonomously.
+2. **Full root as break-glass, governed by the gate that already exists.**
+   Where genuine root is unavoidable (e.g., filesystem repair), store it —
+   but behind the *same human-unlock gate* that already protects every other
+   secret in the system (AD-042), with **no new autonomous pathway**. This is
+   functionally "the recovery runbook tells the operator where to find it and
+   they type it themselves" — a storage change, not a privilege change. It
+   delivers the "complete keystore, nothing orphaned" property on a trust
+   boundary that is already trusted, at zero new attack-surface cost.
+3. **Pre-generated spawn-media credentials — adopt as described.** This part
+   of the proposal is sound as stated and cheap to build: it is the existing
+   `AD-043` passphrase-generation pattern, just run earlier and shipped on
+   media instead of typed by an operator at install time. The operator's own
+   proposed safeguard — human authorization required before a node installed
+   from such pre-made media is allowed to join — costs nothing architecturally;
+   it slots into the same place the existing autonomous-mode service-selection
+   confirmation already lives (AD-041).
+
+**The line this sketch recommends broodforge not cross:** an autonomous
+pathway that can read and wield full root credentials against live
+hypervisors. Everything else the operator described — the complete keystore,
+pre-generated spawn media, human-gated joining — is reachable through the
+human-unlock gate (for break-glass root) and a constrained-command account
+(for routine diagnostics) without ever building that pathway. If the operator
+agrees with this direction, the natural next step is to scope items 1 and 3
+above as a numbered phase and item 2 as a `secret-registry.yaml` /
+`SecretRegistry` schema extension (it already tracks `pve01-root-password`
+entries per `host:X` — see `proxmox-bootstrap/secret-registry.yaml` — so
+"break-glass root, human-unlock-gated" is closer to a documentation/policy
+annotation on an existing entry than a new mechanism).
+
+### DRAFT SKETCH — Granular Secret Access Silos for Human Operators (operator follow-up, 2026-06-07)
+
+**Status: draft for discussion — NOT a scoped phase, NOT started, NOT yet an
+AD.** The operator asked whether broodforge could support tiered,
+hierarchically-scoped secret access for *human* operators — e.g., a service
+operator who can manage their service but cannot reach the Proxmox root
+password, versus a sysadmin with "god-mode" access to everything, or to
+everything within a declared scope (a cell, a node, a VM). For the operator's
+own homelab, single-operator "god mode" is and remains the right default —
+this is explicitly framed as a "for a larger org" consideration, not an
+immediate need.
+
+**The constraint that shapes the design: KeePass/KDBX databases are
+single-master-password — there is no native per-user role layer inside one
+`.kdbx` file.** Building real per-user ACLs would require either (a) an
+external identity-aware secrets broker (Vault-style) — which contradicts
+broodforge's offline-first, stdlib-only, "runs without network access"
+design constraints (`.ai/CURRENT_STATE.md` "Key Design Constraints"; AD-042's
+entire premise is that the KeePass file can be embedded in offline packages
+with no server dependency), or (b) **multiple derived vaults**, each scoped to
+a declared subset of secrets, each with its own independently-generated
+master password, distributed only to the humans who need that scope. (b) is
+the one that fits broodforge's existing architecture with no new dependency
+and no change to its trust-model foundations — it is "more vaults derived
+from the one vault," not "one vault with roles bolted on."
+
+**broodforge already has the data model this needs — it just isn't used for
+this yet.** `proxmox-bootstrap/secret-registry.yaml` (`SecretRegistry`)
+already records, per secret: a stable `id`, a `keepass_path`, an `owning_cell`,
+and a `required_by` list using exactly the hierarchical vocabulary the
+operator described — `host:pve01`, `vm:infra-bootstrap`, etc. — plus
+`secret_type` and `rotation_schedule`. That is, in effect, an undeclared scope
+hierarchy (cell → host/node → vm → service) sitting in the registry today.
+Sketch of what an additive extension could look like:
+
+- **A `Role`/`Scope` registry** (a new authoritative YAML, following the
+  existing 10-metadata-file pattern in `data-model/`): each entry names a
+  role, a hierarchical scope expressed as glob patterns over the *existing*
+  `owning_cell`/`required_by` vocabulary (`cell-1/*`, `cell-1/node-1/*`,
+  `cell-1/node-1/vm-3/*`, or by `secret_type`/`required_for` facet — e.g.,
+  "all `service-credential` entries, no `password`-type host-root entries"),
+  and which humans currently hold that role.
+- **A `derive-scoped-vault` generator**: reads the canonical KeePass DB plus
+  the Role/Scope registry, and produces a derivative `.kdbx` containing
+  *only* the entries whose `secret-registry.yaml` record matches the
+  declared scope — with its own freshly-generated passphrase (reusing the
+  existing `generate_master_password_suggestion()` / EFF passphrase
+  generators, AD-043/AD-052). The canonical "god mode" database remains
+  exactly what it is today — broodforge's default, and the homelab's
+  permanent answer.
+- **Authorization model: only holders of the canonical vault can mint scoped
+  vaults.** This needs no new permission system — "you can only derive a
+  scope you can already see the contents of" is true by construction, and
+  matches who is trusted to run `forge-planner.py`/`spawn-planner.py` today.
+- **Revocation = rotate + reissue**, not real-time access removal — this is
+  an honest *non-guarantee* worth documenting up front (an explicit
+  "boundary," in the vocabulary the formal-proof-series sketch above
+  borrowed): a lost or outdated scoped vault is neutralized by rotating the
+  secrets it contained (generalizing the existing per-backup unique-secret
+  rotation in AD-044) and reissuing a fresh derivative, not by some
+  in-database access-list edit. Static derived vaults cannot support instant
+  kick-out; that is a property of the offline-first model, not a flaw in this
+  design specifically — and arguably a *feature* from a security-properties
+  standpoint: a derived vault literally cannot leak what ciphertext it never
+  received, which is a stronger guarantee than an ACL layered on top of a
+  database the holder already possesses in full.
+
+**What this draft is *not* proposing:** real-time per-user audit logs of
+"who opened which secret when" (would require a broker/network dependency
+broodforge deliberately avoids — though correlating "scoped vault X was used"
+is possible for free, since each derived vault is a distinguishable
+credential), or cryptographic enforcement of scope beyond "the derived vault
+simply does not contain out-of-scope ciphertext" (which, as noted above, is
+arguably the more robust property anyway). Both are named here as explicit
+boundaries, not gaps to be closed later.
+
+**If the operator wants to proceed** (most plausibly: "useful enough to keep
+on the roadmap for when this stops being a single-operator homelab"), the
+natural next step is to scope the `Role`/`Scope` registry and
+`derive-scoped-vault` generator as a numbered phase, the same way Phase 1.H
+and the items above would be scoped — additive to `SecretRegistry`, no change
+to the canonical trust model, "god mode" remaining the default for the
+single-operator case this system is built around today.
 
 ---
 

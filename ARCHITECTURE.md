@@ -1,7 +1,7 @@
 # Broodforge Architecture — Forging, Hatchery, Stargate
 
 Version: 7.1
-Date: 2026-05-31 UTC
+Date: 2026-06-07 UTC (AD-057 added — Pre-Install Forge Package and Image Builder, proposed)
 Design history & rationale: docs/DESIGN-HISTORY.md
 Full historical reviews (v4–v7): deprecated/
 

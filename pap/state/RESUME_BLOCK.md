@@ -29,24 +29,35 @@ behavior, not its development process, and is out of scope for this artifact
   on a real Proxmox host; see `FORGING.md`). One *proposed* (not-started)
   development item now exists in `ROADMAP.md`: **Phase 1.H — Pre-Install
   Forge Package and Image Builder** — surfaced by the (now-completed) `new/`
-  corpus analysis. A second item exists at an earlier stage — a **draft
-  sketch** (not yet a scoped phase), "Recovery-Readiness Conformance,"
-  written in direct response to the operator reconsidering part of the F3
-  deferral and asking for a draft of "what to do with" the formal
-  axiomatic-kernel/proof-system series; see `active_risks` and
-  `key_decisions_and_insights` in `SESSION_HANDOFF.md` for the full record
-  of both. Both are candidates for a future session, not mandates — the
-  draft sketch additionally awaits operator reaction before it can even
-  become a candidate phase.
+  corpus analysis. Three more items exist at an earlier stage — **draft
+  sketches** (not yet scoped phases): "Recovery-Readiness Conformance"
+  (reframing the formal axiomatic-kernel/proof-system series the operator
+  partially un-deferred), "Hypervisor Recovery Credentials" (the operator's
+  requested thorough evaluation of permanent Proxmox-root-password storage —
+  written up as a recommendation against an autonomous full-root pathway,
+  with a constrained-account/break-glass/pre-generated-media middle path),
+  and "Granular Secret Access Silos for Human Operators" (the operator's
+  question about tiered, hierarchically-scoped secret access for humans —
+  "god mode" confirmed as the right homelab default, with a sketch of how
+  scoped sub-vaults could be derived from the canonical KeePass DB for a
+  larger-org future). See `active_risks` and `key_decisions_and_insights` in
+  `SESSION_HANDOFF.md` for the full record of all four. All are candidates
+  for a future session, not mandates — the three draft sketches additionally
+  await operator reaction before any can become a candidate phase.
 
 - **active_milestone**: Post-Phase-26, pre-hardware-deployment, post-`new/`-
-  analysis, **mid-draft-sketch** (Recovery-Readiness Conformance — awaiting
-  operator reaction). The intelligence/development side of the project is
-  feature-complete per its own governance corpus; the next milestone named in
-  that corpus is an *operational* one (a real hardware run), not a
-  development one — though `ROADMAP.md` now also names one *proposed*
-  development item (Phase 1.H) and one *draft* item (Recovery-Readiness
-  Conformance) for whenever the operator chooses to engage with them.
+  analysis, **mid-draft-sketch-thread** (three sketches now written —
+  Recovery-Readiness Conformance, Hypervisor Recovery Credentials, Granular
+  Secret Access Silos — all awaiting operator reaction). A
+  doc-self-consistency gap the operator spotted by inspection (`ROADMAP.html`
+  / `docs/ARCHITECTURE.html` stale relative to their `.md` sources, by up to
+  five days) was also closed this session via a new drift-detection test,
+  `tests/unit/test_meta_doc_sync.py`. The intelligence/development side of
+  the project is feature-complete per its own governance corpus; the next
+  milestone named in that corpus is an *operational* one (a real hardware
+  run), not a development one — though `ROADMAP.md` now also names one
+  *proposed* development item (Phase 1.H) and three *draft* items (the
+  sketches above) for whenever the operator chooses to engage with them.
 
 - **active_risks**:
   - **(Updated 2026-06-07, second milestone — F1 and F2 now CLOSED):** The
@@ -119,17 +130,28 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — draft sketch written; awaiting operator
-  reaction; this supersedes the "no mandatory next action" framing below for
-  the *draft-sketch* thread specifically.)** The most recent concrete step is
-  the **Recovery-Readiness Conformance draft sketch** in `ROADMAP.md`
-  "Proposed Future Work," written because the operator asked to see one — the
-  correct next move is to **let the operator react to it**, not to
-  pre-emptively promote it to a phase or an AD. If the operator says
-  something like "scope the certificate idea as a phase," write it up the
+- **next_action**: **(Updated — three draft sketches now written;
+  awaiting operator reaction; this supersedes earlier framing for the
+  *draft-sketch* thread.)** `ROADMAP.md` "Proposed Future Work" now holds
+  three sketches — Recovery-Readiness Conformance, Hypervisor Recovery
+  Credentials, and Granular Secret Access Silos for Human Operators — each
+  written because the operator asked a specific question and invited a
+  draft/evaluation. The correct next move for all three is the same: **let
+  the operator react**, not pre-emptively promote any of them to a phase or
+  an AD. If the operator confirms a direction on one (e.g., "scope the
+  certificate idea," "build the constrained recovery accounts," "the silo
+  idea is worth keeping on the roadmap for later"), write *that one* up the
   same way Phase 1.H was (scoped roadmap entry + AD in `ARCHITECTURE.md` +
-  `.ai/decisions.md`). If they redirect or narrow it, edit the sketch in
-  place. Beyond that thread: for whoever picks up broodforge's
+  `.ai/decisions.md`) — without touching the others. If the operator
+  redirects or narrows any sketch, edit it in place rather than starting a
+  parallel one. Separately — and already done, not a pending action — a
+  **doc-self-consistency gap** the operator spotted by inspection
+  (`ROADMAP.html` / `docs/ARCHITECTURE.html` stale by up to five days
+  relative to their `.md` sources, plus `ARCHITECTURE.md`'s own header
+  stale relative to its body) was closed via a new test,
+  `tests/unit/test_meta_doc_sync.py`, which now keeps this honest going
+  forward — a resuming agent does not need to re-check this by hand; trust
+  the test. Beyond that thread: for whoever picks up broodforge's
   *codebase-development* thread generally (as distinct from its
   *operational* deployment thread, which `FORGING.md` already governs) —
   there is no other mandatory development action, and no open audit finding

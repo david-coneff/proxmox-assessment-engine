@@ -73,6 +73,30 @@ scores, hashes, and drill results into one timestamped record. Marked
 explicitly draft / not a phase / not an AD — offered for operator reaction,
 not yet promoted.
 
+**Two more DRAFT sketches added the same session** (2026-06-07, also in
+`ROADMAP.md` "Proposed Future Work," also draft / not phases / not ADs):
+- **Hypervisor Recovery Credentials** — operator asked for a thorough
+  evaluation of permanently storing Proxmox root passwords in KeePass.
+  Recommends against an autonomous pathway wielding full root against live
+  hypervisors (unbounded blast radius); sketches constrained recovery
+  accounts + break-glass root behind the existing human-unlock gate (AD-042)
+  + pre-generated, human-gated spawn-media credentials instead.
+- **Granular Secret Access Silos for Human Operators** — operator asked
+  whether tiered, hierarchically-scoped secret access for humans is
+  feasible (service operator vs. "god-mode" sysadmin). "God mode" stays the
+  homelab default; the sketch shows how to derive scoped sub-vaults from the
+  canonical KeePass DB using the hierarchy `secret-registry.yaml` already
+  encodes — no new dependency, no change to the trust-model foundations.
+
+A new **`tests/unit/test_meta_doc_sync.py`** was also added this session —
+it asserts ROADMAP/ARCHITECTURE `.md` files and their `.html` companions
+carry matching version/date stamps, catching exactly the kind of doc-vs-doc
+drift the operator spotted (ROADMAP.html and docs/ARCHITECTURE.html were
+both several days stale relative to their `.md` sources). It failed on first
+run (as intended), the drift was fixed, and it now passes — broodforge's own
+internal trigger for keeping its self-documentation honest, mirroring
+`doc-gen/drift.py`'s role for the infrastructure it manages.
+
 ## Completed Milestones
 
 | Phase | Description | Status |
