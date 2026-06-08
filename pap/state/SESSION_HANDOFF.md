@@ -27,21 +27,30 @@ of what this transition exists to make durable.
 - **status**: IDLE — no active codebase-development session. All roadmap
   milestones and intelligence tracks are complete per `.ai/CURRENT_STATE.md`
   / `.ai/NEXT_STEPS.md`; the platform's own next named action is operational
-  ("deploy to hardware"), not developmental.
+  ("deploy to hardware"), not developmental. **Updated same day** (this
+  artifact's own `update_trigger` — PAP-State §3/§4 — fired at the major
+  milestone described below; this is this file's first live exercise of its
+  own update discipline since being written).
 
-- **objective**: None currently active. The last active development objective
-  (per the now-superseded `docs/SESSION-HANDOFF.md`'s final entry) was a
-  "deep architecture-vs-docs audit + interactive HTML" pass, completed and
-  closed with "4000 passed, 1 skipped (Windows-only). No regressions."
+- **objective**: None currently active. Two threads have completed since this
+  file was first written: (1) the continuity-transition this file is the
+  centerpiece of (see `milestone_checklist`'s first six items, all `[x]`);
+  and (2), immediately after, **resolving PAP-AUDIT findings F1 and F2** —
+  see the new `milestone_checklist` entries and `key_decisions_and_insights`
+  below. Before either: the last active development objective (per the
+  now-superseded `docs/SESSION-HANDOFF.md`'s final entry) was a "deep
+  architecture-vs-docs audit + interactive HTML" pass, completed and closed
+  with "4000 passed, 1 skipped (Windows-only). No regressions."
 
 - **source_materials** (what a resuming agent should read, and why):
   - [`pap/state/RESUME_BLOCK.md`](RESUME_BLOCK.md) — the current portable
     save-state this handoff carries (see `resume_block_ref`, below);
     read it first.
   - [`pap/audits/2026-06-07_broodforge-pap-audit.md`](../audits/2026-06-07_broodforge-pap-audit.md) —
-    names the three open, non-blocking findings (F1–F3) most likely to be
-    the next concrete development thread, with a prioritized "Summary of
-    suggested work."
+    **updated same day**: F1 and F2 are now closed (in-place "Resolution"
+    annotations on each finding, plus a status banner near the top of the
+    file); F3 remains open and explicitly deferred by the operator; F4
+    (an OBSERVATION) stands as recorded. Read the status banner first.
   - `.ai/CURRENT_STATE.md`, `.ai/NEXT_STEPS.md`, `.ai/decisions.md`,
     `.ai/context.md` — broodforge's own canonical governance/continuity
     corpus; still its own sovereign authority (PAP does not supersede it —
@@ -84,6 +93,26 @@ of what this transition exists to make durable.
     line explicitly when commissioning this transition, and it is the single
     most important distinction this artifact and its sibling `RESUME_BLOCK.md`
     exist to keep visible to a future cold reader.
+  - **(Added same day, second milestone) F1 and F2 were textual ambiguities,
+    not real contradictions** — both dissolved the moment broodforge's
+    operator (the Charter's and the Decision Record's own author) supplied
+    the original-intent definitions neither document had recorded: the
+    Charter's "no subjective judgments / recommendations" language named
+    *specific-hardware* recommendations only (not the platform's own
+    deployment-strategy decisions), and AD-034's "never takes autonomous
+    action" was always meant to read "...without defined safeguards and
+    recoverability." Recorded as in-place annotations (Charter Scope note,
+    AD-034 Amendment, AD-040, audit Resolution notes) — **originals preserved,
+    nothing silently rewritten**. Do not re-litigate either question; both
+    are closed, by the only authority able to close them.
+  - This is a concrete, worked example of something `pap/audits/2026-06-07_broodforge-pap-audit.md`'s
+    own APDRP review anticipated in the abstract (its Falsification
+    perspective named "if 'subjective judgment' were defined elsewhere in a
+    narrower sense, this finding would dissolve" as the one thing that would
+    undo F1) and could not, by itself, resolve — some questions an audit can
+    only frame; only the artifact's author can answer them. Worth remembering
+    the next time a finding's resolution looks like it depends on intent
+    rather than evidence: name that plainly, and ask, rather than guess.
 
 - **milestone_checklist**:
   - [x] Identify broodforge's pre-PAP session-continuity prototype mechanisms
@@ -111,17 +140,50 @@ of what this transition exists to make durable.
         in scope, APDRP-style review of the one real risk this kind of
         change carries: silent loss of historical continuity content).
 
-- **last_completed_step**: Wrote and cross-linked all of the artifacts named
-  in the milestone checklist above; verified (by direct grep) that nothing
-  outside `.ai/AI_AGENT_BOOTSTRAP.md` and `docs/SESSION-HANDOFF.md` itself
-  referenced either retiring artifact by name, so no other cross-reference
-  needed updating.
+  **— second milestone, same day: resolving PAP-AUDIT F1/F2 —**
+  - [x] Operator supplied original-intent clarifications for both findings
+        (quoted verbatim in `AD-040` and in each finding's Resolution
+        annotation) — directly, unprompted by any question from this side;
+        recorded as received, not paraphrased.
+  - [x] Added an in-place Scope note to `.ai/PROJECT_CHARTER.md` (original
+        four-item SHALL-NOT list left intact) recording the
+        specific-hardware-vs-deployment-strategy line the operator drew.
+  - [x] Added an in-place Amendment to `AD-034` in `.ai/decisions.md`
+        (original Date/Decision/Rationale left intact) stating the corrected
+        operative rule: autonomous action licensed when bounded by
+        safeguards and recoverable.
+  - [x] Recorded both as one coordinated act, `AD-040`, in `.ai/decisions.md`
+        — quoting the operator's clarifications verbatim, cross-referencing
+        both in-place amendments and the audit findings they close.
+  - [x] Annotated `pap/audits/2026-06-07_broodforge-pap-audit.md` in place:
+        a status-update banner near the top; "Resolution" notes on F1 and F2
+        (original finding text untouched); an APDRP addendum tying the
+        Falsification perspective's named dissolution-condition to what then
+        actually happened; strikethrough-preserved "Summary of suggested
+        work" entries showing suggested-vs-actual remedy for a future reader.
+  - [x] Updated this file and `RESUME_BLOCK.md` to reflect the new state —
+        the very update this protocol's `update_trigger` calls for at every
+        major milestone (you are reading the result of that update now).
 
-- **next_action**: None mandatory — the transition this handoff documents is
-  complete. The natural next thread (per `RESUME_BLOCK.md`'s `next_action`)
-  is triaging PAP-AUDIT findings F1–F3, or — once the operator un-defers it —
-  the `new/` proposed-revision analysis. Either is a reasonable starting
-  point for whoever picks this up next.
+- **last_completed_step**: Updated this handoff and `RESUME_BLOCK.md` to
+  describe the F1/F2 resolution milestone — the step you are reading. Before
+  that: wrote the in-place Charter Scope note, AD-034 Amendment, and AD-040;
+  wrote the audit record's Resolution annotations, status banner, APDRP
+  addendum, and suggested-vs-actual work annotations; committed all of it
+  (`b0a05ce`). Before *that*: completed and committed the continuity
+  transition itself (`6f0e9c8`) — see the first milestone-checklist block.
+
+- **next_action**: None mandatory — both completed threads (the transition,
+  and the F1/F2 resolution) are closed and committed. The one item this
+  artifact's `source_materials`/`active_risks` still names as open is **F3**
+  (the `new/` proposed-revision corpus) — and the operator has *explicitly
+  deferred* that ("this is deferred for the moment"). So, concretely: there
+  is no mandatory next development action right now. A resuming agent should
+  either (a) wait for/follow new operator direction, or (b) — only if asked
+  to find something to do — look to `RESUME_BLOCK.md`'s `next_action` and
+  the platform's own named operational next-step ("deploy to hardware," per
+  `.ai/NEXT_STEPS.md` / the now-superseded `docs/SESSION-HANDOFF.md`'s final
+  entry). Do not begin the `new/` analysis unprompted.
 
 - **resume_instructions**:
   1. Read `RESUME_BLOCK.md` (this file's `resume_block_ref`) for the
