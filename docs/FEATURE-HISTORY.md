@@ -91,3 +91,30 @@ manifest → KeePass init), completing work a prior session had left mid-flight
 > Full suite: **3844 passed** (was 3843 + 1 pre-existing failure from the
 > `federation_state.py` clock bug above — both now green).
 | `ROADMAP.html` regenerated with collapsible (`<details>`/`<summary>`) sections via `md_to_html.py --collapsible`, matching `FEATURE-HISTORY.html`'s pattern | USER-REQUESTED ("broodforge's roadmap should be revised to use collapsible sections, it's quite lengthy at this point") | Implemented | smoke (`<details>`/`</details>` balanced: 9/9; `test_meta_doc_sync.py` passes) — regeneration also closed a content-drift gap the prior hand-sync missed (three draft-sketch `<h3>` sections existed in `ROADMAP.md` but were absent from the old `ROADMAP.html`) |
+
+---
+
+**Cycle: 2026-06-08_15_42_18 UTC**
+
+## Three Roadmap draft sketches promoted to scoped phases (operator decisions incorporated)
+
+The operator reacted to all three "draft sketch, awaiting reaction" items
+added the previous day (Recovery-Readiness Conformance, Hypervisor Recovery
+Credentials, Granular Secret Access Silos for Human Operators) with itemized,
+exact decisions on all three at once: *"The operator has made decisions on
+all three roadmap sketches. Incorporate them into ROADMAP.md, ARCHITECTURE.md,
+and PAP-state."* This is a pure documentation/scoping cycle — no code was
+touched, so no test run was required (per the operator's own execution rule).
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| **Phase 1.I — Recovery-Readiness Conformance** scoped (`recovery-readiness-certificate.json`/HTML generator, additive to `readiness.py`/`drift.py`/`dependencies.py`/snapshot store/Phase 12 drills); **AD-059** added to `ARCHITECTURE.md` | USER-REQUESTED ("Recovery-Readiness Conformance → Scope as Phase 1.I... Build as additive extensions... Write an AD for it") | Scoped (proposed, not started) | static (doc-only; ROADMAP.md `Phase 1.I` block + ARCHITECTURE.md AD-059 cross-referenced) |
+| **Phase 1.J — Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn Media** scoped (forced-command recovery accounts, break-glass root annotation on existing `secret-registry.yaml` entries, pre-generated human-gated spawn-media credentials, plus a new phoenix temporary-credential extension); **AD-060** added — a **firm architectural constraint**, binding on all future development: no autonomous pathway may read and wield full root credentials against live hypervisors, with two narrow named exceptions (node spawning, phoenix recovery — both temporary, session-scoped credentials only) | USER-REQUESTED ("The operator explicitly rules out any autonomous pathway that can read and wield full root credentials against live hypervisors — write this as a firm architectural constraint... The three-part middle path... is accepted as stated") | Scoped (proposed, not started) | static (doc-only; ROADMAP.md `Phase 1.J` block + ARCHITECTURE.md AD-060 cross-referenced) |
+| **Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User Provisioning** scoped (`Role`/`Scope` registry, `derive-scoped-vault` generator, plus two operator-added expansions: vault-of-vaults credential recordkeeping and VM/Proxmox-level user-provisioning templates); **AD-061** added | USER-REQUESTED ("Higher-tier vaults must include records of the access credentials for lower-tier scopes... A mechanism for creating users at the VM level and Proxmox level... Scope this as a numbered phase... Write an AD for the vault hierarchy + user provisioning design") | Scoped (proposed, not started) | static (doc-only; ROADMAP.md `Phase 1.K` block + ARCHITECTURE.md AD-061 cross-referenced) |
+| `.ai/decisions.md` gains a combined AD-059/AD-060/AD-061 entry recording the decision, rationale, and consequences (including AD-060's binding scope beyond Phase 1.J alone) | USER-REQUESTED | Implemented | static |
+| `pap/state/SESSION_HANDOFF.md` / `RESUME_BLOCK.md` updated (seventh milestone) — closes the "Recovery-Readiness Conformance" open thread in `active_risks`, records the operator's decisions verbatim in `key_decisions_and_insights`, rewrites `next_action`/`active_objective` to reflect that zero items remain in draft/awaiting-reaction status | USER-REQUESTED ("Update SESSION-HANDOFF.md, CURRENT_STATE.md, RESUME_BLOCK.md") | Implemented | static |
+
+> No code touched this cycle — pure documentation/scoping. `ROADMAP.md`
+> "Proposed Future Work" now holds four scoped-but-not-started phases
+> (1.H/1.I/1.J/1.K), each with its own AD, none mandatory, no priority order
+> implied by their letters.

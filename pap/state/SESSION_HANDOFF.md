@@ -27,10 +27,11 @@ of what this transition exists to make durable.
 - **status**: IDLE — no active codebase-development session. All roadmap
   milestones and intelligence tracks are complete per `.ai/CURRENT_STATE.md`
   / `.ai/NEXT_STEPS.md`; the platform's own next named action is operational
-  ("deploy to hardware"), not developmental. One *proposed* (not-started)
-  development item now exists — Phase 1.H, see below. **Updated same day**
-  (this artifact's own `update_trigger` — PAP-State §3/§4 — fired at the
-  third milestone described below).
+  ("deploy to hardware"), not developmental. **Four** *proposed*
+  (not-started) development items now exist — Phase 1.H, 1.I, 1.J, and 1.K,
+  see below — each scoped with its own AD; none is mandatory. **Updated
+  2026-06-08** (this artifact's own `update_trigger` — PAP-State §3/§4 —
+  fired at the seventh milestone described below, the day's third update).
 
 - **objective**: None currently active. Three threads have completed since
   this file was first written: (1) the continuity-transition this file is the
@@ -151,6 +152,59 @@ of what this transition exists to make durable.
     similar conclusions to this corpus on the parts that actually overlap.
     Don't re-derive any of this; read `ROADMAP.md`'s "Proposed Future Work"
     section and `ARCHITECTURE.md` AD-057 for the full record.
+  - **(Added 2026-06-08, seventh milestone) The operator's reaction to all
+    three draft sketches — verbatim, itemized, and now fully written up.**
+    After the three draft sketches sat for one day awaiting reaction (per
+    each one's own "Status: draft for discussion — awaiting operator
+    reaction" framing, and `RESUME_BLOCK.md`'s explicit "let the operator
+    react, not pre-emptively promote" guidance), the operator returned with
+    an instruction that named exact decisions for all three at once:
+    *"The operator has made decisions on all three roadmap sketches.
+    Incorporate them into ROADMAP.md, ARCHITECTURE.md, and PAP-state."*
+    The decisions, in summary (full text is in the commissioning instruction
+    itself, preserved in this session's transcript and reflected verbatim in
+    `.ai/decisions.md`'s combined AD-059/060/061 entry):
+    1. **Recovery-Readiness Conformance → scoped as Phase 1.I**, with the
+       certificate generator built additively onto `readiness.py`/`drift.py`/
+       `dependencies.py`/snapshot store/Phase 12 drills, plus an AD (AD-059).
+    2. **Hypervisor Recovery Credentials → "middle path accepted, with
+       clarifications."** The operator went *beyond* simply endorsing the
+       sketch's recommendation — they elevated it to **"a firm architectural
+       constraint"**: *"The operator explicitly rules out any autonomous
+       pathway that can read and wield full root credentials against live
+       hypervisors — write this as a firm architectural constraint (AD)."*
+       Two exceptions were *named by the operator themselves*, not proposed
+       by the sketch: node spawning (already partly in place) and — newly —
+       **phoenix recovery packages**, where *"a temporary root credential
+       used only during the phoenix setup phase, with a hard requirement
+       that the operator changes it after the setup session completes"* is
+       explicitly sanctioned and scoped into the phoenix package design.
+       The three-part middle path (forced-command recovery accounts,
+       human-unlock break-glass root, pre-generated spawn-media credentials
+       with human authorization) is *"accepted as stated."* Recorded as
+       **Phase 1.J** + **AD-060** — and AD-060 is written as a constraint
+       binding on *all* future development, not scoped narrowly to Phase
+       1.J, exactly because the operator framed it as architectural, not
+       merely a recommendation for one feature.
+    3. **Granular Secret Access Silos → "expand and scope."** The base
+       "multiple derived vaults" design is kept, plus two operator-added
+       requirements not present in the original sketch: *"Higher-tier vaults
+       must include records of the access credentials for lower-tier
+       scopes"* (a vault-of-vaults recordkeeping property — so a god-mode
+       operator can always recover a scoped vault's passphrase from their
+       own vault) and *"A mechanism for creating users at the VM level and
+       Proxmox level, with default templates corresponding to the proposed
+       scope divisions."* Recorded as **Phase 1.K** + **AD-061**.
+    All three are now written into `ROADMAP.md` (each sketch converted
+    in-place to a scoped-phase block — heading, status line, and closing
+    paragraph rewritten; the underlying analysis preserved as "source of
+    this analysis" supporting material, nothing deleted), `ARCHITECTURE.md`
+    (AD-059/060/061 added in sequence after AD-058, version-header date
+    bumped), and `.ai/decisions.md` (one combined entry). **Do not re-derive
+    or re-evaluate any of these three decisions** — they are the operator's
+    own exact words, already incorporated; if something looks like it needs
+    refinement, that is a *new* instruction to seek, not grounds to second-
+    guess what was already decided.
 
 - **milestone_checklist**:
   - [x] Identify broodforge's pre-PAP session-continuity prototype mechanisms
@@ -268,7 +322,67 @@ of what this transition exists to make durable.
         the very update this protocol's `update_trigger` calls for at every
         major milestone (you are reading the result of that update now).
 
-- **last_completed_step**: (Updated — sixth milestone, new session, 2026-06-08.)
+- **last_completed_step**: (Updated — seventh milestone, same day, 2026-06-08.)
+  The operator returned with itemized, exact decisions on all three draft
+  sketches that had sat "awaiting operator reaction" since the fourth
+  milestone (`new/` corpus follow-up): *"The operator has made decisions on
+  all three roadmap sketches. Incorporate them into ROADMAP.md,
+  ARCHITECTURE.md, and PAP-state. Here are the exact decisions"* — followed
+  by the full, itemized text quoted in `key_decisions_and_insights` above.
+  This was a **documentation/scoping task, not a code change** — promoting
+  three sketches to scoped phases plus ADs, exactly as specified:
+  - **`ROADMAP.md`**: each of the three "DRAFT SKETCH" sections rewritten
+    in place — heading retitled to its new phase number and name (**Phase
+    1.I** — Recovery-Readiness Conformance; **Phase 1.J** — Hypervisor
+    Recovery: Constrained Accounts and Pre-Generated Spawn Media; **Phase
+    1.K** — Granular Secret Access Silos: Vault Hierarchy and User
+    Provisioning), status line changed from "draft for discussion — NOT a
+    scoped phase" to "scoped 2026-06-08 — proposed, not started," a
+    "Proposed scope" checklist added (mirroring Phase 1.H's format —
+    `- [ ]` items, "explicitly out of scope" callouts where relevant, an "AD
+    reference" line), and each closing "if the operator wants to proceed"
+    paragraph rewritten to record that the direction was confirmed. The
+    underlying analysis in each sketch (the formal-concept translation
+    table; the hypervisor-credential risk evaluation; the vault-hierarchy
+    design rationale) was preserved verbatim as "source of this analysis"
+    supporting material — nothing deleted, only reframed from "draft,
+    awaiting reaction" to "scoped, operator-confirmed." The "Last updated"
+    stamp at the top of `ROADMAP.md` was rewritten to name all three new
+    phases and their ADs.
+  - **`ARCHITECTURE.md`**: three new AD rows added in sequence —
+    **AD-059** (Recovery-Readiness Conformance Certificate, Phase 1.I),
+    **AD-060** (the firm architectural constraint — *"no autonomous pathway
+    may read and wield full root credentials against live hypervisors"* —
+    plus its two named exceptions and the accepted three-part middle path,
+    Phase 1.J), and **AD-061** (Granular Secret Access Silo Vault Hierarchy
+    and User Provisioning, including the operator's two expansions, Phase
+    1.K). Placed correctly in numeric sequence *after* AD-058 (a small
+    self-correction mid-edit: they were first appended after AD-057/before
+    AD-058 by an ordering slip, caught and fixed before this record was
+    written — the table now reads 057→058→059→060→061 in order). The
+    version-header `Date:` line was updated to name all three new ADs.
+  - **`.ai/decisions.md`**: one combined entry — "AD-059/AD-060/AD-061:
+    Three Roadmap draft sketches promoted to scoped phases" — recording the
+    decision, rationale (each sketch was written specifically to be reacted
+    to; the operator's itemized response closes that thread cleanly), and
+    consequences (AD-060 in particular binds *all* future development
+    touching hypervisor root credentials, not just Phase 1.J).
+  - **PAP-state** (`RESUME_BLOCK.md`, this file): both updated to record
+    the seventh milestone, close the "Recovery-Readiness Conformance" open
+    thread named in `active_risks`, and rewrite `active_objective`/
+    `next_action` to reflect that **zero items now remain in "draft sketch,
+    awaiting operator reaction" status** — all four proposed development
+    items (1.H/1.I/1.J/1.K) sit at the same "scoped, proposed, not started"
+    tier.
+  No code was touched — this is a pure documentation/scoping milestone, so
+  **no test run was required** (per the operator's own execution rule: "Run
+  tests if any code is touched; otherwise just doc/state updates are fine").
+  Recorded as a GAP-FILL-adjacent, USER-REQUESTED cycle (the operator
+  supplied the decisions; the write-up faithfully incorporates them) in
+  `docs/FEATURE-HISTORY.md` per the standing `feature_revision_process`
+  convention — see that file's newest dated entry for the full record.
+
+  **Before this (sixth milestone, same day, earlier session):**
   Resumed per the operator's standing instruction to "continue broodforge work
   using PAP-state." On reading this file's own `next_action` (below, from the
   fifth milestone) plus the working tree, found a prior session had left
@@ -465,53 +579,53 @@ of what this transition exists to make durable.
   before that, the F1/F2 resolution milestone (`b0a05ce`) and the continuity
   transition itself (`6f0e9c8`) — see the earlier milestone-checklist blocks.
 
-- **next_action**: **(Updated — sixth milestone.)** The AD-058 guided-setup
-  gap named at the end of the fifth milestone is now **closed** —
-  `security.mfa_method` is wired end-to-end (guided setup → forge manifest →
-  `KeePassInitConfig`), tested, and documented
-  (`docs/FEATURE-HISTORY.md` cycle `2026-06-08_12_36_41 UTC`); the latent
-  `federation_state.py` clock-injection bug found along the way is also fixed
-  and tested. **Commit and push** is the one concrete mechanical step
-  remaining (`proxmox-bootstrap/forge_keepass_init.py`,
-  `proxmox-bootstrap/forge_planner.py`, `proxmox-bootstrap/guided_setup.py`,
-  `proxmox-bootstrap/federation_state.py`, `tests/unit/test_forge_planner.py`,
-  `tests/unit/test_guided_setup.py`, `docs/FEATURE-HISTORY.md`,
-  `docs/FEATURE-HISTORY.html`, `.ai/CURRENT_STATE.md`, this file, and
-  `RESUME_BLOCK.md` — plus any still-pending files from the fifth milestone
-  if not already pushed), per the operator's standing
-  `feature_revision_process` / "push on commit" preferences — if it has not
-  already happened by the time you are reading this.
+- **next_action**: **(Updated — seventh milestone.)** All three draft
+  sketches have now been **promoted to scoped phases with ADs**, per the
+  operator's itemized 2026-06-08 decisions (quoted in full in
+  `key_decisions_and_insights`): **Phase 1.I**/AD-059 (Recovery-Readiness
+  Conformance Certificate), **Phase 1.J**/AD-060 (Hypervisor Recovery:
+  Constrained Accounts and Pre-Generated Spawn Media — operating inside a
+  **firm architectural constraint**, AD-060, that the operator stated
+  explicitly: no autonomous pathway may read and wield full root credentials
+  against live hypervisors, with two narrow named exceptions for *temporary*,
+  session-scoped credentials in node spawning and phoenix recovery), and
+  **Phase 1.K**/AD-061 (Granular Secret Access Silos: Vault Hierarchy and
+  User Provisioning — the base derived-vault design plus the operator's two
+  expansions: vault-of-vaults credential recordkeeping and VM/Proxmox-level
+  user-provisioning templates). `ROADMAP.md`, `ARCHITECTURE.md`,
+  `.ai/decisions.md`, this file, and `RESUME_BLOCK.md` are all updated
+  in this milestone. **Commit and push** is the one concrete mechanical step
+  remaining (`ROADMAP.md`, `ROADMAP.html` if regenerated, `ARCHITECTURE.md`,
+  `.ai/decisions.md`, `.ai/CURRENT_STATE.md`, this file, and
+  `RESUME_BLOCK.md`, plus `docs/FEATURE-HISTORY.md`/`.html` if a cycle entry
+  was added), per the operator's standing `feature_revision_process` /
+  "push on commit" preferences — if it has not already happened by the time
+  you are reading this.
 
-  Beyond that, the picture is unchanged from the fifth milestone: **wait for
-  operator reaction to the three draft sketches** still in `ROADMAP.md`
-  "Proposed Future Work" (Recovery-Readiness Conformance, Hypervisor Recovery
-  Credentials — endorsed in principle but not yet promoted to a phase/AD,
-  Granular Secret Access Silos) — all still *drafts for discussion*,
-  deliberately short of numbered-phase/AD status. If the operator confirms a
-  direction on any of them, write that one up the same way Phase 1.H was —
-  scoped roadmap entry plus an AD in `ARCHITECTURE.md` and `.ai/decisions.md`
-  — without pre-emptively promoting the others. If the operator redirects or
-  narrows any sketch, revise it in place rather than starting a parallel one.
+  **`ROADMAP.md` "Proposed Future Work" now holds zero items in "draft
+  sketch, awaiting operator reaction" status.** Phase 1.H, 1.I, 1.J, and 1.K
+  all sit at the same tier — scoped, proposed, not started, each with its
+  own AD. There is no pending "wait for operator reaction" thread left from
+  this corpus; a resuming agent does not need to chase any of the three
+  sketches further (they are no longer sketches).
 
   Worth naming to the operator if they ask "what's left" or "anything you
-  noticed": the **clock-injection bug class** — `verify_trust()` called a
-  real-wall-clock property (`relationship.is_expired` →
-  `datetime.now(timezone.utc)`) instead of comparing against its own injected
-  `now_fn`, which is exactly the kind of latent defect that surfaces only when
-  the calendar walks past a test fixture's pinned date (as it just did,
-  2026-06-01 → 2026-06-08). One instance is now fixed; a deliberate
-  `datetime.now(`/`datetime.utcnow(` sweep across the codebase (outside
-  `now_fn` plumbing itself) would be a reasonable, scoped GAP-FILL candidate
-  if the operator wants the whole class hardened — **not done here**, named
-  rather than chased, per scope discipline (fix what broke, don't go hunting
-  beyond it unasked).
+  noticed": the **clock-injection bug class** named at the sixth milestone —
+  `verify_trust()` called a real-wall-clock property
+  (`relationship.is_expired` → `datetime.now(timezone.utc)`) instead of
+  comparing against its own injected `now_fn`. One instance is fixed; a
+  deliberate `datetime.now(`/`datetime.utcnow(` sweep across the codebase
+  (outside `now_fn` plumbing itself) remains a reasonable, scoped GAP-FILL
+  candidate if the operator wants the whole class hardened — **still not
+  done**, named rather than chased, per scope discipline.
 
-  Otherwise: **Phase 1.H (Pre-Install Forge Package and Image Builder)**
-  remains **proposed, not started** — a candidate for a future session, not a
-  mandate. A resuming agent should either (a) wait for/follow new operator
-  direction, or (b) — only if asked to find something to do — offer the
-  draft sketches, the clock-injection sweep, Phase 1.H, or the platform's own
-  named operational next-step ("deploy to hardware," per `.ai/NEXT_STEPS.md`).
+  Otherwise: **Phase 1.H, 1.I, 1.J, and 1.K** all remain **proposed, not
+  started** — candidates for a future session, not mandates, with no
+  priority order implied by their letters. A resuming agent should either
+  (a) wait for/follow new operator direction, or (b) — only if asked to find
+  something to do — offer any of the four scoped phases, the
+  clock-injection sweep, or the platform's own named operational next-step
+  ("deploy to hardware," per `.ai/NEXT_STEPS.md`).
 
 - **resume_instructions**:
   1. Read `RESUME_BLOCK.md` (this file's `resume_block_ref`) for the

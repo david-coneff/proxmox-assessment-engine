@@ -426,3 +426,67 @@ original intent was), not contradictions between the text and the system;
 the text, not the system, needed correcting, and now has been — in place,
 annotated, with the original wording preserved as the historical record of
 what was first written and why it needed this clarification.
+
+## AD-059/AD-060/AD-061: Three Roadmap draft sketches promoted to scoped phases (Recovery-Readiness Conformance, Hypervisor Recovery Credentials, Granular Secret Access Silos)
+**Date:** 2026-06-08
+**Decision:** The operator reacted to all three draft sketches recorded in
+`ROADMAP.md` "Proposed Future Work" (added 2026-06-07) with explicit,
+scoped decisions, promoting each from "draft for discussion" to a numbered
+phase plus an architecture decision record:
+
+1. **Recovery-Readiness Conformance → Phase 1.I**, AD-059. Scope: a
+   `recovery-readiness-certificate.json`/HTML generator bundling manifest
+   hash, graph hash, readiness score, drift summary, and latest drill result
+   — built as additive extensions to existing `readiness.py`, `drift.py`,
+   `dependencies.py`, the snapshot/provenance store, and Phase 12 drills. No
+   cryptographic root-of-trust apparatus or formal certification levels.
+2. **Hypervisor Recovery Credentials → Phase 1.J**, AD-060. The operator
+   **explicitly ruled out any autonomous pathway that can read and wield
+   full root credentials against live hypervisors** — recorded as a firm
+   architectural constraint (a SHALL-NOT, not a negotiable middle ground),
+   because root has no boundary by definition and an autonomous pathway
+   wielding it would convert any compromise of that one pathway into root on
+   every hypervisor in the cell at once. Two narrow exceptions are explicitly
+   allowed, both bounded to a single node's *temporary*, soon-discarded
+   credential: (a) node spawning (already in place via Cloud-Init), and
+   (b) phoenix recovery packages — extending the same temporary-credential
+   pattern to the phoenix setup phase, with a hard requirement (recorded in
+   the generated runbook) that the operator rotates the credential once the
+   session completes. The three-part middle path from the original sketch
+   (forced-command recovery accounts, human-unlock break-glass root,
+   pre-generated spawn-media credentials with human authorization) is
+   **accepted as stated** and recorded as Phase 1.J's implementation targets.
+3. **Granular Secret Access Silos → Phase 1.K**, AD-061. The
+   "multiple derived vaults" design is kept as sketched, expanded with two
+   operator-directed refinements: (a) higher-tier vaults must record the
+   access credentials for lower-tier scopes, so a god-mode operator can
+   always recover a scoped vault's passphrase from their own vault (a "vault
+   of vaults," generalizing the AD-044 per-backup unique-secret bookkeeping
+   pattern); (b) a mechanism for creating users at the VM level and the
+   Proxmox level, with default templates corresponding to the proposed scope
+   divisions, each provisioned with access to its scoped vault.
+
+**Rationale:** Each sketch was written specifically to be reacted to —
+"draft for discussion / not yet a phase / not yet an AD," explicitly awaiting
+operator direction before promotion (see `pap/state/RESUME_BLOCK.md`'s
+`next_action`, fifth/sixth milestones: "let the operator react, not
+pre-emptively promote any of them"). The operator's direct, itemized
+decisions on all three close that open thread cleanly — each sketch is
+promoted to exactly the scope the operator specified, with the same
+phase-plus-AD pattern Phase 1.H/AD-057 established, and with the operator's
+own expansions (vault-of-vaults recordkeeping, user-provisioning templates,
+the firm root-credential constraint and its two named exceptions) folded in
+verbatim rather than re-interpreted.
+
+**Consequences:** `ROADMAP.md` "Proposed Future Work" now contains three
+scoped, numbered, *proposed-but-not-started* phases (1.I, 1.J, 1.K) alongside
+the existing Phase 1.H, each with a "Proposed scope" checklist and a
+reference to its AD; `ARCHITECTURE.md` gains AD-059, AD-060, and AD-061
+(placed in sequence after AD-058, ahead of the closing rationale line).
+AD-060 in particular establishes a constraint binding on *all* future
+development, not just Phase 1.J's own scope — any later proposal for an
+autonomous pathway touching hypervisor root credentials must be evaluated
+against it, and the two named exceptions (node spawning, phoenix) are the
+only ones currently sanctioned. None of the three phases is started; all
+remain candidates for a future development session at the operator's
+discretion, the same as Phase 1.H.

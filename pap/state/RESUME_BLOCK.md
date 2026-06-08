@@ -26,27 +26,57 @@ behavior, not its development process, and is out of scope for this artifact
   Operations) are complete, and the last `docs/SESSION-HANDOFF.md` entry
   (now superseded — see the transition record) named the platform's own next
   action as **"deploy to hardware"** (`python3 proxmox-bootstrap/forge-planner.py`
-  on a real Proxmox host; see `FORGING.md`). One *proposed* (not-started)
-  development item now exists in `ROADMAP.md`: **Phase 1.H — Pre-Install
-  Forge Package and Image Builder** — surfaced by the (now-completed) `new/`
-  corpus analysis. Three more items exist at an earlier stage — **draft
-  sketches** (not yet scoped phases): "Recovery-Readiness Conformance"
-  (reframing the formal axiomatic-kernel/proof-system series the operator
-  partially un-deferred), "Hypervisor Recovery Credentials" (the operator's
-  requested thorough evaluation of permanent Proxmox-root-password storage —
-  written up as a recommendation against an autonomous full-root pathway,
-  with a constrained-account/break-glass/pre-generated-media middle path),
-  and "Granular Secret Access Silos for Human Operators" (the operator's
-  question about tiered, hierarchically-scoped secret access for humans —
-  "god mode" confirmed as the right homelab default, with a sketch of how
-  scoped sub-vaults could be derived from the canonical KeePass DB for a
-  larger-org future). See `active_risks` and `key_decisions_and_insights` in
-  `SESSION_HANDOFF.md` for the full record of all four. All are candidates
-  for a future session, not mandates — the three draft sketches additionally
-  await operator reaction before any can become a candidate phase.
+  on a real Proxmox host; see `FORGING.md`). **Four proposed (not-started)
+  development items now exist in `ROADMAP.md`, all scoped phases with their
+  own ADs**: Phase 1.H — Pre-Install Forge Package and Image Builder
+  (AD-057, surfaced by the `new/` corpus analysis); **Phase 1.I —
+  Recovery-Readiness Conformance** (AD-059 — a `recovery-readiness-
+  certificate.json`/HTML generator, additive to `readiness.py`/`drift.py`/
+  `dependencies.py`/snapshot store/Phase 12 drills); **Phase 1.J —
+  Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn Media**
+  (AD-060 — implements the accepted middle path *within* a firm
+  architectural constraint the operator stated explicitly: no autonomous
+  pathway may read and wield full root credentials against live
+  hypervisors, with two narrow named exceptions for temporary,
+  session-scoped credentials in node spawning and phoenix recovery); and
+  **Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User
+  Provisioning** (AD-061 — derived scoped KeePass vaults plus two
+  operator-directed expansions: vault-of-vaults credential recordkeeping and
+  VM/Proxmox-level user-provisioning templates). The latter three were
+  **draft sketches as of 2026-06-07; the operator reacted to all three with
+  itemized decisions on 2026-06-08, and they are now promoted** — see
+  `active_milestone` (seventh) and `key_decisions_and_insights` in
+  `SESSION_HANDOFF.md` for the full record. All four phases are candidates
+  for a future development session, not mandates — none is started.
 
-- **active_milestone**: (Updated — sixth milestone, new session, 2026-06-08.)
-  Resumed per the operator's "continue using PAP-state" instruction; found a
+- **active_milestone**: (Updated — seventh milestone, same day, 2026-06-08.)
+  The operator reacted to all three draft sketches recorded the previous day
+  with explicit, itemized decisions — "Incorporate them into ROADMAP.md,
+  ARCHITECTURE.md, and PAP-state. Here are the exact decisions" — and this
+  milestone closes that thread completely: all three sketches are now scoped
+  phases (1.I, 1.J, 1.K) with corresponding ADs (AD-059, AD-060, AD-061),
+  exactly as the operator specified, including the operator's own expansions
+  (vault-of-vaults recordkeeping, VM/Proxmox user-provisioning templates,
+  and — most architecturally significant — **a firm, durable constraint
+  (AD-060) ruling out any autonomous pathway that can read and wield full
+  root credentials against live hypervisors**, binding on all future
+  development, not just Phase 1.J's own scope). `ROADMAP.md` "Proposed Future
+  Work" was rewritten in place: each sketch's heading, status line, and
+  closing "if the operator wants to proceed" paragraph were converted to a
+  scoped-phase block with a "Proposed scope" checklist and an AD reference,
+  while the underlying analysis (including the formal-concept translation
+  table and the hypervisor-credential risk evaluation) was preserved as the
+  "source of this analysis" supporting material — nothing was deleted, only
+  reframed from "draft, awaiting reaction" to "scoped, operator-confirmed."
+  `ARCHITECTURE.md` gained AD-059/060/061 (in sequence, after AD-058) and its
+  version-header date stamp was updated. `.ai/decisions.md` gained a combined
+  AD-059/060/061 entry recording the rationale and consequences. This file,
+  `SESSION_HANDOFF.md`, and `.ai/CURRENT_STATE.md` were updated to reflect
+  the new state — no items remain in "draft sketch, awaiting reaction" status
+  in `ROADMAP.md`.
+
+  **Before this (sixth milestone, same day, earlier session):** Resumed per
+  the operator's "continue using PAP-state" instruction; found a
   prior session had left the AD-058 guided-setup gap (named at the end of the
   fifth milestone, below) **mid-flight as uncommitted edits** — completed it:
   `security.mfa_method` is now wired end-to-end, **guided setup → forge
@@ -154,21 +184,22 @@ behavior, not its development process, and is out of scope for this artifact
     broodforge's actual product. See `SESSION_HANDOFF.md`'s third
     `milestone_checklist` block and the audit's F3 "Resolution" annotation
     for the full record. **Do not re-run this analysis** — read its output.
-  - **(Added same day, follow-up to F3 closure — not itself a finding, an
-    open thread):** The operator partially walked back the formal
+  - **(Added 2026-06-07, follow-up to F3 closure — now CLOSED, 2026-06-08,
+    seventh milestone):** The operator partially walked back the formal
     axiomatic-kernel deferral above — not asking to implement it, but
     observing that beneath its category-theoretic framing it names two real
     concerns (provable recovery readiness; observed-state ↔ intent-manifest
     conformance) and asking for a draft of "what to do with these." A
-    **DRAFT SKETCH** ("Recovery-Readiness Conformance") now lives in
+    **DRAFT SKETCH** ("Recovery-Readiness Conformance") was written into
     `ROADMAP.md`'s "Proposed Future Work" section: a translation table
     mapping each formal construct to the broodforge mechanism that already
     plays its role informally, plus identification of **one** genuinely new
     artifact worth scoping further (a `recovery-readiness-certificate.json`
-    composing existing scores/hashes/drill results). It is explicitly marked
-    draft / not a phase / not an AD — **awaiting operator reaction** before
-    promotion. Re-running the 13-PDF read is unnecessary; the sketch is the
-    distilled output.
+    composing existing scores/hashes/drill results). **The operator reacted
+    on 2026-06-08** — "Recovery-Readiness Conformance → Scope as Phase 1.I"
+    — and the sketch is now **Phase 1.I** (AD-059), promoted in place with
+    the translation table preserved as supporting analysis. This thread is
+    closed; no further reaction is awaited on this item.
   - F4 (an OBSERVATION, not a finding requiring action) stands as recorded —
     see the audit's status banner.
   - One deferred technical item from the prior (now-superseded)
@@ -181,45 +212,46 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — sixth milestone: AD-058 guided-setup gap now
-  CLOSED; commit/push is the remaining mechanical step.)** The MFA-method
-  wiring (guided setup → forge manifest → `KeePassInitConfig`) is complete,
-  tested (6 new cases across `test_guided_setup.py`/`test_forge_planner.py`),
-  and documented (`docs/FEATURE-HISTORY.md` `2026-06-08_12_36_41 UTC`); the
-  `federation_state.py` clock-injection bug found along the way is fixed and
-  tested too. **Commit and push** this milestone's files (see
-  `SESSION_HANDOFF.md`'s `next_action` for the full list) — the one concrete
+- **next_action**: **(Updated — seventh milestone: all three Roadmap draft
+  sketches now promoted to scoped phases with ADs; commit/push is the
+  remaining mechanical step.)** The operator reacted to "Recovery-Readiness
+  Conformance," "Hypervisor Recovery Credentials," and "Granular Secret
+  Access Silos for Human Operators" with itemized, exact decisions (quoted in
+  full in `key_decisions_and_insights`/`SESSION_HANDOFF.md`), and this
+  milestone wrote each one up: **Phase 1.I** (AD-059, Recovery-Readiness
+  Conformance Certificate), **Phase 1.J** (AD-060, Hypervisor Recovery:
+  Constrained Accounts and Pre-Generated Spawn Media — operating within a
+  **firm architectural constraint** the operator stated explicitly: no
+  autonomous pathway may read and wield full root credentials against live
+  hypervisors, with two narrow named exceptions for *temporary*,
+  session-scoped credentials in node spawning and phoenix recovery), and
+  **Phase 1.K** (AD-061, Granular Secret Access Silos: Vault Hierarchy and
+  User Provisioning — derived scoped vaults plus the operator's two
+  expansions: vault-of-vaults credential recordkeeping and VM/Proxmox-level
+  user-provisioning templates). `ROADMAP.md`, `ARCHITECTURE.md`, and
+  `.ai/decisions.md` all updated; this file and `SESSION_HANDOFF.md` record
+  the milestone. **Commit and push** these files — the one concrete
   mechanical step remaining, if it has not already happened by the time you
-  are reading this. **AD-058 now has no open gap** — both the default-flip
-  (fifth milestone) and the "seen and confirmed at forge time" wiring (this
-  milestone) are done. One thing worth surfacing if the operator asks "what
-  did you notice": the **clock-injection bug class** named in
-  `SESSION_HANDOFF.md` — one instance fixed, a codebase-wide
-  `datetime.now(`/`datetime.utcnow(` sweep (outside `now_fn` plumbing) named
-  as a reasonable scoped GAP-FILL candidate but **not done**, per scope
-  discipline. Beyond that: `ROADMAP.md` "Proposed Future Work" still holds
-  three sketches — Recovery-Readiness Conformance, Hypervisor Recovery
-  Credentials (its constrained-account "middle path" was *endorsed* this
-  milestone, but the sketch itself is not yet promoted to phase/AD), and
-  Granular Secret Access Silos for Human Operators — each written because
-  the operator asked a specific question and invited a draft/evaluation.
-  The correct next move for all three remains the same: **let the operator
-  react**, not pre-emptively promote any of them to a phase or an AD. If
-  the operator confirms a direction on one (e.g., "scope the certificate
-  idea," "build the constrained recovery accounts," "the silo idea is worth
-  keeping on the roadmap for later"), write *that one* up the same way
-  Phase 1.H was (scoped roadmap entry + AD in `ARCHITECTURE.md` +
-  `.ai/decisions.md`) — without touching the others. If the operator
-  redirects or narrows any sketch, edit it in place rather than starting a
-  parallel one. Beyond all of the above: there is no other mandatory
-  development action, and no open audit finding remains that requires one
-  (F1/F2/F3 closed, committed; F4 is an observation requiring no action).
-  **Phase 1.H, Pre-Install Forge Package and Image Builder** also remains a
-  **proposed** (not mandatory) candidate. A resuming agent should: (a) wait
-  for/follow new operator direction, or (b) — only if asked to find
-  something to do — offer the AD-058 guided-setup gap, a draft sketch,
-  Phase 1.H, or the platform's own named *operational* next step, "deploy
-  to hardware" (see `active_objective`, above, and `FORGING.md`).
+  are reading this.
+
+  **`ROADMAP.md` "Proposed Future Work" now holds zero items in "draft
+  sketch, awaiting operator reaction" status** — Phase 1.H, 1.I, 1.J, and
+  1.K are all scoped, proposed-but-not-started phases with their own ADs,
+  the same status tier. None is started; none is mandatory. A resuming agent
+  asked "what's next" should offer: any of the four scoped phases (1.H/1.I/
+  1.J/1.K — equally available, no priority order implied by their letters),
+  the **AD-058 guided-setup-MFA gap is CLOSED** (no longer an offerable
+  item — see the sixth milestone below), the named-but-undone
+  **`datetime.now(`/`datetime.utcnow(` clock-injection sweep** (a scoped
+  GAP-FILL candidate surfaced by the sixth milestone's federation fix, not
+  yet picked up), or the platform's own named *operational* next step,
+  **"deploy to hardware"** (see `active_objective`, above, and `FORGING.md`).
+  No open audit finding remains that requires action (F1/F2/F3/the
+  Recovery-Readiness open-thread all closed and committed; F4 is an
+  observation requiring no action). If the operator gives new direction on
+  any of the four scoped phases, treat it the same way AD-058's gap was
+  handled: pick it up, scope it precisely to what was asked, write the
+  cycle into `docs/FEATURE-HISTORY.md`, and update this corpus again.
 
 ---
 

@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-06-08 UTC (AD-058 follow-up closed: guided-setup MFA-method wiring + federation_state.py clock-injection fix)
+Last updated: 2026-06-08 UTC (operator decisions promoted all three Roadmap draft sketches to scoped phases — Phase 1.I/AD-059 Recovery-Readiness Conformance Certificate, Phase 1.J/AD-060 Hypervisor Recovery Constrained Accounts (within a firm new architectural constraint against autonomous full-root hypervisor pathways), Phase 1.K/AD-061 Granular Secret Access Silo Vault Hierarchy and User Provisioning; AD-058 follow-up closed earlier same day: guided-setup MFA-method wiring + federation_state.py clock-injection fix)
 
 ## Active Architecture: v7.1
 
@@ -54,39 +54,69 @@ AD-057, `.ai/NEXT_STEPS.md`, and `pap/state/SESSION_HANDOFF.md` for the full
 record of what was integrated, what was found already covered, and what was
 explicitly deferred (and why).
 
-**DRAFT — Recovery-Readiness Conformance (2026-06-07, awaiting operator
-reaction):** the operator partially reconsidered the formal axiomatic-kernel/
-proof-system slice of the deferral above — not asking to implement it, but
-observing it names two real concerns (provable recovery readiness; observed-
-state vs. intent-manifest conformance) and asking for a draft of "what to do
-with these." `ROADMAP.md` "Proposed Future Work" now contains a **DRAFT
-SKETCH** translating each formal construct (Root Manifest, System Graph,
-Reconciliation Engine, drift classification, benchmark scores, Deployment
-Certificate, hash-chained replay, idempotent-action invariants, trust
-boundaries) into the broodforge mechanism that already plays that role
-(`bootstrap-state.json`, `dependencies.py`, Phase 26 remediation, `drift.py`,
-existing RRS/ACS/DCS/CRS/OSS scores, readiness + drift + `DrillRecord`,
-`history/snapshots/`, idempotent remediation actions, KeePass/restic/git
-trust model) — and names **one** genuinely new artifact worth scoping
-further: a `recovery-readiness-certificate.json`/HTML composing existing
-scores, hashes, and drill results into one timestamped record. Marked
-explicitly draft / not a phase / not an AD — offered for operator reaction,
-not yet promoted.
+**Three draft sketches → promoted to scoped phases (2026-06-07 drafted,
+2026-06-08 operator-confirmed and scoped):** all three sketches named below
+were written 2026-06-07 as "draft for discussion / awaiting operator
+reaction." On 2026-06-08 the operator returned with itemized, exact
+decisions on all three at once ("The operator has made decisions on all
+three roadmap sketches. Incorporate them into ROADMAP.md, ARCHITECTURE.md,
+and PAP-state") — closing that thread completely. `ROADMAP.md` "Proposed
+Future Work" now contains **zero** items in draft/awaiting-reaction status;
+all three are scoped, numbered, proposed-but-not-started phases with their
+own ADs, the same tier as Phase 1.H:
 
-**Two more DRAFT sketches added the same session** (2026-06-07, also in
-`ROADMAP.md` "Proposed Future Work," also draft / not phases / not ADs):
-- **Hypervisor Recovery Credentials** — operator asked for a thorough
-  evaluation of permanently storing Proxmox root passwords in KeePass.
-  Recommends against an autonomous pathway wielding full root against live
-  hypervisors (unbounded blast radius); sketches constrained recovery
-  accounts + break-glass root behind the existing human-unlock gate (AD-042)
-  + pre-generated, human-gated spawn-media credentials instead.
-- **Granular Secret Access Silos for Human Operators** — operator asked
-  whether tiered, hierarchically-scoped secret access for humans is
-  feasible (service operator vs. "god-mode" sysadmin). "God mode" stays the
-  homelab default; the sketch shows how to derive scoped sub-vaults from the
-  canonical KeePass DB using the hierarchy `secret-registry.yaml` already
-  encodes — no new dependency, no change to the trust-model foundations.
+- **Phase 1.I — Recovery-Readiness Conformance** (AD-059). Reframes the
+  formal axiomatic-kernel/proof-system slice of the `new/` corpus deferral —
+  not "implement the formal apparatus" but its two real underlying concerns
+  (provable recovery readiness; observed-state ↔ intent-manifest
+  conformance) — into **one** new generated artifact:
+  `recovery-readiness-certificate.json`/HTML, composing the existing
+  RRS/ACS/DCS/CRS/OSS scores (`readiness.py`), drift summary (`drift.py`),
+  dependency-graph hashes (`dependencies.py`), a canonical-serialization +
+  SHA-256 manifest hash (snapshot/provenance store), and the latest
+  `DrillRecord` (Phase 12) into one timestamped record — additive
+  extensions only, no cryptographic root-of-trust apparatus or formal
+  certification levels (the translation table mapping all 13 formal-proof
+  PDFs to existing broodforge mechanisms is preserved in `ROADMAP.md` as
+  supporting analysis).
+- **Phase 1.J — Hypervisor Recovery: Constrained Accounts and Pre-Generated
+  Spawn Media** (AD-060). Operating inside a **firm architectural
+  constraint** the operator stated explicitly and which AD-060 records as
+  binding on *all* future development, not just this phase: **no autonomous
+  pathway may read and wield full root credentials against live
+  hypervisors** — because root has no boundary by definition, and an
+  autonomous pathway wielding it would convert any compromise of that one
+  pathway into root on every hypervisor in the cell at once. Two narrow
+  exceptions are explicitly named (both bounded to a single node's
+  *temporary*, soon-discarded credential, never the permanent keystore):
+  node spawning (already in place via Cloud-Init) and — newly, by direct
+  operator instruction — **phoenix recovery packages** (a temporary root
+  credential scoped to the setup session only, with a hard requirement,
+  recorded in the generated runbook, that the operator rotates it
+  afterward). The three-part middle path is **accepted as stated** and
+  scoped as this phase's implementation targets: forced-command recovery
+  accounts (autonomous-safe by construction), break-glass root as an
+  annotation on existing `secret-registry.yaml` entries (behind the
+  existing AD-042 human-unlock gate, no new pathway), and pre-generated,
+  human-authorization-gated spawn-media credentials (extends AD-043/AD-041).
+- **Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User
+  Provisioning** (AD-061). Keeps the "multiple derived vaults" design (the
+  only approach compatible with KeePass/KDBX's single-master-password
+  model and broodforge's offline-first constraints) and expands it per two
+  operator-added requirements: (1) **vault-of-vaults recordkeeping** —
+  higher-tier vaults must record lower-tier scoped vaults' credentials, so
+  a god-mode operator can always recover any scoped vault's passphrase from
+  their own (generalizing the AD-044 per-backup unique-secret bookkeeping
+  pattern); (2) **VM/Proxmox-level user-provisioning templates** —
+  default account templates per scope tier (service operator / node
+  sysadmin / god mode), each provisioned with access to exactly its
+  corresponding scoped vault. "God mode" remains the homelab default; no
+  new dependency; no change to the trust-model foundations.
+
+See `ROADMAP.md` "Proposed Future Work" for the full scope of all three
+(each carries a "Proposed scope" checklist plus the original analysis,
+preserved as supporting material), `ARCHITECTURE.md` AD-059/AD-060/AD-061,
+and `.ai/decisions.md`'s combined entry for the rationale and consequences.
 
 A new **`tests/unit/test_meta_doc_sync.py`** was also added this session —
 it asserts ROADMAP/ARCHITECTURE `.md` files and their `.html` companions
