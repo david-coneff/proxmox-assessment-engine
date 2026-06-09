@@ -8,3 +8,10 @@ build/
 venv/
 *.sqlite3
 *.db
+
+# Static audit reports (generated, not committed)
+.audit/*.json
+.audit/*-report.md
+.audit/vulture-report.txt
+.audit/pytest-output.txt
+.audit/secrets-scan.json

@@ -58,6 +58,22 @@ try:
 except ImportError:
     _HAS_REMEDIATION_QUEUE = False
 
+try:
+    from continuous_assessment import assess_code_health, CodeHealthScore
+    _HAS_CODE_HEALTH = True
+except ImportError:
+    _HAS_CODE_HEALTH = False
+    # Minimal stub so type annotations below don't fail at import time
+    class CodeHealthScore:  # type: ignore[no-redef]
+        shellcheck_findings: int = 0
+        bandit_high_count: int = 0
+        bandit_medium_count: int = 0
+        vulture_dead_pct: float = 0.0
+        coverage_pct: float = 0.0
+        overall: int = 0
+        assessed_at: str = ""
+        error: Optional[str] = "continuous_assessment not available"
+
 
 def _e(text: object) -> str:
     """HTML-escape a value from bootstrap-state or external data."""
@@ -348,6 +364,136 @@ def _scores_from_readiness(readiness: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Code Health helpers (Phase 1.L)
+# ---------------------------------------------------------------------------
+
+def _code_health_from_assessment(repo_root: str = ".") -> "CodeHealthScore":
+    """Call assess_code_health() with the repo root derived from this script's location."""
+    if not _HAS_CODE_HEALTH:
+        score = CodeHealthScore()
+        score.error = "continuous_assessment module not available"
+        return score
+    try:
+        return assess_code_health(repo_root)
+    except Exception as exc:
+        score = CodeHealthScore()
+        score.error = str(exc)
+        return score
+
+
+def _build_code_health_card(score: "CodeHealthScore") -> str:
+    """Build an HTML card for the Code Health section of the dashboard."""
+    overall = getattr(score, "overall", 0)
+    error = getattr(score, "error", None)
+    assessed_at = (getattr(score, "assessed_at", "") or "")[:16]
+
+    if overall >= 90:
+        score_color = "var(--green)"
+    elif overall >= 70:
+        score_color = "var(--yellow)"
+    elif overall >= 50:
+        score_color = "var(--orange)"
+    else:
+        score_color = "var(--red)"
+
+    if error:
+        body = (
+            f'<div class="tip" style="border-color:var(--muted)">'
+            f'Code health assessment unavailable: {_e(error)}'
+            f'</div>'
+            f'<p style="color:var(--muted);font-size:.82em">Run <code>tools/run-static-audit.sh</code> to generate findings.</p>'
+        )
+    else:
+        sc = getattr(score, "shellcheck_findings", 0)
+        bh = getattr(score, "bandit_high_count", 0)
+        bm = getattr(score, "bandit_medium_count", 0)
+        vd = getattr(score, "vulture_dead_pct", 0.0)
+        cov = getattr(score, "coverage_pct", 0.0)
+
+        bh_color = "var(--red)" if bh > 0 else "var(--green)"
+        sc_color  = "var(--orange)" if sc > 0 else "var(--green)"
+        cov_color = "var(--green)" if cov >= 80 else ("var(--yellow)" if cov >= 60 else "var(--red)")
+
+        body = f"""
+<div class="stat-row">
+  <div class="stat">
+    <div class="stat-val" style="color:{score_color}">{overall}</div>
+    <div class="stat-label">Overall score</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:{sc_color}">{sc}</div>
+    <div class="stat-label">shellcheck findings</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:{bh_color}">{bh}</div>
+    <div class="stat-label">bandit HIGH</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:var(--yellow)">{bm}</div>
+    <div class="stat-label">bandit MEDIUM</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:var(--muted);font-size:.95em">{vd:.1f}%</div>
+    <div class="stat-label">dead code</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:{cov_color}">{cov:.1f}%</div>
+    <div class="stat-label">coverage</div>
+  </div>
+</div>
+{('<div class="tip" style="border-color:var(--red)">HIGH bandit findings detected — review <code>.audit/bandit-report.json</code></div>' if bh > 0 else '')}
+{('<div class="tip" style="border-color:var(--orange)">shellcheck warnings in .sh files — run <code>tools/run-static-audit.sh</code> for details</div>' if sc > 0 else '')}
+"""
+        if assessed_at:
+            body += f'<p class="refresh-note">Last assessed: {_e(assessed_at)} · Run <code>tools/run-static-audit.sh</code> to refresh</p>'
+        else:
+            body += '<p class="refresh-note">Run <code>tools/run-static-audit.sh</code> to populate findings</p>'
+
+    return f'<div class="section-wrap">{body}</div>'
+
+
+def _code_health_to_remediation_candidates(score: "CodeHealthScore") -> list[dict]:
+    """
+    Convert HIGH static analysis findings to remediation candidate dicts.
+
+    Follows the RemediationCandidate pattern from Phase 26 (remediation_planner.py).
+    Returns a list of dicts with keys: type, severity, description, source, proposed_at.
+    """
+    from datetime import datetime, timezone
+    candidates = []
+    now = datetime.now(timezone.utc).isoformat()
+
+    bandit_high = getattr(score, "bandit_high_count", 0)
+    sc_findings = getattr(score, "shellcheck_findings", 0)
+
+    if bandit_high > 0:
+        candidates.append({
+            "type": "flag-manual",
+            "severity": "HIGH",
+            "description": (
+                f"bandit found {bandit_high} HIGH-severity security finding(s) in proxmox-bootstrap/. "
+                "Review .audit/bandit-report.json and remediate before next release."
+            ),
+            "source": "assess_code_health/bandit",
+            "proposed_at": now,
+        })
+
+    if sc_findings >= 5:
+        candidates.append({
+            "type": "flag-manual",
+            "severity": "MEDIUM",
+            "description": (
+                f"shellcheck found {sc_findings} warning(s) in shell scripts. "
+                "Run tools/run-static-audit.sh for details."
+            ),
+            "source": "assess_code_health/shellcheck",
+            "proposed_at": now,
+        })
+
+    return candidates
+
+
+# ---------------------------------------------------------------------------
 # HTML dashboard generator
 # ---------------------------------------------------------------------------
 
@@ -499,6 +645,7 @@ def generate_dashboard_html(
     cfg:      DashboardConfig,
     remediations: dict = None,
     security: dict = None,
+    code_health: "CodeHealthScore" = None,
 ) -> str:
     cell_id       = state.get("cell_id") or "broodforge"
     gen_at        = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -506,6 +653,9 @@ def generate_dashboard_html(
     hostname      = host_id.get("hostname") or host_id.get("fqdn") or cell_id
     remediations  = remediations or {}
     security      = security or {}
+    # code_health defaults to an empty CodeHealthScore with no data
+    if code_health is None:
+        code_health = CodeHealthScore()
 
     scores_html = ""
     for abbr in ("PHS", "ACS", "RRS", "DCS", "CRS", "OSS"):
@@ -740,6 +890,10 @@ def generate_dashboard_html(
     {'<a class="nav-link" href="/api/security" target="_blank">🔍 Security JSON</a>' if sec_has_scan else ''}
   </div>
 
+  <!-- ── Code Health ── -->
+  <h2>Code Health</h2>
+  {_build_code_health_card(code_health)}
+
   <!-- ── Remediations ── -->
   <h2>Remediations</h2>
   <div class="section-wrap">
@@ -972,8 +1126,13 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         scores       = _scores_from_readiness(readiness)
         remediations = _remediations_from_state(state)
         security     = _security_from_state(state)
+        # Derive repo root from the script location (one level up from proxmox-bootstrap/)
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        _repo_root  = os.path.dirname(_script_dir)
+        code_health  = _code_health_from_assessment(_repo_root)
         html         = generate_dashboard_html(state, scores, nodes, failures, backup, self._cfg,
-                                               remediations=remediations, security=security)
+                                               remediations=remediations, security=security,
+                                               code_health=code_health)
         body     = html.encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")

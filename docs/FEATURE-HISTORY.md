@@ -362,3 +362,21 @@ works offline by opening the file directly in a browser.
 | Session file format updated to store `FORGE_KDBX_PATH` on line 1 and `KEEPASS_MASTER_PASSWORD` on line 2 (was password-only). Resume path reads both via `sed -n '1p'`/`'2p'` and exports `FORGE_KDBX_PATH` — without this, `kdbx_get` called `keepassxc-cli` with an empty database path even when the password was correctly restored, silently returning empty for every key (`forge_scripts.py`) | USER-REQUESTED (audit R4-001 — found by R4 self-audit of R3 fixes) | Implemented | unit (extended `test_keepass_gate_has_session_file_support` to assert session file stores path + exports on resume) |
 
 > Full test suite: **4415 passed, 1 skipped** (pre-existing `test_opentofu.py` failures unchanged). New tests: +12.
+
+---
+
+**Cycle: 2026-06-08_00_00_00 UTC — Phase 1.L: Static Analysis Self-Audit Integration (USER-REQUESTED)**
+
+## Phase 1.L — Static Analysis Self-Audit Integration
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| Step 0: `pap/modules/PAP-AUDIT/Audit-Reasoning-Patterns.md` synced from master PAP project — updated from 6 patterns to 37 patterns organized into four thematic sections (Workflow & Operator Experience, Implementation Correctness, Security & Reliability, Architecture) | USER-REQUESTED | Implemented | static |
+| Step 1: Phase 1.L scoped in `ROADMAP.md` (proposed section after Phase 1.K) with three-tier architecture table, proposed scope checklist, and constraint language; `ARCHITECTURE.md` updated with AD-062 (three-tier static analysis pipeline feeding into existing remediation system) | USER-REQUESTED | Implemented | static |
+| Step 2: `tools/run-static-audit.sh` (Tier 1) — standalone audit script: OS-aware shellcheck install, Python tools install via pip, shellcheck on all `.sh` files + generated script samples, ruff, bandit, vulture, detect-secrets, pytest with coverage; generates `.audit/static-audit-report.md` with PAP pattern mappings; exits 1 on HIGH findings (bandit HIGH > 0 or shellcheck errors). `.audit/.gitkeep` created; `.gitignore` updated to exclude generated audit reports; `.secrets.baseline` committed (detect-secrets baseline) | USER-REQUESTED | Implemented | smoke (script structure and logic verified) |
+| Step 3: `pyproject.toml` updated — ruff, bandit, vulture, detect-secrets, shellcheck-py added to dev deps; default `addopts` for pytest-cov (`--cov=proxmox-bootstrap --cov-branch --cov-report=term-missing`); ruff and bandit config sections added. `tests/static/test_shellcheck.py` — parametrized shellcheck test per `.sh` file, skipped if shellcheck not installed; generated forge.sh sample test | USER-REQUESTED | Implemented | unit (structure verified) |
+| Step 4: `assess_code_health()` + `CodeHealthScore` dataclass in `continuous_assessment.py` (section 24.8) — subprocess-injectable, reads shellcheck/bandit/vulture/coverage results, returns composite 0-100 score; `_score_code_health()` scoring function | USER-REQUESTED | Implemented | unit (33 new tests in `tests/test_code_health.py`) |
+| Step 4 (dashboard): `_build_code_health_card()`, `_code_health_from_assessment()`, `_code_health_to_remediation_candidates()` added to `broodforge_dashboard.py`; "Code Health" card wired into `generate_dashboard_html()` and `_serve_dashboard()`; HIGH bandit/shellcheck findings surface as remediation candidates | USER-REQUESTED | Implemented | unit (dashboard card rendering tests in `tests/test_code_health.py`) |
+| Step 5: `tests/test_code_health.py` — 33 unit tests covering `_score_code_health()` scoring, `assess_code_health()` with mocked subprocess, remediation candidate generation, dashboard card rendering | USER-REQUESTED | Implemented | unit |
+
+> Full test suite: **4425 passed, 1 skipped** (pre-existing `test_opentofu.py` failures unchanged; 33 new tests in `test_code_health.py`). Static tests in `tests/static/` skipped unless shellcheck is installed.

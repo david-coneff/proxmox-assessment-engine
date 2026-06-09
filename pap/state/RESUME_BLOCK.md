@@ -20,24 +20,33 @@ behavior, not its development process, and is out of scope for this artifact
   tiers, five dependency-graph types. Architecture v7.1+. (Source:
   `.ai/context.md`, `.ai/CURRENT_STATE.md`.)
 
-- **active_objective**: No implementation work is currently active. All four
-  proposed phases (1.H/1.I/1.J/1.K) are now **fully implemented and committed**.
-  Per `.ai/NEXT_STEPS.md` and `.ai/CURRENT_STATE.md`, all roadmap milestones and
-  all four planned intelligence tracks (through Phase 26 — Autonomous
-  Operations) are complete. The platform's own next action is operational:
-  **"deploy to hardware"** (`python3 proxmox-bootstrap/forge-planner.py`
-  on a real Proxmox host; see `FORGING.md`). **All four development phases are
-  now done**: Phase 1.H (AD-057, commit 072112e) — Pre-Install Forge Package
-  and Image Builder, now with cross-platform GUI wizard (`forge-image-builder.html`);
-  Phase 1.I (AD-059, commit 3b32137) — Recovery-Readiness Conformance
-  Certificate; Phase 1.K (AD-061, commit c750ed6) — Granular Secret Access
-  Silos: Vault Hierarchy and User Provisioning; Phase 1.J (AD-060, commit
-  f883540) — Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn
-  Media (firm constraint: no autonomous pathway may read and wield full root
-  credentials against live hypervisors). No further proposed development phases
-  exist in `ROADMAP.md`.
+- **active_objective**: Phase 1.L (Static Analysis Self-Audit Integration, AD-062)
+  now **fully implemented and committed** (2026-06-08). This adds a three-tier static
+  analysis pipeline: Tier 1 `tools/run-static-audit.sh`, Tier 2 pytest integration
+  (`tests/static/test_shellcheck.py`, pyproject.toml addopts), Tier 3 `assess_code_health()`
+  + `CodeHealthScore` in `continuous_assessment.py` + Code Health dashboard card.
+  PAP Audit-Reasoning-Patterns.md synced from master (37 patterns). 33 new tests.
+  Full suite: **4425 passed, 1 skipped**.
+  All prior phases also done: Phase 1.H (AD-057, commit 072112e) — Pre-Install Forge
+  Package and Image Builder; Phase 1.I (AD-059, commit 3b32137) — Recovery-Readiness
+  Conformance Certificate; Phase 1.K (AD-061, commit c750ed6) — Granular Secret Access
+  Silos; Phase 1.J (AD-060, commit f883540) — Hypervisor Recovery: Constrained Accounts
+  and Pre-Generated Spawn Media. No further proposed development phases beyond 1.L in
+  `ROADMAP.md`. Next operational action: **deploy to hardware**.
 
-- **active_milestone**: (Updated — twelfth milestone, 2026-06-08 PAP audit rounds 3 and 4.)
+- **active_milestone**: (Updated — thirteenth milestone, 2026-06-08 Phase 1.L implementation.)
+  Phase 1.L (Static Analysis Self-Audit Integration) complete:
+  - Step 0: PAP Audit-Reasoning-Patterns.md synced (37 patterns, from 6).
+  - Step 1: ROADMAP.md Phase 1.L section + ARCHITECTURE.md AD-062 added.
+  - Step 2: `tools/run-static-audit.sh` (Tier 1 standalone audit script).
+  - Step 3: `pyproject.toml` updated; `tests/static/test_shellcheck.py` (Tier 2).
+  - Step 4: `assess_code_health()` + `CodeHealthScore` in `continuous_assessment.py`;
+    Code Health card in `broodforge_dashboard.py` (Tier 3).
+  - Step 5: `tests/test_code_health.py` — 33 unit tests.
+  - Step 6: State docs updated (FEATURE-HISTORY.md, CURRENT_STATE.md, RESUME_BLOCK.md).
+  Full suite: **4425 passed, 1 skipped**.
+
+  (Previous — twelfth milestone, 2026-06-08 PAP audit rounds 3 and 4.)
   PAP audit R3 (`commits 39fb05a, 51b39b8`) and R4 (`commit 45403fb`) — 5 findings resolved:
   - R3-001 (HIGH): Phase-08 now exits 2 (NOT_IMPLEMENTED) when k3s is absent — FORGE_INCOMPLETE
     banner reachable in standard forge run (same N-002 pattern, phase-08 was the remaining blocker).

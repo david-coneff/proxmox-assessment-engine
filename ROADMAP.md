@@ -728,6 +728,55 @@ the two expansions (vault-of-vaults recordkeeping, user-provisioning
 templates) folded in. See the status block at the top of this section,
 AD-061, and Phase 1.K's scope above.
 
+### Phase 1.L — Static Analysis Self-Audit Integration *(proposed — not yet started)*
+
+**Status: proposed.** Promoted by direct operator decision (2026-06-08).
+See **AD-062** in `ARCHITECTURE.md` for the architecture-level decision record.
+
+**The gap this names:** Broodforge has extensive runtime assessment (readiness scoring,
+drift detection, remediation pipeline) but no systematic assessment of the *code itself*
+— shell scripts, Python modules, and generated script samples are never automatically
+checked for correctness, security issues, dead code, or test coverage gaps. This phase
+adds a three-tier static analysis pipeline that feeds into the existing remediation
+system rather than creating a separate track.
+
+**Three-tier architecture:**
+
+| Tier | Artifact | Tools | Trigger |
+|---|---|---|---|
+| 1 | `tools/run-static-audit.sh` | shellcheck, ruff, bandit, vulture, detect-secrets, pytest-cov | Manual / CI |
+| 2 | pytest integration | shellcheck via `tests/static/test_shellcheck.py`, ruff + bandit via pyproject.toml | Every `pytest` run |
+| 3 | Dashboard Code Health card | `assess_code_health()` in `continuous_assessment.py`, card in `broodforge_dashboard.py` | Continuous assessment cycle |
+
+**Proposed scope:**
+
+- [x] `tools/run-static-audit.sh` — standalone audit script (Tier 1):
+      shellcheck on all `.sh` files + generated script samples; ruff, bandit, vulture,
+      detect-secrets; pytest with coverage; produces `.audit/static-audit-report.md`;
+      exits non-zero on any HIGH finding.
+- [x] `.audit/` directory with `.gitkeep`; `*.json` and `*-report.md` added to `.gitignore`;
+      `.secrets.baseline` committed (detect-secrets baseline).
+- [x] pytest integration (Tier 2):
+      `pyproject.toml` updated with ruff, bandit, detect-secrets, vulture dev deps and
+      `--cov` default options; `tests/static/test_shellcheck.py` — finds all `.sh` files
+      and runs shellcheck on each (generated scripts tested with minimal test manifests).
+- [x] `assess_code_health()` in `continuous_assessment.py` (Tier 3):
+      returns `CodeHealthScore` dataclass (shellcheck_findings, bandit_high_count,
+      bandit_medium_count, vulture_dead_code_pct, coverage_pct, overall 0-100);
+      HIGH static findings generate `RemediationCandidate` entries.
+- [x] "Code Health" card in `broodforge_dashboard.py` alongside existing readiness/drift/
+      dependency cards; HIGH bandit/shellcheck findings surface in remediation pipeline.
+- [x] Tests: `assess_code_health()` unit tests (subprocess mocked), shellcheck test file,
+      dashboard Code Health card rendering test.
+
+**Constraint:** static analysis findings feed into the existing remediation pipeline
+(not a separate system). The `RemediationCandidate` pattern from Phase 26 is reused.
+
+**Out of scope:** cloud-based SAST services, paid tools, SonarQube, Snyk, Veracode,
+GitHub Advanced Security, or any tool requiring a commercial license.
+
+See AD-062 in `ARCHITECTURE.md` for the architecture-level decision record.
+
 ---
 
 ## Roadmap Overview

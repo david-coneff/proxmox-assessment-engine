@@ -16,6 +16,7 @@ Provides the framework for scheduled and event-driven twin updates:
 24.5  TwinDiffReport       — what changed in the twin since last report
 24.6  PbsStateUpdater      — continuous Data Protection State updates
 24.7  CertExpiryMonitor    — continuous External Dependency State monitoring
+24.8  CodeHealthScore      — static analysis health score (Phase 1.L)
 
 Provides:
   AssessmentSchedule        — schedule definition and next-run calculation
@@ -34,6 +35,8 @@ Provides:
   collect_pbs_state_update()
   CertExpiryAlert           — cert approaching expiry
   scan_cert_expiry()
+  CodeHealthScore           — static analysis health score
+  assess_code_health()      — run static analysis and return CodeHealthScore
 
 Stdlib only.
 """
@@ -587,3 +590,165 @@ def run_security_scan(base_dir: str, state_path: str) -> dict:
         "orange_count":  report.orange_count,
         "yellow_count":  report.yellow_count,
     }
+
+
+# ---------------------------------------------------------------------------
+# 24.8 — Code Health Assessment (Phase 1.L)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CodeHealthScore:
+    """Static analysis health score for the broodforge codebase."""
+    shellcheck_findings: int = 0       # total shellcheck warnings + errors
+    bandit_high_count:   int = 0       # bandit HIGH severity findings
+    bandit_medium_count: int = 0       # bandit MEDIUM severity findings
+    vulture_dead_pct:    float = 0.0   # dead code percentage from vulture
+    coverage_pct:        float = 0.0   # test coverage percentage
+    overall:             int = 100     # composite score 0-100
+    assessed_at:         str = ""
+    error:               Optional[str] = None  # set if assessment could not run
+
+
+def _score_code_health(
+    shellcheck_findings: int,
+    bandit_high: int,
+    bandit_medium: int,
+    vulture_dead_pct: float,
+    coverage_pct: float,
+) -> int:
+    """Compute a 0-100 code health score from static analysis results."""
+    score = 100
+    # shellcheck: -3 per finding, capped at -30
+    score -= min(shellcheck_findings * 3, 30)
+    # bandit HIGH: -15 per finding, capped at -30
+    score -= min(bandit_high * 15, 30)
+    # bandit MEDIUM: -5 per finding, capped at -15
+    score -= min(bandit_medium * 5, 15)
+    # vulture: -0.5 per dead-code percent
+    score -= int(vulture_dead_pct * 0.5)
+    # coverage: penalty for coverage < 80%
+    if coverage_pct < 80:
+        score -= int((80 - coverage_pct) * 0.5)
+    return max(0, score)
+
+
+def assess_code_health(
+    repo_root: str = ".",
+    *,
+    run_fn: Optional[Callable] = None,
+    now_fn: Optional[Callable[[], str]] = None,
+) -> CodeHealthScore:
+    """
+    Run static analysis tools and return a CodeHealthScore.
+
+    Tier 3 of the Static Analysis Self-Audit pipeline (Phase 1.L, AD-062).
+    Runs shellcheck, ruff, bandit, vulture, and reads coverage if available.
+    Subprocess calls are injectable via run_fn for testing.
+
+    Args:
+        repo_root: root directory of the broodforge repo
+        run_fn: injectable subprocess runner (defaults to subprocess.run)
+        now_fn: injectable clock (defaults to utcnow)
+    """
+    import subprocess as _subprocess
+    import json as _json
+
+    _run = run_fn or _subprocess.run
+    _now = (now_fn or (lambda: datetime.now(timezone.utc).isoformat()))()
+
+    root = repo_root
+    pb = f"{root}/proxmox-bootstrap" if root != "." else "proxmox-bootstrap"
+
+    shellcheck_findings = 0
+    bandit_high = 0
+    bandit_medium = 0
+    vulture_dead_pct = 0.0
+    coverage_pct = 0.0
+
+    try:
+        # shellcheck: count total findings across all .sh files
+        import glob as _glob
+        sh_files = _glob.glob(f"{root}/**/*.sh", recursive=True)
+        sh_files = [
+            f for f in sh_files
+            if ".git" not in f and "/new/" not in f and "\\new\\" not in f
+            and "/deprecated/" not in f and "\\deprecated\\" not in f
+        ]
+        if sh_files:
+            try:
+                sc = _run(
+                    ["shellcheck", "--severity=warning", "--format=json"] + sh_files,
+                    capture_output=True, text=True, timeout=60,
+                )
+                try:
+                    findings = _json.loads(sc.stdout) if sc.stdout.strip() else []
+                    shellcheck_findings = len(findings)
+                except _json.JSONDecodeError:
+                    shellcheck_findings = 0
+            except (FileNotFoundError, OSError):
+                pass  # shellcheck not installed — skip
+
+        # bandit: count HIGH and MEDIUM severity findings
+        try:
+            bd = _run(
+                ["bandit", "-r", pb, "-ll", "-f", "json"],
+                capture_output=True, text=True, timeout=120,
+            )
+            try:
+                bd_data = _json.loads(bd.stdout) if bd.stdout.strip() else {}
+                results = bd_data.get("results", [])
+                bandit_high   = sum(1 for r in results if r.get("issue_severity") == "HIGH")
+                bandit_medium = sum(1 for r in results if r.get("issue_severity") == "MEDIUM")
+            except _json.JSONDecodeError:
+                pass
+        except (FileNotFoundError, OSError):
+            pass  # bandit not installed — skip
+
+        # vulture: count dead-code lines as percentage of total Python lines
+        try:
+            vt = _run(
+                ["vulture", pb, "--min-confidence", "80"],
+                capture_output=True, text=True, timeout=60,
+            )
+            dead_lines = len([line for line in vt.stdout.splitlines() if line.strip()])
+            # estimate total Python LOC for percentage
+            py_files = _glob.glob(f"{pb}/**/*.py", recursive=True)
+            total_loc = 0
+            for pf in py_files:
+                try:
+                    with open(pf, encoding="utf-8", errors="replace") as f:
+                        total_loc += sum(1 for line in f if line.strip())
+                except (OSError, UnicodeDecodeError):
+                    pass
+            if total_loc > 0:
+                vulture_dead_pct = min(round(dead_lines * 100 / total_loc, 1), 100.0)
+        except (FileNotFoundError, OSError):
+            pass  # vulture not installed — skip
+
+        # coverage: read .audit/coverage.json if present
+        cov_path = f"{root}/.audit/coverage.json"
+        try:
+            with open(cov_path) as f:
+                cov_data = _json.load(f)
+            coverage_pct = round(cov_data.get("totals", {}).get("percent_covered", 0.0), 1)
+        except (OSError, _json.JSONDecodeError, KeyError):
+            pass
+
+    except Exception as exc:
+        return CodeHealthScore(
+            assessed_at=_now,
+            error=str(exc),
+        )
+
+    overall = _score_code_health(
+        shellcheck_findings, bandit_high, bandit_medium, vulture_dead_pct, coverage_pct
+    )
+    return CodeHealthScore(
+        shellcheck_findings=shellcheck_findings,
+        bandit_high_count=bandit_high,
+        bandit_medium_count=bandit_medium,
+        vulture_dead_pct=vulture_dead_pct,
+        coverage_pct=coverage_pct,
+        overall=overall,
+        assessed_at=_now,
+    )
