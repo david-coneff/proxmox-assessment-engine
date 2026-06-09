@@ -210,6 +210,7 @@ echo " $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "================================================================="
 echo ""
 
+_forge_incomplete=0
 for i in "${{!PHASES[@]}}"; do
   phase_num=$((i))
   script="${{PHASES[$i]}}"
@@ -222,26 +223,58 @@ for i in "${{!PHASES[@]}}"; do
     continue
   fi
   echo "[forge] >>>  $script"
-  bash "$SCRIPT_DIR/$script" || {{
-    echo "[forge] FAIL $script — aborting." >&2
+  _phase_exit=0
+  bash "$SCRIPT_DIR/$script" || _phase_exit=$?
+  if [ "$_phase_exit" -eq 0 ]; then
+    checkpoint_done "forge_phase_${{phase_num}}_complete"
+  elif [ "$_phase_exit" -eq 2 ]; then
+    # NOT_IMPLEMENTED: phase ran but no real work was possible; continue
+    # without checkpointing so the phase retries on the next forge run
+    echo "[forge] NOTE: $script NOT_IMPLEMENTED — manual action required." >&2
+    _forge_incomplete=1
+  else
+    echo "[forge] FAIL $script (exit $_phase_exit) — aborting." >&2
     echo "[forge] Re-run: bash forge.sh --from ${{phase_num}}" >&2
     exit 1
-  }}
-  checkpoint_done "forge_phase_${{phase_num}}_complete"
+  fi
 done
 
 echo ""
 echo "================================================================="
-echo " Forge complete. Your hatchery is operational."
-echo ""
-echo ' Hostname:  {hostname}'
-echo ' Cell ID:   {cell_id}'
-echo ""
-echo " Next steps:"
-echo "   1. Push your GitOps repository to Forgejo"
-echo "   2. Flux CD will deploy application workloads"
-echo "   3. Run: python3 doc-gen/engine.py --mode bootstrap"
-echo "================================================================="
+if [ "${{_forge_incomplete:-0}}" -eq 1 ]; then
+  echo " FORGE INCOMPLETE — Critical phases require manual action."
+  echo ""
+  echo ' Hostname:  {hostname}'
+  echo ' Cell ID:   {cell_id}'
+  echo ""
+  echo " Phase 04 (VM provisioning) and/or Phase 05 (k3s cluster init)"
+  echo " did not complete — no OpenTofu modules or Ansible inventory found."
+  echo ""
+  echo " Required next steps:"
+  echo "   1. Provision the Forgejo + operations VMs manually"
+  echo "   2. Install k3s on those VMs and confirm the cluster is healthy"
+  echo "   3. Add real Forgejo admin password to KeePass at:"
+  echo "        Infrastructure/forgejo/admin-password"
+  echo "   4. Add k3s join tokens to KeePass at:"
+  echo "        Infrastructure/k3s/worker-join-token"
+  echo "        Infrastructure/k3s/server-join-token"
+  echo "   5. Resume: bash forge.sh --from 6"
+  echo ""
+  echo " See FORGING.md 'Forge provisioning status' for the full workflow."
+  echo "================================================================="
+  exit 1
+else
+  echo " Forge complete. Your hatchery is operational."
+  echo ""
+  echo ' Hostname:  {hostname}'
+  echo ' Cell ID:   {cell_id}'
+  echo ""
+  echo " Next steps:"
+  echo "   1. Push your GitOps repository to Forgejo"
+  echo "   2. Flux CD will deploy application workloads"
+  echo "   3. Run: python3 doc-gen/engine.py --mode bootstrap"
+  echo "================================================================="
+fi
 """
 
 
@@ -496,10 +529,16 @@ if is_done "$step"; then checkpoint_skip "$step"; else
     tofu apply -input=false forge.tfplan
     cd "$SCRIPT_DIR"
   else
-    echo "[phase-04] No opentofu/ modules in package — VM provisioning skipped." >&2
+    echo "[phase-04] No opentofu/ modules in package — VM provisioning NOT IMPLEMENTED." >&2
     echo "[phase-04] The forge VM-provisioning IaC is the active deploy-to-hardware" >&2
     echo "[phase-04] work; see FORGING.md 'Forge provisioning status (opentofu/ansible)'." >&2
-    echo "[phase-04] Provision the Forgejo + operations VMs manually, then re-run --from 5." >&2
+    echo "[phase-04] Provision the Forgejo + operations VMs manually, then re-run --from 6." >&2
+    echo "[phase-04] Exiting with code 2 (NOT_IMPLEMENTED) — forge.sh will continue but" >&2
+    echo "[phase-04] will not checkpoint this phase and will report FORGE INCOMPLETE." >&2
+    # Exit 2 signals NOT_IMPLEMENTED: forge.sh continues but skips the phase checkpoint
+    # so this phase will re-run on the next forge invocation (allowing retry when IaC
+    # modules are added). See generate_forge_sh() in forge_scripts.py for the handler.
+    exit 2
   fi
   checkpoint_done "$step"
 fi
@@ -527,9 +566,41 @@ if is_done "$step"; then checkpoint_skip "$step"; else
     ansible-playbook -i "$_inv" "$_play" -e "@$_k3s_vars"
     rm -f "$_k3s_vars"
     trap - EXIT INT TERM
+    # After k3s bootstrap: extract join tokens from KeePass and persist to bootstrap-state.json
+    # so spawn_planner.py can generate valid spawn packages (F-011/F-020 fix).
+    _worker_token="$(kdbx_get 'Infrastructure/k3s/worker-join-token')"
+    _server_token="$(kdbx_get 'Infrastructure/k3s/server-join-token')"
+    if [ -n "$_worker_token" ] && [ "$_worker_token" != "MANUAL_ENTRY_REQUIRED" ]; then
+      python3 - <<PYEOF
+import json, os, sys
+state_path = "/var/lib/broodforge/bootstrap-state.json"
+alt_path   = os.path.join(os.environ.get("SCRIPT_DIR", "."), "proxmox-bootstrap", "bootstrap-state.json")
+path = state_path if os.path.exists(state_path) else alt_path
+if not os.path.exists(path):
+    print("[phase-05] bootstrap-state.json not found; k3s tokens not persisted.", file=sys.stderr)
+    sys.exit(0)
+with open(path) as f:
+    state = json.load(f)
+state.setdefault("k3s", {})
+state["k3s"]["worker_join_token"] = os.environ["_worker_token"]
+state["k3s"]["server_join_token"] = os.environ["_server_token"]
+with open(path, "w") as f:
+    json.dump(state, f, indent=2)
+print("[phase-05] k3s join tokens written to bootstrap-state.json")
+PYEOF
+    else
+      echo "[phase-05] WARNING: k3s join tokens not found in KeePass — populate" >&2
+      echo "[phase-05]   Infrastructure/k3s/worker-join-token and" >&2
+      echo "[phase-05]   Infrastructure/k3s/server-join-token" >&2
+      echo "[phase-05] then re-run forge.sh --from 5 to persist them." >&2
+    fi
   else
-    echo "[phase-05] ansible inventory ($_inv) not generated — k3s setup is manual for now." >&2
+    echo "[phase-05] ansible inventory ($_inv) not generated — k3s setup NOT IMPLEMENTED." >&2
     echo "[phase-05] See FORGING.md 'Forge provisioning status (opentofu/ansible)'." >&2
+    echo "[phase-05] Exiting with code 2 (NOT_IMPLEMENTED) — forge.sh will continue but" >&2
+    echo "[phase-05] will not checkpoint this phase and will report FORGE INCOMPLETE." >&2
+    # Exit 2: same NOT_IMPLEMENTED protocol as phase-04 (see generate_forge_sh)
+    exit 2
   fi
   checkpoint_done "$step"
 fi
@@ -548,9 +619,27 @@ if is_done "$step"; then checkpoint_skip "$step"; else
   export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
   # Install Flux CLI if not present
+  # NOTE: this downloads and executes a script from the internet (F-013).
+  # TODO: add hash verification when broodforge ships a vendored flux binary.
   command -v flux &>/dev/null || curl -s https://fluxcd.io/install.sh | FLUX_VERSION=latest bash
 
   FORGEJO_TOKEN="$(kdbx_get 'Infrastructure/forgejo/admin-password')"
+
+  # Fail fast if credentials are missing — Flux bootstrap requires a real token.
+  # Phases 04-05 must be completed manually before phase-06 can succeed.
+  if [ -z "$FORGEJO_TOKEN" ] || [ "$FORGEJO_TOKEN" = "MANUAL_ENTRY_REQUIRED" ]; then
+    echo "[phase-06] ERROR: Forgejo admin password not found in KeePass." >&2
+    echo "[phase-06] Phase-06 requires real Forgejo credentials that only exist" >&2
+    echo "[phase-06] after VMs are provisioned and Forgejo is configured." >&2
+    echo "[phase-06] Steps to unblock:" >&2
+    echo "[phase-06]   1. Complete manual VM provisioning (phase-04 prerequisite)" >&2
+    echo "[phase-06]   2. Install Forgejo on its VM and create the admin account" >&2
+    echo "[phase-06]   3. Add the admin password to KeePass:" >&2
+    echo "[phase-06]        Infrastructure/forgejo/admin-password" >&2
+    echo "[phase-06]   4. Re-run: bash forge.sh --from 6" >&2
+    exit 1
+  fi
+
   FORGEJO_HOST="$(python3 -c "import json; m=json.load(open('forge-manifest.json')); print(m.get('host_identity',{}).get('fqdn','localhost'))")"
 
   flux bootstrap gitea \\
@@ -574,17 +663,23 @@ def generate_phase_07_sh(manifest: dict) -> str:
 step="phase07_assessment_engine"
 if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_start "$step"
-  # Initialise bootstrap-state.json from forge manifest (deterministic, no prompts)
+  # Initialise bootstrap-state.json at the canonical path that the dashboard
+  # and all other tools expect (/var/lib/broodforge/bootstrap-state.json).
+  # A symlink is created at the forge-package-relative path for backward compat.
+  mkdir -p /var/lib/broodforge
   python3 "$SCRIPT_DIR/proxmox-bootstrap/init-bootstrap-state.py" \\
     --manifest "$SCRIPT_DIR/forge-manifest.json" \\
-    --output "$SCRIPT_DIR/proxmox-bootstrap/bootstrap-state.json" \\
+    --output /var/lib/broodforge/bootstrap-state.json \\
     --non-interactive
+  # Symlink so phase-08 git add and local tools also find it at the old path
+  ln -sf /var/lib/broodforge/bootstrap-state.json \\
+    "$SCRIPT_DIR/proxmox-bootstrap/bootstrap-state.json" 2>/dev/null || true
 
   # Generate first documentation set (engine.py takes --manifest = bootstrap-state.json)
   python3 "$SCRIPT_DIR/doc-gen/engine.py" \\
     --mode bootstrap \\
-    --manifest "$SCRIPT_DIR/proxmox-bootstrap/bootstrap-state.json" || \\
-    echo "[phase-07] WARNING: doc engine failed — check bootstrap-state.json" >&2
+    --manifest /var/lib/broodforge/bootstrap-state.json || \\
+    echo "[phase-07] WARNING: doc engine failed — check /var/lib/broodforge/bootstrap-state.json" >&2
 
   checkpoint_done "$step"
 fi
@@ -623,10 +718,15 @@ if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_start "$step"
   cd "$SCRIPT_DIR"
   if [ -d .git ]; then
-    git add proxmox-bootstrap/bootstrap-state.json forge-manifest.json || true
-    git commit -m "forge: $CELL_ID — initial hatchery bootstrap $(date -u +%Y-%m-%dT%H:%M:%SZ)" \\
-      --allow-empty || true
-    git push 2>/dev/null || echo "[phase-08] WARNING: git push failed — commit exists locally."
+    git add /var/lib/broodforge/bootstrap-state.json proxmox-bootstrap/bootstrap-state.json forge-manifest.json 2>/dev/null || true
+    # Only commit if there are staged changes — avoids empty commits if state files
+    # were not modified or are outside the git working tree
+    if git diff --cached --quiet; then
+      echo "[phase-08] No changes to commit (bootstrap-state.json unchanged)."
+    else
+      git commit -m "forge: $CELL_ID — initial hatchery bootstrap $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      git push 2>/dev/null || echo "[phase-08] WARNING: git push failed — commit exists locally."
+    fi
   fi
   checkpoint_done "$step"
 fi
