@@ -305,3 +305,64 @@ All verified by re-audit and the pytest suite (4000 passed, 1 skipped) at the ti
 | `setup_ddns.py` library invoked as CLI by forge + docs; `setup-ddns.py` filename wrong | Real CLI (both forms); fixed all references | **[FIXED]** |
 | `init-bootstrap-state.py` (forge phase-07) ignored `--manifest`, would hang interactively | `--manifest` seeds state non-interactively; phase-07 passes `--non-interactive` | **[FIXED]** |
 | Stale spawn/phoenix phase names, test counts, broken doc links, "Forgability" spelling | Corrected across README/ROADMAP/FORGING/ARCHITECTURE | **[FIXED]** |
+
+---
+
+## Audit cycle — 2026-06-08_00_00_00 UTC — PAP Audit (CRITICAL + HIGH) — commit 31a2ee6 + 1195e8f
+
+### Method
+
+Full-codebase PAP audit (`.ai/pap-audit-2026-06-08.md`, 34 findings) covering forge phase scripts, dashboard, spawn planner, image builder, and sync utilities. Fixed in severity order.
+
+### CRITICAL fixes (commit 31a2ee6)
+
+| Finding | Area | Resolution | Status |
+|---|---|---|---|
+| F-001/F-002 | `forge_scripts.py` phases 04/05 | Both phases exit 2 (NOT_IMPLEMENTED) when no tofu/ansible present; checkpoint only on real success | **[FIXED]** |
+| F-003 | `sync-cert-to-k8s.sh` | Changed silent `exit 0` to `exit 1` with operator instructions | **[FIXED]** |
+| F-017/F-028 | `forge.sh` orchestrator | Added `_forge_incomplete` flag; final banner prints "FORGE INCOMPLETE" and exits 1 when critical phases were NOT_IMPLEMENTED | **[FIXED]** |
+| F-019 | Phase-06 flux bootstrap | FORGEJO_TOKEN validated against KeePass before `flux bootstrap` runs | **[FIXED]** |
+| F-009 | `bootstrap-state.json` path | Phase-07 writes to canonical `/var/lib/broodforge/bootstrap-state.json`; symlinks old path | **[FIXED]** |
+| F-033 | Phase-08 git commit | Dropped `--allow-empty`; only commits when state file changed | **[FIXED]** |
+
+### HIGH fixes (commit 1195e8f)
+
+| Finding | Area | Resolution | Status |
+|---|---|---|---|
+| F-008/F-029 | Dashboard score mismatch | `_scores_from_readiness()` passes through `overall_score`; `generate_dashboard_html()` renders OVR badge fallback | **[FIXED]** |
+| F-010/F-032 | `DashboardConfig.save()` | Wrapped in try/except OSError; raises loudly to stderr instead of silent failure | **[FIXED]** |
+| F-014/F-030 | `_serve_doc_file()` docs path | 3-step resolution: explicit config → script-adjacent → legacy walk-up; configurable `docs_path` field added to `DashboardConfig` | **[FIXED]** |
+| F-011/F-020 | `spawn_planner.py` k3s tokens | `build_spawn_plan()` fails fast with `ValueError` if k3s tokens absent from `bootstrap-state.json["k3s"]` | **[FIXED]** |
+| F-021 | WAN spawn auth key | `build_spawn_plan()` fails fast if `wan_auth_key` absent in WAN mode | **[FIXED]** |
+| F-018 | `generate-bootstrap-image.py` | `--interface` and `--disk` validated at build time; hard error with hardware-discovery instructions if absent | **[FIXED]** |
+| F-023 | Image passphrase display | Added prominent `!! SINGLE-USE INSTALL PASSPHRASE — RECORD THIS NOW !!` banner to CLI output | **[FIXED]** |
+
+Test suite after HIGH fixes: **4332 passed, 1 skipped**.
+
+---
+
+## Audit cycle — 2026-06-08_12_00_00 UTC — PAP Audit (MEDIUM + LOW)
+
+### MEDIUM fixes
+
+| Finding | Area | Resolution | Status |
+|---|---|---|---|
+| F-004 | `forge_keepass_init.py` `include_wan` no-op | Removed dead `wan_paths` computation; added comment explaining parameter is intentionally a no-op | **[FIXED]** |
+| F-005 | `guided_setup.py` missing suggest | Added `backup.secrets_destinations` handler (returns `["(not configured — run setup-backup.py)"]`) | **[FIXED]** |
+| F-006 | `guided_setup.py` stdlib violation | Replaced `from network_topology_collector import _zfs_topology_from_disk_count` with 5-line inline logic | **[FIXED]** |
+| F-007/F-031 | `ROADMAP.md` stale checkboxes | All `[ ]` scope items in Phase 1.I/1.J/1.K marked `[x]`; status blocks updated from "proposed, not started" to "implemented — commit X" | **[FIXED]** |
+| F-012 | `_vault_hierarchy.py` deterministic fallback | Replaced `GENERATE-AT-RUNTIME-{role}` literal with `secrets.token_urlsafe(24)` | **[FIXED]** |
+| F-015 | Phase-03 missing recovery account step | Wired `setup_recovery_account.py` into `generate_phase_03_sh()`; reads `host_identity.operator_ssh_key` from manifest; writes plan to `/var/lib/broodforge/recovery-plans/` | **[FIXED]** |
+| F-022 | `FORGING.md` Step 0/Step 1 ordering | Added NOTE block in Step 0 clarifying that Step 1 (forge-planner.py) must run first; updated code snippet to show the correct order | **[FIXED]** |
+| F-024 | `_vault_hierarchy.py` manual-work quantification | `describe_vault_plan()` now shows explicit "Operator steps required (N entries)" section with numbered actions | **[FIXED]** |
+| F-025 | `_recovery_readiness_certificate.py` drift absent | `summarize_drift()` adds a `note` key explaining insufficient history when drift unavailable | **[FIXED]** |
+| F-026 | `phoenix_playbook.py` credential delivery | Added Wave 2 step 2.2 documenting the KeePass-managed credential delivery path (where to find it, how to copy to replacement hardware, rotation requirement) | **[FIXED]** |
+| F-027 | `forge_keepass_init.py` TOTP order | Moved `provision_totp()` call to AFTER KeePass DB creation commands execute; TOTP is now provisioned into an existing DB | **[FIXED]** |
+
+### LOW fixes
+
+| Finding | Area | Resolution | Status |
+|---|---|---|---|
+| F-016/F-034 | `_recovery_readiness_certificate.py` `drills[0]` | Added comment clarifying `drills[0]` is the MOST RECENT drill (prepend via `insert(0,…)`) | **[FIXED]** |
+
+Test suite after all fixes: **4332 passed, 1 skipped** (pre-existing `test_opentofu.py` failure excluded, unchanged from before).

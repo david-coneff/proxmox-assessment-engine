@@ -275,3 +275,44 @@ works offline by opening the file directly in a browser.
 > (the wizard is not a `.md`→`.html` companion and does not use
 > `html_base.py`). Full suite: **4388 passed, 1 skipped** (unchanged —
 > no code touched).
+
+---
+
+**Cycle: 2026-06-08_12_00_00 UTC — PAP Audit Fixes (34-finding full-codebase scan)**
+
+## PAP audit 2026-06-08 — CRITICAL + HIGH fixes
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| Phases 04/05 exit 2 (NOT_IMPLEMENTED) instead of self-checkpointing as done (`forge_scripts.py`) | USER-REQUESTED (audit F-001/F-002) | Implemented | unit (4332 passed) |
+| `forge.sh` `_forge_incomplete` flag + FORGE INCOMPLETE banner + exit 1 | USER-REQUESTED (audit F-017/F-028) | Implemented | unit |
+| `sync-cert-to-k8s.sh` exits 1 with loud error instead of silent exit 0 | USER-REQUESTED (audit F-003) | Implemented | static |
+| Phase-06 validates FORGEJO_TOKEN before `flux bootstrap` | USER-REQUESTED (audit F-019) | Implemented | unit |
+| Phase-07 writes `bootstrap-state.json` to canonical `/var/lib/broodforge/` path | USER-REQUESTED (audit F-009) | Implemented | unit |
+| Phase-08 drops `--allow-empty`; only commits when state file changed | USER-REQUESTED (audit F-033) | Implemented | unit |
+| Dashboard `_scores_from_readiness()` passes through `overall_score`; OVR badge fallback | USER-REQUESTED (audit F-008/F-029) | Implemented | unit |
+| `DashboardConfig.save()` raises loudly on OSError instead of silently swallowing | USER-REQUESTED (audit F-010/F-032) | Implemented | unit |
+| `_serve_doc_file()` 3-step docs resolution + configurable `docs_path` | USER-REQUESTED (audit F-014/F-030) | Implemented | unit |
+| `spawn_planner.py` fail-fast if k3s join tokens absent from `bootstrap-state.json` | USER-REQUESTED (audit F-011/F-020) | Implemented | unit |
+| WAN spawn fail-fast if `wan_auth_key` absent | USER-REQUESTED (audit F-021) | Implemented | unit |
+| `generate-bootstrap-image.py` validates `--interface`/`--disk` at build time | USER-REQUESTED (audit F-018) | Implemented | unit |
+| Prominent install-passphrase banner (`!! SINGLE-USE — RECORD THIS NOW !!`) | USER-REQUESTED (audit F-023) | Implemented | static |
+
+## PAP audit 2026-06-08 — MEDIUM + LOW fixes
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| `forge_keepass_init.py` `include_wan` no-op: removed dead `wan_paths` computation; added explanatory comment | USER-REQUESTED (audit F-004) | Implemented | static |
+| `guided_setup.py` added `backup.secrets_destinations` suggest handler | USER-REQUESTED (audit F-005) | Implemented | unit |
+| `guided_setup.py` replaced `network_topology_collector._zfs_topology_from_disk_count` private import with inline 5-line logic (stdlib-only contract) | USER-REQUESTED (audit F-006) | Implemented | unit |
+| `ROADMAP.md` Phase 1.I/1.J/1.K scope items marked `[x]`; status blocks updated to "implemented" | USER-REQUESTED (audit F-007/F-031) | Implemented | static |
+| `_vault_hierarchy.py` fallback passphrase uses `secrets.token_urlsafe(24)` instead of deterministic `GENERATE-AT-RUNTIME-{role}` | USER-REQUESTED (audit F-012) | Implemented | unit |
+| Phase-03 wires `setup_recovery_account.py`; reads `host_identity.operator_ssh_key` from manifest; writes plan to `/var/lib/broodforge/recovery-plans/` | USER-REQUESTED (audit F-015) | Implemented | unit |
+| `FORGING.md` Step 0 NOTE block: clarifies Step 1 (forge-planner.py) must run first | USER-REQUESTED (audit F-022) | Implemented | static |
+| `describe_vault_plan()` shows explicit "Operator steps required (N entries)" section with numbered actions | USER-REQUESTED (audit F-024) | Implemented | unit |
+| `summarize_drift()` adds `note` key when drift unavailable (insufficient history message) | USER-REQUESTED (audit F-025) | Implemented | unit |
+| `phoenix_playbook.py` Wave 2 step 2.2: KeePass-managed credential delivery path documented (path, copy method, rotation requirement) | USER-REQUESTED (audit F-026) | Implemented | unit |
+| `forge_keepass_init.py` TOTP provisioned AFTER KeePass DB creation commands execute | USER-REQUESTED (audit F-027) | Implemented | static |
+| `_recovery_readiness_certificate.py` `drills[0]` comment clarifies newest-first via `insert(0,…)` | USER-REQUESTED (audit F-016/F-034) | Implemented | static |
+
+> Full test suite: **4332 passed, 1 skipped** (pre-existing `test_opentofu.py` failure excluded).

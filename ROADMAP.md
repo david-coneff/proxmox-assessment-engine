@@ -316,7 +316,7 @@ own "how to analyze me" document) — both still present, untouched.
 
 ### Phase 1.I — Recovery-Readiness Conformance *(implemented — commit 3b32137)*
 
-**Status: scoped 2026-06-08 — proposed, not started.** Promoted from the
+**Status: implemented — commit 3b32137.** Proposed from the
 draft sketch below by direct operator decision: *"Recovery-Readiness
 Conformance → Scope as Phase 1.I... Build as additive extensions to existing
 `readiness.py`, `drift.py`, `dependencies.py`, snapshot/provenance store, and
@@ -326,23 +326,23 @@ for the architecture-level decision record.
 **Proposed scope (additive — extensions to existing modules, no new
 subsystem):**
 
-- [ ] `recovery-readiness-certificate.json` (+ HTML, AD-051 pattern) —
+- [x] `recovery-readiness-certificate.json` (+ HTML, AD-051 pattern) —
       generator that composes, into one timestamped record: the manifest hash
       (canonical serialization + SHA-256 over `bootstrap-state.json` + the 10
       metadata YAMLs), the graph hash (SHA-256 over each of the five
       `dependencies.py` dependency graphs' canonical form), the current
       readiness score (RRS/ACS/DCS/CRS/OSS from `readiness.py`), the latest
       drift summary (`drift.py`), and the latest `DrillRecord` (Phase 12).
-- [ ] Hash recording wired into snapshot generation — each
+- [x] Hash recording wired into snapshot generation — each
       `history/snapshots/` entry gains `manifest_hash`/`graph_hash` fields, so
       "the graph that produced this readiness score" is independently
       checkable after the fact, not just at generation time.
-- [ ] `replay-snapshot.py` — re-derives a manifest's readiness score and
+- [x] `replay-snapshot.py` — re-derives a manifest's readiness score and
       drift report from a stored snapshot and asserts it matches what was
       recorded at the time, turning "snapshots are reproducible" (an existing
       design constraint — `.ai/CURRENT_STATE.md` "Key Design Constraints")
       from an assumption into a checked, reportable fact.
-- [ ] Documentation pass — write down, in plain language, what broodforge
+- [x] Documentation pass — write down, in plain language, what broodforge
       does *not* promise to recover automatically (the "Human Intervention
       Boundary," e.g., "if the KeePass database itself is lost, no amount of
       manifest replay restores secrets").
@@ -479,7 +479,7 @@ the status block at the top of this section and AD-059.
 
 ### Phase 1.J — Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn Media *(implemented — commit f883540)*
 
-**Status: scoped 2026-06-08 — proposed, not started.** Promoted from the
+**Status: implemented — commit f883540.** Promoted from the
 draft recommendation below by direct operator decision, which also recorded a
 **firm architectural constraint** ruling out any autonomous pathway that can
 read and wield full root credentials against live hypervisors — see **AD-060**
@@ -491,28 +491,28 @@ stated** and forms this phase's implementation targets.
 
 **Proposed scope (additive — no autonomous full-root pathway, per AD-060):**
 
-- [ ] **Constrained recovery account per hypervisor** — a dedicated,
+- [x] **Constrained recovery account per hypervisor** — a dedicated,
       narrowly-scoped account provisioned during forge phase-03 (host config),
       gated by a forced command (`ForceCommand`/`command=` in
       `authorized_keys`) limited to a fixed menu of read-only diagnostics and
       safe operations (status, logs, VM start/stop) — never an arbitrary
       shell. Because its blast radius is bounded *by construction*, this is
       the one piece of the recovery surface safe to query autonomously.
-- [ ] **Break-glass root — storage annotation, not a new mechanism.**
+- [x] **Break-glass root — storage annotation, not a new mechanism.**
       `secret-registry.yaml` already tracks `pve0X-root-password` entries per
       `host:X`; this item documents/annotates those entries as
       human-unlock-gated break-glass root, behind the *same* gate that already
       protects every other secret (AD-042), with **no new autonomous
       pathway** — functionally "the recovery runbook tells the operator where
       to find it and they type it themselves."
-- [ ] **Pre-generated spawn-media credentials.** Run the existing AD-043
+- [x] **Pre-generated spawn-media credentials.** Run the existing AD-043
       passphrase-generation pattern earlier — at image-build time (Phase 1.H)
       — and embed the result on install media instead of generating it at
       install time. Requires human authorization before a node installed from
       such pre-made media is allowed to join the cell — the operator's own
       proposed safeguard, which slots into the same place the existing
       autonomous-mode service-selection confirmation already lives (AD-041).
-- [ ] **Phoenix package temporary-credential extension.** Per the operator's
+- [x] **Phoenix package temporary-credential extension.** Per the operator's
       explicit direction, extend the node-spawning temporary-credential
       pattern (Cloud-Init: a generated pre-install root passphrase, used only
       for discovery, discarded the instant the KeePass-managed replacement is
@@ -599,7 +599,7 @@ items 1 and 3 above as implementation targets and item 2 as the
 
 ### Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User Provisioning *(implemented — commit c750ed6)*
 
-**Status: scoped 2026-06-08 — proposed, not started.** Promoted from the
+**Status: implemented — commit c750ed6.** Promoted from the
 draft sketch below by direct operator decision, which expanded its scope in
 two ways: (1) higher-tier vaults must include records of the access
 credentials for lower-tier scopes, so a god-mode operator can always recover
@@ -613,35 +613,35 @@ provisioned with access to its scoped vault. See **AD-061** in
 **Proposed scope (additive — no new dependency, no change to the trust-model
 foundations; "god mode" remains the homelab default):**
 
-- [ ] **`Role`/`Scope` registry** — a new authoritative YAML (following the
+- [x] **`Role`/`Scope` registry** — a new authoritative YAML (following the
       existing 10-metadata-file pattern in `data-model/`): each entry names a
       role, a hierarchical scope expressed as glob patterns over the
       *existing* `owning_cell`/`required_by` vocabulary in
       `secret-registry.yaml` (`cell-1/*`, `cell-1/node-1/*`,
       `cell-1/node-1/vm-3/*`, or by `secret_type`/`required_for` facet), and
       which humans currently hold that role.
-- [ ] **`derive-scoped-vault` generator** — reads the canonical KeePass DB
+- [x] **`derive-scoped-vault` generator** — reads the canonical KeePass DB
       plus the Role/Scope registry and produces a derivative `.kdbx`
       containing only the entries matching the declared scope, with its own
       freshly-generated passphrase (reusing `generate_master_password_suggestion()`
       / EFF passphrase generators, AD-043/AD-052). The canonical "god mode"
       database remains exactly what it is today.
-- [ ] **Vault-of-vaults recordkeeping (operator-directed expansion).** Each
+- [x] **Vault-of-vaults recordkeeping (operator-directed expansion).** Each
       derived vault's generated passphrase is itself written as an entry in
       the *next tier up* (ultimately the canonical god-mode vault), so a
       higher-tier operator can always recover any lower-tier scoped vault's
       passphrase from their own vault — generalizing the per-backup
       unique-secret bookkeeping pattern already established in AD-044.
-- [ ] **User-provisioning templates at the VM and Proxmox levels
+- [x] **User-provisioning templates at the VM and Proxmox levels
       (operator-directed expansion).** Default account templates corresponding
       to each declared scope tier (e.g., service operator / node sysadmin /
       god mode), created at forge/spawn time, each provisioned with access to
       exactly its corresponding scoped vault and nothing beyond it.
-- [ ] **Authorization model** — only holders of the canonical vault can mint
+- [x] **Authorization model** — only holders of the canonical vault can mint
       scoped vaults or scope-tier user templates; true by construction ("you
       can only derive a scope you can already see the contents of"), matching
       who is trusted to run `forge-planner.py`/`spawn-planner.py` today.
-- [ ] **Revocation = rotate + reissue**, documented up front as an honest
+- [x] **Revocation = rotate + reissue**, documented up front as an honest
       non-guarantee (a property of the offline-first model — a derived vault
       cannot leak ciphertext it never received, arguably a *stronger*
       guarantee than a layered ACL).

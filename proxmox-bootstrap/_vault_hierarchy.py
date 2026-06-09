@@ -382,7 +382,9 @@ def build_derived_vault_plan(
         if _HAS_PASSPHRASE:
             passphrase, passphrase_source = generate_master_password_suggestion()
         else:
-            passphrase, passphrase_source = f"GENERATE-AT-RUNTIME-{scope.role}", "unavailable"
+            import secrets as _secrets
+            passphrase = _secrets.token_urlsafe(24)
+            passphrase_source = "secrets.token_urlsafe (passphrase lib unavailable)"
     elif passphrase_source is None:
         passphrase_source = "operator-supplied"
 
@@ -505,7 +507,18 @@ def describe_vault_plan(plan: DerivedVaultPlan) -> str:
         lines.append(f"  {e.get('keepass_path') or e.get('id')}")
         lines.append(f"    → {e.get('description') or ''}")
 
+    n_secrets = len(plan.entries)
     lines += [
+        "",
+        f"Operator steps required ({n_secrets} entries to populate manually):",
+        f"  1. Run: render_derive_vault_commands() to get the keepassxc-cli",
+        f"     command sequence (or use derive-scoped-vault.py --run).",
+        f"  2. Execute each command — creates {plan.db_path}",
+        f"     with {n_secrets} entries copied from the canonical vault.",
+        f"  3. Record the passphrase above in the parent vault at:",
+        f"     {plan.parent_record_path}",
+        f"  4. Distribute {plan.db_path} to the holder(s): "
+        + (", ".join(plan.holders) if plan.holders else "(none declared)"),
         "",
         "Authorization model (AD-061 — true by construction, nothing to enforce):",
         "  Only someone who can already read secret-registry.yaml AND open the",

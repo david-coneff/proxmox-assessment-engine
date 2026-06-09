@@ -466,6 +466,36 @@ if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_done "$step"
 fi
 
+# ---- Recovery account plan generation ---------------------------------
+step="phase03_recovery_account"
+if is_done "$step"; then checkpoint_skip "$step"; else
+  checkpoint_start "$step"
+  RECOVERY_PLAN_DIR="/var/lib/broodforge/recovery-plans"
+  mkdir -p "$RECOVERY_PLAN_DIR"
+  # Read operator public key from forge-manifest.json (host_identity.operator_ssh_key)
+  _OP_PUBKEY="$(python3 - "$SCRIPT_DIR/forge-manifest.json" <<'PYEOF'
+import json, sys
+m = json.load(open(sys.argv[1]))
+print((m.get("host_identity") or dict()).get("operator_ssh_key") or "")
+PYEOF
+)"
+  if [ -n "$_OP_PUBKEY" ] && [ "$_OP_PUBKEY" != "MANUAL_ENTRY_REQUIRED" ]; then
+    python3 "$SCRIPT_DIR/proxmox-bootstrap/setup_recovery_account.py" \\
+      --hostname "$HOSTNAME" \\
+      --public-key "$_OP_PUBKEY" \\
+      --cell-id "$(python3 -c "import json; print(json.load(open('$SCRIPT_DIR/forge-manifest.json')).get('cell_id','broodforge'))")" \\
+      --output-dir "$RECOVERY_PLAN_DIR"
+    echo "[phase-03] Recovery account plan written to $RECOVERY_PLAN_DIR"
+    echo "[phase-03] OPERATOR ACTION REQUIRED: install the recovery account on this host."
+    echo "[phase-03] See $RECOVERY_PLAN_DIR for the generated plan, menu script, and authorized_keys snippet."
+    checkpoint_done "$step"
+  else
+    echo "[phase-03] WARNING: host_identity.operator_ssh_key not set in forge-manifest.json." >&2
+    echo "[phase-03] Recovery account plan NOT generated — add operator_ssh_key to the manifest and re-run phase-03." >&2
+    checkpoint_done "$step"
+  fi
+fi
+
 # ---- KeePass database initialisation -----------------------------------
 step="phase03_keepass"
 if is_done "$step"; then checkpoint_skip "$step"; else

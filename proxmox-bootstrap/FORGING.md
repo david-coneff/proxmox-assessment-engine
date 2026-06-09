@@ -47,11 +47,19 @@ package over" + "SSH in and run forge.sh" into a single boot-and-walk-away
 operation, the Image Builder (Phase 1.H, AD-057) generates a **bootstrap
 image staging bundle** — a structured archive that documents and stages
 everything you need to combine with the official Proxmox VE ISO to produce
-bootable pre-install media:
+bootable pre-install media.
+
+> **Note:** Step 0 requires `forge-manifest.json`, which is generated in
+> **Step 1** below. The recommended workflow is: complete Step 1 first
+> (run `forge-planner.py`, review the manifest), then return here to build
+> the pre-install media before proceeding to Step 2.
 
 ```bash
-python3 proxmox-bootstrap/forge-planner.py            # Step 1 below — generates forge-manifest.json first
-python3 proxmox-bootstrap/generate-bootstrap-image.py --manifest forge-manifest.json
+# Step 1 first — generates forge-manifest.json:
+python3 proxmox-bootstrap/forge-planner.py
+# Then build the pre-install media (Step 0):
+python3 proxmox-bootstrap/generate-bootstrap-image.py --manifest forge-manifest.json \
+    --interface enp3s0 --disk /dev/sda
 ```
 
 This produces `bootstrap-image-{cell_id}-{timestamp}.tar.gz`, containing an

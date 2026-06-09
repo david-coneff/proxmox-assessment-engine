@@ -14,7 +14,9 @@ Digital Twin + Federation, and Autonomous Operations (Phase 26 — all sub-phase
 
 ## Next Action
 
-**All audit findings resolved through round 15** (2026-06-03).
+**All audit findings resolved through round 16 (PAP audit, 2026-06-08).**
+34 findings fixed across CRITICAL/HIGH/MEDIUM/LOW severity tiers.
+See `docs/AUDIT-FINDINGS.md` for the full record.
 Audit rounds 3–14 complete. Round 14 fixes:
 - S-01: spawn KEEPASS_GATE_SH no longer exports KDBX_MASTER_PASSWORD; path only
 - S-02: hatchery_receiver warns to stderr at startup when no auth token configured

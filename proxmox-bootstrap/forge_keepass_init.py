@@ -179,11 +179,9 @@ def generate_keepass_init_config(
     mfa_method = (forge_manifest.get("keepass_config") or {}).get("mfa_method") or "totp"
 
     extra: list[KeePassEntry] = []
-    if include_wan:
-        # Add WAN-specific entries if not already in the base list
-        wan_paths = {e.path for e in KEEPASS_INITIAL_ENTRIES}
-        # These are already required=False in KEEPASS_INITIAL_ENTRIES
-        pass  # Base list already has Cloudflare/DuckDNS entries
+    # include_wan is intentionally a no-op: all WAN-specific entries
+    # (Cloudflare/DuckDNS/Headscale) are already in KEEPASS_INITIAL_ENTRIES
+    # as required=False. The parameter is kept for CLI symmetry.
 
     return KeePassInitConfig(
         master_password_mode="generated",
@@ -385,13 +383,6 @@ if __name__ == "__main__":
     except OSError:
         pass
 
-    # Print TOTP setup to /dev/tty before executing commands — stdout may be
-    # redirected to forge.log by the calling phase script, and the TOTP secret
-    # must not appear in that log.
-    if cfg.mfa_method == "totp" and _HAS_MFA:
-        totp_cfg = provision_totp(manifest.get("cell_id", "broodforge"))
-        print_totp_setup_to_tty(totp_cfg.totp_secret or "", totp_cfg.totp_account or "broodforge")
-
     cmds = render_init_commands(cfg)
     errors = 0
     for cmd in cmds:
@@ -411,4 +402,12 @@ if __name__ == "__main__":
     if errors:
         print(f"[keepass-init] {errors} command(s) failed.", file=sys.stderr)
         sys.exit(1)
+
+    # Provision TOTP AFTER the KeePass DB is confirmed created — the DB must
+    # exist before provision_totp can write the secret entry. stdout may be
+    # redirected to forge.log; TOTP secrets go to /dev/tty only.
+    if cfg.mfa_method == "totp" and _HAS_MFA:
+        totp_cfg = provision_totp(manifest.get("cell_id", "broodforge"))
+        print_totp_setup_to_tty(totp_cfg.totp_secret or "", totp_cfg.totp_account or "broodforge")
+
     print(f"[keepass-init] Initialisation complete: {cfg.db_path}")

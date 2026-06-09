@@ -438,6 +438,44 @@ class PhoenixPlaybookGenerator:
                 },
                 {
                     "id": "2.2",
+                    "action": "Restore KeePass-managed root credential",
+                    "description": (
+                        "The phoenix session temporary credential (see "
+                        "temporary_session_credential section) is valid only for "
+                        "this recovery session. Replace it with the KeePass-managed "
+                        "root credential before resuming normal operations."
+                    ),
+                    "commands": [
+                        "# Retrieve the permanent root credential from KeePass:",
+                        f"# KeePass path: Infrastructure/proxmox/{hostname}-root-password",
+                        "# (open KeePass on your workstation — the .kdbx is in the forge package",
+                        "#  or the git repo, depending on your embed_in_packages setting)",
+                        "",
+                        "# Set the new root password on the replacement host:",
+                        "passwd root",
+                        "# — or via keepassxc-cli pipe if running automated recovery:",
+                        f"# keepassxc-cli show /etc/broodforge/keepass.kdbx Infrastructure/proxmox/{hostname}-root-password | passwd --stdin root",
+                    ],
+                    "validation": [
+                        "# Confirm KeePass-managed credential works:",
+                        f"ssh root@{host_ip or '[HOST_IP]'} 'echo root-login-ok'",
+                        "# Then rotate/discard the phoenix session temporary credential",
+                    ],
+                    "method": "CONFIGURE",
+                    "on_failure": "human",
+                    "secret_refs": [f"Infrastructure/proxmox/{hostname}-root-password"],
+                    "credential_delivery_note": (
+                        "Credential delivery path: the KeePass .kdbx is either embedded "
+                        "in the forge package (embed_in_packages=True) or lives in the git "
+                        "repo (proxmox-bootstrap/keepass.kdbx). Copy it to the replacement "
+                        "host via: scp forge-package.tar.gz root@[HOST_IP]:/tmp/ then unpack. "
+                        "If the .kdbx itself is lost, this is the canonical Human Intervention "
+                        "Boundary — see the recovery-readiness-certificate.json for the "
+                        "documented boundary statement."
+                    ),
+                },
+                {
+                    "id": "2.3",
                     "action": "Verify Proxmox services are running",
                     "commands": [
                         "systemctl status pve-cluster pveproxy pvedaemon",

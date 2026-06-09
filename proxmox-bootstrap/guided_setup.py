@@ -267,8 +267,16 @@ def suggest(field_path: str, session: GuidedSetupSession) -> Any:
         if pools:
             return pools[0].get("topology", "mirror")
         block_devs = _get_manifest_val(m, "storage.block_devices") or []
-        from network_topology_collector import _zfs_topology_from_disk_count  # reuse
-        return _zfs_topology_from_disk_count(len(block_devs))
+        n = len(block_devs)
+        if n <= 1:
+            return "stripe"
+        if n == 2:
+            return "mirror"
+        if n == 3:
+            return "raidz1"
+        if n <= 6:
+            return "raidz2"
+        return "raidz3"
 
     if field_path == "storage.pool_name":
         pools = _get_manifest_val(m, "storage.zfs_pools") or []
@@ -380,6 +388,9 @@ def suggest(field_path: str, session: GuidedSetupSession) -> Any:
         return None   # operator must configure
 
     if field_path == "backup.config_destinations":
+        return ["(not configured — run setup-backup.py)"]
+
+    if field_path == "backup.secrets_destinations":
         return ["(not configured — run setup-backup.py)"]
 
     # Unknown field

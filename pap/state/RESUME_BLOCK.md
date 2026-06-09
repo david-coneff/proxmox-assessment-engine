@@ -37,7 +37,13 @@ behavior, not its development process, and is out of scope for this artifact
   credentials against live hypervisors). No further proposed development phases
   exist in `ROADMAP.md`.
 
-- **active_milestone**: (Updated — ninth milestone, 2026-06-08.) All four
+- **active_milestone**: (Updated — tenth milestone, 2026-06-08 PAP audit.) All 34 PAP
+  audit findings (`.ai/pap-audit-2026-06-08.md`) resolved across CRITICAL/HIGH/MEDIUM/LOW
+  severity. Commits 31a2ee6 (CRITICAL), 1195e8f (HIGH), and this commit (MEDIUM/LOW).
+  Test suite: 4332 passed, 1 skipped. All roadmap items remain complete.
+  Next action: **deploy to hardware**.
+
+  **Before this (ninth milestone, 2026-06-08):** All four
   proposed phases are now implemented, committed, and pushed. The ninth
   milestone closes the complete implementation run:
   - Phase 1.J (AD-060, commit f883540): Hypervisor Recovery — Constrained

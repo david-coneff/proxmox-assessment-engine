@@ -119,6 +119,13 @@ def summarize_drift(drift_summary: Optional[dict]) -> dict:
             "drift_severity": None,
             "diff_count": 0,
             "diff_severity_counts": {},
+            "note": (
+                "Drift data unavailable — at least two history snapshots are "
+                "required to compute drift. Run the assessment pipeline after "
+                "the first snapshot is stored to generate a baseline, then run "
+                "it again to produce a drift comparison. Until then, drift "
+                "posture cannot be reported."
+            ),
         }
 
     diffs = drift_summary.get("diffs") or []
@@ -328,6 +335,9 @@ def _load_latest_drill(repo_root: Path) -> Optional[dict]:
             continue
         drills = state.get("reconstruction_drills") or []
         if drills:
+            # drills[0] is the MOST RECENT drill — reconstruction_drill.py
+            # prepends new records with drills.insert(0, record), so index 0
+            # is always the newest entry, not the oldest.
             return drills[0]
     return None
 
