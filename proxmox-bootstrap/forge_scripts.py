@@ -80,10 +80,15 @@ checkpoint_reset() {
 FORGE_KEEPASS_GATE_SH = """\
 #!/usr/bin/env bash
 # forge-keepass-gate.sh — KeePass master password gate for forge.sh
-# Source this and call forge_keepass_gate() in phase-03 before any secrets.
+# Source this and call forge_keepass_gate() before any kdbx_get calls in each phase.
+#
+# Cross-process idempotency: after the first unlock (phase-03), the password is
+# persisted to a 0600 tmpfs session file so subsequent phases do not re-prompt.
+# forge.sh removes the session file on completion or abort.
 
 FORGE_KDBX_PATH=""
 FORGE_KDBX_UNLOCKED=0
+_FORGE_SESSION_FILE="${FORGE_SESSION_FILE:-/run/broodforge-forge.session}"
 
 forge_keepass_find_db() {
   local embedded
@@ -99,6 +104,21 @@ forge_keepass_find_db() {
 
 forge_keepass_gate() {
   [ "$FORGE_KDBX_UNLOCKED" -eq 1 ] && return 0
+  # Check for session file written by a previous phase in this forge run.
+  # The file is 0600 and lives in /run (tmpfs) — cleared when forge.sh exits.
+  if [ -f "$_FORGE_SESSION_FILE" ]; then
+    local _perm
+    _perm="$(stat -c '%a' "$_FORGE_SESSION_FILE" 2>/dev/null || echo "000")"
+    if [ "$_perm" = "600" ]; then
+      KEEPASS_MASTER_PASSWORD="$(cat "$_FORGE_SESSION_FILE")"
+      # FORGE_KDBX_PATH is exported; restore if empty (e.g. first source in this shell)
+      [ -z "$FORGE_KDBX_PATH" ] && FORGE_KDBX_PATH="${FORGE_KDBX_PATH:-}"
+      FORGE_KDBX_UNLOCKED=1
+      echo "[kdbx] Session resumed from forge session file." >/dev/tty
+      return 0
+    fi
+    echo "[kdbx] WARNING: session file has unexpected permissions $_perm — re-prompting." >/dev/tty
+  fi
   # Write prompts to /dev/tty so they reach the operator regardless of log redirects
   echo "" >/dev/tty
   echo "=================================================================" >/dev/tty
@@ -114,6 +134,11 @@ forge_keepass_gate() {
   # so child processes do not inherit it via their environment
   export FORGE_KDBX_PATH
   FORGE_KDBX_UNLOCKED=1
+  # Persist password to tmpfs session file (0600) so later phase subprocesses
+  # can resume without re-prompting the operator.
+  install -m 600 /dev/null "$_FORGE_SESSION_FILE" 2>/dev/null && \\
+    printf '%s' "$KEEPASS_MASTER_PASSWORD" > "$_FORGE_SESSION_FILE" || \\
+    echo "[kdbx] WARNING: could not write session file — later phases will re-prompt." >/dev/tty
   echo "[kdbx] Unlocked. Secrets broker active." >/dev/tty
   echo "" >/dev/tty
 }
@@ -179,6 +204,10 @@ SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
 FORGE_LOG="${{SCRIPT_DIR}}/forge.log"
 
 source "$SCRIPT_DIR/lib/checkpoint.sh"
+source "$SCRIPT_DIR/lib/forge-keepass-gate.sh"
+
+# Clean up the cross-phase KeePass session file on exit (normal or abort).
+trap 'rm -f "${{FORGE_SESSION_FILE:-/run/broodforge-forge.session}}"' EXIT
 
 RESET=0
 FROM_PHASE=0
@@ -587,6 +616,9 @@ if is_done "$step"; then checkpoint_skip "$step"; else
   _inv="$_ans/inventory/hosts.yaml"
   _play="$_ans/playbooks/04-k3s.yaml"
   if [ -f "$_inv" ] && [ -f "$_play" ]; then
+    # Unlock KeePass gate for this phase subprocess (idempotent — resumes from
+    # session file if phase-03 already unlocked it in this forge run).
+    forge_keepass_gate
     # Write k3s token to a temp vars file so it never appears on the ansible command line
     # (command-line -e values are visible in ps aux and may appear in logs)
     _k3s_vars=$(mktemp)
@@ -645,6 +677,9 @@ def generate_phase_06_sh(manifest: dict) -> str:
 step="phase06_flux"
 if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_start "$step"
+  # Unlock KeePass gate for this phase subprocess (idempotent — resumes from
+  # session file if phase-03 already unlocked it in this forge run).
+  forge_keepass_gate
   # Export kubeconfig from k3s
   export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
@@ -729,9 +764,18 @@ CELL_ID='{cell_id}'
 step="phase08_k3s_health"
 if is_done "$step"; then checkpoint_skip "$step"; else
   checkpoint_start "$step"
+  # Distinguish "k3s never installed" (precondition unmet → exit 2) from
+  # "k3s installed but nodes unhealthy" (fatal → exit 1).
+  if ! command -v k3s &>/dev/null && [ ! -f /etc/rancher/k3s/k3s.yaml ]; then
+    echo "[phase-08] NOT_IMPLEMENTED: k3s is not installed on this host." >&2
+    echo "[phase-08] Phase-08 requires a running k3s cluster (phase-05 prerequisite)." >&2
+    echo "[phase-08] Exiting with code 2 (NOT_IMPLEMENTED) — forge.sh will continue but" >&2
+    echo "[phase-08] will not checkpoint this phase and will report FORGE INCOMPLETE." >&2
+    exit 2
+  fi
   export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   kubectl wait node --all --for=condition=Ready --timeout=120s || {{
-    echo "[phase-08] k3s nodes not ready after 120s." >&2
+    echo "[phase-08] k3s nodes not ready after 120s — cluster may be degraded." >&2
     checkpoint_failed "$step"
   }}
   checkpoint_done "$step"

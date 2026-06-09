@@ -180,6 +180,50 @@ class TestForgeScripts:
         s = _fs.generate_phase_08_sh(_manifest())
         assert "git commit" in s
 
+    # R3-001: phase-08 must exit 2 (NOT_IMPLEMENTED) when k3s is absent
+    def test_phase_08_exits_2_when_k3s_absent(self):
+        s = _fs.generate_phase_08_sh(_manifest())
+        assert "exit 2" in s, "phase-08 must exit 2 when k3s is not installed"
+
+    def test_phase_08_k3s_absent_detection(self):
+        s = _fs.generate_phase_08_sh(_manifest())
+        assert "/etc/rancher/k3s/k3s.yaml" in s, "phase-08 must check for k3s yaml to detect absent cluster"
+
+    def test_phase_08_fatal_exit_1_preserved(self):
+        # exit 1 path (cluster broken) must still exist alongside exit 2 (k3s absent)
+        s = _fs.generate_phase_08_sh(_manifest())
+        assert "exit 1" in s or "checkpoint_failed" in s, "fatal path for degraded cluster must be retained"
+
+    # R3-004: forge_keepass_gate must be called in phase-05 and phase-06
+    def test_phase_05_calls_keepass_gate_before_kdbx_get(self):
+        s = _fs.generate_phase_05_sh(_manifest())
+        gate_pos = s.find("forge_keepass_gate")
+        kdbx_pos = s.find("kdbx_get")
+        assert gate_pos != -1, "phase-05 must call forge_keepass_gate"
+        assert kdbx_pos != -1, "phase-05 must have kdbx_get"
+        assert gate_pos < kdbx_pos, "forge_keepass_gate must appear before kdbx_get in phase-05"
+
+    def test_phase_06_calls_keepass_gate_before_kdbx_get(self):
+        s = _fs.generate_phase_06_sh(_manifest())
+        gate_pos = s.find("forge_keepass_gate")
+        kdbx_pos = s.find("kdbx_get")
+        assert gate_pos != -1, "phase-06 must call forge_keepass_gate"
+        assert kdbx_pos != -1, "phase-06 must have kdbx_get"
+        assert gate_pos < kdbx_pos, "forge_keepass_gate must appear before kdbx_get in phase-06"
+
+    def test_keepass_gate_has_session_file_support(self):
+        # R3-004: gate must persist password to a session file for cross-phase idempotency
+        g = _fs.FORGE_KEEPASS_GATE_SH
+        assert "_FORGE_SESSION_FILE" in g, "gate must define session file variable"
+        assert "install -m 600" in g or "chmod 600" in g, "session file must be 0600"
+
+    def test_forge_sh_cleans_up_session_file(self):
+        # R3-004: forge.sh must remove the session file on exit
+        s = _fs.generate_forge_sh(_manifest())
+        assert "FORGE_SESSION_FILE" in s or "broodforge-forge.session" in s, \
+            "forge.sh must reference the session file for cleanup"
+        assert "trap" in s, "forge.sh must use trap for cleanup"
+
     def test_write_all_forge_scripts(self, tmp_path):
         written = _fs.write_all_forge_scripts(_manifest(), str(tmp_path))
         assert "forge.sh" in written
