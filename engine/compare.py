@@ -140,17 +140,7 @@ def compare(assessment: dict) -> ComparisonResult:
     # Observed guests with no corresponding declared resource
     for obs_key, obs in observed_by_name.items():
         if obs_key not in matched_observed:
-            # Check if at least configured
-            if obs_key in configured_set:
-                result.matches.append(Match(
-                    name=obs_key,
-                    declared=None,
-                    configured=obs_key,
-                    observed=obs,
-                    layers=["configured", "observed"],
-                ))
-            else:
-                result.observed_only.append(obs)
+            result.observed_only.append(obs)
 
     # Configured hosts not in declared or observed
     for host in configured_hosts:
