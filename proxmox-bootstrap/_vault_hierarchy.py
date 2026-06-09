@@ -355,7 +355,7 @@ class DerivedVaultPlan:
 
 
 @_deal_pre(lambda role_raw, secret_entries, **_kw: isinstance(role_raw, dict) and isinstance(secret_entries, list))
-@_deal_post(lambda result: hasattr(result, "role") and hasattr(result, "scope") and hasattr(result, "commands"))
+@_deal_post(lambda result: hasattr(result, "role") and hasattr(result, "entries") and hasattr(result, "db_path"))
 def build_derived_vault_plan(
     role_raw:          dict,
     secret_entries:    list[dict],

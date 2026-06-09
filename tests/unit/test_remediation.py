@@ -845,9 +845,9 @@ class TestRemediationPolicy:
         policy = self._policy(window="08:00-10:00")
         assert _pol.check_execution_window(policy, now_fn=_now) is False
 
-    def test_execution_window_malformed_allows(self):
+    def test_execution_window_malformed_denies(self):
         policy = self._policy(window="not-a-window")
-        assert _pol.check_execution_window(policy, now_fn=_now) is True
+        assert _pol.check_execution_window(policy, now_fn=_now) is False
 
     def test_policy_serialization_roundtrip(self):
         policy = _pol.RemediationPolicy(

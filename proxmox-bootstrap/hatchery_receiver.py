@@ -349,8 +349,8 @@ def run_receiver_server(config: HatcheryReceiverConfig) -> None:
                     with open(_p) as _f:
                         _s = json.load(_f)
                     _profile = (_s.get("network_topology") or {}).get("profile")
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"[receiver] WARNING: Could not read state for WAN check ({_p}): {e}", file=sys.stderr)
                 break
         if _profile == "wan":
             print(

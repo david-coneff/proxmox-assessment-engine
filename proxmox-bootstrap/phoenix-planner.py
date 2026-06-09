@@ -37,7 +37,6 @@ from phoenix_guided_setup import (
     step0_set_restoration_scope,
     step1_run_identity_overrides,
     apply_overrides_to_playbook,
-    build_phoenix_guided_session,
 )
 from phoenix_playbook import build_phoenix_playbook
 

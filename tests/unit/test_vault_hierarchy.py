@@ -511,8 +511,8 @@ if _HAS_HYPOTHESIS:
                 passphrase="Test.pass.1",
             )
             assert hasattr(plan, "role")
-            assert hasattr(plan, "scope")
-            assert hasattr(plan, "commands")
+            assert hasattr(plan, "entries")
+            assert hasattr(plan, "db_path")
 
         @given(tier=st.sampled_from(_VALID_TIERS))
         @settings(max_examples=20)
@@ -522,7 +522,7 @@ if _HAS_HYPOTHESIS:
                 now_fn=lambda: "2026-06-08T12:00:00+00:00",
                 passphrase="Test.pass.2",
             )
-            assert plan.role["tier"] == tier
+            assert plan.tier == tier
 
         @given(tier=st.sampled_from(_VALID_TIERS))
         @settings(max_examples=20)
@@ -533,7 +533,7 @@ if _HAS_HYPOTHESIS:
                 passphrase="Test.pass.3",
             )
             d = _vh.plan_to_dict(plan, include_passphrase=False)
-            assert d["role"] == tier
+            assert d["tier"] == tier
 
         @given(passphrase=st.text(min_size=8, max_size=64,
                alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"),

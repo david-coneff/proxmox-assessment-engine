@@ -99,6 +99,7 @@ class RemediationProposal:
     started_at:               Optional[str] = None
     resolved_at:              Optional[str] = None
     outcome:                  Optional[str] = None
+    rejected_by:              Optional[str] = None
     resisted:                 bool          = False
     keepass_gated:            bool          = False
     cell_id:                  Optional[str] = None

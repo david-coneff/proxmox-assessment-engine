@@ -350,8 +350,8 @@ def collect_platform_state(
             "apt-get -s upgrade 2>/dev/null | grep '^Inst' | wc -l || echo 0"
         )
         doc.apt_upgrades_available = _int(out.strip())
-    except Exception:
-        pass
+    except Exception as e:
+        errors.append({"component": "apt_upgrades", "error": str(e)})
 
     doc.collection_errors = errors
     return doc

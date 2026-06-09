@@ -412,3 +412,52 @@ Test suite after R2 fixes: **4403 passed, 1 skipped** (15 new tests).
 | R4-001 | Session file missing `FORGE_KDBX_PATH` — `kdbx_get` called keepassxc-cli with empty path | Session file format updated: line 1 = `FORGE_KDBX_PATH`, line 2 = `KEEPASS_MASTER_PASSWORD`; resume path reads both via `sed -n '1p'`/`'2p'` and exports `FORGE_KDBX_PATH` | **[FIXED]** |
 
 Test suite after R3+R4 fixes: **4415 passed, 1 skipped** (12 new tests; pre-existing `test_opentofu.py` failures unchanged).
+
+---
+
+## Audit cycle — 2026-06-09_12_00_00 UTC — R5: PAP 37-Pattern Manual Scan
+
+Full static pre-flight (shellcheck, ruff, bandit, vulture, detect-secrets, pytest/coverage) + manual application of all 37 PAP Audit Reasoning Patterns.
+
+### R5 MEDIUM fixes (Fail Open → Fail Safe)
+
+| Finding | Pattern | Area | Resolution | Status |
+|---|---|---|---|---|
+| R5-001 | Pattern 15 (Fail Open) | `remediation_policy.py:check_execution_window()` — malformed window regex match returned `True` (allow) | Changed to `return False` — fail-safe denies execution when window config is malformed | **[FIXED]** |
+| R5-002 | Pattern 15 (Fail Open) | `remediation_policy.py:check_execution_window()` — unparseable timestamp returned `True` (allow) | Changed to `return False` — fail-safe denies execution when current time can't be parsed | **[FIXED]** |
+
+### R5 MEDIUM fixes (Silent Degradation)
+
+| Finding | Pattern | Area | Resolution | Status |
+|---|---|---|---|---|
+| R5-003 | Pattern 8 (Silent Degradation) | `platform_state_collector.py:collect_platform_state()` — apt-upgrades `except Exception: pass` swallowed silently | Now appends to `errors` list; surfaces in `doc.collection_errors` | **[FIXED]** |
+| R5-004 | Pattern 8 (Silent Degradation) | `validate-metadata.py` — YAML parse error in cross-file validation swallowed silently | Now prints `[WARN] Could not parse {filename}: {error}` | **[FIXED]** |
+| R5-005 | Pattern 8 (Silent Degradation) | `hatchery_receiver.py` — JSON parse failure reading state for WAN-exposure check swallowed silently | Now prints warning to stderr; WAN check may be suppressed but operator is informed | **[FIXED]** |
+
+### R5 LOW fixes (Orphaned Outputs)
+
+| Finding | Pattern | Area | Resolution | Status |
+|---|---|---|---|---|
+| R5-006 | Pattern 21 (Orphaned Outputs) | `migrate_k3s_lib.py` — `asdict` imported but unused | Removed from import | **[FIXED]** |
+| R5-007 | Pattern 21 (Orphaned Outputs) | `phoenix-planner.py` — `build_phoenix_guided_session` imported but unused | Removed from import | **[FIXED]** |
+| R5-008 | Pattern 21 (Orphaned Outputs) | `remediation-cli.py` — `get_approved` + `execute_proposal` imported but unused | Removed both from imports | **[FIXED]** |
+| R5-009 | Pattern 21 (Orphaned Outputs) | `security_analyzer.py` — `Iterator` imported from typing but unused | Removed from import | **[FIXED]** |
+| R5-010 | Pattern 21 (Orphaned Outputs) | `remediation_queue.py:reject_proposal()` — `rejected_by` parameter accepted but discarded | Added `rejected_by: Optional[str]` field to `RemediationProposal`; stored in `reject_proposal()` | **[FIXED]** |
+| R5-011 | Pattern 21 (Orphaned Outputs) | `reconstruction_validation.py:build_drill_summary_html()` — `post_comparison` parameter accepted but unused | Now renders readiness before→after section with direction arrow when parameter is present | **[FIXED]** |
+
+### R5 regression fixes (Phase 1.M deal contract bugs)
+
+| Finding | Area | Resolution | Status |
+|---|---|---|---|
+| R5-012 | `build_derived_vault_plan()` deal `@post` checked `scope`/`commands` but `DerivedVaultPlan` has neither | Fixed to check `entries`/`db_path` (actual dataclass fields) | **[FIXED]** |
+| R5-013 | `build_spawn_plan()` deal `@post` checked `"planned_at"` but plan dict uses `"generated_at"` | Fixed key name | **[FIXED]** |
+| R5-014 | `test_vault_hierarchy.py` hypothesis tests checked wrong attributes (`scope`, `commands`, `role["tier"]`) | Fixed to `entries`, `db_path`, `plan.tier`, `d["tier"]` | **[FIXED]** |
+
+### R5 NOT FIXED (intentional design)
+
+| Finding | Pattern | Area | Notes |
+|---|---|---|---|
+| `/etc/broodforge/keepass.kdbx` default path | Pattern 37 (Hardcoded Environment) | `forge_keepass_init.py:KeePassInitConfig` | Intentional system path; dataclass field default is overridable; `FORGE_KDBX_PATH` env var already supported (commit 51b39b8) |
+| `_check_action_token()` returns True when no token configured | Pattern 15 (Fail Open) | `broodforge_dashboard.py:1294` | Intentional dev-mode behavior; documented in comment |
+
+Test suite after R5 fixes: all tests pass (pre-existing `test_opentofu.py` failures unchanged).

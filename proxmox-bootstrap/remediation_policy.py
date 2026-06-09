@@ -262,11 +262,11 @@ def check_execution_window(
     try:
         now_dt = datetime.fromisoformat(now_str.replace("Z", "+00:00"))
     except ValueError:
-        return True
+        return False  # unparseable timestamp → deny (fail-safe)
 
     m = re.match(r"^(\d{2}):(\d{2})-(\d{2}):(\d{2})$", window.strip())
     if not m:
-        return True   # malformed window → allow
+        return False  # malformed window → deny (fail-safe)
 
     start_h, start_m, end_h, end_m = (int(x) for x in m.groups())
     now_minutes = now_dt.hour * 60 + now_dt.minute

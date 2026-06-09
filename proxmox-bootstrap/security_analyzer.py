@@ -50,7 +50,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html import escape as _e
 from pathlib import Path
-from typing import Callable, Dict, Iterator, List, Optional
+from typing import Callable, Dict, List, Optional
 
 
 # ---------------------------------------------------------------------------

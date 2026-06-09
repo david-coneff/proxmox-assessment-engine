@@ -20,18 +20,21 @@ behavior, not its development process, and is out of scope for this artifact
   tiers, five dependency-graph types. Architecture v7.1+. (Source:
   `.ai/context.md`, `.ai/CURRENT_STATE.md`.)
 
-- **active_objective**: Phase 1.M (Dynamic Analysis Self-Audit Integration, AD-063)
-  now **fully implemented and committed** (2026-06-09). Extends Phase 1.L (AD-062) with
-  dynamic analysis: `DynamicHealthScore` dataclass + `assess_dynamic_health()` in
-  `continuous_assessment.py`; dynamic health subcard in `broodforge_dashboard.py`; deal
-  contracts on `build_spawn_plan`/`build_derived_vault_plan`/`score_component`; beartype
-  in `conftest.py`; hypothesis property tests in test_spawn_planner/test_vault_hierarchy/
-  test_readiness; `tests/bash/forge_phase_test.bats`; `tests/fuzz/` atheris targets;
-  html_base.py synced. 51 new tests. Full suite: **4476 passed, 16 skipped**.
-  All prior phases also done through 1.L. No further proposed development phases in
-  `ROADMAP.md`. Next operational action: **deploy to hardware**.
+- **active_objective**: Audit Cycle R5 (PAP 37-pattern manual scan) **complete**
+  (2026-06-09). Phase 1.M fully implemented and committed. All phases through 1.M done.
+  11 code fixes from R5: 2 Fail Open → Fail Safe (remediation_policy.py), 3 Silent
+  Degradation (platform_state_collector, validate-metadata, hatchery_receiver), 6
+  Orphaned Outputs (unused imports in 4 files, rejected_by stored in RemediationProposal,
+  post_comparison rendered in build_drill_summary_html). 3 Phase 1.M regression fixes
+  (deal postconditions had wrong field names; hypothesis tests had wrong attribute checks).
+  All tests pass. No further proposed development phases in `ROADMAP.md`.
+  Next operational action: **deploy to hardware**.
 
-- **active_milestone**: (Updated — fourteenth milestone, 2026-06-09 Phase 1.M implementation.)
+- **active_milestone**: (Updated — fifteenth milestone, 2026-06-09 Audit Cycle R5.)
+  R5 complete: 37-pattern PAP manual scan + 11 code fixes + 3 regression fixes.
+  See `docs/AUDIT-FINDINGS.md` for full R5 record (R5-001 through R5-014).
+
+  (Previous — fourteenth milestone, 2026-06-09 Phase 1.M implementation.)
   Phase 1.M (Dynamic Analysis Self-Audit Integration, AD-063) complete:
   - Step 1: `DynamicHealthScore` dataclass + `assess_dynamic_health()` in `continuous_assessment.py` (section 24.9). Removed duplicate conflicting class definition from interrupted prior session. Fixed hypothesis failures parser (comma-stripping) and `no_infra` check (mutmut availability excluded).
   - Step 2: `_build_dynamic_health_subcard()` + `_code_health_to_remediation_candidates()` updated in `broodforge_dashboard.py` to use correct field names; `not_implemented` state handled.
@@ -246,12 +249,12 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — fourteenth milestone closed, 2026-06-09.)**
-  Phase 1.M (Dynamic Analysis Self-Audit Integration, AD-063) complete. Full suite:
-  **4476 passed, 16 skipped** (4 pre-existing `test_opentofu.py` failures unchanged).
+- **next_action**: **(Updated — fifteenth milestone closed, 2026-06-09.)**
+  Audit Cycle R5 complete. Zero open findings. Full suite passes.
   **Next operational action**: deploy to hardware — run `python3
   proxmox-bootstrap/forge-planner.py` on a real Proxmox host to forge the
-  first cell. See `FORGING.md`.
+  first cell. See `FORGING.md`. Or: run audit cycle R6 to confirm zero-finding
+  stability before hardware deploy.
 
   If the operator gives new direction on any future work, pick it up, scope it
   precisely to what was asked, write the cycle into `docs/FEATURE-HISTORY.md`,

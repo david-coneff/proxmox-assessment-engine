@@ -189,8 +189,9 @@ def reject_proposal(
         return False
     if not _can_transition(p.status, "rejected"):
         return False
-    p.status   = "rejected"
-    p.outcome  = reason or "rejected by operator"
+    p.status      = "rejected"
+    p.outcome     = reason or "rejected by operator"
+    p.rejected_by = rejected_by
     p.resolved_at = _now_str(now_fn)
     return True
 

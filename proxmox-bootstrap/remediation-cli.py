@@ -41,14 +41,12 @@ from remediation_queue import (
     reject_proposal,
     batch_approve,
     get_pending,
-    get_approved,
     get_history,
     get_active,
     queue_summary,
 )
 from remediation_executor import (
     RemediationExecutor,
-    execute_proposal,
 )
 from remediation_policy import (
     load_policy,

@@ -418,6 +418,12 @@ def build_drill_summary_html(
     if drill_run.gaps_found:
         gaps_html = "".join(f"<li>{escape(g)}</li>" for g in drill_run.gaps_found)
         lines.append(f"<h4>Gaps Found</h4><ul>{gaps_html}</ul>")
+    if post_comparison:
+        arrow = "⬆" if post_comparison.score_improved else ("⬇" if post_comparison.score_regressed else "↔")
+        lines.append(
+            f"<p>Readiness: {escape(post_comparison.pre_drill_score)} → "
+            f"{escape(post_comparison.post_drill_score)} {arrow}</p>"
+        )
     if remediation:
         s = remediation.summary()
         lines.append(

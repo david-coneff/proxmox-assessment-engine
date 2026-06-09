@@ -384,7 +384,7 @@ def generate_temp_password(seed: Optional[int] = None) -> str:
 
 @_deal_pre(lambda session, manifest, bootstrap_state, catalog, hardware=None, now_fn=None:
            isinstance(bootstrap_state, dict))
-@_deal_post(lambda result: isinstance(result, dict) and "planned_at" in result)
+@_deal_post(lambda result: isinstance(result, dict) and "generated_at" in result)
 def build_spawn_plan(
     session:          SpawnPlannerSession,
     manifest:         Any,       # SpawnManifest or dict with reservation data

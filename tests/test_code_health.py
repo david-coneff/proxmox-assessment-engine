@@ -111,7 +111,7 @@ class TestAssessCodeHealth:
         bandit_results = [{"issue_severity": "HIGH", "issue_text": "foo"}] * 3
         run_fn = self._make_run_fn(bandit_results=bandit_results)
         result = assess_code_health(".", run_fn=run_fn)
-        assert result.overall < 60
+        assert result.overall <= 70  # 3 HIGH findings (-30) cap score at 70
 
     def test_shellcheck_not_installed_does_not_crash(self):
         def run_fn(cmd, **kwargs):

@@ -299,8 +299,8 @@ def main():
                 try:
                     text = filepath.read_text(encoding="utf-8")
                     all_data[filepath.name] = yaml.safe_load(text) or {}
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"  [WARN] Could not parse {filepath.name}: {e}")
         cross_errors = cross_file_checks(all_data)
         if cross_errors:
             print("  [WARN] Consistency issues found:")
