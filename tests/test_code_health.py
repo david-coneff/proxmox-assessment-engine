@@ -13,6 +13,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "proxmox-bootstrap"))
 from continuous_assessment import (
     assess_code_health, CodeHealthScore, _score_code_health,
     assess_dynamic_health, DynamicHealthScore, _score_dynamic_health,
+    code_health_to_remediation_candidates,
+    dynamic_health_to_remediation_candidates,
+    collect_health_remediation_candidates,
 )
 
 
@@ -540,3 +543,124 @@ class TestDashboardDynamicSubcard:
         html = _build_dynamic_health_subcard(dynamic)
         assert isinstance(html, str)
         assert "<" in html
+
+
+# ---------------------------------------------------------------------------
+# Fix 2 — code_health_to_remediation_candidates() in continuous_assessment.py
+# ---------------------------------------------------------------------------
+
+class TestCodeHealthCandidatesInContinuousAssessment:
+    """Verify the authoritative remediation-candidate logic lives in continuous_assessment."""
+
+    def test_high_bandit_produces_candidate(self):
+        score = CodeHealthScore(bandit_high_count=2, overall=60)
+        candidates = code_health_to_remediation_candidates(score)
+        assert len(candidates) == 1
+        assert candidates[0]["severity"] == "HIGH"
+        assert "bandit" in candidates[0]["description"].lower()
+        assert candidates[0]["source"] == "assess_code_health/bandit"
+
+    def test_clean_static_no_candidates(self):
+        score = CodeHealthScore(bandit_high_count=0, shellcheck_findings=0, overall=95)
+        assert code_health_to_remediation_candidates(score) == []
+
+    def test_shellcheck_threshold_5(self):
+        below = CodeHealthScore(shellcheck_findings=4, overall=88)
+        at_threshold = CodeHealthScore(shellcheck_findings=5, overall=85)
+        assert code_health_to_remediation_candidates(below) == []
+        assert len(code_health_to_remediation_candidates(at_threshold)) == 1
+
+    def test_candidate_has_required_keys(self):
+        score = CodeHealthScore(bandit_high_count=1, overall=70)
+        candidates = code_health_to_remediation_candidates(score)
+        c = candidates[0]
+        assert "type" in c and "severity" in c and "description" in c
+        assert "source" in c and "proposed_at" in c
+
+    def test_dashboard_wrapper_delegates_to_ca(self):
+        """broodforge_dashboard._code_health_to_remediation_candidates delegates to ca."""
+        from broodforge_dashboard import _code_health_to_remediation_candidates as _dash
+        score = CodeHealthScore(bandit_high_count=1, overall=70)
+        dash_result = _dash(score)
+        ca_result = code_health_to_remediation_candidates(score)
+        assert dash_result == ca_result
+
+
+class TestDynamicHealthCandidatesInContinuousAssessment:
+    """Verify dynamic_health_to_remediation_candidates in continuous_assessment."""
+
+    def test_hypothesis_failures_produce_high(self):
+        score = DynamicHealthScore(hypothesis_failures=2, overall=60)
+        candidates = dynamic_health_to_remediation_candidates(score)
+        assert any(c["severity"] == "HIGH" and "hypothesis" in c["description"].lower()
+                   for c in candidates)
+
+    def test_not_implemented_returns_empty(self):
+        score = DynamicHealthScore(not_implemented=True, overall=-1)
+        assert dynamic_health_to_remediation_candidates(score) == []
+
+    def test_error_returns_empty(self):
+        score = DynamicHealthScore(error="subprocess failed", overall=-1)
+        assert dynamic_health_to_remediation_candidates(score) == []
+
+    def test_low_mutation_score_high_severity(self):
+        score = DynamicHealthScore(mutation_score_pct=30.0, overall=65)
+        candidates = dynamic_health_to_remediation_candidates(score)
+        assert any(c["severity"] == "HIGH" and "mutation" in c["description"].lower()
+                   for c in candidates)
+
+    def test_medium_mutation_score_medium_severity(self):
+        score = DynamicHealthScore(mutation_score_pct=60.0, overall=80)
+        candidates = dynamic_health_to_remediation_candidates(score)
+        assert any(c["severity"] == "MEDIUM" and "mutation" in c["description"].lower()
+                   for c in candidates)
+
+    def test_bats_failures_produce_high(self):
+        score = DynamicHealthScore(bats_failed=2, bats_total=5, bats_passed=3, overall=80)
+        candidates = dynamic_health_to_remediation_candidates(score)
+        assert any(c["severity"] == "HIGH" and "bats" in c["description"].lower()
+                   for c in candidates)
+
+    def test_clean_dynamic_no_candidates(self):
+        score = DynamicHealthScore(
+            hypothesis_failures=0, mutation_score_pct=85.0,
+            bats_failed=0, bats_total=5, bats_passed=5, overall=100,
+        )
+        assert dynamic_health_to_remediation_candidates(score) == []
+
+    def test_dashboard_wrapper_merges_both(self):
+        """Dashboard wrapper merges static + dynamic candidates correctly."""
+        from broodforge_dashboard import _code_health_to_remediation_candidates as _dash
+        static = CodeHealthScore(bandit_high_count=1, overall=70)
+        dynamic = DynamicHealthScore(hypothesis_failures=1, overall=80)
+        candidates = _dash(static, dynamic=dynamic)
+        sources = {c["source"] for c in candidates}
+        assert "assess_code_health/bandit" in sources
+        assert "assess_dynamic_health/hypothesis" in sources
+
+
+class TestCollectHealthRemediationCandidates:
+    def test_returns_list(self, tmp_path):
+        def _run(cmd, **kw):
+            m = MagicMock()
+            m.stdout = "[]" if "bandit" not in str(cmd) else '{"results":[]}'
+            m.returncode = 0
+            return m
+
+        result = collect_health_remediation_candidates(str(tmp_path), run_fn=_run)
+        assert isinstance(result, list)
+
+    def test_clean_run_returns_empty(self, tmp_path):
+        def _run(cmd, **kw):
+            m = MagicMock()
+            if "bandit" in str(cmd):
+                m.stdout = '{"results":[]}'
+            elif "shellcheck" in str(cmd):
+                m.stdout = "[]"
+            else:
+                m.stdout = ""
+            m.returncode = 0
+            return m
+
+        result = collect_health_remediation_candidates(str(tmp_path), run_fn=_run)
+        assert result == []

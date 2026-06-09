@@ -15,6 +15,28 @@ Timestamps are `YYYY-MM-DD_HH_MM_SS` UTC.
 
 ---
 
+**Cycle: 2026-06-09_16_17_40 UTC**
+
+## Roadmap/implementation discrepancy fixes (three items)
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| `generate-answer-file.py` CLI — standalone answer.toml generator (Fix 1, Phase 1.H) | USER-REQUESTED | Implemented | unit (new script tested via import + smoke path) |
+| `code_health_to_remediation_candidates()` / `dynamic_health_to_remediation_candidates()` in `continuous_assessment.py` (Fix 2, Phase 1.L/1.M) | USER-REQUESTED | Implemented | unit (28 new tests; dashboard delegates to shared functions) |
+| `collect_health_remediation_candidates()` convenience function in `continuous_assessment.py` (Fix 2) | GAP-FILL | Implemented | unit |
+| `sync-cert-to-k8s.sh` — proper functional stub with env-var config, exit 2 for FORGE_INCOMPLETE (Fix 3, Phase 1.F.8d) | USER-REQUESTED | Implemented | static (shellcheck-safe pattern; exit 2 on no cert/no kubectl; exit 1 on kubectl failure) |
+| ROADMAP.md Phase 1.H, 1.L, 1.M, 1.F.8d descriptions updated to match implementation | GAP-FILL | Implemented | static |
+
+**Fix 1:** `generate-answer-file.py` is a thin CLI wrapper around `generate_answer_toml()` in `_image_builder.py`, following the same pattern as `generate-bootstrap-image.py`. Useful for reviewing/re-generating `answer.toml` without building a full bootstrap image staging bundle. ROADMAP Phase 1.H updated to name the script explicitly.
+
+**Fix 2:** The authoritative `RemediationCandidate`-dict conversion logic is now in `continuous_assessment.py` (`code_health_to_remediation_candidates` and `dynamic_health_to_remediation_candidates`). `broodforge_dashboard.py`'s `_code_health_to_remediation_candidates()` is a thin wrapper that merges both. ROADMAP Phase 1.L and 1.M updated to describe the direct wiring.
+
+**Fix 3:** `sync-cert-to-k8s.sh` is now a functional stub: reads cert/key paths from env vars or `/etc/broodforge/ssl-config`, uses the `kubectl create secret tls ... | kubectl apply` pattern, exits 2 (FORGE_INCOMPLETE) when TLS is not yet configured (no cert file, no kubectl), exits 1 on a hard kubectl error. ROADMAP Phase 1.F.8d updated to distinguish generated vs. static fallback version.
+
+Tests: 4504 passed, 16 skipped (+28 new tests in test_code_health.py). 4 pre-existing test_opentofu.py failures unchanged.
+
+---
+
 **Cycle: 2026-06-04_12_37_46 UTC**
 
 ## Interactive HTML documentation toolkit (`proxmox-bootstrap/md_to_html.py`)

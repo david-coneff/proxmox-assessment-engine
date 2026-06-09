@@ -37,10 +37,13 @@ Provides:
   collect_pbs_state_update()
   CertExpiryAlert           — cert approaching expiry
   scan_cert_expiry()
-  CodeHealthScore           — static analysis health score
-  assess_code_health()      — run static analysis and return CodeHealthScore
-  DynamicHealthScore        — dynamic analysis health score
-  assess_dynamic_health()   — run dynamic tools and return DynamicHealthScore
+  CodeHealthScore                         — static analysis health score
+  assess_code_health()                    — run static analysis and return CodeHealthScore
+  DynamicHealthScore                      — dynamic analysis health score
+  assess_dynamic_health()                 — run dynamic tools and return DynamicHealthScore
+  code_health_to_remediation_candidates() — convert static score → candidate dicts
+  dynamic_health_to_remediation_candidates() — convert dynamic score → candidate dicts
+  collect_health_remediation_candidates() — run both assessments, return merged candidates
 
 Stdlib only.
 """
@@ -947,3 +950,146 @@ def assess_dynamic_health(
 
     except Exception as exc:
         return DynamicHealthScore(assessed_at=_now, error=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Remediation candidate conversion (Phase 1.L / 1.M wiring)
+#
+# These shared functions are the single authoritative source for converting
+# health scores into remediation candidate dicts. broodforge_dashboard.py
+# delegates to them rather than duplicating the logic.
+# ---------------------------------------------------------------------------
+
+def code_health_to_remediation_candidates(score: "CodeHealthScore") -> "list[dict]":
+    """
+    Convert HIGH static analysis findings in a CodeHealthScore to remediation
+    candidate dicts following the RemediationCandidate dict pattern from
+    Phase 26 (remediation_planner.py).
+
+    Returns a list of dicts with keys: type, severity, description, source,
+    proposed_at. Only static findings are handled here; for dynamic findings
+    see dynamic_health_to_remediation_candidates().
+    """
+    from datetime import datetime, timezone as _tz
+    candidates: list[dict] = []
+    now = datetime.now(_tz.utc).isoformat()
+
+    bandit_high = getattr(score, "bandit_high_count", 0)
+    sc_findings = getattr(score, "shellcheck_findings", 0)
+
+    if bandit_high > 0:
+        candidates.append({
+            "type": "flag-manual",
+            "severity": "HIGH",
+            "description": (
+                f"bandit found {bandit_high} HIGH-severity security finding(s) in proxmox-bootstrap/. "
+                "Review .audit/bandit-report.json and remediate before next release."
+            ),
+            "source": "assess_code_health/bandit",
+            "proposed_at": now,
+        })
+
+    if sc_findings >= 5:
+        candidates.append({
+            "type": "flag-manual",
+            "severity": "MEDIUM",
+            "description": (
+                f"shellcheck found {sc_findings} warning(s) in shell scripts. "
+                "Run tools/run-static-audit.sh for details."
+            ),
+            "source": "assess_code_health/shellcheck",
+            "proposed_at": now,
+        })
+
+    return candidates
+
+
+def dynamic_health_to_remediation_candidates(score: "DynamicHealthScore") -> "list[dict]":
+    """
+    Convert HIGH dynamic analysis findings in a DynamicHealthScore to
+    remediation candidate dicts. Returns an empty list when score is
+    not_implemented or has an error (no infrastructure → no candidates).
+    """
+    from datetime import datetime, timezone as _tz
+    candidates: list[dict] = []
+
+    if getattr(score, "not_implemented", False) or getattr(score, "error", None):
+        return candidates
+
+    now = datetime.now(_tz.utc).isoformat()
+    hyp_fail = getattr(score, "hypothesis_failures", 0)
+    mut_pct = getattr(score, "mutation_score_pct", -1.0)
+    bats_fail = getattr(score, "bats_failed", 0)
+
+    if hyp_fail > 0:
+        candidates.append({
+            "type": "flag-manual",
+            "severity": "HIGH",
+            "description": (
+                f"hypothesis falsified {hyp_fail} property test(s) — "
+                "run 'pytest -k hypothesis' to reproduce and fix."
+            ),
+            "source": "assess_dynamic_health/hypothesis",
+            "proposed_at": now,
+        })
+
+    if mut_pct >= 0 and mut_pct < 40:
+        candidates.append({
+            "type": "flag-manual",
+            "severity": "HIGH",
+            "description": (
+                f"Mutation score {mut_pct:.1f}% is critically low (< 40%). "
+                "Test suite does not catch most code mutations — add targeted assertions."
+            ),
+            "source": "assess_dynamic_health/mutmut",
+            "proposed_at": now,
+        })
+    elif mut_pct >= 0 and mut_pct < 80:
+        candidates.append({
+            "type": "flag-manual",
+            "severity": "MEDIUM",
+            "description": (
+                f"Mutation score {mut_pct:.1f}% is below 80% target (AD-063). "
+                "Strengthen test assertions to catch more mutations."
+            ),
+            "source": "assess_dynamic_health/mutmut",
+            "proposed_at": now,
+        })
+
+    if bats_fail > 0:
+        candidates.append({
+            "type": "flag-manual",
+            "severity": "HIGH",
+            "description": (
+                f"{bats_fail} bats test(s) failed in tests/bash/. "
+                "Generated shell scripts have behavioral regressions — run 'bats tests/bash/'."
+            ),
+            "source": "assess_dynamic_health/bats",
+            "proposed_at": now,
+        })
+
+    return candidates
+
+
+def collect_health_remediation_candidates(
+    repo_root: str = ".",
+    *,
+    run_fn: Optional[Callable] = None,
+    now_fn: Optional[Callable[[], str]] = None,
+) -> "list[dict]":
+    """
+    Run both static and dynamic health assessments and return a merged list of
+    remediation candidate dicts. Convenience wrapper for callers that want the
+    full pipeline in one call.
+
+    Args:
+        repo_root: root directory of the broodforge repo
+        run_fn: injectable subprocess runner (passed through to both assess_* calls)
+        now_fn: injectable clock (passed through to both assess_* calls)
+    """
+    static_score = assess_code_health(repo_root, run_fn=run_fn, now_fn=now_fn)
+    dynamic_score = assess_dynamic_health(repo_root, run_fn=run_fn, now_fn=now_fn)
+    return (
+        code_health_to_remediation_candidates(static_score)
+        + dynamic_health_to_remediation_candidates(dynamic_score)
+    )

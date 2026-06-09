@@ -576,98 +576,26 @@ def _code_health_to_remediation_candidates(
     dynamic: "Optional[DynamicHealthScore]" = None,
 ) -> list[dict]:
     """
-    Convert HIGH static and dynamic analysis findings to remediation candidate dicts.
+    Thin wrapper — delegates to the shared functions in continuous_assessment.py.
 
-    Follows the RemediationCandidate pattern from Phase 26 (remediation_planner.py).
-    Returns a list of dicts with keys: type, severity, description, source, proposed_at.
-
-    Args:
-        score: static analysis score
-        dynamic: dynamic analysis score (optional; also sourced from score.dynamic)
+    Merges static findings (code_health_to_remediation_candidates) with dynamic
+    findings (dynamic_health_to_remediation_candidates). The authoritative logic
+    lives in continuous_assessment.py so assess_code_health() / assess_dynamic_health()
+    can feed the remediation pipeline directly without going through the dashboard.
     """
-    from datetime import datetime, timezone
-    candidates = []
-    now = datetime.now(timezone.utc).isoformat()
+    try:
+        from continuous_assessment import (
+            code_health_to_remediation_candidates as _static_candidates,
+            dynamic_health_to_remediation_candidates as _dynamic_candidates,
+        )
+    except ImportError:
+        return []
 
-    bandit_high = getattr(score, "bandit_high_count", 0)
-    sc_findings = getattr(score, "shellcheck_findings", 0)
+    candidates = _static_candidates(score)
 
-    if bandit_high > 0:
-        candidates.append({
-            "type": "flag-manual",
-            "severity": "HIGH",
-            "description": (
-                f"bandit found {bandit_high} HIGH-severity security finding(s) in proxmox-bootstrap/. "
-                "Review .audit/bandit-report.json and remediate before next release."
-            ),
-            "source": "assess_code_health/bandit",
-            "proposed_at": now,
-        })
-
-    if sc_findings >= 5:
-        candidates.append({
-            "type": "flag-manual",
-            "severity": "MEDIUM",
-            "description": (
-                f"shellcheck found {sc_findings} warning(s) in shell scripts. "
-                "Run tools/run-static-audit.sh for details."
-            ),
-            "source": "assess_code_health/shellcheck",
-            "proposed_at": now,
-        })
-
-    # Dynamic findings (Phase 1.M, AD-063)
-    if dynamic and not getattr(dynamic, "not_implemented", False) and not getattr(dynamic, "error", None):
-        hyp_fail  = getattr(dynamic, "hypothesis_failures", 0)
-        mut_pct   = getattr(dynamic, "mutation_score_pct", -1.0)
-        bats_fail = getattr(dynamic, "bats_failed", 0)
-
-        if hyp_fail > 0:
-            candidates.append({
-                "type": "flag-manual",
-                "severity": "HIGH",
-                "description": (
-                    f"hypothesis falsified {hyp_fail} property test(s) — "
-                    "run 'pytest -k hypothesis' to reproduce and fix."
-                ),
-                "source": "assess_dynamic_health/hypothesis",
-                "proposed_at": now,
-            })
-
-        if mut_pct >= 0 and mut_pct < 40:
-            candidates.append({
-                "type": "flag-manual",
-                "severity": "HIGH",
-                "description": (
-                    f"Mutation score {mut_pct:.1f}% is critically low (< 40%). "
-                    "Test suite does not catch most code mutations — add targeted assertions."
-                ),
-                "source": "assess_dynamic_health/mutmut",
-                "proposed_at": now,
-            })
-        elif mut_pct >= 0 and mut_pct < 80:
-            candidates.append({
-                "type": "flag-manual",
-                "severity": "MEDIUM",
-                "description": (
-                    f"Mutation score {mut_pct:.1f}% is below 80% target (AD-063). "
-                    "Strengthen test assertions to catch more mutations."
-                ),
-                "source": "assess_dynamic_health/mutmut",
-                "proposed_at": now,
-            })
-
-        if bats_fail > 0:
-            candidates.append({
-                "type": "flag-manual",
-                "severity": "HIGH",
-                "description": (
-                    f"{bats_fail} bats test(s) failed in tests/bash/. "
-                    "Generated shell scripts have behavioral regressions — run 'bats tests/bash/'."
-                ),
-                "source": "assess_dynamic_health/bats",
-                "proposed_at": now,
-            })
+    dyn = dynamic or getattr(score, "dynamic", None)
+    if dyn is not None:
+        candidates = candidates + _dynamic_candidates(dyn)
 
     return candidates
 

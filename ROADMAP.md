@@ -220,10 +220,15 @@ concrete mechanism.
       (`answer.toml`, Proxmox 8+ automated installer format) and produces a
       single bootable ISO/USB image bundling: (a) the automated Proxmox VE
       installer, (b) the assembled forge package, (c) a first-boot hook.
-- [x] Answer-file template generator — derive `answer.toml` (disk layout,
-      network, root credentials, timezone) from the same `forge-manifest.json`
-      fields the guided-setup framework (AD-049) already collects, so the
-      operator answers setup questions exactly once.
+- [x] Answer-file template generator — `generate-answer-file.py` CLI and
+      `generate_answer_toml()` in `_image_builder.py`. Derives `answer.toml`
+      (disk layout, network, root credentials, timezone) from the same
+      `forge-manifest.json` fields the guided-setup framework (AD-049) already
+      collects, so the operator answers setup questions exactly once.
+      `generate-answer-file.py` generates answer.toml standalone (for review or
+      re-generation without building a full image bundle);
+      `generate-bootstrap-image.py` calls the same library function as part of
+      the full staging bundle build.
 - [x] First-boot automation hook — a systemd unit installed by the answer
       file's post-install script that runs the embedded forge package's
       `forge.sh` automatically on the freshly-installed host's first boot,
@@ -762,8 +767,12 @@ system rather than creating a separate track.
       and runs shellcheck on each (generated scripts tested with minimal test manifests).
 - [x] `assess_code_health()` in `continuous_assessment.py` (Tier 3):
       returns `CodeHealthScore` dataclass (shellcheck_findings, bandit_high_count,
-      bandit_medium_count, vulture_dead_code_pct, coverage_pct, overall 0-100);
-      HIGH static findings generate `RemediationCandidate` entries.
+      bandit_medium_count, vulture_dead_code_pct, coverage_pct, overall 0-100).
+- [x] `code_health_to_remediation_candidates()` in `continuous_assessment.py`:
+      authoritative conversion from `CodeHealthScore` → remediation candidate dicts;
+      HIGH bandit findings → HIGH candidate, ≥5 shellcheck warnings → MEDIUM candidate.
+      `broodforge_dashboard.py`'s `_code_health_to_remediation_candidates()` delegates
+      here rather than duplicating the logic.
 - [x] "Code Health" card in `broodforge_dashboard.py` alongside existing readiness/drift/
       dependency cards; HIGH bandit/shellcheck findings surface in remediation pipeline.
 - [x] Tests: `assess_code_health()` unit tests (subprocess mocked), shellcheck test file,
@@ -798,8 +807,13 @@ bash script testing (bats), and coverage-guided fuzzing (atheris fuzz targets).
 - [x] `_build_dynamic_health_subcard()` in `broodforge_dashboard.py`:
       renders hypothesis failures, mutation score, bats pass/total in the
       Code Health dashboard card; handles `not_implemented` state gracefully.
-- [x] `_code_health_to_remediation_candidates()` extended for dynamic findings:
+- [x] `dynamic_health_to_remediation_candidates()` in `continuous_assessment.py`:
+      authoritative conversion from `DynamicHealthScore` → candidate dicts;
       hypothesis failures → HIGH, low mutation score → HIGH/MEDIUM, bats failures → HIGH.
+      `broodforge_dashboard.py`'s `_code_health_to_remediation_candidates()` merges
+      static + dynamic by delegating to both shared functions. `collect_health_
+      remediation_candidates()` convenience function in `continuous_assessment.py`
+      runs both assessments and returns the merged list in one call.
 - [x] deal pre/postcondition contracts on `build_spawn_plan()`,
       `build_derived_vault_plan()`, and `score_component()`.
 - [x] beartype plugin wired in `conftest.py` (zero new test code needed).
@@ -1100,10 +1114,14 @@ artifact an operator downloads and runs on bare Proxmox to forge the first hatch
       **k3s ClusterIssuer (deployed in phase-06 Flux bootstrap):**
         Cloudflare: ClusterIssuer with dns01.cloudflare solver + k8s secret from
           Cloudflare API token (written from KeePass during phase-06)
-        DuckDNS: No native cert-manager DNS-01 support; forge generates
-          sync-cert-to-k8s.sh which copies the acme.sh wildcard cert into k8s TLS
-          secrets in each namespace; script is wired into acme.sh --reloadcmd and
-          also runs as a weekly k8s CronJob to catch any drift
+        DuckDNS: No native cert-manager DNS-01 support; `setup_tls.py` generates
+          a site-specific `sync-cert-to-k8s.sh` (via `render_sync_cert_sh()`) with
+          cert paths embedded; a generic fallback version in proxmox-bootstrap/
+          reads cert paths from env vars / /etc/broodforge/ssl-config and exits 2
+          (FORGE_INCOMPLETE) when TLS is not yet configured, so the remediation
+          engine records the right status rather than claiming silent success;
+          script is wired into acme.sh --reloadcmd and also runs as a weekly
+          k8s CronJob to catch any drift
 
       **SSL config stored in bootstrap-state.json:**
         network_topology.ssl_provider: "certbot" | "acme.sh"
