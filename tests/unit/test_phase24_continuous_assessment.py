@@ -424,3 +424,221 @@ class TestRunSecurityScanEngineWiring:
         result = _ca.run_security_scan(str(tmp_path), "")
         for key in ("red_count", "orange_count", "yellow_count", "files_scanned"):
             assert key in result, f"missing key: {key}"
+
+
+# ===========================================================================
+# run_continuous_assessment — Phase 24 assessment → queue wiring (R7-003)
+# ===========================================================================
+
+def _fake_candidate(source="assess_code_health/bandit", severity="HIGH"):
+    return {
+        "type": "flag-manual",
+        "severity": severity,
+        "description": f"bandit found 1 finding ({source}).",
+        "source": source,
+        "proposed_at": _now(),
+    }
+
+
+class TestRunContinuousAssessment:
+    """Verify run_continuous_assessment() wires collect_health_remediation_candidates()
+    into the remediation queue with proper deduplication."""
+
+    def _empty_state(self):
+        return {"cell_id": "pve01-cell", "remediations": []}
+
+    def test_returns_summary_dict(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=[]):
+            result = _ca.run_continuous_assessment(".", state, now_fn=_now)
+        for key in ("candidates_found", "submitted", "duplicates_skipped", "assessed_at"):
+            assert key in result, f"missing key: {key}"
+
+    def test_submits_candidates_to_queue(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        fake = [_fake_candidate("assess_code_health/bandit", "HIGH")]
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=fake):
+            result = _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert result["candidates_found"] == 1
+        assert result["submitted"] == 1
+        assert result["duplicates_skipped"] == 0
+        assert len(state["remediations"]) == 1
+
+    def test_submitted_proposal_has_correct_issue_id(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        fake = [_fake_candidate("assess_code_health/shellcheck", "MEDIUM")]
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=fake):
+            _ca.run_continuous_assessment(".", state, now_fn=_now)
+        rem = state["remediations"][0]
+        assert rem["issue_id"] == "assess_code_health/shellcheck"
+
+    def test_high_severity_maps_to_orange(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        fake = [_fake_candidate(severity="HIGH")]
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=fake):
+            _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert state["remediations"][0]["severity"] == "ORANGE"
+
+    def test_medium_severity_maps_to_yellow(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        fake = [_fake_candidate(severity="MEDIUM")]
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=fake):
+            _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert state["remediations"][0]["severity"] == "YELLOW"
+
+    def test_dedup_skips_active_proposals(self):
+        import unittest.mock as _mock
+        existing_proposal = {
+            "proposal_id": "existing-001",
+            "issue_id": "assess_code_health/bandit",
+            "action_type": "flag-manual",
+            "action_description": "already queued",
+            "severity": "ORANGE",
+            "target": "bandit",
+            "dry_run_output": "[dry-run]",
+            "reversibility": "reversible",
+            "estimated_duration_seconds": 0,
+            "proposed_at": _now(),
+            "status": "proposed",
+            "prerequisite_ids": [],
+            "keepass_gated": False,
+        }
+        state = {"cell_id": "pve01-cell", "remediations": [existing_proposal]}
+        fake  = [_fake_candidate("assess_code_health/bandit", "HIGH")]
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=fake):
+            result = _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert result["submitted"] == 0
+        assert result["duplicates_skipped"] == 1
+        assert len(state["remediations"]) == 1  # no new entry
+
+    def test_dedup_allows_resolved_proposals_to_resubmit(self):
+        import unittest.mock as _mock
+        resolved_proposal = {
+            "proposal_id": "old-001",
+            "issue_id": "assess_code_health/bandit",
+            "action_type": "flag-manual",
+            "action_description": "already resolved",
+            "severity": "ORANGE",
+            "target": "bandit",
+            "dry_run_output": "[dry-run]",
+            "reversibility": "reversible",
+            "estimated_duration_seconds": 0,
+            "proposed_at": _now(),
+            "status": "resolved",
+            "prerequisite_ids": [],
+            "keepass_gated": False,
+        }
+        state = {"cell_id": "pve01-cell", "remediations": [resolved_proposal]}
+        fake  = [_fake_candidate("assess_code_health/bandit", "HIGH")]
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=fake):
+            result = _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert result["submitted"] == 1   # re-submitted because previous is resolved
+        assert result["duplicates_skipped"] == 0
+        assert len(state["remediations"]) == 2
+
+    def test_no_candidates_queue_unchanged(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=[]):
+            result = _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert result["submitted"] == 0
+        assert state["remediations"] == []
+
+    def test_multiple_sources_all_submitted(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        fake = [
+            _fake_candidate("assess_code_health/bandit",     "HIGH"),
+            _fake_candidate("assess_code_health/shellcheck", "MEDIUM"),
+            _fake_candidate("assess_dynamic_health/bats",    "HIGH"),
+        ]
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=fake):
+            result = _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert result["submitted"] == 3
+        assert len(state["remediations"]) == 3
+
+    def test_same_source_not_submitted_twice_in_one_run(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        fake = [
+            _fake_candidate("assess_code_health/bandit", "HIGH"),
+            _fake_candidate("assess_code_health/bandit", "HIGH"),  # duplicate
+        ]
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=fake):
+            result = _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert result["submitted"] == 1
+        assert result["duplicates_skipped"] == 1
+
+    def test_none_state_uses_stub(self):
+        import unittest.mock as _mock
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=[]):
+            result = _ca.run_continuous_assessment(".", None, now_fn=_now)
+        assert result["submitted"] == 0
+
+    def test_assessed_at_matches_now_fn(self):
+        import unittest.mock as _mock
+        state = self._empty_state()
+        with _mock.patch.object(_ca, "collect_health_remediation_candidates", return_value=[]):
+            result = _ca.run_continuous_assessment(".", state, now_fn=_now)
+        assert result["assessed_at"] == _now()
+
+
+# ===========================================================================
+# _candidate_to_proposal — conversion helper
+# ===========================================================================
+
+class TestCandidateToProposal:
+    def test_issue_id_is_source(self):
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "proxmox-bootstrap"))
+        p = _ca._candidate_to_proposal(
+            _fake_candidate("assess_code_health/bandit", "HIGH"),
+            "pve01-cell",
+            now_fn=_now,
+        )
+        assert p.issue_id == "assess_code_health/bandit"
+
+    def test_action_type_from_type_field(self):
+        p = _ca._candidate_to_proposal(
+            {"type": "flag-manual", "severity": "HIGH", "source": "assess_code_health/bandit"},
+            "cell",
+            now_fn=_now,
+        )
+        assert p.action_type == "flag-manual"
+
+    def test_target_is_last_path_segment(self):
+        p = _ca._candidate_to_proposal(
+            _fake_candidate("assess_dynamic_health/hypothesis", "HIGH"),
+            "cell",
+            now_fn=_now,
+        )
+        assert p.target == "hypothesis"
+
+    def test_high_maps_to_orange(self):
+        p = _ca._candidate_to_proposal(
+            _fake_candidate(severity="HIGH"), "cell", now_fn=_now
+        )
+        assert p.severity == "ORANGE"
+
+    def test_medium_maps_to_yellow(self):
+        p = _ca._candidate_to_proposal(
+            _fake_candidate(severity="MEDIUM"), "cell", now_fn=_now
+        )
+        assert p.severity == "YELLOW"
+
+    def test_cell_id_set(self):
+        p = _ca._candidate_to_proposal(
+            _fake_candidate(), "pve01-cell", now_fn=_now
+        )
+        assert p.cell_id == "pve01-cell"
+
+    def test_dry_run_mentions_source(self):
+        p = _ca._candidate_to_proposal(
+            _fake_candidate("assess_code_health/bandit"), "cell", now_fn=_now
+        )
+        assert "assess_code_health/bandit" in p.dry_run_output

@@ -15,6 +15,34 @@ Timestamps are `YYYY-MM-DD_HH_MM_SS` UTC.
 
 ---
 
+**Cycle: 2026-06-09_18_00_00 UTC**
+
+## R7-003 Fix — `collect_health_remediation_candidates()` wired into production pipeline
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| `run_continuous_assessment()` — main assessment loop calling `collect_health_remediation_candidates()` and submitting to queue (R7-003) | USER-REQUESTED | Implemented | unit (19 new tests in TestRunContinuousAssessment + TestCandidateToProposal) |
+| `_candidate_to_proposal()` — converts health candidate dict → `RemediationProposal` (HIGH→ORANGE, MEDIUM→YELLOW) | GAP-FILL | Implemented | unit |
+| CLI `__main__` block in `continuous_assessment.py` — `--manifest` / `--repo-root` for cron/systemd invocation | GAP-FILL | Implemented | static |
+| `proxmox-bootstrap/run-continuous-assessment.sh` — shell wrapper for cron | GAP-FILL | Implemented | static |
+| `proxmox-bootstrap/setup-continuous-assessment-schedule.sh` — installs 6-hour systemd timer | GAP-FILL | Implemented | static |
+| ROADMAP Phase 1.L/1.M + ARCHITECTURE AD-063 updated to document wiring | GAP-FILL | Implemented | static |
+
+**R7-003:** `run_continuous_assessment(repo_root, state, *, run_fn, now_fn)` is the first-class
+production caller. It calls `collect_health_remediation_candidates()`, converts each finding to
+a `RemediationProposal` (HIGH→ORANGE, MEDIUM→YELLOW), deduplicates by `{issue_id}:{action_type}`
+against active (non-terminal) queue entries — matching the `_dedup_proposals()` pattern in
+`remediation_planner.py` — and submits new proposals via `add_proposal()`. Returns
+`{candidates_found, submitted, duplicates_skipped, assessed_at}`. State dict is updated in place.
+
+CLI entry point: `python3 proxmox-bootstrap/continuous_assessment.py --manifest ... --repo-root ...`
+Cron wrapper: `proxmox-bootstrap/run-continuous-assessment.sh`
+Systemd timer installer: `proxmox-bootstrap/setup-continuous-assessment-schedule.sh` (6h interval)
+
+Test suite: **4535 passed, 18 skipped**.
+
+---
+
 **Cycle: 2026-06-09_17_00_00 UTC**
 
 ## PAP Audit R7 — Post-b8bd7bc/1a9754f fixes
@@ -23,7 +51,7 @@ Timestamps are `YYYY-MM-DD_HH_MM_SS` UTC.
 |---|---|---|---|
 | `generate-answer-file.py` — `json.JSONDecodeError` handling (R7-001) | GAP-FILL | Fixed | unit (5 CLI tests in TestAnswerFileCLI) |
 | `code_health_to_remediation_candidates()` / `dynamic_health_to_remediation_candidates()` — `now_fn` clock injection (R7-002) | GAP-FILL | Fixed | unit (3 tests in TestCandidateFunctionsClockInjection) |
-| `collect_health_remediation_candidates()` — orphaned output observation (R7-003) | GAP-FILL | OBSERVATION | static (no production caller; documented future-integration API) |
+| `collect_health_remediation_candidates()` — orphaned output (R7-003) | GAP-FILL | Fixed (see cycle above) | unit (19 new tests) |
 
 **R7-001:** Added `try/except json.JSONDecodeError` around `json.load()` in `generate-answer-file.py`
 so malformed manifests produce `[error] Manifest is not valid JSON: <detail>` + exit 1
@@ -34,9 +62,7 @@ and `dynamic_health_to_remediation_candidates()` to match the rest of `continuou
 clock-injection pattern. `collect_health_remediation_candidates()` propagates `now_fn` through.
 Pattern 14 (Missing Seam).
 
-**R7-003 (OBSERVATION):** `collect_health_remediation_candidates()` has no production caller. It is
-documented in the module API, tested, and intentionally designed as a future engine integration
-point. No code change required — recorded as an accepted design gap.
+**R7-003:** Wired in the subsequent cycle (see above). The OBSERVATION became a fix.
 
 Test suite: **4516 passed, 16 skipped**.
 

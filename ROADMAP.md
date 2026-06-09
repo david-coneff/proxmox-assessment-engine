@@ -814,6 +814,18 @@ bash script testing (bats), and coverage-guided fuzzing (atheris fuzz targets).
       static + dynamic by delegating to both shared functions. `collect_health_
       remediation_candidates()` convenience function in `continuous_assessment.py`
       runs both assessments and returns the merged list in one call.
+- [x] `run_continuous_assessment()` in `continuous_assessment.py` (R7-003):
+      first-class production caller for `collect_health_remediation_candidates()`.
+      Converts findings to `RemediationProposal`s, deduplicates by `{issue_id}:{action_type}`
+      against active (non-terminal) queue entries, and submits new proposals via
+      `add_proposal()`. Returns `{candidates_found, submitted, duplicates_skipped,
+      assessed_at}`. CLI entry point (`__main__`) accepts `--manifest` / `--repo-root`
+      for operator and cron invocation.
+- [x] `proxmox-bootstrap/run-continuous-assessment.sh` — shell wrapper for direct / cron
+      invocation of the assessment loop (cron example in file header).
+- [x] `proxmox-bootstrap/setup-continuous-assessment-schedule.sh` — installs
+      `broodforge-continuous-assessment.service` + `.timer` (every 6 hours, follows the
+      same pattern as `setup-operational-schedule.sh`).
 - [x] deal pre/postcondition contracts on `build_spawn_plan()`,
       `build_derived_vault_plan()`, and `score_component()`.
 - [x] beartype plugin wired in `conftest.py` (zero new test code needed).

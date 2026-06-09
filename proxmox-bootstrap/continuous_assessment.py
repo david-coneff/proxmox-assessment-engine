@@ -44,8 +44,10 @@ Provides:
   code_health_to_remediation_candidates() — convert static score → candidate dicts
   dynamic_health_to_remediation_candidates() — convert dynamic score → candidate dicts
   collect_health_remediation_candidates() — run both assessments, return merged candidates
+  _candidate_to_proposal()          — convert candidate dict → RemediationProposal (lazy import)
+  run_continuous_assessment()       — main loop: assess, dedup, submit to remediation queue
 
-Stdlib only.
+Stdlib only (run_continuous_assessment() lazily imports remediation_queue + remediation_planner).
 """
 
 from dataclasses import dataclass, field
@@ -1100,4 +1102,206 @@ def collect_health_remediation_candidates(
     return (
         code_health_to_remediation_candidates(static_score, now_fn=now_fn)
         + dynamic_health_to_remediation_candidates(dynamic_score, now_fn=now_fn)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Assessment → Queue wiring (Phase 24, R7-003)
+#
+# run_continuous_assessment() is the production caller for
+# collect_health_remediation_candidates(). It converts findings to
+# RemediationProposals, deduplicates against the existing queue, and
+# submits new proposals.
+# ---------------------------------------------------------------------------
+
+_HEALTH_CANDIDATE_SEVERITY_MAP: dict[str, str] = {
+    "HIGH":   "ORANGE",
+    "MEDIUM": "YELLOW",
+    "LOW":    "YELLOW",
+}
+
+_HEALTH_TERMINAL_STATES: frozenset[str] = frozenset(
+    {"resolved", "rejected", "superseded", "expired", "failed"}
+)
+
+
+def _candidate_to_proposal(
+    candidate: dict,
+    cell_id: str,
+    now_fn: Optional[Callable[[], str]] = None,
+) -> Any:
+    """Convert a health candidate dict to a RemediationProposal (lazy import)."""
+    import uuid as _uuid
+    from remediation_planner import RemediationProposal, _REVERSIBILITY, _ESTIMATED_DURATION
+
+    ts          = (now_fn or (lambda: datetime.now(timezone.utc).isoformat()))()
+    source      = candidate.get("source") or "assess_code_health/unknown"
+    action_type = candidate.get("type", "flag-manual")
+    severity    = _HEALTH_CANDIDATE_SEVERITY_MAP.get(
+        candidate.get("severity", "MEDIUM"), "YELLOW"
+    )
+    target = source.split("/")[-1] if "/" in source else source
+
+    return RemediationProposal(
+        proposal_id=str(_uuid.uuid4()),
+        issue_id=source,
+        severity=severity,
+        action_type=action_type,
+        action_description=candidate.get("description", "Manual review required."),
+        target=target,
+        dry_run_output=(
+            f"[dry-run] Would flag '{source}' for manual review. No changes made."
+        ),
+        reversibility=_REVERSIBILITY.get(action_type, "reversible"),
+        estimated_duration_seconds=_ESTIMATED_DURATION.get(action_type, 0),
+        proposed_at=candidate.get("proposed_at") or ts,
+        cell_id=cell_id,
+    )
+
+
+def run_continuous_assessment(
+    repo_root: str = ".",
+    state: Optional[dict] = None,
+    *,
+    run_fn: Optional[Callable] = None,
+    now_fn: Optional[Callable[[], str]] = None,
+) -> dict:
+    """
+    Main continuous assessment loop entry point (Phase 24, R7-003).
+
+    Runs both static and dynamic code health assessments via
+    collect_health_remediation_candidates(), converts findings to
+    RemediationProposals, deduplicates against the existing queue, and
+    submits new candidates. Updates ``state`` in place with new remediations.
+
+    Deduplication key: ``{issue_id}:{action_type}`` — matches the pattern in
+    ``_dedup_proposals()`` (remediation_planner.py). A candidate whose key is
+    already present in a non-terminal proposal is skipped, preventing queue
+    floods across repeated assessment cycles.
+
+    Args:
+        repo_root: root directory of the broodforge repo
+        state: bootstrap-state.json dict (mutated in place). Uses a minimal stub
+               when None (handy for tests without a live state file).
+        run_fn: injectable subprocess runner forwarded to assess_code_health /
+                assess_dynamic_health
+        now_fn: injectable clock
+
+    Returns::
+
+        {
+            "candidates_found":   int,
+            "submitted":          int,
+            "duplicates_skipped": int,
+            "assessed_at":        str,
+        }
+
+    Requires ``remediation_queue`` and ``remediation_planner`` from the same
+    ``proxmox-bootstrap/`` directory (lazily imported; not stdlib).
+    """
+    from remediation_queue import load_queue, add_proposal, save_queue as _save_queue
+
+    assessed_at = (now_fn or (lambda: datetime.now(timezone.utc).isoformat()))()
+
+    if state is None:
+        state = {"cell_id": "unknown", "remediations": []}
+
+    cell_id = state.get("cell_id") or "unknown"
+    queue   = load_queue(state)
+
+    active_keys: set[str] = {
+        f"{p.issue_id}:{p.action_type}"
+        for p in queue.proposals
+        if p.status not in _HEALTH_TERMINAL_STATES
+    }
+
+    candidates = collect_health_remediation_candidates(repo_root, run_fn=run_fn, now_fn=now_fn)
+
+    submitted = 0
+    skipped   = 0
+
+    for cand in candidates:
+        source      = cand.get("source") or "assess_code_health/unknown"
+        action_type = cand.get("type", "flag-manual")
+        key         = f"{source}:{action_type}"
+
+        if key in active_keys:
+            skipped += 1
+            continue
+
+        proposal = _candidate_to_proposal(cand, cell_id, now_fn=now_fn)
+        add_proposal(queue, proposal, now_fn=now_fn)
+        active_keys.add(key)
+        submitted += 1
+
+    if submitted > 0:
+        state.update(_save_queue(queue, state))
+
+    return {
+        "candidates_found":   len(candidates),
+        "submitted":          submitted,
+        "duplicates_skipped": skipped,
+        "assessed_at":        assessed_at,
+    }
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point (for cron / systemd timer invocation)
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import argparse as _argparse
+    import json as _json
+    import os as _os
+    import sys as _sys
+
+    _here = _os.path.dirname(_os.path.abspath(__file__))
+    if _here not in _sys.path:
+        _sys.path.insert(0, _here)
+
+    _parser = _argparse.ArgumentParser(
+        description=(
+            "Run continuous code health assessment and submit findings "
+            "to the remediation queue."
+        )
+    )
+    _parser.add_argument(
+        "--manifest",
+        default=_os.path.join(_here, "bootstrap-state.json"),
+        help="Path to bootstrap-state.json (default: %(default)s)",
+    )
+    _parser.add_argument(
+        "--repo-root",
+        default=_os.path.dirname(_here),
+        help="Root of the broodforge repo (default: parent of this script)",
+    )
+    _args = _parser.parse_args()
+
+    _state: dict = {}
+    if _os.path.exists(_args.manifest):
+        try:
+            with open(_args.manifest) as _fh:
+                _state = _json.load(_fh)
+        except (OSError, _json.JSONDecodeError) as _e:
+            print(f"[error] Could not read manifest: {_e}", file=_sys.stderr)
+            _sys.exit(1)
+
+    _summary = run_continuous_assessment(_args.repo_root, _state)
+
+    if _summary["submitted"] > 0:
+        try:
+            with open(_args.manifest, "w") as _fh:
+                _json.dump(_state, _fh, indent=2)
+            print(
+                f"[ok] Saved {_summary['submitted']} new proposal(s) to {_args.manifest}"
+            )
+        except OSError as _e:
+            print(f"[error] Could not write manifest: {_e}", file=_sys.stderr)
+            _sys.exit(1)
+
+    print(
+        f"[ok] assessed_at={_summary['assessed_at']} "
+        f"found={_summary['candidates_found']} "
+        f"submitted={_summary['submitted']} "
+        f"skipped={_summary['duplicates_skipped']}"
     )
