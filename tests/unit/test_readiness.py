@@ -453,3 +453,58 @@ class TestScoreMigrationHealth(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+# ===========================================================================
+# Phase 1.M — hypothesis property tests
+# ===========================================================================
+
+try:
+    from hypothesis import given, settings, assume
+    from hypothesis import strategies as st
+    _HAS_HYPOTHESIS = True
+except ImportError:
+    _HAS_HYPOTHESIS = False
+
+if _HAS_HYPOTHESIS:
+    _VALID_SCORES = ("GREEN", "YELLOW", "ORANGE", "RED", "BLOCKED", "UNKNOWN")
+
+    class TestScoreComponentProperties:
+        def _inv(self) -> "BackupInventory":
+            return BackupInventory({"available": False})
+
+        @given(
+            node_id=st.text(min_size=1, max_size=64,
+                            alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"),
+                                                   whitelist_characters="-_")),
+            node_type=st.sampled_from(["proxmox_host", "k3s_vm", "service_vm", "unknown"]),
+        )
+        @settings(max_examples=30)
+        def test_always_returns_valid_score(self, node_id: str, node_type: str) -> None:
+            assume(node_id.strip())
+            result = score_component(node_id, node_type, {}, self._inv())
+            assert result.score in _VALID_SCORES
+
+        @given(
+            node_id=st.text(min_size=1, max_size=32,
+                            alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"),
+                                                   whitelist_characters="-")),
+        )
+        @settings(max_examples=30)
+        def test_score_component_dep_info_false_returns_blocked_or_worse(self, node_id: str) -> None:
+            assume(node_id.strip())
+            result = score_component(node_id, "proxmox_host", {}, self._inv(),
+                                     dep_info_complete=False)
+            assert result.score in _VALID_SCORES
+
+        @given(
+            node_id=st.text(min_size=1, max_size=32,
+                            alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"),
+                                                   whitelist_characters="-")),
+            node_type=st.sampled_from(["proxmox_host", "k3s_vm", "service_vm"]),
+        )
+        @settings(max_examples=25)
+        def test_component_id_echoed_in_result(self, node_id: str, node_type: str) -> None:
+            assume(node_id.strip())
+            result = score_component(node_id, node_type, {}, self._inv())
+            assert result.component_id == node_id

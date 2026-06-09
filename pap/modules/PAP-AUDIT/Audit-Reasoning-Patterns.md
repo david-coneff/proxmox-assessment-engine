@@ -291,6 +291,8 @@ stop reading warnings entirely.
 
 ## Implementation Correctness
 
+> **Pre-flight note**: Before applying these patterns manually, run both the static analysis pre-flight (PAP-AUDIT §5) and the dynamic analysis pre-flight (PAP-AUDIT §6). Static tools surface structural gaps; dynamic tools (beartype, hypothesis, mutmut, etc.) exercise runtime behavior. Together they seed the patterns below with concrete findings before any manual reasoning begins.
+
 Patterns in this section describe failures in how code is written: missing
 error handling, broken retry semantics, inadequate testing, and structural
 choices that make correctness hard to verify.
@@ -984,3 +986,32 @@ Fatigue Setup (Workflow & Operator Experience); Regression Blind Spot,
 Leaky Abstraction, Action at a Distance, Abstraction Inversion
 (Implementation Correctness); Confused Deputy, Over-Privileged Component
 (Security & Reliability); Hardcoded Environment (Architecture).
+
+---
+
+## Dynamic Analysis and the Patterns Catalog
+
+The static analysis toolchain that seeds this catalog (§5 in
+[PAP-AUDIT.md](PAP-AUDIT.md)) is necessary but not sufficient. The
+following dynamic analysis tools complement the static pass and are
+documented in [PAP-AUDIT §6](PAP-AUDIT.md#6-dynamic-analysis-pre-flight):
+
+| Tool | Primary patterns surfaced |
+|---|---|
+| **hypothesis** (property-based testing) | Happy Path Only, Assumed Preconditions, Idempotency Gap |
+| **mutmut** (mutation testing) | Regression Blind Spot, Happy Path Only |
+| **bats** (bash script testing) | Happy Path Only, Silent Degradation (bash), Assumed Preconditions |
+| **beartype** / **typeguard** (runtime type verification) | Assumed Preconditions, Silent Degradation |
+| **deal** / **icontract** (design-by-contract) | Assumed Preconditions, State Machine Gaps, Idempotency Gap |
+| **schemathesis** (HTTP API property testing) | Assumed Preconditions, Fail Open, Test/Production Divergence |
+| **atheris** (coverage-guided fuzzing) | Assumed Preconditions, Silent Degradation, Happy Path Only |
+
+**Key relationship**: high line coverage combined with a low mutation
+score (mutmut) is a stronger Regression Blind Spot finding than coverage
+alone suggests — it indicates tests that *exercise* code without
+*asserting* anything meaningful. Report both metrics in audit records.
+
+Dynamic analysis tool integration is part of the standard pre-flight
+workflow and feeds directly into the patterns catalog pass. See
+[PAP-AUDIT §6](PAP-AUDIT.md#6-dynamic-analysis-pre-flight) for the
+full integration workflow and score interpretation guidance.

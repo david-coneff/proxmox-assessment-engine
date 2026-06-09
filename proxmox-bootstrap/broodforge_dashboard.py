@@ -59,11 +59,14 @@ except ImportError:
     _HAS_REMEDIATION_QUEUE = False
 
 try:
-    from continuous_assessment import assess_code_health, CodeHealthScore
+    from continuous_assessment import (
+        assess_code_health, CodeHealthScore,
+        assess_dynamic_health, DynamicHealthScore,
+    )
     _HAS_CODE_HEALTH = True
 except ImportError:
     _HAS_CODE_HEALTH = False
-    # Minimal stub so type annotations below don't fail at import time
+    # Minimal stubs so type annotations below don't fail at import time
     class CodeHealthScore:  # type: ignore[no-redef]
         shellcheck_findings: int = 0
         bandit_high_count: int = 0
@@ -72,6 +75,16 @@ except ImportError:
         coverage_pct: float = 0.0
         overall: int = 0
         assessed_at: str = ""
+        error: Optional[str] = "continuous_assessment not available"
+
+    class DynamicHealthScore:  # type: ignore[no-redef]
+        hypothesis_findings: int = 0
+        mutation_score: Optional[float] = None
+        bats_pass: Optional[int] = None
+        bats_fail: Optional[int] = None
+        schemathesis_findings: int = 0
+        dynamic_score: int = 0
+        ran_at: str = ""
         error: Optional[str] = "continuous_assessment not available"
 
 
@@ -381,8 +394,113 @@ def _code_health_from_assessment(repo_root: str = ".") -> "CodeHealthScore":
         return score
 
 
-def _build_code_health_card(score: "CodeHealthScore") -> str:
-    """Build an HTML card for the Code Health section of the dashboard."""
+def _dynamic_health_from_assessment(repo_root: str = ".") -> "DynamicHealthScore":
+    """Call assess_dynamic_health() with the repo root derived from this script's location."""
+    if not _HAS_CODE_HEALTH:
+        score = DynamicHealthScore()
+        score.error = "continuous_assessment module not available"
+        return score
+    try:
+        return assess_dynamic_health(repo_root)
+    except Exception as exc:
+        score = DynamicHealthScore()
+        score.error = str(exc)
+        return score
+
+
+def _build_dynamic_health_subcard(dynamic: "Optional[DynamicHealthScore]") -> str:
+    """Build an HTML sub-section for the dynamic analysis row of the Code Health card."""
+    if dynamic is None:
+        return '<p style="color:var(--muted);font-size:.82em">Dynamic score: not assessed</p>'
+
+    dyn_error  = getattr(dynamic, "error", None)
+    not_impl   = getattr(dynamic, "not_implemented", False)
+    dyn_score  = getattr(dynamic, "overall", -1)
+    hyp_fail   = getattr(dynamic, "hypothesis_failures", 0)
+    mut_pct    = getattr(dynamic, "mutation_score_pct", -1.0)
+    bats_pass  = getattr(dynamic, "bats_passed", 0)
+    bats_fail  = getattr(dynamic, "bats_failed", 0)
+    bats_total = getattr(dynamic, "bats_total", 0)
+    ran_at     = (getattr(dynamic, "assessed_at", "") or "")[:16]
+
+    if not_impl:
+        return (
+            '<div style="margin-top:.6em;padding:.5em .75em;'
+            'border-left:2px solid var(--muted);font-size:.85em">'
+            '<strong>Dynamic analysis:</strong> <span style="color:var(--muted)">'
+            'not yet configured — add hypothesis tests or bats scripts to enable</span>'
+            '</div>'
+        )
+
+    if dyn_error:
+        return (
+            '<div style="margin-top:.6em;padding:.5em .75em;'
+            'border-left:2px solid var(--muted);font-size:.85em">'
+            f'<strong>Dynamic:</strong> <span style="color:var(--muted)">'
+            f'not yet run — {_e(dyn_error)}</span>'
+            '</div>'
+        )
+
+    dyn_color = (
+        "var(--green)"  if dyn_score >= 90 else
+        "var(--yellow)" if dyn_score >= 70 else
+        "var(--orange)" if dyn_score >= 50 else
+        "var(--red)"
+    )
+    hyp_color = "var(--red)" if hyp_fail > 0 else "var(--green)"
+
+    mut_display = f"{mut_pct:.1f}%" if mut_pct >= 0 else "n/a"
+    mut_color   = (
+        "var(--green)"  if mut_pct >= 80 else
+        "var(--yellow)" if mut_pct >= 60 else
+        "var(--orange)" if mut_pct >= 40 else
+        "var(--red)"    if mut_pct >= 0 else "var(--muted)"
+    )
+    bats_color   = "var(--red)" if bats_fail > 0 else "var(--green)"
+    bats_display = f"{bats_pass}/{bats_total}" if bats_total > 0 else "n/a"
+
+    ran_note = f' · assessed {_e(ran_at)}' if ran_at else ''
+    mut_tip = (
+        f'<div class="tip" style="border-color:var(--orange);margin-top:.3em">'
+        f'mutation score {mut_pct:.0f}% below 80% target — strengthen test assertions</div>'
+        if mut_pct >= 0 and mut_pct < 80 else ''
+    )
+
+    return f"""<div style="margin-top:.6em;padding:.5em .75em;border-left:2px solid var(--muted)">
+<strong style="font-size:.85em">Dynamic analysis (Phase 1.M){ran_note}:</strong>
+<div class="stat-row" style="margin-top:.3em">
+  <div class="stat">
+    <div class="stat-val" style="color:{dyn_color}">{dyn_score}</div>
+    <div class="stat-label">dynamic score</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:{hyp_color}">{hyp_fail}</div>
+    <div class="stat-label">hypothesis failures</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:{mut_color}">{_e(mut_display)}</div>
+    <div class="stat-label">mutation score</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:{bats_color}">{_e(bats_display)}</div>
+    <div class="stat-label">bats pass/total</div>
+  </div>
+</div>
+{('<div class="tip" style="border-color:var(--red);margin-top:.3em">hypothesis falsified a property — run pytest -k hypothesis to reproduce</div>' if hyp_fail > 0 else '')}
+{mut_tip}
+{('<div class="tip" style="border-color:var(--red);margin-top:.3em">bats test failures detected in tests/bash/</div>' if bats_fail > 0 else '')}
+</div>"""
+
+
+def _build_code_health_card(
+    score: "CodeHealthScore",
+    dynamic_health: "Optional[DynamicHealthScore]" = None,
+) -> str:
+    """Build an HTML card for the Code Health section of the dashboard.
+
+    Shows static analysis row (24.8) and — if available — the dynamic
+    analysis sub-row (24.9, AD-063) in the same card.
+    """
     overall = getattr(score, "overall", 0)
     error = getattr(score, "error", None)
     assessed_at = (getattr(score, "assessed_at", "") or "")[:16]
@@ -418,7 +536,7 @@ def _build_code_health_card(score: "CodeHealthScore") -> str:
 <div class="stat-row">
   <div class="stat">
     <div class="stat-val" style="color:{score_color}">{overall}</div>
-    <div class="stat-label">Overall score</div>
+    <div class="stat-label">Static score</div>
   </div>
   <div class="stat">
     <div class="stat-val" style="color:{sc_color}">{sc}</div>
@@ -443,6 +561,7 @@ def _build_code_health_card(score: "CodeHealthScore") -> str:
 </div>
 {('<div class="tip" style="border-color:var(--red)">HIGH bandit findings detected — review <code>.audit/bandit-report.json</code></div>' if bh > 0 else '')}
 {('<div class="tip" style="border-color:var(--orange)">shellcheck warnings in .sh files — run <code>tools/run-static-audit.sh</code> for details</div>' if sc > 0 else '')}
+{_build_dynamic_health_subcard(dynamic_health)}
 """
         if assessed_at:
             body += f'<p class="refresh-note">Last assessed: {_e(assessed_at)} · Run <code>tools/run-static-audit.sh</code> to refresh</p>'
@@ -452,12 +571,19 @@ def _build_code_health_card(score: "CodeHealthScore") -> str:
     return f'<div class="section-wrap">{body}</div>'
 
 
-def _code_health_to_remediation_candidates(score: "CodeHealthScore") -> list[dict]:
+def _code_health_to_remediation_candidates(
+    score: "CodeHealthScore",
+    dynamic: "Optional[DynamicHealthScore]" = None,
+) -> list[dict]:
     """
-    Convert HIGH static analysis findings to remediation candidate dicts.
+    Convert HIGH static and dynamic analysis findings to remediation candidate dicts.
 
     Follows the RemediationCandidate pattern from Phase 26 (remediation_planner.py).
     Returns a list of dicts with keys: type, severity, description, source, proposed_at.
+
+    Args:
+        score: static analysis score
+        dynamic: dynamic analysis score (optional; also sourced from score.dynamic)
     """
     from datetime import datetime, timezone
     candidates = []
@@ -489,6 +615,59 @@ def _code_health_to_remediation_candidates(score: "CodeHealthScore") -> list[dic
             "source": "assess_code_health/shellcheck",
             "proposed_at": now,
         })
+
+    # Dynamic findings (Phase 1.M, AD-063)
+    if dynamic and not getattr(dynamic, "not_implemented", False) and not getattr(dynamic, "error", None):
+        hyp_fail  = getattr(dynamic, "hypothesis_failures", 0)
+        mut_pct   = getattr(dynamic, "mutation_score_pct", -1.0)
+        bats_fail = getattr(dynamic, "bats_failed", 0)
+
+        if hyp_fail > 0:
+            candidates.append({
+                "type": "flag-manual",
+                "severity": "HIGH",
+                "description": (
+                    f"hypothesis falsified {hyp_fail} property test(s) — "
+                    "run 'pytest -k hypothesis' to reproduce and fix."
+                ),
+                "source": "assess_dynamic_health/hypothesis",
+                "proposed_at": now,
+            })
+
+        if mut_pct >= 0 and mut_pct < 40:
+            candidates.append({
+                "type": "flag-manual",
+                "severity": "HIGH",
+                "description": (
+                    f"Mutation score {mut_pct:.1f}% is critically low (< 40%). "
+                    "Test suite does not catch most code mutations — add targeted assertions."
+                ),
+                "source": "assess_dynamic_health/mutmut",
+                "proposed_at": now,
+            })
+        elif mut_pct >= 0 and mut_pct < 80:
+            candidates.append({
+                "type": "flag-manual",
+                "severity": "MEDIUM",
+                "description": (
+                    f"Mutation score {mut_pct:.1f}% is below 80% target (AD-063). "
+                    "Strengthen test assertions to catch more mutations."
+                ),
+                "source": "assess_dynamic_health/mutmut",
+                "proposed_at": now,
+            })
+
+        if bats_fail > 0:
+            candidates.append({
+                "type": "flag-manual",
+                "severity": "HIGH",
+                "description": (
+                    f"{bats_fail} bats test(s) failed in tests/bash/. "
+                    "Generated shell scripts have behavioral regressions — run 'bats tests/bash/'."
+                ),
+                "source": "assess_dynamic_health/bats",
+                "proposed_at": now,
+            })
 
     return candidates
 
@@ -646,6 +825,7 @@ def generate_dashboard_html(
     remediations: dict = None,
     security: dict = None,
     code_health: "CodeHealthScore" = None,
+    dynamic_health: "Optional[DynamicHealthScore]" = None,
 ) -> str:
     cell_id       = state.get("cell_id") or "broodforge"
     gen_at        = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -892,7 +1072,7 @@ def generate_dashboard_html(
 
   <!-- ── Code Health ── -->
   <h2>Code Health</h2>
-  {_build_code_health_card(code_health)}
+  {_build_code_health_card(code_health, dynamic_health)}
 
   <!-- ── Remediations ── -->
   <h2>Remediations</h2>
@@ -1129,10 +1309,11 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         # Derive repo root from the script location (one level up from proxmox-bootstrap/)
         _script_dir = os.path.dirname(os.path.abspath(__file__))
         _repo_root  = os.path.dirname(_script_dir)
-        code_health  = _code_health_from_assessment(_repo_root)
-        html         = generate_dashboard_html(state, scores, nodes, failures, backup, self._cfg,
-                                               remediations=remediations, security=security,
-                                               code_health=code_health)
+        code_health    = _code_health_from_assessment(_repo_root)
+        dynamic_health = _dynamic_health_from_assessment(_repo_root)
+        html           = generate_dashboard_html(state, scores, nodes, failures, backup, self._cfg,
+                                                 remediations=remediations, security=security,
+                                                 code_health=code_health, dynamic_health=dynamic_health)
         body     = html.encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")

@@ -380,3 +380,26 @@ works offline by opening the file directly in a browser.
 | Step 5: `tests/test_code_health.py` — 33 unit tests covering `_score_code_health()` scoring, `assess_code_health()` with mocked subprocess, remediation candidate generation, dashboard card rendering | USER-REQUESTED | Implemented | unit |
 
 > Full test suite: **4425 passed, 1 skipped** (pre-existing `test_opentofu.py` failures unchanged; 33 new tests in `test_code_health.py`). Static tests in `tests/static/` skipped unless shellcheck is installed.
+
+---
+
+**Cycle: 2026-06-09_00_00_00 UTC — Phase 1.M: Dynamic Analysis Self-Audit Integration (USER-REQUESTED)**
+
+## Phase 1.M — Dynamic Analysis Self-Audit Integration
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| `DynamicHealthScore` dataclass in `continuous_assessment.py` (section 24.9): `hypothesis_failures`, `mutation_score_pct`, `bats_total/passed/failed`, `overall` (0-100; -1=NOT_IMPLEMENTED), `assessed_at`, `error`, `not_implemented`. Removed duplicate conflicting definition introduced by interrupted session. | USER-REQUESTED | Implemented | unit |
+| `assess_dynamic_health()` in `continuous_assessment.py`: detects `@given` decorators in test files, runs hypothesis via pytest, parses mutmut results, runs bats TAP output parser. Returns `not_implemented=True` when no dynamic infrastructure present (no hypothesis tests, no bats files). Fixed hypothesis failures parser to handle "N failed, M passed" format (comma-stripping). Fixed `no_infra` check: mutmut availability alone does not imply test infrastructure. | USER-REQUESTED | Implemented | unit (21 new tests in `tests/test_code_health.py`) |
+| `_build_dynamic_health_subcard()` in `broodforge_dashboard.py` updated to use correct `DynamicHealthScore` field names (`overall`, `hypothesis_failures`, `mutation_score_pct`, `bats_passed`, `bats_failed`, `bats_total`, `assessed_at`); handles `not_implemented=True` gracefully with user-facing message | USER-REQUESTED | Implemented | unit (4 new tests) |
+| `_code_health_to_remediation_candidates()` extended for dynamic findings using correct field names: hypothesis failures → HIGH, mutation score < 40% → HIGH, 40-80% → MEDIUM, bats failures → HIGH | USER-REQUESTED | Implemented | unit (6 new tests) |
+| deal pre/postcondition contracts on `build_spawn_plan()` (`spawn_planner.py`), `build_derived_vault_plan()` (`_vault_hierarchy.py`), and `score_component()` (`readiness.py`); no-op graceful fallback when `deal` not installed | USER-REQUESTED | Implemented | unit (contracts verified by test suite) |
+| beartype runtime type checking wired in `conftest.py` — `pytest_collection_modifyitems` applies `@beartype` to all collected test functions; no-op when beartype not installed | USER-REQUESTED | Implemented | smoke |
+| `pyproject.toml` dev deps: hypothesis, mutmut, beartype, deal, schemathesis; atheris note (Linux-only); `[tool.mutmut]` config section | USER-REQUESTED | Implemented | static |
+| Hypothesis property tests: `tests/unit/test_spawn_planner.py` (4 property test classes: `generate_temp_password` determinism/format/length, `ServiceCatalog` fit/dependency resolution); `tests/unit/test_vault_hierarchy.py` (4 property tests: plan attributes, role matching, dict round-trip, passphrase not leaked); `tests/unit/test_readiness.py` (3 property tests: valid score always returned, dep_info=False, component_id echoed) | USER-REQUESTED | Implemented | unit |
+| `tests/bash/forge_phase_test.bats` — BATS tests for phase script exit codes (phase-08 exits 2 when pvesh absent, keepass-gate exits non-zero without keepassxc-cli, run-static-audit.sh structure checks) using PATH-based command mocking | USER-REQUESTED | Implemented | smoke (BATS skips gracefully when scripts not present) |
+| `tests/fuzz/fuzz_manifest.py` + `tests/fuzz/fuzz_spawn_planner.py` — atheris coverage-guided fuzz targets for `score_component()` and `assess_service_fit()`; import cleanly on all platforms, no-op without atheris installed | USER-REQUESTED | Implemented | static |
+| `proxmox-bootstrap/html_base.py` and `doc-gen/renderers/html_base.py` synced: added `import json`, `doc_key_js` variable, `window._broodDocKey` script tag for stable localStorage namespace, `_broodDocKey` fallback in JS | GAP-FILL (html_base_sync test caught divergence) | Implemented | unit (test_html_base_sync.py) |
+| PAP-AUDIT.md §6 Dynamic Analysis Pre-Flight already present in broodforge's local copy (7 tools, workflow steps) — no sync needed | GAP-FILL | Verified | static |
+
+> Full test suite: **4476 passed, 16 skipped**, 4 pre-existing `test_opentofu.py` failures unchanged. 51 new tests across dynamic health scoring, dashboard rendering, hypothesis property tests, and remediation candidates.

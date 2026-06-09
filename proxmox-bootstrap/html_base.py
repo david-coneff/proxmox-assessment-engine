@@ -31,6 +31,7 @@ Public API:
 Stdlib only. No external dependencies.
 """
 
+import json
 from html import escape as _e
 
 
@@ -126,7 +127,7 @@ dd{margin:0;padding:3px 0;border-bottom:1px dotted #e0e0e0}
 
 _JS = r"""
 (function(){
-  var docKey = document.title || 'broodforge';
+  var docKey = (window._broodDocKey || '') || document.title || 'broodforge';
   function storeKey(id){ return docKey + '::' + id; }
 
   function applyState(cb){
@@ -181,6 +182,7 @@ def html_page(
     """
     esc_title = _e(title)
     header_meta = f'<div class="meta">{_e(meta)}</div>' if meta else ""
+    doc_key_js = json.dumps(doc_id if doc_id else title)
     return (
         "<!DOCTYPE html>\n"
         '<html lang="en">\n<head>\n'
@@ -188,6 +190,7 @@ def html_page(
         '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
         f'<title>{esc_title}</title>\n'
         f'<style>{_CSS}</style>\n'
+        f"<script>window._broodDocKey={doc_key_js};</script>\n"
         "</head>\n<body>\n"
         f'<header><h1>{esc_title}</h1>{header_meta}</header>\n'
         f'<main>{body}</main>\n'

@@ -46,6 +46,15 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable, Optional
 
+# deal contracts — graceful no-op when deal is not installed (dev dep only)
+try:
+    import deal as _deal
+    _deal_pre  = _deal.pre
+    _deal_post = _deal.post
+except ImportError:  # pragma: no cover
+    def _deal_pre(_c):   return lambda f: f  # type: ignore
+    def _deal_post(_c):  return lambda f: f  # type: ignore
+
 try:
     import sys as _sys
     import os as _os
@@ -345,6 +354,8 @@ class DerivedVaultPlan:
     total_registry_count: int = 0
 
 
+@_deal_pre(lambda role_raw, secret_entries, **_kw: isinstance(role_raw, dict) and isinstance(secret_entries, list))
+@_deal_post(lambda result: hasattr(result, "role") and hasattr(result, "scope") and hasattr(result, "commands"))
 def build_derived_vault_plan(
     role_raw:          dict,
     secret_entries:    list[dict],

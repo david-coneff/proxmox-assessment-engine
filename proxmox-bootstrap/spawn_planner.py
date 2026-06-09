@@ -23,6 +23,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+# deal contracts — graceful no-op when deal is not installed (dev dep only)
+try:
+    import deal as _deal
+    _deal_pre  = _deal.pre
+    _deal_post = _deal.post
+except ImportError:  # pragma: no cover
+    def _deal_pre(_c):   return lambda f: f  # type: ignore
+    def _deal_post(_c):  return lambda f: f  # type: ignore
+
 
 # ---------------------------------------------------------------------------
 # Minimal YAML list-of-dicts parser (stdlib only — no PyYAML)
@@ -358,6 +367,7 @@ _WORDS = [
 ]
 
 
+@_deal_post(lambda result: isinstance(result, str) and len(result) >= 8)
 def generate_temp_password(seed: Optional[int] = None) -> str:
     """Generate a readable temporary root password (Capital.word.word.N format)."""
     import random
@@ -372,6 +382,9 @@ def generate_temp_password(seed: Optional[int] = None) -> str:
 # Plan builder
 # ---------------------------------------------------------------------------
 
+@_deal_pre(lambda session, manifest, bootstrap_state, catalog, hardware=None, now_fn=None:
+           isinstance(bootstrap_state, dict))
+@_deal_post(lambda result: isinstance(result, dict) and "planned_at" in result)
 def build_spawn_plan(
     session:          SpawnPlannerSession,
     manifest:         Any,       # SpawnManifest or dict with reservation data

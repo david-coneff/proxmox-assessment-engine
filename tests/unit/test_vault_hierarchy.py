@@ -473,3 +473,78 @@ class TestScopedVaultPlanHtml:
         html = _hpm.build_scoped_vault_plan_html(self._plan_dict())
         assert "infra-bootstrap-deploy-key" in html
         assert "vm-100-password" in html
+
+
+# ===========================================================================
+# Phase 1.M — hypothesis property tests
+# ===========================================================================
+
+try:
+    from hypothesis import given, settings, assume
+    from hypothesis import strategies as st
+    _HAS_HYPOTHESIS = True
+except ImportError:
+    _HAS_HYPOTHESIS = False
+
+if _HAS_HYPOTHESIS:
+    _VALID_TIERS = ["service-operator", "node-sysadmin"]
+    _TIER_DISPLAY = {"service-operator": "Service Operator", "node-sysadmin": "Node Sysadmin"}
+
+    class TestBuildDerivedVaultPlanProperties:
+        def _role(self, tier: str) -> dict:
+            return {"name": f"{tier}-role", "tier": tier, "display_name": _TIER_DISPLAY[tier]}
+
+        def _entries(self) -> list:
+            return [
+                {"name": "infra-key", "keepass_path": "Infra/infra-key",
+                 "scope_tier": "service-operator", "secret_type": "deploy_key"},
+                {"name": "vm-password", "keepass_path": "VMs/vm-password",
+                 "scope_tier": "node-sysadmin", "secret_type": "vm_password"},
+            ]
+
+        @given(tier=st.sampled_from(_VALID_TIERS))
+        @settings(max_examples=20)
+        def test_plan_has_required_attributes(self, tier: str) -> None:
+            plan = _vh.build_derived_vault_plan(
+                self._role(tier), self._entries(),
+                now_fn=lambda: "2026-06-08T12:00:00+00:00",
+                passphrase="Test.pass.1",
+            )
+            assert hasattr(plan, "role")
+            assert hasattr(plan, "scope")
+            assert hasattr(plan, "commands")
+
+        @given(tier=st.sampled_from(_VALID_TIERS))
+        @settings(max_examples=20)
+        def test_plan_role_matches_input(self, tier: str) -> None:
+            plan = _vh.build_derived_vault_plan(
+                self._role(tier), self._entries(),
+                now_fn=lambda: "2026-06-08T12:00:00+00:00",
+                passphrase="Test.pass.2",
+            )
+            assert plan.role["tier"] == tier
+
+        @given(tier=st.sampled_from(_VALID_TIERS))
+        @settings(max_examples=20)
+        def test_plan_to_dict_round_trips_tier(self, tier: str) -> None:
+            plan = _vh.build_derived_vault_plan(
+                self._role(tier), self._entries(),
+                now_fn=lambda: "2026-06-08T12:00:00+00:00",
+                passphrase="Test.pass.3",
+            )
+            d = _vh.plan_to_dict(plan, include_passphrase=False)
+            assert d["role"] == tier
+
+        @given(passphrase=st.text(min_size=8, max_size=64,
+               alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"),
+                                      whitelist_characters=".")))
+        @settings(max_examples=20)
+        def test_passphrase_not_leaked_in_dict(self, passphrase: str) -> None:
+            assume(passphrase.strip())
+            plan = _vh.build_derived_vault_plan(
+                self._role("service-operator"), self._entries(),
+                now_fn=lambda: "2026-06-08T12:00:00+00:00",
+                passphrase=passphrase,
+            )
+            d = _vh.plan_to_dict(plan, include_passphrase=False)
+            assert passphrase not in str(d)

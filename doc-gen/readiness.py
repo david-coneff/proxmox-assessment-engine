@@ -19,6 +19,15 @@ from dataclasses import dataclass, field
 from typing import Optional
 from collections import defaultdict
 
+# deal contracts — graceful no-op when deal is not installed (dev dep only)
+try:
+    import deal as _deal
+    _deal_pre  = _deal.pre
+    _deal_post = _deal.post
+except ImportError:  # pragma: no cover
+    def _deal_pre(_c):   return lambda f: f  # type: ignore
+    def _deal_post(_c):  return lambda f: f  # type: ignore
+
 SCORES = ["GREEN", "YELLOW", "ORANGE", "BLOCKED", "RED", "UNKNOWN"]
 # RED=4 is the worst named score; UNKNOWN=5 is treated as lower priority than RED
 # when computing overall score (UNKNOWN means "no data", not "will definitely fail")
@@ -201,6 +210,9 @@ class BackupInventory:
 # Component scorer
 # ---------------------------------------------------------------------------
 
+@_deal_pre(lambda node_id, node_type, node_metadata, backup_inv, dep_info_complete=True:
+           isinstance(node_id, str) and node_id != "" and isinstance(node_type, str) and node_type != "")
+@_deal_post(lambda result: result.score in ("GREEN", "YELLOW", "ORANGE", "RED", "BLOCKED", "UNKNOWN"))
 def score_component(
     node_id: str,
     node_type: str,

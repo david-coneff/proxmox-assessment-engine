@@ -125,7 +125,7 @@ def compute_trend(snapshots: list[dict]) -> dict:
             "snapshots_used":      len(valid),
         }
 
-    def _trend_and_days(key_pct: str, key_used: str, key_total: str) -> tuple:
+    def _trend_and_days(key_pct: str) -> tuple:
         """Return (trend_str, days_to_full) for a utilization metric."""
         readings = []
         for s in valid:
@@ -159,8 +159,8 @@ def compute_trend(snapshots: list[dict]) -> dict:
 
         return trend, days_to_full
 
-    ram_trend, days_ram       = _trend_and_days("ram_usage_pct",     "ram_used_gb",     "ram_total_gb")
-    stor_trend, days_stor     = _trend_and_days("storage_usage_pct", "storage_used_gb", "storage_total_gb")
+    ram_trend, days_ram       = _trend_and_days("ram_usage_pct")
+    stor_trend, days_stor     = _trend_and_days("storage_usage_pct")
 
     return {
         "ram_trend":            ram_trend,

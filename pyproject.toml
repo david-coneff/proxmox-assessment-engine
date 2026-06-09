@@ -20,6 +20,16 @@ dev = [
     "detect-secrets>=1.4",
     # shellcheck-py provides a Python shim used by tests/static/test_shellcheck.py
     "shellcheck-py>=0.9",
+    # dynamic analysis tools — Phase 1.M
+    "hypothesis>=6.100",         # property-based and fuzz testing of pure logic
+    "mutmut>=2.0",               # mutation testing — verify tests catch bugs
+    "beartype>=0.18",            # runtime type verification as pytest plugin
+    "deal>=4.24",                # contract-based pre/postcondition decorators
+    "schemathesis>=3.0",         # property-based HTTP API testing
+    # atheris (Google coverage-guided fuzzer) is Linux-only; install separately on Linux:
+    #   pip install atheris   (requires libFuzzer — Linux x86-64 only)
+    # bats (Bash Automated Testing System) is installed via OS package manager:
+    #   apt install bats  |  brew install bats-core
 ]
 
 [build-system]
@@ -56,3 +66,14 @@ exclude = ["proxmox-bootstrap/deprecated/", "new/"]
 [tool.bandit]
 exclude_dirs = ["tests", "proxmox-bootstrap/deprecated", "new"]
 skips = ["B101", "B404", "B603", "B607"]
+
+[tool.hypothesis]
+# Fixed seed for CI determinism; override with --hypothesis-seed=0 to generate new cases.
+deriving_seed = 0
+suppress_health_check = ["too_slow"]
+
+[tool.mutmut]
+paths_to_mutate = "proxmox-bootstrap/"
+tests_dir = "tests/"
+# Exclude generated HTML and deprecated modules
+runner = "python -m pytest -x --no-cov -q"

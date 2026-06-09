@@ -1,5 +1,5 @@
 """
-Tests for Phase 1.L: assess_code_health() and dashboard Code Health card.
+Tests for Phase 1.L/1.M: assess_code_health(), DynamicHealthScore, and dashboard Code Health card.
 """
 import json
 import sys
@@ -10,7 +10,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "proxmox-bootstrap"))
 
-from continuous_assessment import assess_code_health, CodeHealthScore, _score_code_health
+from continuous_assessment import (
+    assess_code_health, CodeHealthScore, _score_code_health,
+    assess_dynamic_health, DynamicHealthScore, _score_dynamic_health,
+)
 
 
 class TestScoreCodeHealth:
@@ -279,3 +282,261 @@ class TestDashboardCodeHealthCard:
         )
         assert "Code Health" in html
         assert "88" in html
+
+    def test_code_health_card_label_is_static_score(self):
+        """Overall score label should read 'Static score' (not 'Overall score')."""
+        from broodforge_dashboard import _build_code_health_card
+        score = CodeHealthScore(overall=77)
+        html = _build_code_health_card(score)
+        assert "Static" in html or "static" in html
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.M: DynamicHealthScore scoring tests
+# ---------------------------------------------------------------------------
+
+class TestScoreDynamicHealth:
+    def test_perfect_score(self):
+        score = _score_dynamic_health(0, 85.0, 0, 5)
+        assert score == 100
+
+    def test_hypothesis_failures_penalized(self):
+        score = _score_dynamic_health(2, 85.0, 0, 5)
+        assert score <= 60
+
+    def test_hypothesis_penalty_capped_at_40(self):
+        score_2 = _score_dynamic_health(2, 85.0, 0, 0)
+        score_5 = _score_dynamic_health(5, 85.0, 0, 0)
+        assert score_5 == score_2  # penalty caps at 40
+
+    def test_low_mutation_score_blocker(self):
+        score = _score_dynamic_health(0, 30.0, 0, 10)
+        assert score <= 65  # -35 penalty
+
+    def test_medium_mutation_score_defect(self):
+        score = _score_dynamic_health(0, 50.0, 0, 10)
+        assert score <= 80  # -20 penalty
+
+    def test_good_mutation_score_no_major_penalty(self):
+        score = _score_dynamic_health(0, 85.0, 0, 10)
+        assert score >= 95
+
+    def test_mutation_score_minus1_skipped(self):
+        # -1.0 means not run — should not penalize
+        score_no_mut = _score_dynamic_health(0, -1.0, 0, 0)
+        score_good_mut = _score_dynamic_health(0, 85.0, 0, 0)
+        assert score_no_mut == score_good_mut
+
+    def test_bats_failures_penalized(self):
+        score = _score_dynamic_health(0, 85.0, 2, 5)
+        assert score <= 80
+
+    def test_bats_no_tests_no_penalty(self):
+        score_no_bats = _score_dynamic_health(0, 85.0, 0, 0)
+        score_good_bats = _score_dynamic_health(0, 85.0, 0, 5)
+        assert score_no_bats == score_good_bats
+
+    def test_score_never_negative(self):
+        score = _score_dynamic_health(999, 0.0, 999, 999)
+        assert score == 0
+
+
+class TestAssessDynamicHealth:
+    """Tests for assess_dynamic_health() with injectable run_fn."""
+
+    def _make_run_fn(self, stdout="", returncode=0):
+        def run_fn(cmd, **kwargs):
+            result = MagicMock()
+            result.stdout = stdout
+            result.returncode = returncode
+            return result
+        return run_fn
+
+    def test_returns_dynamic_health_score(self, tmp_path):
+        result = assess_dynamic_health(str(tmp_path), run_fn=self._make_run_fn())
+        assert isinstance(result, DynamicHealthScore)
+
+    def test_not_implemented_when_no_given_and_no_bats(self, tmp_path):
+        # tmp_path has no test files → no @given, no .bats → not_implemented
+        result = assess_dynamic_health(str(tmp_path), run_fn=self._make_run_fn())
+        assert result.not_implemented is True
+        assert result.overall == -1
+
+    def test_hypothesis_failures_counted(self, tmp_path):
+        # Create a test file with @given decorator to trigger hypothesis run
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        (test_dir / "test_prop.py").write_text("@given\ndef test_x(): pass\n")
+
+        mutmut_out = "Killed 8 of 10 mutants"
+
+        def run_fn(cmd, **kwargs):
+            result = MagicMock()
+            if "pytest" in cmd:
+                result.stdout = "2 failed, 3 passed"
+            elif "mutmut" in cmd and "results" in cmd:
+                result.stdout = mutmut_out
+            else:
+                result.stdout = ""
+            result.returncode = 0
+            return result
+
+        result = assess_dynamic_health(str(tmp_path), run_fn=run_fn)
+        assert result.hypothesis_failures == 2
+
+    def test_mutation_score_parsed(self, tmp_path):
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        (test_dir / "test_prop.py").write_text("@given\ndef test_x(): pass\n")
+
+        def run_fn(cmd, **kwargs):
+            result = MagicMock()
+            if "mutmut" in cmd and "results" in cmd:
+                result.stdout = "Killed 7 of 10 mutants"
+            else:
+                result.stdout = "0 failed"
+            result.returncode = 0
+            return result
+
+        result = assess_dynamic_health(str(tmp_path), run_fn=run_fn)
+        assert result.mutation_score_pct == pytest.approx(70.0)
+
+    def test_bats_counts_parsed(self, tmp_path):
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        bash_dir = test_dir / "bash"
+        bash_dir.mkdir()
+        bats_file = bash_dir / "test_smoke.bats"
+        bats_file.write_text("@test 'something' { true; }\n")
+
+        def run_fn(cmd, **kwargs):
+            result = MagicMock()
+            if "bats" in str(cmd):
+                result.stdout = "ok 1 something\nok 2 another\nnot ok 3 broken\n"
+            elif "mutmut" in str(cmd) and "results" in str(cmd):
+                result.stdout = "Killed 8 of 10 mutants"
+            else:
+                result.stdout = "0 failed"
+            result.returncode = 0
+            return result
+
+        result = assess_dynamic_health(str(tmp_path), run_fn=run_fn)
+        assert result.bats_passed == 2
+        assert result.bats_failed == 1
+        assert result.bats_total == 3
+
+    def test_custom_now_fn(self, tmp_path):
+        result = assess_dynamic_health(
+            str(tmp_path), run_fn=self._make_run_fn(),
+            now_fn=lambda: "2026-06-08T12:00:00+00:00",
+        )
+        assert result.assessed_at == "2026-06-08T12:00:00+00:00"
+
+    def test_run_fn_exception_returns_error(self, tmp_path):
+        def run_fn(cmd, **kwargs):
+            raise RuntimeError("subprocess failed")
+        result = assess_dynamic_health(str(tmp_path), run_fn=run_fn)
+        assert isinstance(result, DynamicHealthScore)
+        assert result.error is not None
+
+
+class TestDynamicRemediationCandidates:
+    def test_hypothesis_failures_produce_high_candidate(self):
+        from broodforge_dashboard import _code_health_to_remediation_candidates
+        static = CodeHealthScore(overall=90)
+        dynamic = DynamicHealthScore(hypothesis_failures=3, overall=60)
+        candidates = _code_health_to_remediation_candidates(static, dynamic=dynamic)
+        assert any(
+            "hypothesis" in c.get("description", "").lower()
+            for c in candidates
+        )
+        assert any(c.get("severity") == "HIGH" for c in candidates)
+
+    def test_low_mutation_score_high_candidate(self):
+        from broodforge_dashboard import _code_health_to_remediation_candidates
+        static = CodeHealthScore(overall=90)
+        dynamic = DynamicHealthScore(mutation_score_pct=35.0, overall=65)
+        candidates = _code_health_to_remediation_candidates(static, dynamic=dynamic)
+        assert any(
+            "mutation" in c.get("description", "").lower() or "mutmut" in c.get("description", "").lower()
+            for c in candidates
+        )
+        assert any(c.get("severity") == "HIGH" for c in candidates)
+
+    def test_medium_mutation_score_medium_candidate(self):
+        from broodforge_dashboard import _code_health_to_remediation_candidates
+        static = CodeHealthScore(overall=90)
+        dynamic = DynamicHealthScore(mutation_score_pct=55.0, overall=80)
+        candidates = _code_health_to_remediation_candidates(static, dynamic=dynamic)
+        assert any(
+            ("mutation" in c.get("description", "").lower() or "mutmut" in c.get("description", "").lower())
+            and c.get("severity") == "MEDIUM"
+            for c in candidates
+        )
+
+    def test_bats_failures_produce_high_candidate(self):
+        from broodforge_dashboard import _code_health_to_remediation_candidates
+        static = CodeHealthScore(overall=90)
+        dynamic = DynamicHealthScore(bats_failed=2, bats_total=5, bats_passed=3, overall=80)
+        candidates = _code_health_to_remediation_candidates(static, dynamic=dynamic)
+        assert any(
+            "bats" in c.get("description", "").lower() or "bash" in c.get("description", "").lower()
+            for c in candidates
+        )
+
+    def test_clean_dynamic_no_extra_candidates(self):
+        from broodforge_dashboard import _code_health_to_remediation_candidates
+        static = CodeHealthScore(overall=90)
+        dynamic = DynamicHealthScore(
+            hypothesis_failures=0, mutation_score_pct=85.0,
+            bats_failed=0, bats_total=5, bats_passed=5, overall=100,
+        )
+        candidates = _code_health_to_remediation_candidates(static, dynamic=dynamic)
+        assert len(candidates) == 0
+
+    def test_not_implemented_dynamic_no_candidates(self):
+        from broodforge_dashboard import _code_health_to_remediation_candidates
+        static = CodeHealthScore(overall=90)
+        dynamic = DynamicHealthScore(not_implemented=True, overall=-1)
+        candidates = _code_health_to_remediation_candidates(static, dynamic=dynamic)
+        # not_implemented means no dynamic infrastructure yet — no candidates
+        assert not any(
+            "hypothesis" in c.get("description", "").lower()
+            or "mutation" in c.get("description", "").lower()
+            or "bats" in c.get("description", "").lower()
+            for c in candidates
+        )
+
+
+class TestDashboardDynamicSubcard:
+    def test_not_implemented_shows_message(self):
+        from broodforge_dashboard import _build_dynamic_health_subcard
+        dynamic = DynamicHealthScore(not_implemented=True, overall=-1)
+        html = _build_dynamic_health_subcard(dynamic)
+        assert "not" in html.lower() or "implement" in html.lower() or "configur" in html.lower()
+
+    def test_scores_shown_when_implemented(self):
+        from broodforge_dashboard import _build_dynamic_health_subcard
+        dynamic = DynamicHealthScore(
+            hypothesis_failures=0,
+            mutation_score_pct=78.0,
+            bats_passed=4,
+            bats_total=5,
+            bats_failed=1,
+            overall=82,
+        )
+        html = _build_dynamic_health_subcard(dynamic)
+        assert "82" in html or "78" in html or "4" in html
+
+    def test_hypothesis_failures_highlighted(self):
+        from broodforge_dashboard import _build_dynamic_health_subcard
+        dynamic = DynamicHealthScore(hypothesis_failures=3, overall=60)
+        html = _build_dynamic_health_subcard(dynamic)
+        assert "3" in html or "hypothesis" in html.lower()
+
+    def test_subcard_returns_html_string(self):
+        from broodforge_dashboard import _build_dynamic_health_subcard
+        dynamic = DynamicHealthScore(overall=100, not_implemented=False)
+        html = _build_dynamic_health_subcard(dynamic)
+        assert isinstance(html, str)
+        assert "<" in html

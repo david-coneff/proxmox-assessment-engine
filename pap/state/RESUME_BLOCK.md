@@ -20,21 +20,31 @@ behavior, not its development process, and is out of scope for this artifact
   tiers, five dependency-graph types. Architecture v7.1+. (Source:
   `.ai/context.md`, `.ai/CURRENT_STATE.md`.)
 
-- **active_objective**: Phase 1.L (Static Analysis Self-Audit Integration, AD-062)
-  now **fully implemented and committed** (2026-06-08). This adds a three-tier static
-  analysis pipeline: Tier 1 `tools/run-static-audit.sh`, Tier 2 pytest integration
-  (`tests/static/test_shellcheck.py`, pyproject.toml addopts), Tier 3 `assess_code_health()`
-  + `CodeHealthScore` in `continuous_assessment.py` + Code Health dashboard card.
-  PAP Audit-Reasoning-Patterns.md synced from master (37 patterns). 33 new tests.
-  Full suite: **4425 passed, 1 skipped**.
-  All prior phases also done: Phase 1.H (AD-057, commit 072112e) — Pre-Install Forge
-  Package and Image Builder; Phase 1.I (AD-059, commit 3b32137) — Recovery-Readiness
-  Conformance Certificate; Phase 1.K (AD-061, commit c750ed6) — Granular Secret Access
-  Silos; Phase 1.J (AD-060, commit f883540) — Hypervisor Recovery: Constrained Accounts
-  and Pre-Generated Spawn Media. No further proposed development phases beyond 1.L in
+- **active_objective**: Phase 1.M (Dynamic Analysis Self-Audit Integration, AD-063)
+  now **fully implemented and committed** (2026-06-09). Extends Phase 1.L (AD-062) with
+  dynamic analysis: `DynamicHealthScore` dataclass + `assess_dynamic_health()` in
+  `continuous_assessment.py`; dynamic health subcard in `broodforge_dashboard.py`; deal
+  contracts on `build_spawn_plan`/`build_derived_vault_plan`/`score_component`; beartype
+  in `conftest.py`; hypothesis property tests in test_spawn_planner/test_vault_hierarchy/
+  test_readiness; `tests/bash/forge_phase_test.bats`; `tests/fuzz/` atheris targets;
+  html_base.py synced. 51 new tests. Full suite: **4476 passed, 16 skipped**.
+  All prior phases also done through 1.L. No further proposed development phases in
   `ROADMAP.md`. Next operational action: **deploy to hardware**.
 
-- **active_milestone**: (Updated — thirteenth milestone, 2026-06-08 Phase 1.L implementation.)
+- **active_milestone**: (Updated — fourteenth milestone, 2026-06-09 Phase 1.M implementation.)
+  Phase 1.M (Dynamic Analysis Self-Audit Integration, AD-063) complete:
+  - Step 1: `DynamicHealthScore` dataclass + `assess_dynamic_health()` in `continuous_assessment.py` (section 24.9). Removed duplicate conflicting class definition from interrupted prior session. Fixed hypothesis failures parser (comma-stripping) and `no_infra` check (mutmut availability excluded).
+  - Step 2: `_build_dynamic_health_subcard()` + `_code_health_to_remediation_candidates()` updated in `broodforge_dashboard.py` to use correct field names; `not_implemented` state handled.
+  - Step 3: deal contracts on `build_spawn_plan()`, `build_derived_vault_plan()`, `score_component()`.
+  - Step 4: beartype wired in `conftest.py`.
+  - Step 5: `pyproject.toml` dev deps + `[tool.mutmut]` config.
+  - Step 6: Hypothesis property tests in test_spawn_planner, test_vault_hierarchy, test_readiness.
+  - Step 7: `tests/bash/forge_phase_test.bats` + `tests/fuzz/fuzz_manifest.py` + `tests/fuzz/fuzz_spawn_planner.py`.
+  - Step 8: `html_base.py` synced (proxmox-bootstrap ↔ doc-gen/renderers).
+  - Step 9: State docs updated (ROADMAP.md Phase 1.L implemented + 1.M added, ARCHITECTURE.md AD-063, FEATURE-HISTORY.md, CURRENT_STATE.md, RESUME_BLOCK.md).
+  Full suite: **4476 passed, 16 skipped**.
+
+  (Previous — thirteenth milestone, 2026-06-08 Phase 1.L implementation.)
   Phase 1.L (Static Analysis Self-Audit Integration) complete:
   - Step 0: PAP Audit-Reasoning-Patterns.md synced (37 patterns, from 6).
   - Step 1: ROADMAP.md Phase 1.L section + ARCHITECTURE.md AD-062 added.
@@ -236,13 +246,9 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — twelfth milestone closed, 2026-06-08.)**
-  PAP audit rounds R1 through R4 complete. All findings resolved:
-  - R1: 34 findings (3 commits: CRITICAL `31a2ee6`, HIGH `1195e8f`, MEDIUM/LOW `e0dd24b`)
-  - R2: 4 findings (`6620b70`)
-  - R3: 4 findings + R4 self-audit: 1 finding (commits `39fb05a`, `51b39b8`, `45403fb`)
-  Zero open audit findings. Full suite: **4415 passed, 1 skipped** (4 pre-existing
-  `test_opentofu.py` failures unchanged from clean `main`).
+- **next_action**: **(Updated — fourteenth milestone closed, 2026-06-09.)**
+  Phase 1.M (Dynamic Analysis Self-Audit Integration, AD-063) complete. Full suite:
+  **4476 passed, 16 skipped** (4 pre-existing `test_opentofu.py` failures unchanged).
   **Next operational action**: deploy to hardware — run `python3
   proxmox-bootstrap/forge-planner.py` on a real Proxmox host to forge the
   first cell. See `FORGING.md`.

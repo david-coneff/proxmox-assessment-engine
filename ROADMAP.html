@@ -273,22 +273,22 @@
 </ul>
 <p>If a future operator wants any of this revisited, the entry points are <code>new/claude prompt.txt</code> (the original analysis brief) and <code>new/BroodForge_Synthesis_Entry_For_Claude_Analysis_v1.docx</code> (the corpus's own "how to analyze me" document) — both still present, untouched.</p>
 <h3>Phase 1.I — Recovery-Readiness Conformance *(implemented — commit 3b32137)*</h3>
-<p><strong>Status: scoped 2026-06-08 — proposed, not started.</strong> Promoted from the draft sketch below by direct operator decision: *"Recovery-Readiness Conformance → Scope as Phase 1.I... Build as additive extensions to existing <code>readiness.py</code>, <code>drift.py</code>, <code>dependencies.py</code>, snapshot/provenance store, and Phase 12 drills. Write an AD for it."* See <strong>AD-059</strong> in <code>ARCHITECTURE.md</code> for the architecture-level decision record.</p>
+<p><strong>Status: implemented — commit 3b32137.</strong> Proposed from the draft sketch below by direct operator decision: *"Recovery-Readiness Conformance → Scope as Phase 1.I... Build as additive extensions to existing <code>readiness.py</code>, <code>drift.py</code>, <code>dependencies.py</code>, snapshot/provenance store, and Phase 12 drills. Write an AD for it."* See <strong>AD-059</strong> in <code>ARCHITECTURE.md</code> for the architecture-level decision record.</p>
 <p><strong>Proposed scope (additive — extensions to existing modules, no new subsystem):</strong></p>
 <ul>
-<li>[ ] <code>recovery-readiness-certificate.json</code> (+ HTML, AD-051 pattern) —</li>
+<li>[x] <code>recovery-readiness-certificate.json</code> (+ HTML, AD-051 pattern) —</li>
 </ul>
 <p>generator that composes, into one timestamped record: the manifest hash (canonical serialization + SHA-256 over <code>bootstrap-state.json</code> + the 10 metadata YAMLs), the graph hash (SHA-256 over each of the five <code>dependencies.py</code> dependency graphs' canonical form), the current readiness score (RRS/ACS/DCS/CRS/OSS from <code>readiness.py</code>), the latest drift summary (<code>drift.py</code>), and the latest <code>DrillRecord</code> (Phase 12).</p>
 <ul>
-<li>[ ] Hash recording wired into snapshot generation — each</li>
+<li>[x] Hash recording wired into snapshot generation — each</li>
 </ul>
 <p><code>history/snapshots/</code> entry gains <code>manifest_hash</code>/<code>graph_hash</code> fields, so "the graph that produced this readiness score" is independently checkable after the fact, not just at generation time.</p>
 <ul>
-<li>[ ] <code>replay-snapshot.py</code> — re-derives a manifest's readiness score and</li>
+<li>[x] <code>replay-snapshot.py</code> — re-derives a manifest's readiness score and</li>
 </ul>
 <p>drift report from a stored snapshot and asserts it matches what was recorded at the time, turning "snapshots are reproducible" (an existing design constraint — <code>.ai/CURRENT_STATE.md</code> "Key Design Constraints") from an assumption into a checked, reportable fact.</p>
 <ul>
-<li>[ ] Documentation pass — write down, in plain language, what broodforge</li>
+<li>[x] Documentation pass — write down, in plain language, what broodforge</li>
 </ul>
 <p>does *not* promise to recover automatically (the "Human Intervention Boundary," e.g., "if the KeePass database itself is lost, no amount of manifest replay restores secrets").</p>
 <h4>Human Intervention Boundary — what's autonomous vs. operator-required</h4>
@@ -346,22 +346,22 @@
 <p>**What this draft is *not* proposing:** the cryptographic apparatus (Ed25519 root-of-trust chains, category-theoretic compositional proof objects, formal certification "levels" with externally-audited conformance) is heavier than broodforge's actual threat model (a home-lab / small-cell operator using git + KeePass + restic as the trust anchors, per AD-040's SHALL-NOT scope). Building a parallel formal-verification subsystem would be exactly the kind of "implement the spec corpus verbatim" outcome the deferral above correctly avoided. The translation table above is deliberately phrased as *extensions to existing modules* (<code>readiness.py</code>, <code>drift.py</code>, <code>dependencies.py</code>, the snapshot/provenance store, Phase 12 drills) — additive scoring fields, one new generated artifact, and a documentation pass — not a rewrite.</p>
 <p><strong>This scope was confirmed by direct operator decision on 2026-06-08</strong> — see the status block at the top of this section and AD-059.</p>
 <h3>Phase 1.J — Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn Media *(implemented — commit f883540)*</h3>
-<p><strong>Status: scoped 2026-06-08 — proposed, not started.</strong> Promoted from the draft recommendation below by direct operator decision, which also recorded a <strong>firm architectural constraint</strong> ruling out any autonomous pathway that can read and wield full root credentials against live hypervisors — see <strong>AD-060</strong> in <code>ARCHITECTURE.md</code>, which records that constraint and its two narrow, explicitly-bounded exceptions (temporary credentials for node spawning and for phoenix recovery sessions, both already-established patterns extended, never the permanent keystore). The three-part middle path below is <strong>accepted as stated</strong> and forms this phase's implementation targets.</p>
+<p><strong>Status: implemented — commit f883540.</strong> Promoted from the draft recommendation below by direct operator decision, which also recorded a <strong>firm architectural constraint</strong> ruling out any autonomous pathway that can read and wield full root credentials against live hypervisors — see <strong>AD-060</strong> in <code>ARCHITECTURE.md</code>, which records that constraint and its two narrow, explicitly-bounded exceptions (temporary credentials for node spawning and for phoenix recovery sessions, both already-established patterns extended, never the permanent keystore). The three-part middle path below is <strong>accepted as stated</strong> and forms this phase's implementation targets.</p>
 <p><strong>Proposed scope (additive — no autonomous full-root pathway, per AD-060):</strong></p>
 <ul>
-<li>[ ] <strong>Constrained recovery account per hypervisor</strong> — a dedicated,</li>
+<li>[x] <strong>Constrained recovery account per hypervisor</strong> — a dedicated,</li>
 </ul>
 <p>narrowly-scoped account provisioned during forge phase-03 (host config), gated by a forced command (<code>ForceCommand</code>/<code>command=</code> in <code>authorized_keys</code>) limited to a fixed menu of read-only diagnostics and safe operations (status, logs, VM start/stop) — never an arbitrary shell. Because its blast radius is bounded *by construction*, this is the one piece of the recovery surface safe to query autonomously.</p>
 <ul>
-<li>[ ] <strong>Break-glass root — storage annotation, not a new mechanism.</strong></li>
+<li>[x] <strong>Break-glass root — storage annotation, not a new mechanism.</strong></li>
 </ul>
 <p><code>secret-registry.yaml</code> already tracks <code>pve0X-root-password</code> entries per <code>host:X</code>; this item documents/annotates those entries as human-unlock-gated break-glass root, behind the *same* gate that already protects every other secret (AD-042), with <strong>no new autonomous pathway</strong> — functionally "the recovery runbook tells the operator where to find it and they type it themselves."</p>
 <ul>
-<li>[ ] <strong>Pre-generated spawn-media credentials.</strong> Run the existing AD-043</li>
+<li>[x] <strong>Pre-generated spawn-media credentials.</strong> Run the existing AD-043</li>
 </ul>
 <p>passphrase-generation pattern earlier — at image-build time (Phase 1.H) — and embed the result on install media instead of generating it at install time. Requires human authorization before a node installed from such pre-made media is allowed to join the cell — the operator's own proposed safeguard, which slots into the same place the existing autonomous-mode service-selection confirmation already lives (AD-041).</p>
 <ul>
-<li>[ ] <strong>Phoenix package temporary-credential extension.</strong> Per the operator's</li>
+<li>[x] <strong>Phoenix package temporary-credential extension.</strong> Per the operator's</li>
 </ul>
 <p>explicit direction, extend the node-spawning temporary-credential pattern (Cloud-Init: a generated pre-install root passphrase, used only for discovery, discarded the instant the KeePass-managed replacement is installed — already in place) to phoenix recovery packages: a temporary root credential scoped to the phoenix setup session only, with a hard requirement — recorded directly in the generated phoenix runbook — that the operator rotates the credential once the recovery session completes. Scoped as part of the Phase 9 phoenix-package design.</p>
 <p>The analysis that produced this scope follows below for reference.</p>
@@ -382,33 +382,33 @@
 <p>of the proposal is sound as stated and cheap to build: it is the existing <code>AD-043</code> passphrase-generation pattern, just run earlier and shipped on media instead of typed by an operator at install time. The operator's own proposed safeguard — human authorization required before a node installed from such pre-made media is allowed to join — costs nothing architecturally; it slots into the same place the existing autonomous-mode service-selection confirmation already lives (AD-041).</p>
 <p><strong>The line this sketch recommended broodforge not cross — and which the operator has now confirmed as a firm architectural constraint (AD-060):</strong> an autonomous pathway that can read and wield full root credentials against live hypervisors. Everything else the operator described — the complete keystore, pre-generated spawn media, human-gated joining — is reachable through the human-unlock gate (for break-glass root) and a constrained-command account (for routine diagnostics) without ever building that pathway. <strong>This direction was confirmed by direct operator decision on 2026-06-08</strong> — see the status block at the top of this section, AD-060, and Phase 1.J's scope, which scopes items 1 and 3 above as implementation targets and item 2 as the <code>secret-registry.yaml</code> / <code>SecretRegistry</code> annotation described.</p>
 <h3>Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User Provisioning *(implemented — commit c750ed6)*</h3>
-<p><strong>Status: scoped 2026-06-08 — proposed, not started.</strong> Promoted from the draft sketch below by direct operator decision, which expanded its scope in two ways: (1) higher-tier vaults must include records of the access credentials for lower-tier scopes, so a god-mode operator can always recover a scoped vault's passphrase from their own vault; and (2) the design must include a mechanism for creating users at the VM level and the Proxmox level, with default templates corresponding to the proposed scope divisions, each provisioned with access to its scoped vault. See <strong>AD-061</strong> in <code>ARCHITECTURE.md</code> for the architecture-level decision record (vault hierarchy</p>
+<p><strong>Status: implemented — commit c750ed6.</strong> Promoted from the draft sketch below by direct operator decision, which expanded its scope in two ways: (1) higher-tier vaults must include records of the access credentials for lower-tier scopes, so a god-mode operator can always recover a scoped vault's passphrase from their own vault; and (2) the design must include a mechanism for creating users at the VM level and the Proxmox level, with default templates corresponding to the proposed scope divisions, each provisioned with access to its scoped vault. See <strong>AD-061</strong> in <code>ARCHITECTURE.md</code> for the architecture-level decision record (vault hierarchy</p>
 <ul>
 <li>user provisioning design).</li>
 </ul>
 <p><strong>Proposed scope (additive — no new dependency, no change to the trust-model foundations; "god mode" remains the homelab default):</strong></p>
 <ul>
-<li>[ ] <strong><code>Role</code>/<code>Scope</code> registry</strong> — a new authoritative YAML (following the</li>
+<li>[x] <strong><code>Role</code>/<code>Scope</code> registry</strong> — a new authoritative YAML (following the</li>
 </ul>
 <p>existing 10-metadata-file pattern in <code>data-model/</code>): each entry names a role, a hierarchical scope expressed as glob patterns over the *existing* <code>owning_cell</code>/<code>required_by</code> vocabulary in <code>secret-registry.yaml</code> (<code>cell-1/*</code>, <code>cell-1/node-1/*</code>, <code>cell-1/node-1/vm-3/*</code>, or by <code>secret_type</code>/<code>required_for</code> facet), and which humans currently hold that role.</p>
 <ul>
-<li>[ ] <strong><code>derive-scoped-vault</code> generator</strong> — reads the canonical KeePass DB</li>
+<li>[x] <strong><code>derive-scoped-vault</code> generator</strong> — reads the canonical KeePass DB</li>
 </ul>
 <p>plus the Role/Scope registry and produces a derivative <code>.kdbx</code> containing only the entries matching the declared scope, with its own freshly-generated passphrase (reusing <code>generate_master_password_suggestion()</code> / EFF passphrase generators, AD-043/AD-052). The canonical "god mode" database remains exactly what it is today.</p>
 <ul>
-<li>[ ] <strong>Vault-of-vaults recordkeeping (operator-directed expansion).</strong> Each</li>
+<li>[x] <strong>Vault-of-vaults recordkeeping (operator-directed expansion).</strong> Each</li>
 </ul>
 <p>derived vault's generated passphrase is itself written as an entry in the *next tier up* (ultimately the canonical god-mode vault), so a higher-tier operator can always recover any lower-tier scoped vault's passphrase from their own vault — generalizing the per-backup unique-secret bookkeeping pattern already established in AD-044.</p>
 <ul>
-<li>[ ] **User-provisioning templates at the VM and Proxmox levels</li>
+<li>[x] **User-provisioning templates at the VM and Proxmox levels</li>
 </ul>
 <p>(operator-directed expansion).** Default account templates corresponding to each declared scope tier (e.g., service operator / node sysadmin / god mode), created at forge/spawn time, each provisioned with access to exactly its corresponding scoped vault and nothing beyond it.</p>
 <ul>
-<li>[ ] <strong>Authorization model</strong> — only holders of the canonical vault can mint</li>
+<li>[x] <strong>Authorization model</strong> — only holders of the canonical vault can mint</li>
 </ul>
 <p>scoped vaults or scope-tier user templates; true by construction ("you can only derive a scope you can already see the contents of"), matching who is trusted to run <code>forge-planner.py</code>/<code>spawn-planner.py</code> today.</p>
 <ul>
-<li>[ ] <strong>Revocation = rotate + reissue</strong>, documented up front as an honest</li>
+<li>[x] <strong>Revocation = rotate + reissue</strong>, documented up front as an honest</li>
 </ul>
 <p>non-guarantee (a property of the offline-first model — a derived vault cannot leak ciphertext it never received, arguably a *stronger* guarantee than a layered ACL).</p>
 <p>The analysis that produced this scope follows below for reference.</p>
@@ -433,6 +433,86 @@
 <p>an honest *non-guarantee* worth documenting up front (an explicit "boundary," in the vocabulary the formal-proof-series sketch above borrowed): a lost or outdated scoped vault is neutralized by rotating the secrets it contained (generalizing the existing per-backup unique-secret rotation in AD-044) and reissuing a fresh derivative, not by some in-database access-list edit. Static derived vaults cannot support instant kick-out; that is a property of the offline-first model, not a flaw in this design specifically — and arguably a *feature* from a security-properties standpoint: a derived vault literally cannot leak what ciphertext it never received, which is a stronger guarantee than an ACL layered on top of a database the holder already possesses in full.</p>
 <p>**What this draft is *not* proposing:** real-time per-user audit logs of "who opened which secret when" (would require a broker/network dependency broodforge deliberately avoids — though correlating "scoped vault X was used" is possible for free, since each derived vault is a distinguishable credential), or cryptographic enforcement of scope beyond "the derived vault simply does not contain out-of-scope ciphertext" (which, as noted above, is arguably the more robust property anyway). Both are named here as explicit boundaries, not gaps to be closed later.</p>
 <p><strong>This direction was confirmed by direct operator decision on 2026-06-08</strong> — "useful enough to keep on the roadmap for when this stops being a single-operator homelab" turned out to be exactly the operator's call, with the two expansions (vault-of-vaults recordkeeping, user-provisioning templates) folded in. See the status block at the top of this section, AD-061, and Phase 1.K's scope above.</p>
+<h3>Phase 1.L — Static Analysis Self-Audit Integration *(implemented — commit f7446be)*</h3>
+<p><strong>Status: implemented (commit f7446be).</strong> Phase 1.L complete. See <strong>AD-062</strong> in <code>ARCHITECTURE.md</code> for the architecture-level decision record.</p>
+<p><strong>The gap this names:</strong> Broodforge has extensive runtime assessment (readiness scoring, drift detection, remediation pipeline) but no systematic assessment of the *code itself* — shell scripts, Python modules, and generated script samples are never automatically checked for correctness, security issues, dead code, or test coverage gaps. This phase adds a three-tier static analysis pipeline that feeds into the existing remediation system rather than creating a separate track.</p>
+<p><strong>Three-tier architecture:</strong></p>
+<table><thead><tr><th>Tier</th><th>Artifact</th><th>Tools</th><th>Trigger</th></tr></thead><tbody><tr><td>1</td><td><code>tools/run-static-audit.sh</code></td><td>shellcheck, ruff, bandit, vulture, detect-secrets, pytest-cov</td><td>Manual / CI</td></tr><tr><td>2</td><td>pytest integration</td><td>shellcheck via <code>tests/static/test_shellcheck.py</code>, ruff + bandit via pyproject.toml</td><td>Every <code>pytest</code> run</td></tr><tr><td>3</td><td>Dashboard Code Health card</td><td><code>assess_code_health()</code> in <code>continuous_assessment.py</code>, card in <code>broodforge_dashboard.py</code></td><td>Continuous assessment cycle</td></tr></tbody></table>
+<p><strong>Proposed scope:</strong></p>
+<ul>
+<li>[x] <code>tools/run-static-audit.sh</code> — standalone audit script (Tier 1):</li>
+</ul>
+<p>shellcheck on all <code>.sh</code> files + generated script samples; ruff, bandit, vulture, detect-secrets; pytest with coverage; produces <code>.audit/static-audit-report.md</code>; exits non-zero on any HIGH finding.</p>
+<ul>
+<li>[x] <code>.audit/</code> directory with <code>.gitkeep</code>; <code>*.json</code> and <code>*-report.md</code> added to <code>.gitignore</code>;</li>
+</ul>
+<p><code>.secrets.baseline</code> committed (detect-secrets baseline).</p>
+<ul>
+<li>[x] pytest integration (Tier 2):</li>
+</ul>
+<p><code>pyproject.toml</code> updated with ruff, bandit, detect-secrets, vulture dev deps and <code>--cov</code> default options; <code>tests/static/test_shellcheck.py</code> — finds all <code>.sh</code> files and runs shellcheck on each (generated scripts tested with minimal test manifests).</p>
+<ul>
+<li>[x] <code>assess_code_health()</code> in <code>continuous_assessment.py</code> (Tier 3):</li>
+</ul>
+<p>returns <code>CodeHealthScore</code> dataclass (shellcheck_findings, bandit_high_count, bandit_medium_count, vulture_dead_code_pct, coverage_pct, overall 0-100); HIGH static findings generate <code>RemediationCandidate</code> entries.</p>
+<ul>
+<li>[x] "Code Health" card in <code>broodforge_dashboard.py</code> alongside existing readiness/drift/</li>
+</ul>
+<p>dependency cards; HIGH bandit/shellcheck findings surface in remediation pipeline.</p>
+<ul>
+<li>[x] Tests: <code>assess_code_health()</code> unit tests (subprocess mocked), shellcheck test file,</li>
+</ul>
+<p>dashboard Code Health card rendering test.</p>
+<p><strong>Constraint:</strong> static analysis findings feed into the existing remediation pipeline (not a separate system). The <code>RemediationCandidate</code> pattern from Phase 26 is reused.</p>
+<p><strong>Out of scope:</strong> cloud-based SAST services, paid tools, SonarQube, Snyk, Veracode, GitHub Advanced Security, or any tool requiring a commercial license.</p>
+<p>See AD-062 in <code>ARCHITECTURE.md</code> for the architecture-level decision record.</p>
+<h3>Phase 1.M — Dynamic Analysis Self-Audit Integration *(implemented — 2026-06-09)*</h3>
+<p><strong>Status: implemented (2026-06-09).</strong> Extends Phase 1.L with a dynamic analysis tier. See <strong>AD-063</strong> in <code>ARCHITECTURE.md</code> for the architecture-level decision record.</p>
+<p><strong>What this adds:</strong> Runtime and behavioral verification tools that discover failures static analysis cannot — property-based tests (hypothesis), mutation testing (mutmut), bash script testing (bats), and coverage-guided fuzzing (atheris fuzz targets).</p>
+<p><strong>Scope implemented:</strong></p>
+<ul>
+<li>[x] <code>DynamicHealthScore</code> dataclass in <code>continuous_assessment.py</code>:</li>
+</ul>
+<p><code>hypothesis_failures</code>, <code>mutation_score_pct</code>, <code>bats_total/passed/failed</code>, <code>overall</code> (0–100, -1 = NOT_IMPLEMENTED), <code>not_implemented</code> flag.</p>
+<ul>
+<li>[x] <code>assess_dynamic_health()</code> in <code>continuous_assessment.py</code>:</li>
+</ul>
+<p>detects @given decorators (hypothesis), runs mutmut results parser, runs bats TAP output parser; returns <code>not_implemented=True</code> when no dynamic infrastructure exists yet.</p>
+<ul>
+<li>[x] <code>_build_dynamic_health_subcard()</code> in <code>broodforge_dashboard.py</code>:</li>
+</ul>
+<p>renders hypothesis failures, mutation score, bats pass/total in the Code Health dashboard card; handles <code>not_implemented</code> state gracefully.</p>
+<ul>
+<li>[x] <code>_code_health_to_remediation_candidates()</code> extended for dynamic findings:</li>
+</ul>
+<p>hypothesis failures → HIGH, low mutation score → HIGH/MEDIUM, bats failures → HIGH.</p>
+<ul>
+<li>[x] deal pre/postcondition contracts on <code>build_spawn_plan()</code>,</li>
+</ul>
+<p><code>build_derived_vault_plan()</code>, and <code>score_component()</code>.</p>
+<ul>
+<li>[x] beartype plugin wired in <code>conftest.py</code> (zero new test code needed).</li>
+<li>[x] <code>pyproject.toml</code> dev deps: hypothesis, mutmut, beartype, deal, schemathesis,</li>
+</ul>
+<p>atheris (Linux-only note); <code>[tool.mutmut]</code> config section.</p>
+<ul>
+<li>[x] Hypothesis property tests in <code>tests/unit/test_spawn_planner.py</code>,</li>
+</ul>
+<p><code>tests/unit/test_vault_hierarchy.py</code>, <code>tests/unit/test_readiness.py</code>.</p>
+<ul>
+<li>[x] <code>tests/bash/forge_phase_test.bats</code> — phase script exit code tests with</li>
+</ul>
+<p>mocked pvesh/kubectl/ssh commands via PATH manipulation.</p>
+<ul>
+<li>[x] <code>tests/fuzz/fuzz_manifest.py</code> and <code>tests/fuzz/fuzz_spawn_planner.py</code> —</li>
+</ul>
+<p>atheris fuzz targets (no-op on non-Linux; importable everywhere).</p>
+<ul>
+<li>[x] Tests: 51 new tests across dynamic health scoring, dashboard rendering,</li>
+</ul>
+<p>remediation candidates, hypothesis property tests.</p>
+<p><strong>PAP-AUDIT §6 alignment:</strong> all seven integration steps implemented: beartype (conftest.py), deal contracts, hypothesis property tests, mutmut config, bats scripts, schemathesis config (openapi.yaml path), atheris fuzz targets.</p>
+<p>See AD-063 in <code>ARCHITECTURE.md</code> for the full decision record.</p>
 <hr>
 </div></details><details class="section" open><summary><h2>Roadmap Overview</h2></summary><div class="sec-body">
 <h3>Three Processes — Three Package Types</h3>

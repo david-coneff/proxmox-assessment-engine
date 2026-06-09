@@ -671,3 +671,73 @@ class TestR3002HeadscaleCommand(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.M — hypothesis property tests
+# ---------------------------------------------------------------------------
+
+try:
+    from hypothesis import given, settings, assume
+    from hypothesis import strategies as st
+    _HAS_HYPOTHESIS = True
+except ImportError:
+    _HAS_HYPOTHESIS = False
+
+import pytest
+
+if _HAS_HYPOTHESIS:
+    class TestGenerateTempPasswordProperties:
+        @given(seed=st.integers(min_value=0, max_value=10_000))
+        @settings(max_examples=50)
+        def test_always_returns_non_empty_string(self, seed: int) -> None:
+            result = generate_temp_password(seed=seed)
+            assert isinstance(result, str)
+            assert len(result) >= 8
+
+        @given(seed=st.integers(min_value=0, max_value=10_000))
+        @settings(max_examples=50)
+        def test_format_contains_dots(self, seed: int) -> None:
+            result = generate_temp_password(seed=seed)
+            # Format: Capital.to.word.N
+            parts = result.split(".")
+            assert len(parts) == 4, f"Expected 4 dot-separated parts, got: {result!r}"
+
+        @given(seed=st.integers(min_value=0, max_value=10_000))
+        @settings(max_examples=50)
+        def test_deterministic_for_same_seed(self, seed: int) -> None:
+            assert generate_temp_password(seed=seed) == generate_temp_password(seed=seed)
+
+        @given(seed=st.integers(min_value=0, max_value=10_000))
+        @settings(max_examples=50)
+        def test_ends_with_digit_1_through_9(self, seed: int) -> None:
+            result = generate_temp_password(seed=seed)
+            last_part = result.rsplit(".", 1)[-1]
+            assert last_part.isdigit()
+            assert 1 <= int(last_part) <= 9
+
+    class TestServiceCatalogProperties:
+        @given(
+            ram=st.floats(min_value=0, max_value=512),
+            disk=st.floats(min_value=0, max_value=10_000),
+        )
+        @settings(max_examples=30)
+        def test_assess_service_fit_returns_valid_status(self, ram: float, disk: float) -> None:
+            catalog = ServiceCatalog.from_list([
+                {"name": "k3s-worker", "ram_gb": 4, "disk_gb": 20, "baseline": True, "vm_count": 1},
+            ])
+            svc = catalog.get("k3s-worker")
+            hw = {"total_ram_gb": 32, "total_disk_gb": 500}
+            result = assess_service_fit(svc, hw, available_ram_gb=ram, available_disk_gb=disk)
+            assert result.status in (FIT_OK, FIT_MARGINAL, FIT_NO_FIT)
+
+        @given(names=st.lists(st.sampled_from(["k3s-worker", "longhorn"]), min_size=0, max_size=5))
+        @settings(max_examples=30)
+        def test_resolve_dependencies_superset_of_input(self, names: list) -> None:
+            catalog = ServiceCatalog.from_list([
+                {"name": "k3s-worker", "ram_gb": 4, "disk_gb": 20, "dependencies": [], "vm_count": 1},
+                {"name": "longhorn", "ram_gb": 4, "disk_gb": 100, "dependencies": ["k3s-worker"], "vm_count": 1},
+            ])
+            resolved = catalog.resolve_dependencies(names)
+            unique_input = set(n for n in names if catalog.get(n))
+            assert unique_input.issubset(set(resolved))

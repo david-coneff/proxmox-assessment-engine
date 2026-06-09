@@ -8,6 +8,7 @@ Provides the framework for scheduled and event-driven twin updates:
   - Deployment event hooks (tofu apply / ansible → twin update)
   - Staleness alerting (fields exceeding freshness threshold)
   - Twin diff reporting (what changed since last report)
+  - Code health assessment: static (24.8) + dynamic (24.9)
 
 24.1  AssessmentSchedule   — cron-driven framework
 24.2  RepoIngestionHook    — git webhook handler
@@ -17,6 +18,7 @@ Provides the framework for scheduled and event-driven twin updates:
 24.6  PbsStateUpdater      — continuous Data Protection State updates
 24.7  CertExpiryMonitor    — continuous External Dependency State monitoring
 24.8  CodeHealthScore      — static analysis health score (Phase 1.L)
+24.9  DynamicHealthScore   — dynamic analysis health score (Phase 1.M)
 
 Provides:
   AssessmentSchedule        — schedule definition and next-run calculation
@@ -37,6 +39,8 @@ Provides:
   scan_cert_expiry()
   CodeHealthScore           — static analysis health score
   assess_code_health()      — run static analysis and return CodeHealthScore
+  DynamicHealthScore        — dynamic analysis health score
+  assess_dynamic_health()   — run dynamic tools and return DynamicHealthScore
 
 Stdlib only.
 """
@@ -607,6 +611,21 @@ class CodeHealthScore:
     overall:             int = 100     # composite score 0-100
     assessed_at:         str = ""
     error:               Optional[str] = None  # set if assessment could not run
+    dynamic:             "Optional[DynamicHealthScore]" = None  # dynamic score (Phase 1.L ext.)
+
+
+@dataclass
+class DynamicHealthScore:
+    """Dynamic analysis health score: hypothesis, mutmut, bats (Phase 1.M, AD-063 / PAP-AUDIT §6)."""
+    hypothesis_failures: int   = 0      # hypothesis falsified-property count
+    mutation_score_pct:  float = -1.0   # mutmut kill rate (-1 = not run)
+    bats_total:          int   = 0      # bats test count (0 = no .bats files / not run)
+    bats_passed:         int   = 0      # bats tests passed
+    bats_failed:         int   = 0      # bats tests failed
+    overall:             int   = -1     # 0-100; -1 = NOT_IMPLEMENTED (no dyn. infrastructure)
+    assessed_at:         str   = ""
+    error:               Optional[str] = None
+    not_implemented:     bool  = False  # True when no dynamic test infrastructure exists yet
 
 
 def _score_code_health(
@@ -752,3 +771,179 @@ def assess_code_health(
         overall=overall,
         assessed_at=_now,
     )
+
+
+# ---------------------------------------------------------------------------
+# 24.9 — Dynamic Health Assessment (Phase 1.M, AD-063 — PAP-AUDIT §6)
+# ---------------------------------------------------------------------------
+
+def _score_dynamic_health(
+    hypothesis_failures: int,
+    mutation_score_pct: float,
+    bats_failed: int,
+    bats_total: int,
+) -> int:
+    """Compute a 0-100 dynamic health score from dynamic analysis results."""
+    score = 100
+    # hypothesis: -20 per falsified property, capped at -40
+    score -= min(hypothesis_failures * 20, 40)
+    # mutmut: penalty for low mutation score (PAP-AUDIT §6 thresholds)
+    if mutation_score_pct >= 0:
+        if mutation_score_pct < 40:
+            score -= 35   # BLOCKER threshold
+        elif mutation_score_pct < 60:
+            score -= 20   # DEFECT threshold
+        elif mutation_score_pct < 80:
+            score -= int((80 - mutation_score_pct) * 0.5)
+    # bats: -10 per failure, capped at -30
+    if bats_total > 0:
+        score -= min(bats_failed * 10, 30)
+    return max(0, score)
+
+
+def assess_dynamic_health(
+    repo_root: str = ".",
+    *,
+    run_fn: Optional[Callable] = None,
+    now_fn: Optional[Callable[[], str]] = None,
+) -> "DynamicHealthScore":
+    """
+    Run dynamic analysis tools and return a DynamicHealthScore.
+
+    Phase 1.L extension — implements PAP-AUDIT §6 Dynamic Analysis Pre-Flight.
+    Runs hypothesis (via pytest), mutmut, and bats. Returns not_implemented=True
+    if no dynamic test infrastructure is detected (no @given decorators, no
+    .bats files, mutmut not available) — distinguishes "no infrastructure yet"
+    from "infrastructure exists and something failed."
+
+    Args:
+        repo_root: root directory of the broodforge repo
+        run_fn: injectable subprocess runner (defaults to subprocess.run)
+        now_fn: injectable clock (defaults to utcnow)
+    """
+    import subprocess as _subprocess
+    import json as _json
+    import os as _os
+    import glob as _glob
+
+    _run = run_fn or _subprocess.run
+    _now = (now_fn or (lambda: datetime.now(timezone.utc).isoformat()))()
+
+    hypothesis_failures = 0
+    mutation_score_pct  = -1.0
+    bats_total  = 0
+    bats_passed = 0
+    bats_failed = 0
+
+    try:
+        # --- hypothesis: detect @given decorators; run marked tests ---
+        test_files = _glob.glob(f"{repo_root}/tests/**/*.py", recursive=True)
+        has_hypothesis = any(
+            "@given" in open(tf, encoding="utf-8", errors="replace").read()
+            for tf in test_files
+            if _os.path.isfile(tf)
+        )
+
+        if has_hypothesis:
+            try:
+                hy = _run(
+                    ["python", "-m", "pytest", "--hypothesis-seed=0",
+                     "-m", "hypothesis", "--tb=no", "-q", "--no-header",
+                     "--no-cov",
+                     f"{repo_root}/tests/"],
+                    capture_output=True, text=True, timeout=120,
+                )
+                # Parse "X failed, Y passed" summary line
+                for line in hy.stdout.splitlines():
+                    if "failed" in line and ("passed" in line or "error" in line):
+                        for token, nxt in zip(line.split(), line.split()[1:]):
+                            if nxt.rstrip(",") in ("failed", "error"):
+                                try:
+                                    hypothesis_failures += int(token)
+                                except ValueError:
+                                    pass
+            except (FileNotFoundError, OSError):
+                pass
+
+        # --- mutmut: run and parse kill rate ---
+        mutmut_available = False
+        try:
+            _run(["mutmut", "--version"], capture_output=True, timeout=10)
+            mutmut_available = True
+        except (FileNotFoundError, OSError):
+            pass
+
+        if mutmut_available:
+            pb = (f"{repo_root}/proxmox-bootstrap"
+                  if repo_root not in (".", "") else "proxmox-bootstrap")
+            try:
+                _run(
+                    ["mutmut", "run", f"--paths-to-mutate={pb}", "--no-progress"],
+                    capture_output=True, text=True, timeout=600,
+                    cwd=repo_root,
+                )
+                mm_results = _run(
+                    ["mutmut", "results"],
+                    capture_output=True, text=True, timeout=30,
+                    cwd=repo_root,
+                )
+                # "Killed X of Y mutants" → kill rate
+                for line in mm_results.stdout.splitlines():
+                    if "Killed" in line and " of " in line:
+                        try:
+                            parts = line.split()
+                            ki = parts.index("Killed") + 1
+                            oi = parts.index("of") + 1
+                            killed = int(parts[ki])
+                            total  = int(parts[oi].rstrip("."))
+                            if total > 0:
+                                mutation_score_pct = round(killed * 100 / total, 1)
+                        except (ValueError, IndexError):
+                            pass
+            except (FileNotFoundError, OSError):
+                pass
+
+        # --- bats: run .bats tests if they exist ---
+        bats_dir   = _os.path.join(repo_root, "tests", "bash")
+        bats_files = _glob.glob(f"{bats_dir}/**/*.bats", recursive=True)
+        if bats_files:
+            try:
+                bt = _run(
+                    ["bats", "--tap", bats_dir],
+                    capture_output=True, text=True, timeout=120,
+                )
+                for line in bt.stdout.splitlines():
+                    if line.startswith("ok "):
+                        bats_total  += 1
+                        bats_passed += 1
+                    elif line.startswith("not ok "):
+                        bats_total  += 1
+                        bats_failed += 1
+            except (FileNotFoundError, OSError):
+                pass  # bats not installed — skip
+
+        # No dynamic infrastructure present — mutmut alone doesn't count as infra
+        # (it runs against existing tests, not its own test files)
+        no_infra = (not has_hypothesis and bats_total == 0)
+        if no_infra:
+            return DynamicHealthScore(
+                overall=-1,
+                not_implemented=True,
+                assessed_at=_now,
+            )
+
+        overall = _score_dynamic_health(
+            hypothesis_failures, mutation_score_pct, bats_failed, bats_total
+        )
+        return DynamicHealthScore(
+            hypothesis_failures=hypothesis_failures,
+            mutation_score_pct=mutation_score_pct,
+            bats_total=bats_total,
+            bats_passed=bats_passed,
+            bats_failed=bats_failed,
+            overall=overall,
+            assessed_at=_now,
+        )
+
+    except Exception as exc:
+        return DynamicHealthScore(assessed_at=_now, error=str(exc))

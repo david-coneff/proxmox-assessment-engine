@@ -728,9 +728,9 @@ the two expansions (vault-of-vaults recordkeeping, user-provisioning
 templates) folded in. See the status block at the top of this section,
 AD-061, and Phase 1.K's scope above.
 
-### Phase 1.L — Static Analysis Self-Audit Integration *(proposed — not yet started)*
+### Phase 1.L — Static Analysis Self-Audit Integration *(implemented — commit f7446be)*
 
-**Status: proposed.** Promoted by direct operator decision (2026-06-08).
+**Status: implemented (commit f7446be).** Phase 1.L complete.
 See **AD-062** in `ARCHITECTURE.md` for the architecture-level decision record.
 
 **The gap this names:** Broodforge has extensive runtime assessment (readiness scoring,
@@ -776,6 +776,49 @@ system rather than creating a separate track.
 GitHub Advanced Security, or any tool requiring a commercial license.
 
 See AD-062 in `ARCHITECTURE.md` for the architecture-level decision record.
+
+### Phase 1.M — Dynamic Analysis Self-Audit Integration *(implemented — 2026-06-09)*
+
+**Status: implemented (2026-06-09).** Extends Phase 1.L with a dynamic analysis tier.
+See **AD-063** in `ARCHITECTURE.md` for the architecture-level decision record.
+
+**What this adds:** Runtime and behavioral verification tools that discover failures
+static analysis cannot — property-based tests (hypothesis), mutation testing (mutmut),
+bash script testing (bats), and coverage-guided fuzzing (atheris fuzz targets).
+
+**Scope implemented:**
+
+- [x] `DynamicHealthScore` dataclass in `continuous_assessment.py`:
+      `hypothesis_failures`, `mutation_score_pct`, `bats_total/passed/failed`,
+      `overall` (0–100, -1 = NOT_IMPLEMENTED), `not_implemented` flag.
+- [x] `assess_dynamic_health()` in `continuous_assessment.py`:
+      detects @given decorators (hypothesis), runs mutmut results parser,
+      runs bats TAP output parser; returns `not_implemented=True` when no
+      dynamic infrastructure exists yet.
+- [x] `_build_dynamic_health_subcard()` in `broodforge_dashboard.py`:
+      renders hypothesis failures, mutation score, bats pass/total in the
+      Code Health dashboard card; handles `not_implemented` state gracefully.
+- [x] `_code_health_to_remediation_candidates()` extended for dynamic findings:
+      hypothesis failures → HIGH, low mutation score → HIGH/MEDIUM, bats failures → HIGH.
+- [x] deal pre/postcondition contracts on `build_spawn_plan()`,
+      `build_derived_vault_plan()`, and `score_component()`.
+- [x] beartype plugin wired in `conftest.py` (zero new test code needed).
+- [x] `pyproject.toml` dev deps: hypothesis, mutmut, beartype, deal, schemathesis,
+      atheris (Linux-only note); `[tool.mutmut]` config section.
+- [x] Hypothesis property tests in `tests/unit/test_spawn_planner.py`,
+      `tests/unit/test_vault_hierarchy.py`, `tests/unit/test_readiness.py`.
+- [x] `tests/bash/forge_phase_test.bats` — phase script exit code tests with
+      mocked pvesh/kubectl/ssh commands via PATH manipulation.
+- [x] `tests/fuzz/fuzz_manifest.py` and `tests/fuzz/fuzz_spawn_planner.py` —
+      atheris fuzz targets (no-op on non-Linux; importable everywhere).
+- [x] Tests: 51 new tests across dynamic health scoring, dashboard rendering,
+      remediation candidates, hypothesis property tests.
+
+**PAP-AUDIT §6 alignment:** all seven integration steps implemented:
+beartype (conftest.py), deal contracts, hypothesis property tests, mutmut config,
+bats scripts, schemathesis config (openapi.yaml path), atheris fuzz targets.
+
+See AD-063 in `ARCHITECTURE.md` for the full decision record.
 
 ---
 

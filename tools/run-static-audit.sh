@@ -228,7 +228,7 @@ pytest \
     --cov=proxmox-bootstrap \
     --cov-report=term-missing \
     --cov-branch \
-    --cov-report="json:${AUDIT_DIR}/coverage.json" \
+    --cov-report="json:.audit/coverage.json" \
     -q \
     2>&1 | tee "${AUDIT_DIR}/pytest-output.txt" || PYTEST_EXIT=$?
 echo "[audit] pytest: exit ${PYTEST_EXIT}"
@@ -244,7 +244,74 @@ except:
 echo "[audit] Coverage: ${COVERAGE_PCT}%"
 
 # ---------------------------------------------------------------------------
-# Step 11: Generate .audit/static-audit-report.md
+# Step 11: Dynamic Analysis Pre-Flight (PAP-AUDIT §6)
+# ---------------------------------------------------------------------------
+
+echo "[audit] === Dynamic Analysis Pre-Flight (PAP-AUDIT §6) ==="
+pip install --quiet hypothesis mutmut beartype deal 2>/dev/null || true
+
+HYP_FAILURES=0
+MUT_SCORE="n/a"
+BATS_PASSED=0
+BATS_FAILED=0
+BATS_TOTAL=0
+
+# 6.3 hypothesis — run property tests if @given decorators exist
+if grep -r "@given" "${REPO_ROOT}/tests/" --include="*.py" -q 2>/dev/null; then
+    echo "[audit] Running hypothesis property tests..."
+    HYP_OUT=$(python3 -m pytest \
+        --hypothesis-seed=0 \
+        -m hypothesis \
+        --tb=no -q --no-header --no-cov \
+        "${REPO_ROOT}/tests/" 2>&1 || true)
+    echo "${HYP_OUT}" | tail -5
+    HYP_FAILURES=$(echo "${HYP_OUT}" | grep -oP '^\d+ failed' | grep -oP '^\d+' || echo "0")
+    HYP_FAILURES=${HYP_FAILURES:-0}
+else
+    echo "[audit] No hypothesis @given tests found — skipping property test run"
+fi
+
+# 6.4 mutmut — mutation testing
+if command -v mutmut &>/dev/null; then
+    echo "[audit] Running mutmut (this may take several minutes)..."
+    (cd "${REPO_ROOT}" && mutmut run --paths-to-mutate="${REPO_ROOT}/proxmox-bootstrap/" --no-progress 2>&1 | tail -3) || true
+    MUT_RESULT=$(cd "${REPO_ROOT}" && mutmut results 2>&1 || true)
+    MUT_SCORE=$(echo "${MUT_RESULT}" | grep -oP 'Killed \K\d+ of \d+' | head -1 || echo "")
+    if [[ -n "${MUT_SCORE}" ]]; then
+        MUT_KILLED=$(echo "${MUT_SCORE}" | awk '{print $1}')
+        MUT_TOTAL=$(echo "${MUT_SCORE}" | awk '{print $3}')
+        if [[ "${MUT_TOTAL:-0}" -gt 0 ]]; then
+            MUT_SCORE_PCT=$(python3 -c "print(round(${MUT_KILLED}*100/${MUT_TOTAL},1))")
+            MUT_SCORE="${MUT_SCORE_PCT}%"
+            echo "[audit] mutmut: killed ${MUT_KILLED}/${MUT_TOTAL} mutations (${MUT_SCORE})"
+        fi
+    else
+        echo "[audit] mutmut: no results parsed"
+        MUT_SCORE="n/a"
+    fi
+else
+    echo "[audit] mutmut not installed — skipping (pip install mutmut)"
+fi
+
+# 6.5 bats — bash script testing
+if [[ -d "${REPO_ROOT}/tests/bash" ]] && ls "${REPO_ROOT}/tests/bash/"*.bats &>/dev/null 2>&1; then
+    if command -v bats &>/dev/null; then
+        echo "[audit] Running bats tests..."
+        BATS_OUT=$(bats --tap "${REPO_ROOT}/tests/bash/" 2>&1 || true)
+        echo "${BATS_OUT}" | tail -10
+        BATS_PASSED=$(echo "${BATS_OUT}" | grep -c "^ok " || echo "0")
+        BATS_FAILED=$(echo "${BATS_OUT}" | grep -c "^not ok " || echo "0")
+        BATS_TOTAL=$(( BATS_PASSED + BATS_FAILED ))
+        echo "[audit] bats: ${BATS_PASSED}/${BATS_TOTAL} passed"
+    else
+        echo "[audit] bats not installed — skipping (apt install bats OR brew install bats-core)"
+    fi
+else
+    echo "[audit] No .bats files found in tests/bash/ — dynamic shell testing not yet configured"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 12: Generate .audit/static-audit-report.md
 # ---------------------------------------------------------------------------
 
 echo "[audit] Generating report..."
@@ -270,6 +337,9 @@ Repo root: ${REPO_ROOT}
 | vulture dead code lines | ${VULTURE_COUNT} | — |
 | detect-secrets | ${SECRETS_COUNT} | ${SECRETS_COUNT:+REVIEW}${SECRETS_COUNT:-OK} |
 | pytest coverage | ${COVERAGE_PCT}% | — |
+| hypothesis failures | ${HYP_FAILURES} | ${HYP_FAILURES:+HIGH}${HYP_FAILURES:-OK} |
+| mutmut kill rate | ${MUT_SCORE} | — |
+| bats passed/total | ${BATS_PASSED}/${BATS_TOTAL} | ${BATS_FAILED:+HIGH}${BATS_FAILED:-OK} |
 
 ---
 
@@ -333,6 +403,24 @@ Coverage JSON: \`.audit/coverage.json\`
 
 ---
 
+## Dynamic Analysis (PAP-AUDIT §6)
+
+### hypothesis (property-based testing)
+
+**Failures**: ${HYP_FAILURES}
+
+### mutmut (mutation testing)
+
+**Kill rate**: ${MUT_SCORE}
+
+Mutation score guidance: <40% = BLOCKER; 40–60% = DEFECT; 60–80% = RISK; >80% = strong.
+
+### bats (Bash Automated Testing System)
+
+**Passed**: ${BATS_PASSED} / **Total**: ${BATS_TOTAL} / **Failed**: ${BATS_FAILED}
+
+---
+
 ## Result
 
 REPORT_EOF
@@ -356,6 +444,12 @@ except:
         HIGH_FINDINGS=1
     fi
 fi
+if [[ "${HYP_FAILURES}" -gt 0 ]]; then
+    HIGH_FINDINGS=1
+fi
+if [[ "${BATS_FAILED}" -gt 0 ]]; then
+    HIGH_FINDINGS=1
+fi
 
 if [[ "${HIGH_FINDINGS}" -eq 0 ]]; then
     echo "**PASS** — No HIGH severity findings." >> "${REPORT}"
@@ -371,6 +465,12 @@ else
     if [[ "${SC_ERRORS:-0}" -gt 0 ]]; then
         echo "- shellcheck errors: ${SC_ERRORS}" >> "${REPORT}"
     fi
+    if [[ "${HYP_FAILURES}" -gt 0 ]]; then
+        echo "- hypothesis failures: ${HYP_FAILURES}" >> "${REPORT}"
+    fi
+    if [[ "${BATS_FAILED}" -gt 0 ]]; then
+        echo "- bats failures: ${BATS_FAILED}" >> "${REPORT}"
+    fi
     echo "" >> "${REPORT}"
     echo "Fix HIGH findings before merging. See tool details above." >> "${REPORT}"
     echo "[audit] FAIL — HIGH findings detected."
@@ -379,7 +479,7 @@ fi
 
 echo "" >> "${REPORT}"
 echo "---" >> "${REPORT}"
-echo "_Generated by \`tools/run-static-audit.sh\` (Phase 1.L, AD-062)_" >> "${REPORT}"
+echo "_Generated by \`tools/run-static-audit.sh\` (Phase 1.L/1.M, AD-062)_" >> "${REPORT}"
 
 echo "[audit] Report written to ${REPORT}"
 exit "${FINAL_EXIT}"
