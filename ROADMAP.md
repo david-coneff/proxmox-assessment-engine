@@ -1211,6 +1211,128 @@ If a future KeePassXC version adds `keepassxc-cli share-export` / `keepassxc-cli
 
 ---
 
+## Phase 1.U — Kubernetes User Registry *(implemented — 2026-06-10)*
+
+**Status: implemented (2026-06-10).** Introduces a user registry above the
+Kubernetes layer so that every broodforge service user is tracked centrally.
+On a full cluster rebuild or service state loss, `forge-provision-users.sh`
+re-registers all active users automatically — no manual re-registration, no
+waiting for users to sign up again.
+
+### Design motivation
+
+Without central tracking, a cluster rebuild means: service loses all data →
+admin posts a "please re-register" notice → users trickle back in over days
+→ some never return. With the user registry: admin runs `forge-provision-users.sh`
+→ every enrolled user's account is recreated in every service they use, with
+their stored credentials, before the cluster is considered ready.
+
+### User disposition model
+
+Each user has a `disposition` field that drives rebuild behaviour:
+
+| Disposition | Rebuild behaviour |
+|---|---|
+| `active` | Created/reset in every enrolled service by default |
+| `archived` | Skipped during provisioning; record retained for audit |
+| `pending-deletion` | Skipped during provisioning; awaiting manual account deletion |
+
+Operators manage dispositions via the sidecar GUI or CLI:
+
+```bash
+python3 proxmox-bootstrap/user_registry.py --disposition alice archived
+```
+
+### Per-service enrollment and roles
+
+Each user specifies which services they use and their role per service
+(e.g. `user`, `admin`, `developer`). New services can be added to a user's
+enrollment at any time; the next `forge-provision-users.sh` run picks them up.
+
+### Credential storage convention
+
+All per-user credentials live in the master KeePass under a predictable path:
+
+```
+Broodforge/users/<username>/<service>/password
+Broodforge/users/<username>/<service>/totp-secret
+```
+
+`forge-onboard-user.sh` generates strong random credentials (48-char password,
+20-byte TOTP secret) and writes them to KeePass at onboarding time. The
+onboarding package (printed or written to a file) contains the password and
+TOTP URI for every enrolled service so the user can configure their authenticator
+app in one step.
+
+### Zero-knowledge and key throw-away
+
+Services store password hashes (bcrypt/argon2) — not plaintext. Vaultwarden
+additionally encrypts all vault contents client-side; even with server access
+an admin cannot read a user's vault.
+
+After the user confirms receipt of their onboarding package, the admin may
+optionally discard their master copy:
+
+```bash
+python3 proxmox-bootstrap/user_registry.py \
+    --throw-away-key alice vaultwarden
+```
+
+This sets `key_thrown_away: true` in the registry. On future rebuilds:
+
+- `key_thrown_away = false` → **auto-provision**: stored password re-applied
+- `key_thrown_away = true`  → **reset flow**: service account created with
+  a temporary password; user is notified to set their own on first login
+
+### Sidecar GUI surface
+
+The user registry is the data source for the "Users" panel in the broodforge
+sidecar dashboard. The panel provides:
+
+- Active user list with per-service enrollment and disposition badges
+- "Onboard new user" form (calls `forge-onboard-user.sh`)
+- Per-user disposition controls (active / archive / mark-for-deletion)
+- "Key throw-away" action (requires onboarding acknowledged)
+- "Provision all" / "Provision user" rebuild triggers
+- Rebuild status: shows which users were auto-provisioned vs reset-flow
+
+### Provisioning flow (rebuild)
+
+```
+1. forge-provision-users.sh reads config/user-registry.json
+2. For each active user × enrolled service:
+   a. key_thrown_away=false → call service adapter → create/reset account
+      with stored KeePass password
+   b. key_thrown_away=true  → call service adapter → create account with
+      temp password + notify user to reset on first login
+3. Print rebuild report: N auto-provisioned, M reset-flow
+```
+
+Service adapters (Vaultwarden, Headscale, Gitea) call `kubectl exec` against
+the relevant pod. New adapters are added as `_provision_<service>()` functions.
+
+### Delivered files
+
+| File | Purpose |
+|---|---|
+| `proxmox-bootstrap/user_registry.py` | `UserRecord`, `ServiceEnrollment`, `UserRegistry` dataclasses; `UserRegistryManager` (load/save/add/disposition/throw-away-key/users-for-rebuild); CLI |
+| `scripts/forge-onboard-user.sh` | Add user to registry, generate password+TOTP, store in KeePass, render onboarding package |
+| `scripts/forge-provision-users.sh` | Re-provision all active users into k8s services; auto-provision or reset flow per key_thrown_away state; service adapters for Vaultwarden, Headscale, Gitea |
+
+### KeePass path convention
+
+```
+Broodforge/users/<username>/<service>/password      ← auto-provision source
+Broodforge/users/<username>/<service>/totp-secret   ← TOTP base32 + URI in Notes
+```
+
+Interacts with Phase 1.P: user credentials live in the master KeePass DB
+(same gate as the credential hierarchy) and are subject to the same
+`forge_keepass_gate` access control. Key rotation for service users can be
+incorporated into the Phase 1.P rotation ceremony.
+
+---
+
 ## Phase 1.Q — Zero-Touch Node Provisioning
 
 **Status: Implemented**
