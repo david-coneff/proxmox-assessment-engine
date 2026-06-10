@@ -5,42 +5,35 @@
 # in credential-hierarchy.json.  Called automatically by forge-rotate-credential.sh
 # as step 5 of the rotation ceremony; also available for standalone re-sync.
 #
-# Sync mechanism:
-#   KeePassXC CLI does NOT support KeeShare merge operations (as of KeePassXC 2.7).
-#   KeeShare is a GUI-only feature.  This script performs the following instead:
+# Sync mechanism (in preference order):
 #
-#   For entries that exist in BOTH the master (under Broodforge/child-dbs/<name>
-#   scope exported groups) AND the child DB, keepassxc-cli can import an individual
-#   entry by removing the old one and adding the new one.
+#   1. pykeepass (preferred) — lib/forge-sync-lib.py
+#      One-way master-authoritative sync via the pykeepass Python library.
+#      Handles add, update, and (with --delete-orphans) removal.
+#      Install: pip install pykeepass
 #
-#   Since KeeShare GUI sync must be configured once (see forge-init-credential-hierarchy.sh),
-#   this script:
-#     1. Checks keepassxc-cli KeeShare support (NOT available — exit 2 with instructions)
-#     2. Falls back to: re-exporting all shared-group entries from master into each
-#        child DB via keepassxc-cli edit/add.  This covers the rotation case where
-#        a single entry's password changes in master and must propagate to the child.
-#
-#   The net result: after each rotation, child DBs are updated to match master for
-#   the rotated entry.  KeeShare GUI sync handles bulk group mirroring; this script
-#   handles per-entry propagation for the rotation ceremony.
+#   2. keepassxc-cli fallback — per-entry edit/add
+#      Used automatically when pykeepass is not installed (forge-sync-lib.py
+#      exits 2).  Covers the rotation ceremony case (one known entry at a time).
+#      Full group mirroring of new entries still requires a GUI KeeShare sync.
 #
 # Usage:
 #   bash scripts/forge-sync-credentials.sh [--entry <master-entry-path>] [--db <db-name>]
 #
-#   --entry  Sync only this master entry (e.g. "Services/restic/repo-password")
+#   --entry  Sync only this master entry path (e.g. "Services/restic/repo-password")
 #   --db     Sync to only this child DB (e.g. "forge-autonomous")
 #   (no args) Sync all entries declared in credential-hierarchy.json
 #
 # Exit codes:
-#   0 — sync complete (all entries propagated or already current)
+#   0 — sync complete (all targeted entries propagated or already current)
 #   1 — fatal error (DB not found, password retrieval failed, etc.)
-#   2 — NOT_IMPLEMENTED: KeeShare CLI sync not available; see instructions below
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LIB_SH="${REPO_ROOT}/lib/forge-lib.sh"
+SYNC_LIB_PY="${REPO_ROOT}/lib/forge-sync-lib.py"
 
 STATE_DIR="${BROODFORGE_STATE_DIR:-/var/lib/broodforge}"
 HIER_CONFIG="${STATE_DIR}/credential-hierarchy.json"
@@ -62,7 +55,7 @@ while [[ $# -gt 0 ]]; do
     --entry) TARGET_ENTRY="$2"; shift 2 ;;
     --db)    TARGET_DB="$2";    shift 2 ;;
     --help)
-      grep '^#' "$0" | head -30 | sed 's/^# \?//'
+      grep '^#' "$0" | head -35 | sed 's/^# \?//'
       exit 0
       ;;
     *) die "Unknown argument: $1" ;;
@@ -79,33 +72,27 @@ source "$LIB_SH"
 forge_keepass_gate
 
 # ---------------------------------------------------------------------------
-# Check keepassxc-cli KeeShare support
+# Detect pykeepass availability
 # ---------------------------------------------------------------------------
 
-# keepassxc-cli does not support KeeShare merge as of 2.7.x.
-# Check if a future version has added it (look for 'merge' or 'share' subcommand).
-
-_KEESHARE_CLI_SUPPORTED=0
-if keepassxc-cli --help 2>&1 | grep -qiE '(share|merge)'; then
-  _KEESHARE_CLI_SUPPORTED=1
-fi
-
-if [[ $_KEESHARE_CLI_SUPPORTED -eq 1 ]]; then
-  info "keepassxc-cli KeeShare support detected — using CLI sync"
-else
-  info "keepassxc-cli KeeShare merge not available (expected for KeePassXC <= 2.7)."
-  info "Using per-entry credential propagation for rotation sync."
-  info "(Full group mirroring requires KeeShare GUI — configure once via"
-  info " forge-init-credential-hierarchy.sh instructions, then GUI sync runs on open.)"
+_PYKEEPASS_AVAILABLE=0
+if [[ -f "$SYNC_LIB_PY" ]] && command -v python3 &>/dev/null; then
+  if python3 -c "import pykeepass" &>/dev/null 2>&1; then
+    _PYKEEPASS_AVAILABLE=1
+    info "pykeepass available — using forge-sync-lib.py for sync"
+  else
+    info "pykeepass not installed — using keepassxc-cli fallback"
+    info "(install with: pip install pykeepass)"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
 # Load hierarchy config
 # ---------------------------------------------------------------------------
 
-[[ -f "$HIER_CONFIG" ]] || die "credential-hierarchy.json not found at $HIER_CONFIG. Run forge-init-credential-hierarchy.sh first."
+[[ -f "$HIER_CONFIG" ]] \
+  || die "credential-hierarchy.json not found at $HIER_CONFIG. Run forge-init-credential-hierarchy.sh first."
 
-# Read all child DB entries from config
 mapfile -t _ALL_DBS < <(python3 - "$HIER_CONFIG" <<'PYEOF'
 import json, sys
 with open(sys.argv[1]) as fh:
@@ -118,63 +105,73 @@ PYEOF
 (( ${#_ALL_DBS[@]} > 0 )) || die "No child databases found in $HIER_CONFIG"
 
 # ---------------------------------------------------------------------------
-# Per-entry sync: propagate a single master entry into a child DB
+# pykeepass sync (preferred path)
 # ---------------------------------------------------------------------------
 
-_sync_entry_to_child() {
+# _sync_entry_pykeepass <child_db_path> <child_db_name> <master_entry_path>
+# Uses forge-sync-lib.py.  Returns 0 on success, 1 on error, 2 if pykeepass absent.
+_sync_entry_pykeepass() {
   local child_db_path="$1"
   local child_db_name="$2"
-  local master_entry_path="$3"    # e.g. "Broodforge/child-dbs/forge-autonomous"
+  local master_entry_path="$3"
 
-  # The entry title in the child DB mirrors the last path component
-  local entry_title
-  entry_title="${master_entry_path##*/}"
+  _broker_ensure_child_password "$child_db_name" || return 1
 
-  # Retrieve the current password for this entry from master
+  local _out _rc
+  _out=$(printf '%s\n%s\n' \
+    "$KEEPASS_MASTER_PASSWORD" \
+    "${_CHILD_DB_PASSWORD_CACHE[$child_db_name]}" | \
+    python3 "$SYNC_LIB_PY" \
+      --master "$FORGE_KDBX_PATH" \
+      --child  "$child_db_path" \
+      --entry  "$master_entry_path" 2>&1)
+  _rc=$?
+
+  # Indent output for readability
+  echo "$_out" | sed 's/^/  /'
+  return $_rc
+}
+
+# ---------------------------------------------------------------------------
+# keepassxc-cli fallback (used when pykeepass is absent or errors)
+# ---------------------------------------------------------------------------
+
+# _sync_entry_to_child_cli <child_db_path> <child_db_name> <master_entry_path>
+_sync_entry_to_child_cli() {
+  local child_db_path="$1"
+  local child_db_name="$2"
+  local master_entry_path="$3"
+
+  local entry_title="${master_entry_path##*/}"
+
   local new_password
   new_password=$(printf '%s\n' "$KEEPASS_MASTER_PASSWORD" | \
     keepassxc-cli show -q -a Password "$FORGE_KDBX_PATH" "$master_entry_path" 2>/dev/null) \
     || { info "  ⚠ Could not read master entry: $master_entry_path — skipping"; return 0; }
 
-  # Get child DB password from master (reuse broker cache mechanism)
   _broker_ensure_child_password "$child_db_name" || {
     info "  ⚠ Cannot unlock child DB $child_db_name — skipping"
     return 0
   }
   local child_pw="${_CHILD_DB_PASSWORD_CACHE[$child_db_name]}"
 
-  # Determine the target group in the child DB (strip the "Broodforge/child-dbs" prefix)
-  # Rotated service entries live in the child DB under their service group
   local child_entry_path
   if [[ "$master_entry_path" == Broodforge/child-dbs/* ]]; then
-    # This is the child-DB password entry itself — stored under child-db-passwords/ in child
     child_entry_path="child-db-passwords/${entry_title}"
   else
-    # Service credential — use path as-is
     child_entry_path="$master_entry_path"
   fi
 
-  # Try to edit the existing entry; if it doesn't exist, add it
-  local edit_out
   if printf '%s\n' "$child_pw" | \
-      keepassxc-cli edit \
-        --quiet \
-        --password "$new_password" \
-        "$child_db_path" \
-        "$child_entry_path" \
-        >/dev/null 2>&1; then
-    info "  ✓ Updated: $child_entry_path in $child_db_name"
+      keepassxc-cli edit --quiet --password "$new_password" \
+        "$child_db_path" "$child_entry_path" >/dev/null 2>&1; then
+    info "  ✓ Updated (cli): $child_entry_path in $child_db_name"
   else
-    # Entry may not exist yet — try to add it
     if printf '%s\n' "$child_pw" | \
-        keepassxc-cli add \
-          --quiet \
-          --username "broodforge-sync" \
+        keepassxc-cli add --quiet --username "broodforge-sync" \
           --password "$new_password" \
-          "$child_db_path" \
-          "$child_entry_path" \
-          >/dev/null 2>&1; then
-      info "  ✓ Added:   $child_entry_path in $child_db_name"
+          "$child_db_path" "$child_entry_path" >/dev/null 2>&1; then
+      info "  ✓ Added   (cli): $child_entry_path in $child_db_name"
     else
       info "  ⚠ Could not update/add $child_entry_path in $child_db_name"
       info "    Sync this entry manually in KeePassXC GUI."
@@ -182,6 +179,32 @@ _sync_entry_to_child() {
   fi
 
   unset new_password child_pw
+}
+
+# ---------------------------------------------------------------------------
+# Dispatcher: pykeepass first, keepassxc-cli fallback
+# ---------------------------------------------------------------------------
+
+# _sync_entry_to_child <child_db_path> <child_db_name> <master_entry_path>
+_sync_entry_to_child() {
+  local child_db_path="$1"
+  local child_db_name="$2"
+  local master_entry_path="$3"
+
+  [[ -f "$child_db_path" ]] \
+    || { info "  ⚠ Database file not found: $child_db_path — skipping"; return 0; }
+
+  if [[ $_PYKEEPASS_AVAILABLE -eq 1 ]]; then
+    local _rc
+    _sync_entry_pykeepass "$child_db_path" "$child_db_name" "$master_entry_path"
+    _rc=$?
+    if [[ $_rc -eq 0 ]]; then return 0; fi
+    if [[ $_rc -ne 2 ]]; then
+      info "  ⚠ pykeepass sync failed (rc=$_rc) — trying keepassxc-cli fallback"
+    fi
+  fi
+
+  _sync_entry_to_child_cli "$child_db_path" "$child_db_name" "$master_entry_path"
 }
 
 # ---------------------------------------------------------------------------
@@ -198,7 +221,6 @@ _SKIPPED=0
 for db_record in "${_ALL_DBS[@]}"; do
   IFS='|' read -r db_name db_path master_entry <<< "$db_record"
 
-  # Apply --db filter
   [[ -z "$TARGET_DB" || "$TARGET_DB" == "$db_name" ]] || continue
 
   info "Child DB: $db_name ($db_path)"
@@ -210,10 +232,8 @@ for db_record in "${_ALL_DBS[@]}"; do
   fi
 
   if [[ -z "$TARGET_ENTRY" ]]; then
-    # Sync the child-DB password entry itself
     _sync_entry_to_child "$db_path" "$db_name" "$master_entry"
   else
-    # Sync a specific entry (called from rotation ceremony)
     _sync_entry_to_child "$db_path" "$db_name" "$TARGET_ENTRY"
   fi
 
@@ -231,17 +251,18 @@ info "Services receive new credentials on their next broker call (kdbx_get_child
 info ""
 
 # ---------------------------------------------------------------------------
-# KeeShare GUI sync reminder (non-fatal)
+# KeeShare GUI reminder when pykeepass unavailable and new entries may exist
 # ---------------------------------------------------------------------------
 
-if [[ $_KEESHARE_CLI_SUPPORTED -eq 0 ]]; then
+if [[ $_PYKEEPASS_AVAILABLE -eq 0 ]]; then
   echo ""
   echo "┌────────────────────────────────────────────────────────────────────"
-  echo "│  KeeShare GUI note (for full group mirroring):"
-  echo "│  If you added new entries to the master's shared group (not just"
-  echo "│  rotated existing entries), open each child DB in KeePassXC GUI:"
+  echo "│  pykeepass not installed — keepassxc-cli fallback used."
+  echo "│  This covers rotation of existing entries."
+  echo "│  For new entries not yet in a child DB, install pykeepass:"
+  echo "│    pip install pykeepass"
+  echo "│  or open each child DB in KeePassXC GUI:"
   echo "│    Database → Synchronise → Synchronise with KeeShare"
-  echo "│  This is only needed for new entries, not for rotation of existing ones."
   echo "└────────────────────────────────────────────────────────────────────"
   echo ""
 fi
