@@ -1,0 +1,69 @@
+{
+  "policy_version": "1",
+  "_comment": "Credential rotation deadline policy for broodforge (Phase 1.P). All intervals in days.",
+
+  "defaults": {
+    "rotation_interval_days": 180,
+    "warn_before_days": 30,
+    "critical_before_days": 7
+  },
+
+  "services": {
+    "restic": {
+      "entry_path": "Broodforge/services/restic/repo-password",
+      "rotation_interval_days": 365,
+      "warn_before_days": 60,
+      "critical_before_days": 14,
+      "notes": "Restic repo password — dual-key window required; use forge-rotate-credential.sh --service restic"
+    },
+
+    "headscale": {
+      "entry_path": "Broodforge/services/headscale/api-key",
+      "rotation_interval_days": 180,
+      "warn_before_days": 30,
+      "critical_before_days": 7,
+      "notes": "Headscale API key — operator generates new key in service before rotation ceremony"
+    },
+
+    "k8s-sa": {
+      "entry_path": "Broodforge/services/k8s/broodforge-operator/token",
+      "rotation_interval_days": 90,
+      "warn_before_days": 21,
+      "critical_before_days": 7,
+      "notes": "Kubernetes service account token — use forge-rotate-credential.sh --service k8s-sa"
+    },
+
+    "forge-autonomous-child-db": {
+      "entry_path": "Broodforge/child-dbs/forge-autonomous",
+      "rotation_interval_days": 365,
+      "warn_before_days": 60,
+      "critical_before_days": 14,
+      "notes": "Child DB master password — rotation requires KeeShare re-setup; do not rotate without planning"
+    },
+
+    "forge-spawn-child-db": {
+      "entry_path": "Broodforge/child-dbs/forge-spawn",
+      "rotation_interval_days": 365,
+      "warn_before_days": 60,
+      "critical_before_days": 14,
+      "notes": "Child DB master password — rotation requires KeeShare re-setup; do not rotate without planning"
+    },
+
+    "forge-migrate-child-db": {
+      "entry_path": "Broodforge/child-dbs/forge-migrate",
+      "rotation_interval_days": 365,
+      "warn_before_days": 60,
+      "critical_before_days": 14,
+      "notes": "Child DB master password — populated only during migration ceremony"
+    }
+  },
+
+  "alerts": {
+    "maintenance_window_utc": "Sunday 02:00-04:00",
+    "alert_on_warn": true,
+    "alert_on_critical": true,
+    "alert_destinations": [
+      "nightly-run-report"
+    ]
+  }
+}

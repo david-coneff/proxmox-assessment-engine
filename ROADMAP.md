@@ -602,6 +602,29 @@ block at the top of this section, AD-060, and Phase 1.J's scope, which scopes
 items 1 and 3 above as implementation targets and item 2 as the
 `secret-registry.yaml` / `SecretRegistry` annotation described.
 
+**Enforcement points (AD-060):**
+- `lib/forge-lib.sh`, `forge_keepass_gate()` (line 46): operator-presence gate
+  that must be called in every process/subprocess chain before any `kdbx_get`
+  invocation; persists the session to a 0600 tmpfs file so later sub-phases
+  resume without re-prompting while still requiring the initial human unlock
+- `lib/forge-lib.sh`, `kdbx_get()` (line 94): the only function that reads a
+  secret from KeePass; defined exclusively in operator-initiated package scripts
+  (forge, spawn, phoenix phases) — not present in any autonomous or scheduled path
+- `proxmox-bootstrap/forge_scripts.py`, generated phase-05 and phase-06 scripts:
+  `forge_keepass_gate` called before any `kdbx_get` invocation; k3s join tokens
+  and service passwords only — no hypervisor root credentials are read via
+  `kdbx_get` in any generated script
+- `proxmox-bootstrap/assemble_spawn_package.py` and `proxmox-bootstrap/phoenix_scripts.py`:
+  `forge_keepass_gate` embedded in generated package scripts; credentials accessed
+  are scoped to the spawn/phoenix session (temporary, per AD-060 exceptions)
+- `tests/unit/test_forge_assembler.py`, `test_phase_05_calls_keepass_gate_before_kdbx_get`
+  and `test_phase_06_calls_keepass_gate_before_kdbx_get`: assert gate precedes
+  any `kdbx_get` call in generated phase scripts (text-position enforcement)
+- No `kdbx_get`, `keepassxc-cli`, or KeePass credential access appears in
+  `proxmox-bootstrap/continuous_assessment.py`, `proxmox-bootstrap/run-continuous-assessment.sh`,
+  or `proxmox-bootstrap/setup-continuous-assessment-schedule.sh` — the
+  autonomous/scheduled paths are structurally isolated from credential reads
+
 ### Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User Provisioning *(implemented — commit c750ed6)*
 
 **Status: implemented — commit c750ed6.** Promoted from the
@@ -845,6 +868,420 @@ beartype (conftest.py), deal contracts, hypothesis property tests, mutmut config
 bats scripts, schemathesis config (openapi.yaml path), atheris fuzz targets.
 
 See AD-063 in `ARCHITECTURE.md` for the full decision record.
+
+### Phase 1.N — Migration Infrastructure *(implemented — 2026-06-09, revised 2026-06-09)*
+
+**Status: implemented (2026-06-09); schema version format revised and phoenix
+gate added (2026-06-09).** Provides the schema versioning and safe state
+migration pathway for broodforge. See **AD-065** in `ARCHITECTURE.md` for the
+architecture-level decision record.
+
+**The gap this names:** As broodforge evolves its `bootstrap-state.json` schema,
+operators need a safe, operator-gated way to apply schema migrations without
+risking data loss or running assessments against partially-migrated state.
+
+**Scope implemented:**
+
+- [x] `proxmox-bootstrap/version.py` — Single source of truth for the package's
+      current schema version. Contains one constant:
+      `SCHEMA_VERSION: str = "2026-06-09_00-00-00_0000000"`. This file is **not
+      edited by hand** — update it by running `bash scripts/forge-stamp-version.sh`.
+- [x] `lib/forge-lib.sh` — Shared operator utility library: `forge_keepass_gate`,
+      `forge_keepass_find_db`, `kdbx_get`. Extracted from the forge package's
+      embedded script pattern so that standalone migration scripts can source it
+      directly from the repo.
+- [x] `scripts/forge-quiesce.sh` — Stops `broodforge-continuous-assessment.timer`
+      and `broodforge-operational-schedule.timer` (via `systemctl stop`), waits up
+      to 30 seconds for any running `.service` instances to complete, and creates
+      `/var/lib/broodforge/migration.lock` with a JSON payload recording
+      `locked_at`, `pid`, and `reason`. Calls `forge_keepass_gate` (AD-065) before
+      any action to enforce operator presence. Exits 1 on failure.
+- [x] `scripts/forge-resume.sh` — Validates that `migration.lock` exists (exits 1
+      if not — prevents accidental out-of-context use), removes it, restarts both
+      timers, and runs a brief health check (`continuous_assessment.py`). Prints
+      "broodforge resumed" on clean exit or "broodforge resumed with health
+      warnings — check dashboard" if the health check exits non-zero.
+- [x] `scripts/forge-migrate.sh` — High-level orchestrator the operator runs.
+      Ceremony order: (0) pre-flight package hash verify (warn, non-fatal);
+      (1) `forge-quiesce.sh`; (2) phoenix recovery package via
+      `forge-phoenix-pack.sh` with operator export prompt; (3) timestamped backup
+      of all `.json` state files and `manifest.toml` in
+      `/var/lib/broodforge/backups/pre-migration-<timestamp>/`; (4)
+      `migration_manager.py`; (5) `forge-resume.sh` on success or backup restore
+      + resume on failure. Supports `--state-dir`, `--migrations-dir`, `--dry-run`,
+      and `--skip-phoenix`.
+- [x] `scripts/forge-phoenix-pack.sh` — Stub wrapper that calls
+      `assemble_phoenix_package.py` to generate a full disaster-recovery export
+      before migration. Currently exits 2 (`FORGE_INCOMPLETE`) until the phoenix
+      assembler gains a standalone "pack current state" CLI. `forge-migrate.sh`
+      handles exit 2 gracefully and continues without a package.
+- [x] `scripts/forge-stamp-version.sh` — Version-stamping ceremony. Accepts an
+      optional `YYYY-MM-DD_HH-MM-SS_<7-char-hash>` argument; if omitted, derives
+      one from the current UTC time and `git rev-parse --short=7 HEAD`. Updates
+      `version.py` and calls `package_verifier.py --stamp` to recompute the
+      descriptor. Run this after **any** package change.
+- [x] `scripts/forge-verify-package.sh` — Thin wrapper around
+      `package_verifier.py --verify`. Prints a human-readable PASS / FAIL / WARN
+      line. Used as a pre-flight step in `forge-migrate.sh`.
+- [x] `proxmox-bootstrap/package_verifier.py` — Deterministic SHA-256 content
+      hash verifier. Hashes all `.py` files under `proxmox-bootstrap/`, `engine/`,
+      and `migrations/`; all `.sh` files under `scripts/` and `lib/`; and
+      `manifest.toml` if present. File list sorted lexicographically for
+      reproducibility. Writes `package-descriptor.json` (`--stamp`) or compares
+      against it (`--verify`). **`package-descriptor.json` is explicitly excluded
+      from the hash** to avoid a circular dependency (the descriptor records the
+      hash of everything else).
+- [x] `proxmox-bootstrap/migration_manager.py` — Schema versioning and migration
+      runner. Reads `CURRENT_SCHEMA_VERSION` from `version.py`. Reads
+      `schema_version` from `bootstrap-state.json` (defaults to `"initial"` if
+      absent). Discovers `migrate_<from>__to__<to>.py` scripts (double-underscore
+      separator) in `migrations/` or `--migrations-dir`, runs them in timestamp
+      order via `importlib`, and appends each result to
+      `/var/lib/broodforge/migration-history.jsonl`. Supports `--state-dir`,
+      `--migrations-dir`, and `--dry-run`.
+- [x] `proxmox-bootstrap/bootstrap_state.py` — Bootstrap-state.json loader with
+      `schema_version` handling. `load_bootstrap_state()` reads the file, validates
+      `schema_version` (format `YYYY-MM-DD_HH-MM-SS_<hash>` or sentinel
+      `"initial"`), and emits a `warnings.warn(UserWarning)` + `logger.warning`
+      if the file is from a newer schema version than `CURRENT_SCHEMA_VERSION`
+      (loaded from `version.py`). Returns a `BootstrapState` dataclass.
+- [x] `migrations/` directory — `README.md` (naming convention, `run(state_dir)`
+      contract, versioning ceremony, phoenix gate docs) and
+      `migrations/migrate_initial__to__2026-06-09_00-00-00_0000000.py` (first
+      real migration: stamps `schema_version: "2026-06-09_00-00-00_0000000"` into
+      `bootstrap-state.json`; idempotent).
+- [x] Tests: `tests/unit/test_migration_manager.py` — full test suite covering
+      `SchemaVersion` parsing and ordering (new timestamp+hash format, `"initial"`
+      sentinel), `discover_migrations()` (double-underscore filenames),
+      `load_migration()`, `read_schema_version()`, `run_migrations()` (nothing-to-do,
+      single migration, multi-migration, failure/halt, dry-run),
+      `append_migration_log()`, the `migrate_initial__to__2026-06-09_00-00-00_0000000`
+      migration script, and `bootstrap_state.py` (schema_version warning, missing
+      file, allow_missing).
+
+**Schema version format:** `YYYY-MM-DD_HH-MM-SS_<7-char-hash>` (e.g.
+`"2026-06-09_14-30-22_a3b4c5d"`).  The special sentinel `"initial"` represents
+state that pre-dates the versioning system and sorts before all real versions.
+Migration filenames use `__to__` (double underscore) as the from/to separator
+to disambiguate the boundary since version strings contain underscores.
+
+**Versioning ceremony:** after any package change, run
+`bash scripts/forge-stamp-version.sh` to update `version.py` and recompute
+`package-descriptor.json`.  Run `bash scripts/forge-verify-package.sh` at any
+time to sanity-check the descriptor.
+
+**AD-065: Migration requires operator presence (KeePass gate in forge-quiesce.sh).
+No autonomous pathway may initiate migration.**
+
+See AD-065 in `ARCHITECTURE.md` for the full decision record.
+
+**Enforcement points (AD-065):**
+- `scripts/forge-quiesce.sh`, line 47: `forge_keepass_gate` call — operator
+  presence required before any timer stop, service drain, or lock-file creation;
+  this is the human-authorization boundary for the migration path
+- `proxmox-bootstrap/migration_manager.py`, `main()` function: lock-file check —
+  refuses to run (exit 1) if `<state_dir>/migration.lock` does not exist; the
+  check fires before migration discovery and before any state file is read or
+  written; `--dry-run` does not bypass this check; error output cites AD-065 and
+  names `forge-quiesce.sh` so operators know what to run
+- `scripts/forge-migrate.sh`, step 1 (line 95): calls `forge-quiesce.sh`
+  unconditionally as the first action; the only documented operator entry point
+  for applying schema migrations
+- `proxmox-bootstrap/continuous_assessment.py` and
+  `proxmox-bootstrap/run-continuous-assessment.sh`: contain no call to
+  `migration_manager.py`, `forge-migrate.sh`, or `forge-quiesce.sh` — the
+  autonomous assessment loop cannot escalate to migration
+- `proxmox-bootstrap/setup-continuous-assessment-schedule.sh`: installs a
+  systemd service that runs only `continuous_assessment.py`; the unit has no
+  path to any migration script
+- `tests/unit/test_ad065_migration_lock.py`: confirms that direct invocation of
+  `migration_manager.main()` exits non-zero when `migration.lock` is absent;
+  covers plain invocation, `--dry-run`, error message content, and the ordering
+  guarantee that the lock check fires before any migration script executes
+
+### Phase 1.O — Coordinated Quiesce + Backup (CQB) *(implemented — 2026-06-09)*
+
+**Status: implemented (2026-06-09).** Provides the operator-triggered and
+scheduled backup/restore ceremony for broodforge. Designed for the reality of
+k8s cattle VMs: etcd snapshot + restic PVC backup is the primary k8s workload
+backup (not vzdump). Full VM disk backup is an explicit opt-in for
+pre-migration use. See ARCHITECTURE.md for the governing decision records.
+
+**The gap this names:** broodforge accumulates significant state in
+`bootstrap-state.json`, etcd, and PVC volumes. Before any risky operation a
+snapshot of this state must be taken, coordinated with service quiescence.
+There was no unified ceremony for this.
+
+**Architecture decisions (Phase 1.O):**
+- k8s workload backup = etcd snapshot (`etcdctl snapshot save`) + restic PVC
+  backup. Talos/Ubuntu k8s VMs are cattle OS (Cloud-Init). Full VM disk
+  snapshots (vzdump) are NOT the default.
+- Governance VM: phoenix pack covers `BROODFORGE_STATE_DIR`. No vzdump by
+  default.
+- `full_vm_disk_snapshot=True` is an explicit operator opt-in (e.g. `--scope
+  full` for pre-migration). Default scopes do not trigger vzdump.
+- Dashboard backup forms are restricted to level ≤ 1 scopes; level-2+ scopes
+  require `forge-backup.sh` (KeePass gate enforced in the shell layer).
+
+**Scope implemented:**
+
+- [x] `proxmox-bootstrap/backup_manager.py` — Complete CQB implementation:
+  - `BackupScope` dataclass: `include_broodforge`, `quiesce_level` (0–3),
+    `vm_ids`, `include_proxmox_host_config`, `k8s_etcd_snapshot`,
+    `k8s_pvc_backup`, `full_vm_disk_snapshot`. `include_broodforge` is
+    non-optional (forced True with `UserWarning`). `quiesce_level >= 2`
+    auto-enables `include_proxmox_host_config`.
+  - `BackupManifest` dataclass: all scope fields + `k8s_snapshots`,
+    `vm_snapshots`, `broodforge`, `proxmox_host_config`. JSON
+    serialize/deserialize via `to_dict()` / `from_dict()`. `save()` / `load()`
+    write and read `<backup_dir>/manifest.json`.
+  - `BackupScopeInferrer.infer()`: maps blast-radius strings to `BackupScope`:
+    `"broodforge-config"` → level 0 (no k8s/VM); `"pod:*"` / `"service:*"`
+    → level 1 (k8s etcd+PVC, no vzdump); `"vm:*"` / `"node:*"` → level 2
+    (host config + k8s); `"full"` / `"unknown"` / unrecognised → level 3
+    (everything, vzdump enabled).
+  - `BackupManager.backup()`: orchestrates phoenix pack → host config restic →
+    k8s etcd snapshot → k8s PVC restic → vzdump (if `full_vm_disk_snapshot`).
+    Clock injected via `now_fn` parameter (no bare `datetime.now()`).
+  - `BackupManager.restore()`: prints restore procedure for etcd, vzdump, and
+    phoenix package. Does not auto-overwrite live state.
+  - `BackupManager.list_backups()`: returns manifests newest-first.
+  - `BackupManager._pack_broodforge()`: calls `assemble_phoenix_package.py`.
+  - `BackupManager._snapshot_proxmox_host_config()`: restic backup `/etc/pve`.
+  - `BackupManager._snapshot_k8s()`: `etcdctl snapshot save` + restic PVC.
+  - `BackupManager._snapshot_vms_full()`: vzdump (explicit opt-in only).
+  - All subprocess calls have `timeout=_SUBPROCESS_TIMEOUT` (300 s).
+  - Exit codes: 0=success, 1=fatal, 2=NOT_IMPLEMENTED (FORGE_INCOMPLETE).
+  - CLI: `--backup`, `--restore <id>`, `--list`, `--infer-scope --affects <str>`,
+    `--dry-run`, `--json`, `--scope`, `--trigger`, `--state-dir`.
+
+- [x] `scripts/forge-backup.sh` — Operator backup entry point. Sources
+  `lib/forge-lib.sh`. KeePass gate enforced for `--scope full`, `vm:*`,
+  `node:*` (level ≥ 2). Calls `backup_manager.py --backup`. Exit 2 (partial
+  backup) treated as warning, not fatal.
+
+- [x] `scripts/forge-restore.sh` — Always KeePass-gated. Operator must type
+  `restore` to confirm before proceeding. Calls `backup_manager.py --restore`.
+  Validates manifest exists before prompting.
+
+- [x] `scripts/forge-list-backups.sh` — No gate (read-only). Calls
+  `backup_manager.py --list [--json]`.
+
+- [x] `scripts/forge-backup-scheduled.sh` — Cron/systemd-timer safe. Reads
+  `${BROODFORGE_STATE_DIR}/backup-schedule.json` (time window, scope,
+  max_age_hours). Exits 0 silently if outside window or recent backup exists.
+  Refuses level-≥2 scopes (no unattended VM-level operations). Falls back to
+  sensible defaults if `backup-schedule.json` is absent.
+
+- [x] `proxmox-bootstrap/broodforge_dashboard.py` — CQB Backup & Restore panel
+  added (between Backup Status and Security Posture sections):
+  - Backup list table: backup_id, scope, trigger, quiesce_level, k8s status
+    (etcd/pvc badges), timestamp, per-row Restore… button.
+  - Trigger backup form: scope dropdown (level 0/1 only — level-2+ require
+    CLI), dry-run checkbox, Run Backup button.
+  - Restore form: backup ID input, dry-run default, Restore button (prints
+    procedure; does not overwrite state).
+  - Scheduled backup note: points to `backup-schedule.json`.
+  - New API endpoints: `GET /api/cqb-backups`, `POST /api/cqb-backup`,
+    `POST /api/cqb-restore`. All POST endpoints require `X-Broodforge-Token`.
+    Level-≥2 scopes rejected from the dashboard (CLI required).
+  - Nav bar: 💾 CQB Backups JSON link.
+
+- [x] `tests/unit/test_backup_manager.py` — 14 tests covering:
+  `test_infer_scope_broodforge_only`, `test_infer_scope_pod`,
+  `test_infer_scope_service`, `test_infer_scope_vm`, `test_infer_scope_node`,
+  `test_infer_scope_unknown_defaults_to_full`,
+  `test_infer_scope_unrecognised_defaults_to_full`,
+  `test_infer_scope_full_string`,
+  `test_backup_manifest_roundtrip`, `test_manifest_roundtrip_json_file`,
+  `test_backup_creates_manifest_file`, `test_backup_dry_run_writes_no_files`,
+  `test_list_backups_sorted_newest_first`, `test_list_backups_empty`,
+  `test_restore_aborts_if_manifest_missing`,
+  `test_restore_dry_run_aborts_if_manifest_missing`,
+  `test_backup_id_uses_now_fn`, `test_backup_id_format`,
+  `test_include_broodforge_forced_true`,
+  `test_quiesce_level_2_auto_enables_host_config`,
+  `test_scope_roundtrip`.
+
+**Deployment notes:**
+- etcdctl path requires `etcdctl` in PATH. Set `ETCDCTL_ENDPOINTS`,
+  `ETCDCTL_CACERT`, `ETCDCTL_CERT`, `ETCDCTL_KEY` for TLS.
+- restic requires `RESTIC_REPOSITORY` + `RESTIC_PASSWORD` env vars.
+- PVC candidate paths: `/var/lib/rancher/k3s/storage`, `/var/openebs/local`,
+  `/mnt/pvc`, `/data/pvc` — adjust in `_snapshot_k8s()` per deployment.
+- Scheduled backup: create `${BROODFORGE_STATE_DIR}/backup-schedule.json`
+  and add `forge-backup-scheduled.sh` to cron or a systemd timer.
+
+**Note: Credential hierarchy (KeeShare child DBs, key rotation ceremony) →
+Phase 1.P.** The backup system uses the KeePass gate but does not manage
+the credential lifecycle or rotation ceremony. That is explicitly deferred
+to Phase 1.P.
+
+---
+
+## Phase 1.P — Credential Hierarchy and Key Rotation *(implemented — 2026-06-09)*
+
+**Status: implemented (2026-06-09).** Introduces a hierarchy of child KeePass
+databases scoped to service domains, a secrets broker that serves credentials
+by reference path, and a key rotation ceremony with strict propagation ordering.
+See the design decisions below for the security model.
+
+### Child DB domains
+
+| Database | Scope |
+|---|---|
+| `forge-autonomous.kdbx` | Autonomous operation credentials: restic repo password, k8s service account tokens, monitoring API keys, Headscale API key |
+| `forge-spawn.kdbx` | Spawn-phase credentials: Cloud-Init keypairs, spawn-phase node credentials, Headscale pre-auth keys |
+| `forge-migrate.kdbx` | Migration-phase credentials: temporary elevated access (populated only during migration ceremony) |
+
+Child DB passwords are stored as entries in the master KeePass under
+`Broodforge/child-dbs/<name>`. Child DB paths are declared in
+`$BROODFORGE_STATE_DIR/credential-hierarchy.json`.
+
+### KeeShare sync
+
+One-way authoritative (master always wins). GUI setup required once per child DB
+(KeePassXC → Database Settings → KeeShare; CLI does not support KeeShare
+configuration). After initial GUI setup, `forge-sync-credentials.sh` propagates
+per-entry credential changes — called automatically by `forge-rotate-credential.sh`
+as step 5 of the rotation ceremony, no operator GUI action needed for subsequent
+rotations. Full group mirroring of new entries still requires a GUI sync.
+
+### Secrets broker
+
+Consumer processes reference credentials by path — they never see the child DB
+password or the master DB password:
+
+```bash
+secret=$(kdbx_get_child "child://forge-autonomous/restic/repo-password")
+code=$(kdbx_totp "child://forge-autonomous/admin-ui/totp")
+```
+
+`kdbx_get_child` and `kdbx_totp` are defined in `lib/forge-lib.sh`. The child DB
+password is fetched from master once per session and held in `_CHILD_DB_PASSWORD_CACHE`
+(in-memory associative array — never written to disk, env vars, args, or logs).
+`forge_keepass_gate` must be called before any broker function.
+
+### Key rotation ceremony (strict order — never deviate)
+
+```
+1. Generate new credential
+2. Register NEW with service while OLD still active (dual-validity window)
+3. Verify NEW credential authenticates against service     ← EXIT 1 if fails
+4. Update master KeePass entry                            ← operator confirms
+5. forge-sync-credentials.sh                              ← runs automatically
+6. Child DBs updated → consumers get NEW on next broker call
+7. Remove OLD credential from service
+```
+
+Step 3 must succeed before step 4. Step 4 must complete before step 5.
+Enforced by `forge-rotate-credential.sh` script structure — not just policy.
+
+### Security properties
+
+- Child process cannot observe out-of-scope master contents
+- Child DB password never passed on CLI, written to env, logged, or persisted outside
+  the `_CHILD_DB_PASSWORD_CACHE` associative array (session memory only)
+- Sync is automatic within the rotation ceremony; standalone `forge-sync-credentials.sh`
+  available for ad-hoc re-sync
+- Rotation propagation enforced by ceremony structure — no step can be silently skipped
+
+### Delivered files
+
+| File | Purpose |
+|---|---|
+| `proxmox-bootstrap/credential_hierarchy.py` | `ChildDatabase`, `CredentialHierarchy` dataclasses; `HierarchyManager` (load/save/validate); CLI `--list` / `--validate-ref` / `--init` |
+| `lib/forge-lib.sh` | `kdbx_get_child()` broker, `kdbx_totp()`, `_broker_*` internal helpers |
+| `scripts/forge-init-credential-hierarchy.sh` | One-time child DB creation, master password storage, `credential-hierarchy.json` write, KeeShare GUI instructions |
+| `scripts/forge-sync-credentials.sh` | Per-entry credential propagation from master → child DBs; called automatically by rotation ceremony; standalone for ad-hoc sync |
+| `scripts/forge-rotate-credential.sh` | Full key rotation ceremony; service handlers for `restic`, `headscale`, `k8s-sa`, `generic` |
+| `tests/unit/test_credential_hierarchy.py` | 11 unit tests covering load, validate_reference, get_child_db, save roundtrip, --init skeleton |
+
+### keepassxc-cli KeeShare capability gap
+
+`keepassxc-cli` (KeePassXC ≤ 2.7) does not support KeeShare merge operations.
+`forge-sync-credentials.sh` detects this at runtime and falls back to per-entry
+propagation via `keepassxc-cli edit` / `keepassxc-cli add`. This covers the key
+rotation case. Full group mirroring (for new entries not yet in a child DB) still
+requires a GUI sync — the scripts print a reminder when this is the case.
+
+If a future KeePassXC version adds `keepassxc-cli share-export` / `keepassxc-cli merge`,
+`forge-sync-credentials.sh` will detect and use it automatically (the script checks
+`keepassxc-cli --help` for `share`/`merge` keywords before falling back).
+
+---
+
+## Phase 1.Q — Zero-Touch Node Provisioning
+
+**Status: Implemented**
+
+Enables bare-metal Proxmox nodes (broodlings) to join the cluster with zero
+keyboard/monitor/KVM interaction after the initial ISO burn. The hatchery
+(governance VM) governs the entire join lifecycle. The operator approves
+joins from the sidecar dashboard.
+
+### Node lifecycle
+
+```
+planned → iso-built → joining → pending-approval → active
+                                                  ↘ blacklisted (any pre-active state)
+active → decommissioned
+```
+
+### Design decisions
+
+- **Headscale** is the single mechanism for both LAN and WAN node joining.
+  A single-use pre-auth key is embedded in the ISO; the Headscale server URL
+  is the only required network reachability.
+- **Codenames** (adjective-animal, e.g. `swift-falcon`) are operator-friendly
+  identifiers that persist through the node's lifecycle.
+- **Join PIN** (`###-###-###-###`) is generated at plan time using
+  `secrets.randbelow`, embedded in the ISO, and sent by the broodling with
+  its registration request. The dashboard surfaces both the codename and PIN
+  in the pending-approval queue so the operator can cross-verify the specific
+  ISO used — without exposing the node's private key. The 12-digit triplet
+  format (1 trillion combinations) is designed to be readable at a glance.
+- **Join deadline** (optional): the sysadmin can set a cutoff after which an
+  un-joined node is auto-blacklisted on its next registration attempt. Default
+  is `null` (permissive — no deadline). Sysadmins can always un-blacklist.
+- **Operator approval required**: no node reaches `active` without explicit
+  operator confirmation from the dashboard. Automatic join is intentionally
+  not supported.
+- **Atomic state writes**: all state mutations write to `.tmp` then `rename()`
+  and are protected by an `fcntl.flock` exclusive lock.
+
+### Delivered files
+
+| File | Purpose |
+|---|---|
+| `proxmox-bootstrap/node_planner.py` | Core lifecycle module — planning, registration, approval, decommission; CLI |
+| `scripts/forge-plan-nodes.sh` | KeePass-gated interactive batch node planner |
+| `scripts/forge-build-node-iso.sh` | Generates `answer.toml`, `broodling-bootstrap.sh`, and operator README for ISO build |
+| `tests/unit/test_node_planner.py` | 16 unit tests covering all lifecycle paths + PIN + deadline |
+| `proxmox-bootstrap/broodforge_dashboard.py` | Nodes panel added: pending-approval queue (with PIN), lifecycle table, active node detail panel, decommission, rename-headscale, reassign-address, join deadline; new endpoints: `POST /api/node-register`, `GET /api/provisioning-nodes`, `GET /api/provisioning-nodes/<codename>`, `POST .../approve`, `POST .../blacklist`, `POST .../unblacklist`, `POST .../decommission`, `POST .../rename-headscale`, `POST .../reassign-address`, `POST .../set-deadline`, `PATCH .../<codename>` |
+
+### Operator workflow
+
+1. `./scripts/forge-plan-nodes.sh --count N --role worker` — plans N nodes,
+   persists to `provisioning-state.json`, prints codenames + PINs.
+2. `./scripts/forge-build-node-iso.sh --codename <name>` — generates
+   `answer.toml` and `broodling-bootstrap.sh` in a staging directory.
+3. Operator copies artifacts to a Proxmox host and runs
+   `proxmox-auto-install-assistant prepare-iso` (must run on the PVE host,
+   not the hatchery VM) to assemble the bootable ISO.
+4. Burn ISO to USB, power on server — Proxmox installs automatically.
+5. On first boot the node generates its RSA key pair, POSTs to
+   `POST /api/node-register` (encrypted with hatchery public key), and joins
+   the Headscale network.
+6. Approve the join from the sidecar dashboard Nodes panel — verify codename
+   **and** PIN match the ISO manifest before approving.
+
+### PAP compliance
+
+- No bare `datetime.now()` — all clock access via injected `now_fn` parameter.
+- All `subprocess.run()` calls use `timeout=60`.
+- Exit codes: 0=success, 1=fatal, 2=NOT_IMPLEMENTED.
+- Atomic state writes via `.tmp` → `rename()` with `fcntl.flock`.
 
 ---
 
