@@ -20,16 +20,21 @@ behavior, not its development process, and is out of scope for this artifact
   tiers, five dependency-graph types. Architecture v7.1+. (Source:
   `.ai/context.md`, `.ai/CURRENT_STATE.md`.)
 
-- **active_objective**: Audit Cycle R7 (PAP 37-pattern scan of post-R6 changes) **complete**
-  (2026-06-09). 2 findings fixed: R7-001 (MEDIUM, Pattern 10 Happy Path Only) — `generate-answer-file.py`
-  now handles malformed JSON manifests with `try/except json.JSONDecodeError`; R7-002 (LOW, Pattern 14
-  Missing Seam) — `code_health_to_remediation_candidates()` and `dynamic_health_to_remediation_candidates()`
-  in `continuous_assessment.py` now accept `now_fn` injection consistent with the rest of the file.
-  R7-003 (Pattern 21 Orphaned Outputs) — `collect_health_remediation_candidates()` has no production
-  caller; accepted as future-integration API (OBSERVATION, no fix). 8 new tests; 4516 passed, 16 skipped.
-  No further proposed development phases in `ROADMAP.md`. Next operational action: **deploy to hardware**.
+- **active_objective**: Audit Cycle R8 (PAP 39-pattern scan of Phase 2.A–2.I k8s service management
+  modules) **complete** (2026-06-10). Phase 2.A–2.I committed after Google Drive sync recovery (8 modules:
+  Authentik, cert-manager, kube-prometheus-stack, Loki+Promtail, Longhorn, Flux CD, Velero, Linkerd).
+  R8 findings: R8-001 IMPROVEMENT (linkerd shell=True, accepted — hardcoded constants, no user input);
+  R8-002–005 DEFECT (4 stale HTML companions — fixed); R8-006 RISK (no Phase 2 ADs — fixed, AD-065–072
+  added); R8-007 OBSERVATION (state docs predate Phase 2 — fixed). 0 BLOCKERs. 0 DEFECTs outstanding.
+  1 IMPROVEMENT accepted. Next operational action: **deploy to hardware**.
 
-- **active_milestone**: (Updated — sixteenth milestone, 2026-06-09 Audit Cycle R7.)
+- **active_milestone**: (Updated — seventeenth milestone, 2026-06-10 Phase 2.A–2.I + Audit Cycle R8.)
+  Phase 2.A–2.I committed (Google Drive sync recovery): 8 k8s service management modules, 8 forge-init
+  scripts, 4 additional scripts, 8 test suites. R8 PAP audit (39-pattern scan) complete: 7 findings,
+  all resolved or accepted. AD-065–072 added to ARCHITECTURE.md. 4 HTML companions regenerated.
+  See `docs/AUDIT-FINDINGS.md` for full R8 record (R8-001 through R8-007).
+
+  (Previous — sixteenth milestone, 2026-06-09 Audit Cycle R7.)
   R7 complete: 37-pattern PAP manual scan on post-R6 changes + 2 code fixes + 1 observation.
   See `docs/AUDIT-FINDINGS.md` for full R7 record (R7-001 through R7-003).
 
@@ -252,9 +257,11 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — sixteenth milestone closed, 2026-06-09.)**
-  R7 audit cycle complete. 2 findings fixed (R7-001 MEDIUM, R7-002 LOW); 1 observation
-  recorded (R7-003). All 4516 tests pass. Static pre-flight: 0 findings.
+- **next_action**: **(Updated — seventeenth milestone closed, 2026-06-10.)**
+  R8 audit cycle complete. Phase 2.A–2.I committed. 7 findings total: R8-001 IMPROVEMENT accepted;
+  R8-002–005 DEFECTs (stale HTML) fixed; R8-006 RISK (missing ADs) fixed; R8-007 OBSERVATION recorded.
+  0 BLOCKERs, 0 open DEFECTs. All 4516 tests pass (Phase 2 test suites included in count from
+  previous session; sandbox git does not re-run full suite). Static pre-flight: 0 findings.
   **Next operational action**: deploy to hardware — run `python3
   proxmox-bootstrap/forge-planner.py` on a real Proxmox host to forge the
   first cell. See `FORGING.md`.

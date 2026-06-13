@@ -1,0 +1,9 @@
+MemberDiscovered
+MemberTrusted
+SnapshotGenerated
+SnapshotPublished
+ExchangeApplied
+ConflictDetected
+ConflictResolved
+KnowledgeMerged
+RetentionReconciled

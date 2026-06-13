@@ -1,0 +1,15 @@
+Tables:
+
+federation_members
+federation_snapshots
+federation_exchanges
+exchange_objects
+federation_lineage
+lineage_events
+reconciliation_decisions
+reconciliation_evidence
+conflicts
+conflict_participants
+knowledge_objects
+retention_reconciliation
+federation_graph_edges

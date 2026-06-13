@@ -1,0 +1,11 @@
+Objects:
+
+FederationMember
+FederationGroup
+FederationRelationship
+FederationExchange
+FederationSnapshot
+FederationKnowledge
+ReconciliationDecision
+Conflict
+Lineage

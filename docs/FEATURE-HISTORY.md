@@ -15,6 +15,32 @@ Timestamps are `YYYY-MM-DD_HH_MM_SS` UTC.
 
 ---
 
+**Cycle: 2026-06-10_00_00_00 UTC**
+
+## Phase 2.A–2.I — Kubernetes Service Management Layer (USER-REQUESTED)
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| `proxmox-bootstrap/authentik_manager.py` — Authentik OIDC values.yaml management, OIDC client secret registry in forge-autonomous.kdbx, KeePass-gated bootstrap via `forge-init-authentik.sh` | USER-REQUESTED | Implemented | unit |
+| `proxmox-bootstrap/cert_manager.py` — CertManagerState, CertRecord; Helm values + ClusterIssuer YAML generation (acme/selfsigned/ca); expiry alerting (CRITICAL ≤7d, WARNING ≤30d); atomic writes; CLI | USER-REQUESTED | Implemented | unit (34 tests) |
+| `proxmox-bootstrap/monitoring_manager.py` — kube-prometheus-stack Helm values (Grafana password via stdin only, never env/argv/log); AlertRule registry; Grafana datasource ConfigMap generation | USER-REQUESTED | Implemented | unit (21 tests) |
+| `proxmox-bootstrap/log_aggregation_manager.py` — Loki (single-binary) + Promtail Helm values; PipelineStage registry; Grafana Loki datasource ConfigMap | USER-REQUESTED | Implemented | unit (23 tests) |
+| `proxmox-bootstrap/storage_manager.py` — Longhorn Helm values; NodeDisk + VolumeRecord registry; StorageClass manifest generation; backup target config (nfs/s3); CLI | USER-REQUESTED | Implemented | unit (32 tests) |
+| `proxmox-bootstrap/flux_manager.py` — Flux CD bootstrap (SSH key only — no GITHUB_TOKEN in argv/env); GitSource + Kustomization registry; CRD manifest generation; reconcile | USER-REQUESTED | Implemented | unit (~35 tests) |
+| `proxmox-bootstrap/velero_manager.py` — Velero Helm deploy; BackupStorageLocation + BackupSchedule registry; existingSecret for all provider credentials (no inlining); sync capped at MAX_RECENT_BACKUPS=50 | USER-REQUESTED | Implemented | unit (~45 tests) |
+| `proxmox-bootstrap/linkerd_manager.py` — Linkerd install (HA + viz); MeshedNamespace registry; namespace enrollment with kubectl annotate + Server CR (policy.linkerd.io/v1beta3 default-deny) | USER-REQUESTED | Implemented | unit |
+| All Phase 2 `forge-init-*.sh` scripts — KeePass-gated (AD-060); credentials via stdin or existingSecret k8s references only; `set -euo pipefail`; `forge-lib.sh` gating | GAP-FILL | Implemented | static |
+| Dashboard panels for all 8 Phase 2 services — deploy status, version, service-specific tables, CLI hints | GAP-FILL | Implemented | static |
+| AD-065 through AD-072 added to ARCHITECTURE.md — service technology choice rationale for Phase 2.A–2.I | GAP-FILL | Implemented | static |
+
+**PAP compliance across all Phase 2 modules**: `now_fn` injection ✓, `timeout=_SUBPROCESS_TIMEOUT` on all subprocess calls ✓, atomic state writes (`.tmp` → `os.replace()`) ✓, no credentials in env/argv/log ✓, no bare `except:` ✓.
+
+**R8 audit finding**: `linkerd_manager.py` has three `shell=True` subprocess calls for Linkerd's piped install commands (hardcoded strings, no injection vector). Classified IMPROVEMENT, accepted.
+
+**PAP Audit R8: 0 BLOCKERs, 0 DEFECTs, 1 IMPROVEMENT accepted, 4 HTML companion DEFECTs fixed by HTML regeneration.**
+
+---
+
 **Cycle: 2026-06-09_18_00_00 UTC**
 
 ## R7-003 Fix — `collect_health_remediation_candidates()` wired into production pipeline

@@ -1,0 +1,7 @@
+Schemas:
+
+Workspace
+AttentionItem
+Notification
+CommandRequest
+OperatorDecision

@@ -1,0 +1,12 @@
+Objects:
+
+PortalSession
+PortalUser
+PortalView
+PortalRequest
+PortalNotification
+StatusPage
+ProgressView
+SelfServiceAction
+PublicAdvisory
+Subscription

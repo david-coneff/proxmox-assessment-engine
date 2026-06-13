@@ -1,0 +1,9 @@
+WorkspaceCreated
+AttentionCreated
+AttentionAcknowledged
+NotificationGenerated
+NotificationDelivered
+CommandRequested
+CommandApproved
+RecommendationAccepted
+OperatorDecisionRecorded

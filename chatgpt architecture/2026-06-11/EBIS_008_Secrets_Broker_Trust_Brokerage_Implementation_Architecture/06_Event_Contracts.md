@@ -1,0 +1,24 @@
+Event Families:
+
+TrustGranted
+TrustRestricted
+TrustRevoked
+TrustRecovered
+
+SecretCreated
+SecretRotated
+SecretRevoked
+
+LeaseRequested
+LeaseGranted
+LeaseDenied
+LeaseActivated
+LeaseExpired
+LeaseRevoked
+
+PolicyDeviationDetected
+TrustEvidenceRecorded
+TrustReconciled
+LeaseReconciled
+
+All events inherit canonical event envelope.

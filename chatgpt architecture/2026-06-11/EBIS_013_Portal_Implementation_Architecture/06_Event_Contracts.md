@@ -1,0 +1,8 @@
+PortalSessionCreated
+StatusPageUpdated
+ServiceHealthChanged
+AdvisoryAutoPublished
+AdvisorySuppressed
+ProgressUpdated
+SubscriptionCreated
+SubscriptionTerminated

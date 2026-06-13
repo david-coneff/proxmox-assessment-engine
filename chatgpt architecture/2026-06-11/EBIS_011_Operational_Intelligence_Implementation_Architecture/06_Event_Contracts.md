@@ -1,0 +1,10 @@
+Events:
+
+RollupCreated
+PatternDetected
+ForecastCreated
+PredictionCreated
+AnomalyDetected
+RecommendationGenerated
+StorageForecastGenerated
+RetentionForecastGenerated

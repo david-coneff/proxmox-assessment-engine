@@ -625,3 +625,179 @@ running test or production path.
 | AF-4-1 | sys.path.insert in test files | **[FIXED — root cause via pyproject.toml pythonpath]** |
 | AF-4-2 | sys.path.insert in production standalone scripts | **[DOCUMENTED — architecturally required; comments added]** |
 | AF-4-3 | Deprecated ODS import in test files | **[N/A — not present in codebase]** |
+
+---
+
+## Audit cycle — 2026-06-10_00_00_00 UTC — R8: Phase 2.A–2.I PAP Audit (k8s service management layer)
+
+### Scope
+
+First PAP audit of the Phase 2.A–2.I Kubernetes service management modules committed
+during Google Drive sync recovery. All eight Phase 2 manager modules audited:
+`authentik_manager.py`, `cert_manager.py`, `monitoring_manager.py`,
+`log_aggregation_manager.py`, `storage_manager.py`, `flux_manager.py`,
+`velero_manager.py`, `linkerd_manager.py`, plus corresponding `forge-init-*.sh` scripts
+and unit test suites.
+
+### Static pre-flight results
+
+**shellcheck (manual):** All Phase 2 `forge-init-*.sh` scripts have `set -euo pipefail`.
+No unquoted variable expansion issues found. All scripts use `forge-lib.sh` for
+KeePass gating.
+
+**ruff / bandit / vulture:** Network unavailable in sandbox; tools not run. Manual
+inspection performed in lieu of automated tooling.
+
+**Manual credential scan:** No hardcoded credentials in any Phase 2 module. Credential
+flow confirmed: shell layer fetches from KeePass, passes to Python via stdin or
+`existingSecret` k8s references only. No secrets in env vars, argv, or logs.
+
+**shell=True instances:** Three found in `linkerd_manager.py` (lines 166, 187, 206)
+for `linkerd ... | kubectl apply -f -` piped commands. See R8-001 below.
+
+### PAP Pattern Scan — 39-pattern manual pass
+
+All eight Phase 2 modules pass the core implementation correctness patterns:
+
+| Pattern | Check | Result |
+|---|---|---|
+| P21 Hardcoded Environment | `datetime.now()` without now_fn | ✓ All 8 modules inject now_fn |
+| P13 Silent Degradation | `subprocess.run()` without timeout | ✓ All calls use `timeout=_SUBPROCESS_TIMEOUT` |
+| P15 Non-Atomic Multi-Step | State writes | ✓ All use `.tmp` → `os.replace()` |
+| P26 Credential Sprawl | Credentials in code/env/log | ✓ None found |
+| P23 Fail Open | Bare `except:` | ✓ None found |
+| P18 Missing Seam | Clock injection | ✓ now_fn throughout |
+
+No BLOCKERs or DEFECTs found in Phase 2 code.
+
+### Findings
+
+**R8-001 — IMPROVEMENT — linkerd_manager.py `shell=True`**
+
+Pattern: P29 Confused Deputy  
+Severity: IMPROVEMENT  
+Area: `proxmox-bootstrap/linkerd_manager.py` lines 166, 187, 206
+
+Three `subprocess.run()` calls use `shell=True` to execute piped commands
+(`linkerd install --crds | kubectl apply -f -` and similar). Linkerd's documented
+install mechanism is a CLI pipe; this is the idiomatic usage pattern. All three
+command strings are hardcoded constants — no user input reaches the shell. Bandit
+would flag B603; actual injection risk is nil.
+
+Preferred approach is `subprocess.Popen` with explicit pipe connection, which avoids
+invoking a shell entirely. The additional complexity is marginal for these three
+specific cases.
+
+Decision: Accept as IMPROVEMENT, not a blocking finding. The hardcoded pipe commands
+are the well-known, vendor-documented Linkerd installation method. Risk of a shell
+injection via these specific calls is structurally impossible.
+
+Status: **[OUTSTANDING — accepted as IMPROVEMENT; no code change required]**
+
+---
+
+**R8-002 — DEFECT — ROADMAP.html stale**
+
+Pattern: P1 Documentation Drift  
+Severity: DEFECT  
+Area: `ROADMAP.html`
+
+`ROADMAP.html` was last regenerated when Phase 1.M was the newest phase. Missing from
+the HTML: Phase 1.N through 1.U (all implemented) and Phase 2.A through 2.I
+(all implemented 2026-06-10). The companion markdown `ROADMAP.md` is current.
+
+Fix: Regenerate via `python3 proxmox-bootstrap/md_to_html.py ROADMAP.md ROADMAP.html --title "Broodforge — Roadmap"`.
+
+Status: **[FIXED]**
+
+---
+
+**R8-003 — DEFECT — docs/FEATURE-HISTORY.html stale**
+
+Pattern: P1 Documentation Drift  
+Severity: DEFECT  
+Area: `docs/FEATURE-HISTORY.html`
+
+`FEATURE-HISTORY.html` was not regenerated after Phase 2.A–2.I features were added
+to `FEATURE-HISTORY.md`. HTML companion missing entire Phase 2 feature record.
+
+Fix: Regenerate via `python3 proxmox-bootstrap/md_to_html.py docs/FEATURE-HISTORY.md docs/FEATURE-HISTORY.html --title "Broodforge — Feature History"`.
+
+Status: **[FIXED]**
+
+---
+
+**R8-004 — DEFECT — docs/AUDIT-FINDINGS.html stale**
+
+Pattern: P1 Documentation Drift  
+Severity: DEFECT  
+Area: `docs/AUDIT-FINDINGS.html`
+
+HTML companion not regenerated after R8 cycle was appended to `AUDIT-FINDINGS.md`.
+
+Fix: Regenerate via `python3 proxmox-bootstrap/md_to_html.py docs/AUDIT-FINDINGS.md docs/AUDIT-FINDINGS.html --title "Broodforge — Audit Findings"`.
+
+Status: **[FIXED]**
+
+---
+
+**R8-005 — DEFECT — docs/ARCHITECTURE.html stale**
+
+Pattern: P1 Documentation Drift  
+Severity: DEFECT  
+Area: `docs/ARCHITECTURE.html`
+
+`ARCHITECTURE.html` predates AD-065 through AD-072 additions (Phase 2 service ADs).
+
+Fix: Regenerate via `python3 proxmox-bootstrap/md_to_html.py ARCHITECTURE.md docs/ARCHITECTURE.html --title "Broodforge — Architecture"`.
+
+Status: **[FIXED]**
+
+---
+
+**R8-006 — RISK — No formal ADs for Phase 2.A–2.I service choices**
+
+Pattern: P1 Documentation Drift / Architecture  
+Severity: RISK  
+Area: `ARCHITECTURE.md`
+
+Phase 2.A–2.I introduces eight new Kubernetes services (Authentik, cert-manager,
+kube-prometheus-stack, Loki + Promtail, Longhorn, Flux CD GitOps wiring, Velero,
+Linkerd) without Architecture Decision records in `ARCHITECTURE.md`. Per-phase design
+rationale exists in `ROADMAP.md` "Design decisions" subsections but is not elevated
+to the AD table — a future operator cannot determine why each technology was chosen
+from the architecture reference alone.
+
+Fix: Added AD-065 through AD-072 to `ARCHITECTURE.md`.
+
+Status: **[FIXED]**
+
+---
+
+**R8-007 — OBSERVATION — CURRENT_STATE.md and RESUME_BLOCK.md predate Phase 2 work**
+
+Pattern: P1 Documentation Drift  
+Severity: OBSERVATION  
+Area: `.ai/CURRENT_STATE.md`, `pap/state/RESUME_BLOCK.md`
+
+Both state files record R7-003 (2026-06-09) as the last action, with "deploy to hardware"
+as next. The Phase 2.A–2.I commitment and this R8 audit are not reflected.
+
+Fix: Update both files to record Phase 2.A–2.I committed, R8 audit complete, next
+action remains hardware deployment.
+
+Status: **[FIXED]**
+
+### Summary
+
+| Finding | Area | Severity | Status |
+|---|---|---|---|
+| R8-001 | linkerd_manager.py shell=True | IMPROVEMENT | Outstanding — accepted |
+| R8-002 | ROADMAP.html stale | DEFECT | Fixed |
+| R8-003 | docs/FEATURE-HISTORY.html stale | DEFECT | Fixed |
+| R8-004 | docs/AUDIT-FINDINGS.html stale | DEFECT | Fixed |
+| R8-005 | docs/ARCHITECTURE.html stale | DEFECT | Fixed |
+| R8-006 | No Phase 2 ADs in ARCHITECTURE.md | RISK | Fixed |
+| R8-007 | State docs predate Phase 2 | OBSERVATION | Fixed |
+
+**0 BLOCKERs. 0 DEFECTs outstanding. 1 IMPROVEMENT accepted. R8 complete.**

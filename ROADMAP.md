@@ -1,13 +1,17 @@
 # Broodforge — Roadmap
 
 Version: 7.1
-Last updated: 2026-06-08 (all four proposed phases now implemented and committed:
-**Phase 1.H** — Pre-Install Forge Package and Image Builder (AD-057, commit 072112e)
-with cross-platform GUI wizard added (`forge-image-builder.html`);
-**Phase 1.I** — Recovery-Readiness Conformance Certificate (AD-059, commit 3b32137);
-**Phase 1.K** — Granular Secret Access Silos: Vault Hierarchy and User Provisioning (AD-061, commit c750ed6);
-**Phase 1.J** — Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn Media
-(AD-060, commit f883540 — firm constraint: no autonomous pathway may wield full root against live hypervisors))
+Last updated: 2026-06-11 (phases 1.L–2.K implemented since 2026-06-08:
+**Phase 1.L** — Static Analysis Self-Audit Integration (AD-062, commit f7446be);
+**Phase 1.M** — Dynamic Analysis Self-Audit Integration (2026-06-09);
+**Phase 1.N** — Migration Infrastructure (AD-065, 2026-06-09);
+**Phase 1.O** — Coordinated Quiesce + Backup / CQB (2026-06-10, commit 5e31aff);
+**Phase 1.P** — Credential Hierarchy and Key Rotation (2026-06-09);
+**Phase 1.Q** — Zero-Touch Node Provisioning (2026-06-10, commit 5dfa573);
+**Phase 1.U** — Kubernetes User Registry (2026-06-10);
+**Phases 2.A–2.K** — Cluster Services: SSO/Authentik, cert-manager, Prometheus/Grafana,
+Loki/Promtail, Longhorn, nginx-ingress, Flux CD, Velero, Linkerd, Kyverno,
+External Secrets Operator (2026-06-10/11))
 Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)
 
 ---
@@ -49,7 +53,7 @@ Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY
       Multi-Level Readiness, Federated Reconstruction Planning, Continuous Assessment,
       Reconstruction Validation
 
-**Tests at completion: 3302 (3298 passed, 4 skipped)**
+**Tests at completion of Phases 1–25: 3302 (3298 passed, 4 skipped). See "Remaining / Future Work" below for per-phase counts; round 12 recorded 3932 passed, 37 skipped; phases 1.M–2.K added further tests.**
 
 ### Remaining / Future Work
 
@@ -177,10 +181,47 @@ Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY
       S5: _local_runner() extracted to collector_utils.py (5 collector modules updated);
       I3: DASHBOARD_VERSION synced to 7.1.
       Tests: 3732 passed, 4 skipped.
+- [x] **Phase 1.M — Dynamic Analysis Self-Audit Integration** (2026-06-09):
+      DynamicHealthScore, assess_dynamic_health(), hypothesis/mutmut/bats/atheris infrastructure,
+      run_continuous_assessment() production loop, systemd service+timer, deal contracts,
+      beartype in conftest.py. 51 new tests.
+- [x] **Phase 1.N — Migration Infrastructure** (AD-065, 2026-06-09):
+      migration_manager.py, bootstrap_state.py, package_verifier.py, version.py;
+      forge-quiesce/resume/migrate/stamp-version/verify-package.sh; migrations/ directory.
+      Operator-gated schema migration with KeePass gate; no autonomous migration pathway.
+- [x] **Phase 1.O — Coordinated Quiesce + Backup (CQB)** (2026-06-10, commit 5e31aff):
+      backup_manager.py (BackupScope, BackupManifest, BackupScopeInferrer, BackupManager);
+      forge-backup/restore/list-backups/backup-scheduled.sh; dashboard CQB Backup & Restore panel. 21 tests.
+- [x] **Phase 1.P — Credential Hierarchy and Key Rotation** (2026-06-09):
+      credential_hierarchy.py; forge-init-credential-hierarchy/sync-credentials/rotate-credential.sh;
+      kdbx_get_child broker; child DB domains (forge-autonomous/spawn/migrate.kdbx);
+      vault-of-vaults recordkeeping. 11 tests.
+- [x] **Phase 1.Q — Zero-Touch Node Provisioning** (2026-06-10, commit 5dfa573):
+      node_planner.py (full lifecycle: planned → joining → pending-approval → active);
+      forge-plan-nodes/build-node-iso.sh; dashboard Nodes panel with pending-approval queue
+      and PIN verification; /api/node-register + /api/provisioning-nodes endpoints. 16 tests.
+- [x] **Phase 1.U — Kubernetes User Registry** (2026-06-10):
+      user_registry.py (UserRecord, UserRegistry, disposition model, key throw-away);
+      forge-onboard-user/provision-users.sh; dashboard Users panel.
+      Centrally tracked users auto-provisioned on cluster rebuild.
+- [x] **Phases 2.A–2.K — Cluster Services** (2026-06-10/11):
+      Eleven k8s-layer services, each with a KeePass-gated init script, Python manager module,
+      dashboard panel, and unit tests:
+      **2.A** authentik_manager.py + forge-init-authentik.sh (OIDC SSO, AD-060/061 compliant);
+      **2.B** cert_manager.py + forge-init-cert-manager/rotate-tls-cert.sh (cert-manager, ClusterIssuers, 34 tests);
+      **2.C** monitoring_manager.py + forge-init-monitoring/add-alert-rule.sh (kube-prometheus-stack, 21 tests);
+      **2.D** log_aggregation_manager.py + forge-init-log-aggregation.sh (Loki+Promtail, 23 tests);
+      **2.E** storage_manager.py + forge-init-longhorn/add-longhorn-disk.sh (Longhorn, 32 tests);
+      **2.F** ingress_manager.py + forge-init-ingress/register-ingress.sh (nginx-ingress, ~40 tests);
+      **2.G** flux_manager.py + forge-init-flux/flux-reconcile.sh (Flux CD GitOps, ~35 tests);
+      **2.H** velero_manager.py + forge-init-velero/velero-backup.sh (Velero workload backup, ~45 tests);
+      **2.I** linkerd_manager.py + forge-init-linkerd/enroll-linkerd-ns.sh (Linkerd mTLS, default-deny);
+      **2.J** kyverno_manager.py + forge-init-kyverno/kyverno-policy.sh (Kyverno policy enforcement, 25 tests);
+      **2.K** external_secrets_manager.py + forge-init-eso/register-secret-store.sh (External Secrets Operator, 20 tests).
 
 ---
 
-## Proposed Future Work — from `new/` corpus analysis (PROPOSED — NOT STARTED)
+## Phases from `new/` corpus analysis *(all proposed phases implemented; deferred items remain out of scope)*
 
 The `new/` directory holds a large proposed-revision corpus (~25 chapters, ~115
 specifications/RFCs, plus a separate "axiomatic kernel" formal-methods series).

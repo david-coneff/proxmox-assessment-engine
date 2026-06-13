@@ -1,0 +1,27 @@
+Execution Events:
+
+ExecutionRequested
+ExecutionValidated
+ExecutionApproved
+ExecutionDenied
+ExecutionPlanned
+ExecutionStarted
+ExecutionProgressUpdated
+ExecutionCompleted
+ExecutionFailed
+ExecutionTimedOut
+ExecutionCancelled
+ExecutionAborted
+
+Compliance Events:
+
+ComplianceEvaluated
+ComplianceViolationDetected
+
+Retention Events:
+
+HistoricalCheckpointCreated
+RetentionPolicyModified
+RetentionWarningGenerated
+RetentionCriticalGenerated
+RetentionExhaustionDetected

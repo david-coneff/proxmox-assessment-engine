@@ -1,0 +1,16 @@
+Tables:
+
+portal_users
+portal_sessions
+status_pages
+public_advisories
+portal_requests
+progress_views
+subscriptions
+subscription_deliveries
+portal_notifications
+visibility_policies
+self_service_actions
+portal_graph_edges
+progress_forecast_cache
+advisory_suppressions

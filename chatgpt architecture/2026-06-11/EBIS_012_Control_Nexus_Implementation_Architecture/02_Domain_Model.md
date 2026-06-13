@@ -1,0 +1,12 @@
+Objects:
+
+Workspace
+View
+Dashboard
+OperatorSession
+ActionQueue
+Notification
+AttentionItem
+OperationalSummary
+RecommendationPanel
+CommandInvocation

@@ -1,0 +1,10 @@
+Observation:
+DETECTED -> RECORDED -> DWELLING -> CANDIDATE -> CORRELATED -> INCIDENT_ASSOCIATED
+
+Incident:
+OPEN -> INVESTIGATING -> MITIGATING -> RESOLVED -> CONFIRMED -> HISTORICAL
+
+Alternative:
+DISMISSED
+
+Resolution requires confirmation window.
