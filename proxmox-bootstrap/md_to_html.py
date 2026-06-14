@@ -88,6 +88,7 @@ _CSS = """
   .bf-attach-bar{display:flex;align-items:center;gap:10px;
     padding:4px 0 6px;border-top:1px solid var(--border)}
   .bf-attach-hint{color:var(--muted);font-size:.76em}
+  .bf-attach-bar-end{margin-left:auto;display:flex;align-items:center;gap:6px}
   #bf-collapse-all,#bf-expand-all{background:var(--btn-bg);color:var(--text);
     border:1px solid var(--border);border-radius:var(--radius);padding:5px 12px;
     cursor:pointer;font-size:.8em;font-family:inherit}
@@ -2775,8 +2776,6 @@ def render_html(md: str, title: str, collapsible: bool = False, force_walkthroug
     toolbar += '<div class="bf-toolbar-end">'
     if is_walkthrough:
         toolbar += '<button id="bf-clear-fields-btn" type="button">\u2298 Clear Fields</button>'
-        toolbar += '<button id="bf-import-session-btn" type="button">\u2191 Import Session</button>'
-        toolbar += f'<button id="bf-export-btn" type="button">\u2b07 Export {html.escape(title)} Package</button>'
     toolbar += '<button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">\u2b07 Download with Edits</button>'
     toolbar += '<button id="bf-theme-btn" type="button">\u2600 Light</button>'
     if collapsible:
@@ -2791,6 +2790,10 @@ def render_html(md: str, title: str, collapsible: bool = False, force_walkthroug
                     ' title="Attach files — bundled into the export package">📎 Attach'
                     ' <span id="bf-attach-count"></span></button>'
                     '<span class="bf-attach-hint">Drag files anywhere on the page to attach</span>'
+                    '<div class="bf-attach-bar-end">'
+                    '<button id="bf-import-session-btn" type="button">\u2191 Import Session</button>'
+                    f'<button id="bf-export-btn" type="button">\u2b07 Export {html.escape(title)} Package</button>'
+                    '</div>'
                     '</div>')
     if is_walkthrough:
         toolbar += (
