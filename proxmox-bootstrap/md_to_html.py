@@ -2773,10 +2773,17 @@ def render_html(md: str, title: str, collapsible: bool = False, force_walkthroug
     toolbar += ('<a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank"'
                 ' title="About this documentation — how fields, notes, and export work">ⓘ About</a>')
     toolbar += '<div class="bf-toolbar-end">'
+    if is_walkthrough:
+        toolbar += '<button id="bf-clear-fields-btn" type="button">\u2298 Clear Fields</button>'
+        toolbar += '<button id="bf-import-session-btn" type="button">\u2191 Import Session</button>'
+        toolbar += f'<button id="bf-export-btn" type="button">\u2b07 Export {html.escape(title)} Package</button>'
+    toolbar += '<button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">\u2b07 Download with Edits</button>'
+    toolbar += '<button id="bf-theme-btn" type="button">\u2600 Light</button>'
     if collapsible:
         toolbar += '<button id="bf-collapse-all" type="button">\u229f Collapse All</button>'
         toolbar += '<button id="bf-expand-all" type="button">\u229e Expand All</button>'
         toolbar += '<span id="bf-section-count"></span>'
+    toolbar += '</div></div>'  # close toolbar-end + toolbar-main
     # ── attachments row — always its own line, only in walkthrough docs ──
     if is_walkthrough:
         toolbar += ('<div class="bf-attach-bar">'
