@@ -7,16 +7,20 @@
       "title": "Broodforge README",
       "source": "README.md",
       "output": "docs/README.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "reference",
-      "description": "Primary overview of the broodforge project — architecture, processes, and design constraints."
+      "description": "Primary overview of the broodforge project \u2014 architecture, processes, and design constraints."
     },
     {
       "id": "architecture",
       "title": "Broodforge Architecture",
       "source": "ARCHITECTURE.md",
       "output": "docs/ARCHITECTURE.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "reference",
       "description": "Architecture decision records (ADs) and system design rationale."
     },
@@ -25,34 +29,45 @@
       "title": "Broodforge Roadmap",
       "source": "ROADMAP.md",
       "output": "docs/ROADMAP.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "reference",
       "description": "Full development roadmap with phase milestones and status."
     },
     {
       "id": "phoenix",
-      "title": "PHOENIX — Stargate Process",
+      "title": "PHOENIX \u2014 Stargate Process",
       "source": "docs/PHOENIX.md",
       "output": "docs/PHOENIX.html",
-      "flags": ["--playbook", "--collapsible"],
+      "flags": [
+        "--playbook",
+        "--collapsible"
+      ],
       "type": "runbook",
-      "description": "Operator runbook for the stargate process — rebuilds a failed node on new hardware."
+      "description": "Operator runbook for the stargate process \u2014 rebuilds a failed node on new hardware."
     },
     {
       "id": "forging",
-      "title": "FORGING — Hatchery Build",
+      "title": "FORGING \u2014 Hatchery Build",
       "source": "proxmox-bootstrap/FORGING.md",
       "output": "docs/FORGING.html",
-      "flags": ["--playbook", "--collapsible"],
+      "flags": [
+        "--playbook",
+        "--collapsible"
+      ],
       "type": "runbook",
       "description": "Operator runbook for forging the first broodforge hatchery node from bare hardware."
     },
     {
       "id": "node-spawning",
-      "title": "NODE-SPAWNING — Hatchery Process",
+      "title": "NODE-SPAWNING \u2014 Hatchery Process",
       "source": "proxmox-bootstrap/NODE-SPAWNING.md",
       "output": "docs/NODE-SPAWNING.html",
-      "flags": ["--playbook", "--collapsible"],
+      "flags": [
+        "--playbook",
+        "--collapsible"
+      ],
       "type": "runbook",
       "description": "Operator runbook for spawning a new broodling node into an existing hatchery."
     },
@@ -61,16 +76,21 @@
       "title": "Reconstruction Drill",
       "source": "docs/RECONSTRUCTION-DRILL.md",
       "output": "docs/RECONSTRUCTION-DRILL.html",
-      "flags": ["--playbook", "--collapsible"],
+      "flags": [
+        "--playbook",
+        "--collapsible"
+      ],
       "type": "runbook",
-      "description": "Guided drill for testing recovery readiness — validates the full stargate process end-to-end."
+      "description": "Guided drill for testing recovery readiness \u2014 validates the full stargate process end-to-end."
     },
     {
       "id": "cloud-storage-setup",
       "title": "Cloud Storage Setup",
       "source": "docs/CLOUD-STORAGE-SETUP.md",
       "output": "docs/CLOUD-STORAGE-SETUP.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "guide",
       "description": "Step-by-step setup guides for Backblaze B2, AWS S3, Cloudflare R2, Google Drive, and MinIO backup destinations."
     },
@@ -79,7 +99,9 @@
       "title": "Cloudflare Setup",
       "source": "docs/CLOUDFLARE-SETUP.md",
       "output": "docs/CLOUDFLARE-SETUP.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "guide",
       "description": "Cloudflare DNS and DDNS configuration for the broodforge hatchery."
     },
@@ -88,7 +110,10 @@
       "title": "DuckDNS Setup",
       "source": "docs/DUCKDNS-SETUP.md",
       "output": "docs/DUCKDNS-SETUP.html",
-      "flags": ["--playbook", "--collapsible"],
+      "flags": [
+        "--playbook",
+        "--collapsible"
+      ],
       "type": "guide",
       "description": "DuckDNS DDNS and Let's Encrypt TLS certificate setup for operators without their own domain."
     },
@@ -97,7 +122,9 @@
       "title": "Snippet Upload",
       "source": "proxmox-bootstrap/SNIPPET-UPLOAD.md",
       "output": "docs/SNIPPET-UPLOAD.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "guide",
       "description": "How to upload and manage Cloud-Init snippets in the Proxmox snippet store."
     },
@@ -106,7 +133,10 @@
       "title": "Tier 2 State Collection",
       "source": "proxmox-bootstrap/TIER2-COLLECTION.md",
       "output": "docs/TIER2-COLLECTION.html",
-      "flags": ["--playbook", "--collapsible"],
+      "flags": [
+        "--playbook",
+        "--collapsible"
+      ],
       "type": "guide",
       "description": "Runbook for SSH-based Tier 2 state collection from cluster nodes."
     },
@@ -115,16 +145,20 @@
       "title": "User Registry",
       "source": "docs/USER-REGISTRY.md",
       "output": "docs/USER-REGISTRY.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "reference",
-      "description": "User lifecycle management — onboarding, offboarding, and service adapter conventions."
+      "description": "User lifecycle management \u2014 onboarding, offboarding, and service adapter conventions."
     },
     {
       "id": "talos-alternative",
       "title": "Talos Alternative",
       "source": "docs/TALOS-ALTERNATIVE.md",
       "output": "docs/TALOS-ALTERNATIVE.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "reference",
       "description": "Evaluation of Talos Linux as an alternative k8s substrate to k3s."
     },
@@ -133,7 +167,9 @@
       "title": "Feature History",
       "source": "docs/FEATURE-HISTORY.md",
       "output": "docs/FEATURE-HISTORY.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "reference",
       "description": "Chronological log of significant feature additions to the broodforge platform."
     },
@@ -142,7 +178,9 @@
       "title": "Design History",
       "source": "docs/DESIGN-HISTORY.md",
       "output": "docs/DESIGN-HISTORY.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "reference",
       "description": "Historical record of key design decisions and architecture evolution."
     },
@@ -151,7 +189,9 @@
       "title": "Audit Findings",
       "source": "docs/AUDIT-FINDINGS.md",
       "output": "docs/AUDIT-FINDINGS.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "reference",
       "description": "Recorded audit findings, PAP conformance reviews, and resolution tracking."
     },
@@ -160,24 +200,46 @@
       "title": "About This Documentation",
       "source": "docs/ABOUT-DOCS.md",
       "output": "docs/ABOUT-DOCS.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "guide",
-      "description": "How the interactive documentation system works — fields, notes, export, and inline editing."
+      "description": "How the interactive documentation system works \u2014 fields, notes, export, and inline editing."
     },
     {
       "id": "docs-index",
       "title": "Documentation Index",
       "source": "docs/DOCS-INDEX.md",
       "output": "docs/DOCS-INDEX.html",
-      "flags": ["--collapsible"],
+      "flags": [
+        "--collapsible"
+      ],
       "type": "index",
-      "description": "Sysadmin-facing index of all broodforge documentation — designed for Control Nexus integration."
+      "description": "Sysadmin-facing index of all broodforge documentation \u2014 designed for Control Nexus integration."
+    },
+    {
+      "id": "forge-image-builder",
+      "title": "Forge Image Builder",
+      "output": "docs/forge-image-builder.html",
+      "handAuthored": true,
+      "type": "tool",
+      "description": "Interactive wizard for building Proxmox cloud-init base images \u2014 generates the forge-image-builder.sh command."
+    },
+    {
+      "id": "bfvault",
+      "title": "BFVault \u2014 Secret Store",
+      "output": "docs/bfvault.html",
+      "handAuthored": true,
+      "type": "tool",
+      "description": "Browser-based encrypted credential vault for broodforge cluster secrets \u2014 TOTP, CAB import, typed field editor."
     }
   ],
   "style_standards": {
     "version": "2026-06-13",
     "pipeline": "md_to_html.py",
-    "required_flags": ["--collapsible"],
+    "required_flags": [
+      "--collapsible"
+    ],
     "timestamp_format": "YYYY-MM-DD_HH-MM_SS_TZ",
     "heading_ids": true,
     "collapsible_sections": true,

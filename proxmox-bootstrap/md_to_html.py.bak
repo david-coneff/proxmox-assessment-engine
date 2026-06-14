@@ -1,10 +1,49 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Talos Alternative</title>
-<style>
+#!/usr/bin/env python3
+"""
+md_to_html.py — Minimal, stdlib-only Markdown → HTML converter for Broodforge.
+
+Renders a self-contained, interactive HTML document in the Broodforge theme.
+Every generated page includes:
+
+  * a light/dark theme toggle (top-right, persisted in localStorage);
+  * a "Copy" button on command code blocks (bash/sh/shell/console/cmd/powershell);
+  * live-templated commands — any `{{VAR}}` / `{{VAR=default}}` placeholder inside
+    a code block becomes an editable parameter. A "Parameters" panel at the top
+    of the page collects them; editing a value rewrites every command that uses
+    it, and the Copy button copies the resolved command;
+  * walkthrough note fields — `@field[Label]` (single line) / `@area[Label]`
+    (multi-line) render labeled inputs the operator can fill while following the
+    steps, so a drill or forge has a traceable record;
+  * an always-present "Session Notes" textarea at the bottom for anything that
+    didn't fit the structured flow.
+
+All note/parameter values persist per-document in localStorage.
+
+Supported Markdown: ATX headings, fenced code blocks (verbatim, box-drawing safe),
+GitHub tables, ordered/unordered lists (one level of nesting), blockquotes,
+horizontal rules, paragraphs, and inline `code` / **bold** / [text](url). Single
+`*`/`_` italics are intentionally NOT interpreted (they would mangle identifiers
+like __main__ and network_topology.ssl_*).
+
+Usage:
+    python3 md_to_html.py INPUT.md OUTPUT.html [--title "Title"]
+
+Stdlib only.
+"""
+
+import argparse
+import html
+import json
+import re
+import sys
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Theme + interaction assets (shared by every generated doc, and exported for
+# injection into hand-authored HTML via theme_assets()).
+# ---------------------------------------------------------------------------
+
+_CSS = """
   :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
     --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a;--bg2-rgb:34,38,46}
@@ -153,13 +192,11 @@
   details.subsection .sub-body{padding-left:14px;padding-bottom:6px}
   /* +/- controls and clear button appear right-aligned in the summary row */
   .bf-sub-controls{display:flex;gap:3px;flex-shrink:0;margin-left:auto;margin-right:10px;align-items:center}
-  .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--border);
-    color:var(--muted);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
+  .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--accent);
+    color:var(--accent);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
     line-height:1.6;font-family:inherit;font-weight:700}
-  .bf-sub-expand:hover,.bf-sub-collapse:hover{border-color:var(--accent);color:var(--accent)}
+  .bf-sub-expand:hover,.bf-sub-collapse:hover{background:var(--accent);color:var(--bg)}
   .bf-ctrl-sep{width:10px;flex-shrink:0}
-  /* ghost = always-present placeholder when button not applicable */
-  .bf-ctrl-ghost{color:transparent !important;pointer-events:none;cursor:default;opacity:0.25}
   /* ── split-pane layout ─────────────────────────────────────────────────── */
   #bf-app{display:flex;height:100vh;overflow:hidden}
   #bf-doc-pane{flex:1 1 auto;overflow-y:auto;padding:24px 28px 80px;min-width:0;scrollbar-gutter:stable}
@@ -186,6 +223,9 @@
   .nts-section{margin:4px 0;border:1px solid var(--border);border-radius:var(--radius);
     overflow:hidden}
   /* dim only a section's OWN header + direct body content — nested sections unaffected */
+  .nts-ch{opacity:1!important}  /* child-section wrapper: never inherit parent dim */
+  .nts-section>summary.nts-hdr,
+  .nts-section>.nts-body>:not(.nts-section):not(.nts-ch){transition:opacity .15s}
   .nts-section.nts-dim>summary.nts-hdr{opacity:0.35}
   .nts-section.nts-dim>.nts-body>textarea.note-area{opacity:0.35!important;border-color:transparent!important}
   .nts-section.nts-dim>.nts-body>textarea.note-area::placeholder{opacity:0.25!important}
@@ -193,7 +233,7 @@
     display:flex;align-items:center;gap:4px;background:var(--bg3);
     padding:5px 8px;font-size:.79em}
   .nts-section>summary.nts-hdr::-webkit-details-marker{display:none}
-  .nts-section>summary.nts-hdr::before{content:'B6';font-size:.6em;color:var(--muted);
+  .nts-section>summary.nts-hdr::before{content:'\25B6';font-size:.6em;color:var(--muted);
     flex-shrink:0;transition:transform .1s;margin-right:2px}
   .nts-section[open]>summary.nts-hdr::before{transform:rotate(90deg)}
   .nts-hdr-title{flex:1;background:none;border:none;
@@ -205,7 +245,7 @@
   .nts-hdr-btn:hover{color:var(--accent)}
   .nts-hdr-btn.del{color:var(--red)}
   .nts-hdr-btn.del:hover{opacity:.75}
-  .nts-body{padding:5px 8px 8px;background:var(--bg)}
+  .nts-body{padding:5px 8px 8px;background:transparent}
   .nts-body textarea{width:100%;min-height:50px;resize:vertical;margin-bottom:4px;
     font-size:.81em}
   .nts-add-btn{display:block;width:100%;background:none;
@@ -427,126 +467,11 @@
   .bf-edited-mark{font-size:.65em;color:var(--muted);margin-left:6px;opacity:.7}
   @media print{#bf-doc-pane{padding:12px}#bf-notes-pane,#bf-drag{display:none}
     #bf-theme-btn,.copy-btn{display:none}
-    .bf-sub-controls,.bf-edit-btn,.bf-edit-controls{display:none}
+    .bf-edit-btn,.bf-edit-controls{display:none}
     .param-input,.note-input,.note-area,#bf-session-notes{border:1px solid #999}}
-</style>
-</head>
-<body data-doc="talos-alternative">
-<div id="bf-app">
-  <div id="bf-doc-pane">
-    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item current" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Tools</div><a class="bf-nav-item" href="forge-image-builder.html" title="Forge Image Builder">Forge Image Builder</a><a class="bf-nav-item" href="bfvault.html" title="BFVault — Secret Store">BFVault — Secret Store</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><div class="bf-toolbar-end"><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button><span id="bf-section-count"></span><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button></div></div></div>
-    
-    
-    <div id="bf-doc-body">
-<details class="section" open><summary><h1 id="talos-linux-alternative-os-for-k3s-vms">Talos Linux — Alternative OS for k3s VMs</h1></summary><div class="sec-body" style="margin-left:0px">
-<hr>
-<details class="section" open><summary><h2 id="what-talos-is">What Talos Is</h2></summary><div class="sec-body" style="margin-left:12px">
-</div></details>
-<details class="section" open><summary><h2 id="why-it-is-an-option-here">Why It Is an Option Here</h2></summary><div class="sec-body" style="margin-left:12px">
-<ul><li>For multi-node HA (Phase 11 onward), Talos's immutability and atomic upgrades</li></ul>
-<ul><li>It eliminates the Ansible provisioning layer for k3s nodes (replaced by <code>talosctl apply-config</code>).</li><li>Machine configs are fully declarative YAML — fits the GitOps model already in use.</li></ul>
-</div></details>
-<details class="section" open><summary><h2 id="why-ubuntu-is-the-default">Why Ubuntu Is the Default</h2></summary><div class="sec-body" style="margin-left:12px">
-<ul><li>The existing Cloud-Init template library, Ansible roles (<code>common</code>, <code>k3s-server</code>),</li></ul>
-<ul><li>Talos's no-SSH constraint means Ansible does not apply — a different operational model,</li></ul>
-<ul><li>On a single-node homelab, the drift problem Talos solves is minimal. One node rebuilt</li></ul>
-</div></details>
-<details class="section" open><summary><h2 id="how-to-activate-talos-when-ready">How to Activate Talos (When Ready)</h2></summary><div class="sec-body" style="margin-left:12px">
-<pre><code class="lang-yaml">server_nodes:
-  - vm_name: k3s-server-01
-    os_variant: talos   # changed from: ubuntu</code></pre>
-<ul><li>Playbook generator emits <code>talosctl apply-config</code> steps instead of Ansible plays.</li><li>Recovery runbook renders Talos-specific reconstruction instructions.</li><li>Readiness scorer checks for machine configs in <code>talos-configs/</code> directory.</li></ul>
-<hr>
-</div></details>
-<details class="section" open><summary><h2 id="prerequisites-before-switching">Prerequisites Before Switching</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary class="sub-summary"><h3 id="infrastructure">Infrastructure</h3></summary><div class="sec-body" style="margin-left:24px">
-<ul><li>[ ] Talos ISO downloaded and verified (check https://github.com/siderolabs/talos/releases)</li><li>[ ] <code>talos-1x-base</code> Proxmox template built (VMID 9001) — see <code>build-talos-template.sh</code> (9.T.2)</li><li>[ ] <code>talosctl</code> installed on the operations VM</li><li>[ ] Machine configs generated via <code>generate-talos-config.py</code> (9.T.3) and committed to repo</li></ul>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="data-model">Data Model</h3></summary><div class="sec-body" style="margin-left:24px">
-<ul><li>[ ] <code>talos-1x-base</code> entry in <code>bootstrap-state.json</code> template registry</li><li>[ ] <code>talos-1x-base</code> base_image entry (Talos ISO name + SHA512 checksum)</li><li>[ ] <code>os_variant</code> field added to bootstrap-state-schema.json (9.T.5)</li></ul>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="tooling">Tooling</h3></summary><div class="sec-body" style="margin-left:24px">
-<ul><li>[ ] Milestone 9.T fully implemented (reconstruction playbook OS-variant awareness)</li></ul>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="what-you-give-up">What You Give Up</h3></summary><div class="sec-body" style="margin-left:24px">
-<ul><li>Ansible roles (<code>common</code>, <code>k3s-server</code>) do not apply — Talos manages the OS.</li></ul>
-<ul><li>Cloud-Init snippets are not used — Talos ignores them.</li><li>SSH-based emergency access is unavailable — use <code>talosctl</code> console access instead.</li></ul>
-<hr>
-</div></details>
-</div></details>
-<details class="section" open><summary><h2 id="data-model-fields">Data Model Fields</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary class="sub-summary"><h3 id="k3s-cluster-yaml-os-variant-per-node"><code>k3s-cluster.yaml</code> — <code>os_variant</code> per node</h3></summary><div class="sec-body" style="margin-left:24px">
-<pre><code class="lang-yaml">server_nodes:
-  - vm_name: k3s-server-01
-    os_variant: ubuntu    # ubuntu (default) | talos</code></pre>
-<pre><code class="lang-yaml">worker_nodes:
-  - vm_name: k3s-worker-01
-    os_variant: ubuntu    # must match server_nodes os_variant for consistent tooling</code></pre>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="vm-roles-yaml-template-field"><code>vm-roles.yaml</code> — <code>template</code> field</h3></summary><div class="sec-body" style="margin-left:24px">
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="bootstrap-state-json-template-registry"><code>bootstrap-state.json</code> — template registry</h3></summary><div class="sec-body" style="margin-left:24px">
-<pre><code class="lang-json">"templates": [
-  {
-    "name": "ubuntu-2204-base",
-    "base_image": "ubuntu-2204-base",
-    "proxmox_template_id": 9000,
-    "os_variant": "ubuntu",
-    ...
-  },
-  {
-    "name": "talos-1x-base",
-    "base_image": "talos-1x-base-iso",
-    "proxmox_template_id": 9001,
-    "os_variant": "talos",
-    "created_at": "POPULATE",
-    "additional_packages": [],
-    "build_notes": "Talos Linux — no cloud-init, no SSH, talosctl only"
-  }
-]</code></pre>
-<hr>
-</div></details>
-</div></details>
-<details class="section" open><summary><h2 id="os-variant-migration-automated">OS Variant Migration (Automated)</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary class="sub-summary"><h3 id="shared-library-migrate-k3s-lib-py">Shared Library (<code>migrate_k3s_lib.py</code>)</h3></summary><div class="sec-body" style="margin-left:24px">
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="ubuntu-talos-migrate-k3s-to-talos-py">Ubuntu → Talos (<code>migrate-k3s-to-talos.py</code>)</h3></summary><div class="sec-body" style="margin-left:24px">
-<pre><code class="lang-"># Dry-run: see what would happen without making changes
-python3 proxmox-bootstrap/migrate-k3s-to-talos.py --node k3s-server-01 --dry-run
+"""
 
-# Live migration
-python3 proxmox-bootstrap/migrate-k3s-to-talos.py --node k3s-server-01
-
-# Skip Proxmox snapshot (test environments)
-python3 proxmox-bootstrap/migrate-k3s-to-talos.py --node k3s-server-01 --skip-snapshot</code></pre>
-<ol><li>Pre-migration checklist (cluster readiness not RED, talos template exists,</li></ol>
-<ol><li>State snapshot (in-memory rollback point)</li><li>Drain k3s node (<code>kubectl drain --ignore-daemonsets --delete-emptydir-data</code>)</li><li>Snapshot the Ubuntu VM in Proxmox (rollback point; skipped with <code>--skip-snapshot</code>)</li><li>Destroy the Ubuntu VM (<code>qm stop</code> + <code>qm destroy</code>)</li><li>Provision new VM from <code>talos-1x-base</code> template (<code>qm clone</code>)</li><li>Apply machine config via <code>talosctl apply-config</code></li><li>Verify cluster health (<code>kubectl get nodes</code> — all Ready)</li><li>Update <code>bootstrap-state.json</code>: <code>os_variant</code>, <code>migration_history</code></li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="talos-ubuntu-migrate-k3s-to-ubuntu-py">Talos → Ubuntu (<code>migrate-k3s-to-ubuntu.py</code>)</h3></summary><div class="sec-body" style="margin-left:24px">
-<pre><code class="lang-">python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01 --dry-run
-python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></pre>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="shared-safeguards-both-directions">Shared Safeguards (both directions)</h3></summary><div class="sec-body" style="margin-left:24px">
-<ul><li>Refuses to start if current cluster readiness score is RED</li><li><code>--skip-snapshot</code> flag available for test/dev environments</li><li>PBS reachability checked; unreachable PBS blocks migration</li><li>All migration attempts (success, failed, rolled_back, aborted) appended to</li></ul>
-<ul><li>Each migration attempt gets a unique <code>migration_id</code> for cross-referencing</li></ul>
-<hr>
-</div></details>
-</div></details>
-<details class="section" open><summary><h2 id="recommended-adoption-path">Recommended Adoption Path</h2></summary><div class="sec-body" style="margin-left:12px">
-<ol><li><strong>Now (Phase 6–8):</strong> Keep Ubuntu. Complete bootstrap state, service state, and</li></ol>
-<ol><li><strong>Phase 9 (Reconstruction Playbooks):</strong> Implement 9.T milestones. The playbook</li></ol>
-<ol><li><strong>Phase 11 (HA expansion):</strong> If adding a second physical host, evaluate switching</li></ol>
-<ol><li><strong>Never mandatory:</strong> <code>os_variant: ubuntu</code> remains fully supported. Talos is an</li></ol>
-<p>Status: <strong>Optional — not the default.</strong> Ubuntu 22.04 is the current and default OS for all k3s node VMs. Talos is declared as a supported alternative in the data model and will be fully wired into reconstruction playbooks in Milestone 9.T. Talos Linux is an immutable, minimal OS designed exclusively for running Kubernetes. It has no SSH, no shell, no package manager, and no user accounts. The entire OS is read-only. All configuration is applied via a declarative machine config over a secure gRPC API (<code>talosctl</code>). Upgrades are atomic: swap the OS image, roll back if bad. reduce operational drift across nodes. and snippet system are all Ubuntu-specific. Switching before those are mature would require replacing significant completed work. not a superset. from scratch via OpenTofu + Ansible in minutes achieves the same outcome. Set <code>os_variant: talos</code> on the relevant node entry in <a href="../proxmox-bootstrap/metadata/k3s-cluster.yaml"><code>proxmox-bootstrap/metadata/k3s-cluster.yaml</code></a>: This is the single flag that drives all downstream tooling (once 9.T milestones are complete): These must be completed before <code>os_variant: talos</code> is production-ready: Any configuration currently done via Ansible (sysctl, chrony, package installs) must be moved into Talos machine config patches or Kubernetes DaemonSets. Ubuntu: <code>template: ubuntu-2204-base</code> Talos:  <code>template: talos-1x-base</code> Both migration directions are implemented as interactive wizard scripts in <code>proxmox-bootstrap/</code>. Provides: <code>run_preflight_checks()</code>, <code>snapshot_state()</code>, <code>drain_node()</code>, <code>verify_cluster_health()</code>, <code>rollback()</code>, <code>append_migration_history()</code>, <code>update_os_variant()</code>, <code>make_migration_id()</code>. Used by both migration scripts. All runner operations accept a <code>runner_fn</code> for testing (same pattern as state collectors). Steps the script executes: machine config generated in <code>talos-configs/</code>, PBS reachable, node in VM registry) If post-migration health check fails, the script automatically restores from the pre-migration snapshot, reverts <code>os_variant</code>, and records the failed attempt in <code>migration_history</code> (outcome: <code>"rolled_back"</code>). Same step structure, reversed: resets Talos node via <code>talosctl reset</code>, destroys the Talos VM, provisions from <code>ubuntu-2204-base</code>, applies Cloud-Init + Ansible <code>k3s-server</code> role, verifies cluster health, updates <code>bootstrap-state.json</code>. <code>bootstrap-state.json</code> <code>migration_history</code> array with timestamps, from/to variant, and snapshot VMID network topology milestones using the existing Ubuntu toolchain. generator and recovery runbook become os_variant-aware without requiring an actual Talos deployment. k3s nodes to Talos at that point. Multi-node drift management is where Talos's immutability provides measurable benefit. option, not a migration target.</p>
-</div></details>
-</div></details>
-    </div>
-  </div>
-  <div id="bf-drag"></div>
-  <div id="bf-notes-pane">
-<div id="bf-notes-header"><span>Session Notes</span><button type="button" class="nts-export-btn" id="bf-notes-export-md" title="Export notes as Markdown">↓ MD</button><button type="button" class="nts-export-btn" id="bf-notes-export-html" title="Export notes as HTML">↓ HTML</button><button type="button" class="nts-export-btn" id="bf-notes-import" title="Import notes from Markdown file">↑ Import</button><button type="button" class="nts-clear-btn" id="bf-notes-clear" title="Clear all notes for this document">🗑</button><div id="bf-notes-opacity-ctrl"><div class="bf-ctrl-row" title="Adjust panel transparency"><span class="bf-ctrl-label">opacity</span><button type="button" class="bf-op-btn" id="bf-notes-opacity-down" title="Less opaque">−</button><span id="bf-notes-opacity-val">95%</span><button type="button" class="bf-op-btn" id="bf-notes-opacity-up" title="More opaque">+</button></div><div class="bf-ctrl-row" title="Blur content behind panel"><span class="bf-ctrl-label">blur</span><button type="button" class="bf-op-btn" id="bf-notes-blur-down" title="Less blur">−</button><span id="bf-notes-blur-val">0px</span><button type="button" class="bf-op-btn" id="bf-notes-blur-up" title="More blur">+</button></div></div><button type="button" id="bf-notes-float-btn" title="Pop out notes panel">⊞</button><button type="button" id="bf-notes-toggle" title="Hide notes panel">◄</button></div><div id="bf-notes-body"><p style="color:var(--muted);font-size:.75em;margin:0 0 6px">Free-form notes — saved in your browser.</p><textarea id="bf-session-notes" placeholder="Quick notes…"></textarea><hr class="nts-divider"><p class="nts-label">Sections</p><div id="bf-notes-tree"></div><button type="button" id="bf-notes-add-root">+ Add section</button></div>  </div>
-</div>
-<script>
+_JS = r"""
 (function(){
   var ns = 'bf:' + (document.body.dataset.doc || 'doc') + ':';
   // ---- theme ----
@@ -1933,9 +1858,22 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
       return det.querySelector('.note-input,.note-area,.cred-input,input[type=radio],input[type=checkbox],.input-table')!==null;
     }
     function directChildSubs(det){
-      var body=det.querySelector(':scope>.sec-body,:scope>.sub-body');
+      // Find the direct body child (.sec-body or .sub-body) without relying on :scope> in querySelectorAll
+      var body=null;
+      for(var i=0;i<det.children.length;i++){
+        var ch=det.children[i];
+        if(ch.classList.contains('sec-body')||ch.classList.contains('sub-body')){body=ch;break;}
+      }
       if(!body)return[];
-      return Array.prototype.slice.call(body.querySelectorAll(':scope>details.subsection'));
+      // Collect direct child <details> that are sections or subsections
+      var result=[];
+      for(var i=0;i<body.children.length;i++){
+        var ch=body.children[i];
+        if(ch.tagName==='DETAILS'&&(ch.classList.contains('section')||ch.classList.contains('subsection'))){
+          result.push(ch);
+        }
+      }
+      return result;
     }
     function clearSection(det){
       det.querySelectorAll('.note-input,.note-area').forEach(function(f){
@@ -1952,55 +1890,44 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
     }
     document.querySelectorAll('details.section,details.subsection').forEach(function(det){
       var sum=det.querySelector(':scope>summary');if(!sum)return;
-      var controls=sum.querySelector('.bf-sub-controls');
-      if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
       var children=directChildSubs(det);
       var hasChildren=children.length>=1;
       var canClear=hasInputs(det);
-      // clear button — leftmost; ghost placeholder when no inputs
-      var clr=document.createElement('button');
-      clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
+if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
+      var controls=sum.querySelector('.bf-sub-controls');
+      if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
+      // order: clear | sep | collapse | expand (rightmost)
       if(canClear){
+        var clr=document.createElement('button');
+        clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
         clr.title='Clear all fields in this section';
         clr.addEventListener('click',function(e){
           e.stopPropagation();
           if(!confirm('Clear all fields in this section?'))return;
           clearSection(det);
         });
-      } else {
-        clr.classList.add('bf-ctrl-ghost');clr.title='';
+        controls.appendChild(clr);
       }
-      // separator
-      var sep=document.createElement('div');sep.className='bf-ctrl-sep';
-      // collapse button — always active when section has any child subsections
-      var cBtn=document.createElement('button');
-      cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
       if(hasChildren){
+        var sep=document.createElement('div');sep.className='bf-ctrl-sep';
+        var cBtn=document.createElement('button');
+        cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
         cBtn.title='Collapse child sections';
         cBtn.addEventListener('click',function(e){
           e.stopPropagation();
           directChildSubs(det).forEach(function(d){d.removeAttribute('open');});
         });
-      } else {
-        cBtn.classList.add('bf-ctrl-ghost');cBtn.title='';
-      }
-      // expand button — always active when section has any child subsections
-      var eBtn=document.createElement('button');
-      eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
-      if(hasChildren){
+        var eBtn=document.createElement('button');
+        eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
         eBtn.title='Expand child sections';
         eBtn.addEventListener('click',function(e){
           e.stopPropagation();
           directChildSubs(det).forEach(function(d){d.setAttribute('open','');});
         });
-      } else {
-        eBtn.classList.add('bf-ctrl-ghost');eBtn.title='';
+        controls.appendChild(sep);
+        controls.appendChild(cBtn);
+        controls.appendChild(eBtn);
       }
-      // order: clear | sep | collapse | expand (rightmost)
-      controls.appendChild(clr);
-      controls.appendChild(sep);
-      controls.appendChild(cBtn);
-      controls.appendChild(eBtn);
     });
   })();
 
@@ -2073,8 +2000,8 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
     /* The last-focused notes container (quick-notes textarea or a .nts-section) */
     var activeNoteContainer=null;
     function fieldOpacity(){
-      /* Non-active notes fields: panel opacity + 10%, capped at 100% */
-      return (Math.min(100,opPct+10)/100).toFixed(2);
+      /* Non-active notes fields dim to a fixed fraction — independent of panel opacity */
+      return '0.35';
     }
     function getNoteContainer(el){
       /* Quick-notes textarea is its own box; section notes live inside .nts-section */
@@ -2089,11 +2016,12 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
         /* Header toolbar always 100% — set nothing on hdr */
         /* Apply per-container opacity: non-active containers fade, active stays 100% */
         if(notesBody){
-          var fOp='0.35';
+          var fOp=fieldOpacity();
           var qn=document.getElementById('bf-session-notes');
           /* quick-notes textarea: direct opacity fine (leaf element, no children) */
-          if(qn) qn.style.opacity=(qn===activeNoteContainer)?'':fOp;
-          /* sections: set attribute so CSS dims only own header+content, not nested sections */
+          if(qn) qn.style.opacity=(qn===activeNoteContainer)?'1':fOp;
+          /* sections: dim own header+notes textarea via inline style (bypasses CSS cascade
+             issues that prevent nested section headers from visibly inheriting opacity) */
           notesBody.querySelectorAll('.nts-section').forEach(function(s){
             var dim=(s!==activeNoteContainer);
             s.classList.toggle('nts-dim',dim);
@@ -2150,6 +2078,13 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
           pane.style.top='48px';
         }
         pane.style.right='auto';
+        /* If a notes textarea already has focus when we go floating, honour it */
+        if(notesBody){
+          var ae=document.activeElement;
+          if(ae&&(ae.tagName==='TEXTAREA'||ae.tagName==='INPUT')&&notesBody.contains(ae)){
+            activeNoteContainer=getNoteContainer(ae);
+          }
+        }
         applyOpacity();
         applyBlur();
       }else{
@@ -2295,6 +2230,659 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
     }
   })();
 })();
-</script>
-</body>
-</html>
+"""
+
+_NOTES_HTML = (
+    '<div id="bf-notes-header"><span>Session Notes</span>'
+    '<button type="button" class="nts-export-btn" id="bf-notes-export-md" title="Export notes as Markdown">↓ MD</button>'
+    '<button type="button" class="nts-export-btn" id="bf-notes-export-html" title="Export notes as HTML">↓ HTML</button>'
+    '<button type="button" class="nts-export-btn" id="bf-notes-import" title="Import notes from Markdown file">↑ Import</button>'
+    '<button type="button" class="nts-clear-btn" id="bf-notes-clear" title="Clear all notes for this document">\U0001f5d1</button>'
+    '<div id="bf-notes-opacity-ctrl">'
+    '<div class="bf-ctrl-row" title="Adjust panel transparency">'
+    '<span class="bf-ctrl-label">opacity</span>'
+    '<button type="button" class="bf-op-btn" id="bf-notes-opacity-down" title="Less opaque">−</button>'
+    '<span id="bf-notes-opacity-val">95%</span>'
+    '<button type="button" class="bf-op-btn" id="bf-notes-opacity-up" title="More opaque">+</button>'
+    '</div>'
+    '<div class="bf-ctrl-row" title="Blur content behind panel">'
+    '<span class="bf-ctrl-label">blur</span>'
+    '<button type="button" class="bf-op-btn" id="bf-notes-blur-down" title="Less blur">−</button>'
+    '<span id="bf-notes-blur-val">0px</span>'
+    '<button type="button" class="bf-op-btn" id="bf-notes-blur-up" title="More blur">+</button>'
+    '</div>'
+    '</div>'
+    '<button type="button" id="bf-notes-float-btn" title="Pop out notes panel">⊞</button>'
+    '<button type="button" id="bf-notes-toggle" title="Hide notes panel">◄</button>'
+    '</div>'
+    '<div id="bf-notes-body">'
+    '<p style="color:var(--muted);font-size:.75em;margin:0 0 6px">Free-form notes — saved in your browser.</p>'
+    '<textarea id="bf-session-notes" placeholder="Quick notes…"></textarea>'
+    '<hr class="nts-divider">'
+    '<p class="nts-label">Sections</p>'
+    '<div id="bf-notes-tree"></div>'
+    '<button type="button" id="bf-notes-add-root">+ Add section</button>'
+    '</div>'
+)
+
+
+def theme_assets() -> tuple:
+    """Return (css, js, toggle_button_html) for injection into bespoke HTML docs."""
+    return _CSS, _JS, '<button id="bf-theme-btn" type="button">☀ Light</button>'
+
+
+# ---------------------------------------------------------------------------
+# Inline rendering
+# ---------------------------------------------------------------------------
+
+def _inline(text: str) -> str:
+    text = html.escape(text, quote=False)
+    spans: list = []
+
+    def _stash(m: "re.Match") -> str:
+        spans.append(m.group(1))
+        return f"\x00{len(spans) - 1}\x00"
+
+    text = re.sub(r"`([^`]+)`", _stash, text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', text)
+    text = re.sub(r"\*\*([^*]+?)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"\x00(\d+)\x00", lambda m: f"<code>{spans[int(m.group(1))]}</code>", text)
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Template placeholders inside code blocks
+# ---------------------------------------------------------------------------
+
+_TPL_RE = re.compile(r"\{\{\s*([A-Za-z][\w-]*)\s*(?:=([^}]*))?\}\}")
+# Credential reference in code blocks: {{cred:slug}}
+_CRED_RE = re.compile(r"\{\{\s*cred:([\w-]+)\s*\}\}")
+
+
+def _render_code(raw: str, tpl_vars: dict) -> str:
+    """HTML-escape code, then turn {{VAR}} / {{VAR=default}} into live slots
+    and {{cred:slug}} into visually-masked credential spans."""
+    escaped = html.escape(raw, quote=False)
+
+    # First pass: resolve {{cred:slug}} → masked span (before _TPL_RE which won't match cred: prefix)
+    def _cred_repl(m: "re.Match") -> str:
+        slug = m.group(1)
+        return (f'<span class="tpl cred-tpl" data-cred-slug="{html.escape(slug)}" '
+                f'title="Credential: {html.escape(slug)} — masked for visual security">'
+                f'••••••••</span>')
+
+    escaped = _CRED_RE.sub(_cred_repl, escaped)
+
+    def _repl(m: "re.Match") -> str:
+        name = m.group(1)
+        default = (m.group(2) or "").strip()
+        if name not in tpl_vars:
+            tpl_vars[name] = default
+        shown = tpl_vars[name] or name
+        return f'<span class="tpl" data-var="{html.escape(name)}">{html.escape(shown)}</span>'
+
+    return _TPL_RE.sub(_repl, escaped)
+
+
+# Languages for which a Copy button is shown.  Diagrams, structure views, and
+# config examples that are not meant to be pasted into a terminal should use a
+# plain fence (no language tag, or a non-command tag) and render without the button.
+_COPYABLE_LANGS = frozenset({
+    "bash", "sh", "shell", "console", "cmd",
+    "powershell", "ps1", "zsh", "fish",
+})
+
+# ---------------------------------------------------------------------------
+# Block rendering
+# ---------------------------------------------------------------------------
+
+def _is_table_sep(line: str) -> bool:
+    s = line.strip()
+    if "|" not in s and "-" not in s:
+        return False
+    s = s.strip("|")
+    cells = s.split("|")
+    if not cells:
+        return False
+    for c in cells:
+        c = c.strip()
+        if not c or not re.fullmatch(r":?-+:?", c):
+            return False
+    return True
+
+
+def _split_row(line: str) -> list:
+    s = line.strip()
+    s = re.sub(r"^\|", "", s)
+    s = re.sub(r"\|$", "", s)
+    return [c.strip() for c in s.split("|")]
+
+
+def _render_blocks(md: str, tpl_vars: dict, collapsible: bool = False) -> str:
+    lines = md.split("\n")
+    out: list = []
+    open_sections: list = []
+    paragraph: list = []
+    i, n = 0, len(lines)
+
+    while i < n:
+        line = lines[i]
+        stripped = line.strip()
+
+        if not stripped:
+            i += 1
+            continue
+
+        # Note-field markers: @field / @area / @credential / @radio / @check / @table / @parse / @filename / @dir
+        m = re.match(r"^@(field|area|credential|dir)\[(.+?)\]\s*$", stripped)
+        if m:
+            kind, raw_label = m.group(1), m.group(2)
+            # Detect |VAR=default or |VAR suffix — makes this a live param input
+            var_m = re.match(r"^(.+?)\|([A-Z][A-Z0-9_]*)(?:=(.*))?$", raw_label)
+            if var_m:
+                label = var_m.group(1).strip()
+                var_name = var_m.group(2)
+                var_default = var_m.group(3) or ""
+            else:
+                label = raw_label
+                var_name = None
+                var_default = ""
+            slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:48] or "note"
+            if kind == "field":
+                if var_name:
+                    # Render as a live param input (syncs with Parameters panel)
+                    vslug = re.sub(r"[^a-z0-9]+", "-", var_name.lower()).strip("-")
+                    out.append(
+                        f'<div class="param-row">'
+                        f'<label for="p-{vslug}">{html.escape(label)}</label>'
+                        f'<input id="p-{vslug}" class="param-input" type="text" '
+                        f'data-var="{html.escape(var_name)}" '
+                        f'value="{html.escape(var_default)}" placeholder="{html.escape(var_default)}">'
+                        f'</div>'
+                    )
+                else:
+                    out.append(
+                        f'<div class="notefield"><label>{html.escape(label)}</label>'
+                        f'<input type="text" class="note-input" data-note="{slug}" '
+                        f'placeholder="record here…"></div>'
+                    )
+            elif kind == "area":
+                out.append(
+                    f'<div class="notefield"><label>{html.escape(label)}</label>'
+                    f'<textarea class="note-area" data-note="{slug}" '
+                    f'placeholder="record here…"></textarea></div>'
+                )
+            elif kind == "credential":
+                # If var_name provided, use it as the cred slug for param injection
+                cslug = re.sub(r"[^a-z0-9]+", "-", (var_name or label).lower()).strip("-")[:48] or slug
+                _dv = f'data-var="{html.escape(var_name)}" ' if var_name else ''
+                out.append(
+                    f'<div class="notefield cred-field" id="cred-wrap-{cslug}">'
+                    f'<label>{html.escape(label)} '
+                    f'<span class="cred-badge">\U0001f511 session-only — exported in encrypted package</span></label>'
+                    f'<div class="cred-methods">'
+                    f'<label class="cred-method-opt"><input type="checkbox" class="cred-method-cb" value="password" checked data-cred="{cslug}"> Password</label>'
+                    f'<label class="cred-method-opt"><input type="checkbox" class="cred-method-cb" value="totp" data-cred="{cslug}"> TOTP (authenticator app)</label>'
+                    f'</div>'
+                    f'<div class="cred-method-section" id="cred-pw-section-{cslug}">'
+                    f'<div class="cred-section-label">Password</div>'
+                    f'<div class="cred-row">'
+                    f'<input type="password" class="note-input cred-input param-input" id="cred-{cslug}" '
+                    f'data-cred="{cslug}" data-note="{cslug}-cred" {_dv}placeholder="enter here…" autocomplete="off">'
+                    f'<select class="bf-suggest-select" data-suggest-for="{cslug}">'
+                    '<option value="4word">4-word phrase</option>'
+                    '<option value="3word-n">3-word + number</option>'
+                    '<option value="random">random string</option>'
+                    '</select>'
+                    f'<button type="button" class="bf-suggest-btn" data-suggest="passphrase" data-for="{cslug}" title="Generate passphrase">✦ suggest</button>'
+                    f'<button type="button" class="cred-toggle" data-for="{cslug}" title="Show / hide">\U0001f441</button>'
+                    f'</div>'
+                    f'<div class="cred-row cred-confirm-row" id="cred-confirm-row-{cslug}">'
+                    f'<input type="password" class="note-input cred-confirm-input" id="cred-confirm-{cslug}" data-for="{cslug}" placeholder="confirm — retype to verify" autocomplete="off">'
+                    f'<span class="cred-match-indicator" id="cred-match-{cslug}"></span>'
+                    f'</div></div>'
+                    f'<div class="cred-method-section" id="cred-totp-section-{cslug}" style="display:none">'
+                    f'<div class="cred-section-label">TOTP Secret</div>'
+                    f'<div class="cred-row">'
+                    f'<input type="text" class="note-input cred-totp-input" id="cred-totp-{cslug}" '
+                    f'data-cred="{cslug}-totp" data-note="{cslug}-totp" placeholder="BASE32 secret — enter into authenticator app" autocomplete="off" style="font-family:monospace;letter-spacing:.04em">'
+                    f'<select class="bf-suggest-select" data-suggest-for="{cslug}-totp">'
+                    '<option value="totp-20">standard (160-bit)</option>'
+                    '<option value="totp-32">high security (256-bit)</option>'
+                    '</select>'
+                    f'<button type="button" class="bf-suggest-btn" data-suggest="totp-secret" data-for="{cslug}-totp" title="Generate TOTP secret">✦ suggest</button>'
+                    f'</div>'
+                    f'<span class="cred-hint" style="margin-top:2px">Scan or enter this secret into your authenticator app (e.g. Google Authenticator, Aegis).</span>'
+                    f'</div>'
+                    f'<span class="cred-hint">⚠ Record all values in KeePass or your secure vault before closing this tab.</span>'
+                    f'</div>'
+                )
+            elif kind == "dir":
+                out.append(
+                    f'<div class="notefield dir-field"><label>\U0001f4c1 {html.escape(label)}</label>'
+                    f'<input type="text" class="note-input dir-input" data-note="{slug}" placeholder="/path/to/working/directory">'
+                    f'<span class="dir-hint">Use <code>cd {{{{this_path}}}}</code> before running commands in this section.</span>'
+                    f'</div>'
+                )
+            i += 1
+            continue
+
+        # @radio[Label|Option1|Option2|...]
+        m = re.match(r"^@radio\[(.+?)\]\s*$", stripped)
+        if m:
+            parts = [p.strip() for p in m.group(1).split("|")]
+            label, opts = parts[0], parts[1:]
+            slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:48] or "choice"
+            rows = ""
+            for opt in opts:
+                oslug = re.sub(r"[^a-z0-9]+", "-", opt.lower()).strip("-")[:32]
+                rows += (
+                    f'<div class="choice-row">'
+                    f'<input type="radio" name="radio-{slug}" value="{html.escape(opt)}" id="r-{slug}-{oslug}">'
+                    f'<label for="r-{slug}-{oslug}" class="choice-label">{html.escape(opt)}</label>'
+                    f'<input type="text" class="note-input choice-note" data-note="{slug}-note-{oslug}" placeholder="note…">'
+                    f'</div>'
+                )
+            out.append(
+                f'<div class="notefield choice-field" data-slug="{slug}" data-choice-type="radio">'
+                f'<label>{html.escape(label)}</label>'
+                f'<input type="hidden" data-note="{slug}" class="note-input" value="">'
+                f'<div class="choice-rows">{rows}</div></div>'
+            )
+            i += 1
+            continue
+
+        # @check[Label|Option1|Option2|...]
+        m = re.match(r"^@check\[(.+?)\]\s*$", stripped)
+        if m:
+            parts = [p.strip() for p in m.group(1).split("|")]
+            label, opts = parts[0], parts[1:]
+            slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:48] or "check"
+            rows = ""
+            for opt in opts:
+                oslug = re.sub(r"[^a-z0-9]+", "-", opt.lower()).strip("-")[:32]
+                rows += (
+                    f'<div class="choice-row">'
+                    f'<input type="checkbox" name="check-{slug}" value="{html.escape(opt)}" id="c-{slug}-{oslug}">'
+                    f'<label for="c-{slug}-{oslug}" class="choice-label">{html.escape(opt)}</label>'
+                    f'<input type="text" class="note-input choice-note" data-note="{slug}-note-{oslug}" placeholder="note…">'
+                    f'</div>'
+                )
+            out.append(
+                f'<div class="notefield choice-field" data-slug="{slug}" data-choice-type="check">'
+                f'<label>{html.escape(label)}</label>'
+                f'<input type="hidden" data-note="{slug}" class="note-input" value="">'
+                f'<div class="choice-rows">{rows}</div></div>'
+            )
+            i += 1
+            continue
+
+        # @table[Label|Col1|Col2|...](PresetRow1,PresetRow2,...)
+        m = re.match(r"^@table\[(.+?)\](?:\(([^)]*)\))?\s*$", stripped)
+        if m:
+            parts = [p.strip() for p in m.group(1).split("|")]
+            label, cols = parts[0], parts[1:]
+            preset_raw = m.group(2) or ""
+            preset_rows = [r.strip() for r in preset_raw.split(",") if r.strip()] if preset_raw else []
+            slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:48] or "table"
+            col_heads = "".join(f'<th>{html.escape(c)}</th>' for c in cols)
+            preset_attr = f' data-preset-rows="{html.escape(json.dumps(preset_rows))}"' if preset_rows else ""
+            out.append(
+                f'<div class="notefield table-field" data-slug="{slug}">'
+                f'<input type="hidden" class="note-input" data-note="{slug}" value=""{preset_attr}>'
+                f'<div class="input-table-wrap"><table class="input-table">'
+                f'<thead><tr>{col_heads}<th style="width:28px"></th></tr></thead>'
+                f'<tbody id="tbl-{slug}"></tbody>'
+                f'</table></div>'
+                f'<button type="button" class="add-row-btn" data-table="{slug}">+ Add row</button>'
+                f'</div>'
+            )
+            i += 1
+            continue
+
+        # @parse[Label|regex|target-field-slug]
+        m = re.match(r"^@parse\[(.+?)\]\s*$", stripped)
+        if m:
+            parts = [p.strip() for p in m.group(1).split("|")]
+            if len(parts) >= 3:
+                label, pattern, target = parts[0], parts[1], parts[2]
+            elif len(parts) == 2:
+                label, pattern, target = parts[0], parts[1], ""
+            else:
+                label, pattern, target = parts[0], "", ""
+            slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:48] or "parse"
+            out.append(
+                f'<div class="notefield parse-field" data-slug="{slug}" '
+                f'data-parse-regex="{html.escape(pattern)}" data-parse-target="{html.escape(target)}">'
+                f'<label>{html.escape(label)}</label>'
+                f'<div class="parse-row">'
+                f'<textarea class="parse-input" placeholder="Paste terminal output here…"></textarea>'
+                f'<button type="button" class="parse-btn">Extract ▶</button>'
+                f'</div>'
+                f'<div class="parse-result" style="display:none">'
+                f'<span class="parse-found">Found:</span> '
+                f'<span class="parse-value"></span>'
+                f'<button type="button" class="parse-apply" style="display:none">Apply ↓</button>'
+                f'</div>'
+                f'</div>'
+            )
+            i += 1
+            continue
+
+        # @filename[Label|template]
+        m = re.match(r"^@filename\[(.+?)\]\s*$", stripped)
+        if m:
+            parts = [p.strip() for p in m.group(1).split("|", 1)]
+            label = parts[0]
+            template = parts[1] if len(parts) > 1 else ""
+            slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:48] or "filename"
+            out.append(
+                f'<div class="notefield filename-field" data-slug="{slug}" data-template="{html.escape(template)}">'
+                f'<label>{html.escape(label)}</label>'
+                f'<div class="filename-row">'
+                f'<input type="text" class="note-input filename-input" data-note="{slug}" placeholder="auto-suggested when dependencies are filled…">'
+                f'<button type="button" class="filename-suggest-btn" data-filename="{slug}">↺ Suggest</button>'
+                f'</div>'
+                f'<div class="filename-warn" id="fnwarn-{slug}" style="display:none">'
+                f'<span class="filename-warn-text"></span>'
+                f'<button type="button" class="filename-highlight-btn" data-filename="{slug}">Highlight missing</button>'
+                f'</div>'
+                f'</div>'
+            )
+            i += 1
+            continue
+
+        # ---------- fenced code block ----------
+        if stripped.startswith("```"):
+            lang = stripped[3:].strip().lower()
+            buf = []
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                buf.append(lines[i])
+                i += 1
+            code = _render_code("\n".join(buf), tpl_vars)
+            copyable = lang in _COPYABLE_LANGS
+            if copyable:
+                out.append(
+                    '<div class="codewrap"><button class="copy-btn" type="button">Copy</button>'
+                    f'<pre><code class="lang-{html.escape(lang)}">{code}</code></pre></div>'
+                )
+            else:
+                out.append(f'<pre><code class="lang-{html.escape(lang)}">{code}</code></pre>')
+            i += 1
+            continue
+
+        # ---------- blockquote ----------
+        if stripped.startswith("> "):
+            bq = []
+            while i < len(lines) and lines[i].startswith(">"):
+                bq.append(lines[i].lstrip("> "))
+                i += 1
+            out.append("<blockquote>" + _inline("\n".join(bq)) + "</blockquote>")
+            continue
+
+        # ---------- tables ----------
+        if "|" in stripped and not stripped.startswith("<!--"):
+            # peek: check if next line is a separator
+            if i + 1 < len(lines) and _is_table_sep(lines[i + 1]):
+                headers = _split_row(stripped)
+                i += 2  # skip header + separator
+                thead = "<thead><tr>" + "".join(f"<th>{_inline(h)}</th>" for h in headers) + "</tr></thead>"
+                tbody_rows = []
+                while i < len(lines) and "|" in lines[i]:
+                    cells = _split_row(lines[i])
+                    tbody_rows.append("<tr>" + "".join(f"<td>{_inline(c)}</td>" for c in cells) + "</tr>")
+                    i += 1
+                out.append(f"<table>{thead}<tbody>{''.join(tbody_rows)}</tbody></table>")
+                continue
+
+        # ---------- heading-based collapsible sections ----------
+        hm = re.match(r"^(#{1,4})\s+(.*)", stripped)
+        if hm and collapsible:
+            level = len(hm.group(1))
+            raw_title = hm.group(2)
+            title_text = _inline(raw_title)
+            tag = f"h{level}"
+            kind_cls = "section" if level <= 2 else "subsection"
+            sum_cls = '' if kind_cls == 'section' else ' class="sub-summary"'
+            hid = re.sub(r"[^a-z0-9]+", "-", raw_title.lower()).strip("-")
+            # Close any open sections at the same or shallower level
+            while open_sections and open_sections[-1] >= level:
+                out.append("</div></details>")
+                open_sections.pop()
+            out.append(
+                f'<details class="{kind_cls}" open>'
+                f'<summary{sum_cls}><{tag} id="{hid}">{title_text}</{tag}></summary>'
+                f'<div class="sec-body" style="margin-left:{(level-1)*12}px">'
+            )
+            open_sections.append(level)
+            i += 1
+            continue
+        elif hm:
+            level = len(hm.group(1))
+            raw_title = hm.group(2)
+            title_text = _inline(raw_title)
+            tag = f"h{level}"
+            hid = re.sub(r"[^a-z0-9]+", "-", raw_title.lower()).strip("-")
+            out.append(f'<{tag} id="{hid}">{title_text}</{tag}>')
+            i += 1
+            continue
+
+        # ---------- unordered list ----------
+        if re.match(r"^[-*+]\s", stripped):
+            items = []
+            while i < len(lines) and re.match(r"^[-*+]\s", lines[i].strip()):
+                items.append(f"<li>{_inline(lines[i].strip()[2:])}</li>")
+                i += 1
+            out.append("<ul>" + "".join(items) + "</ul>")
+            continue
+
+        # ---------- ordered list ----------
+        if re.match(r"^\d+[.)]\s", stripped):
+            items = []
+            _ol_re = re.compile(r"^\d+[.)]\s")
+            while i < len(lines) and re.match(r"^\d+[.)]\s", lines[i].strip()):
+                items.append(f"<li>{_inline(_ol_re.sub('', lines[i].strip()))}</li>")
+                i += 1
+            out.append("<ol>" + "".join(items) + "</ol>")
+            continue
+
+        # ---------- horizontal rule ----------
+        if re.match(r"^[-*_]{3,}$", stripped):
+            out.append("<hr>")
+            i += 1
+            continue
+
+        # ---------- paragraph ----------
+        paragraph.append(stripped)
+        i += 1
+
+    if paragraph:
+        out.append(f"<p>{_inline(' '.join(paragraph))}</p>")
+
+    # close any open collapsible sections
+    while open_sections:
+        out.append("</div></details>")
+        open_sections.pop()
+
+    return "\n".join(out)
+
+
+def _extract_tpl_vars(md: str):
+    """Extract template variable declarations. Returns (OrderedDict, md).
+
+    Sources:
+      {{VAR=default}}          — inline default in code blocks
+      @field[Label|VAR=default] — named parameter field (also rendered inline)
+      @credential[Label|VAR]    — named credential parameter
+    """
+    import re as _re
+    from collections import OrderedDict
+    vars_ = OrderedDict()
+    # 1. inline {{VAR=default}} markers
+    for m in _re.finditer(r"\{\{([A-Z0-9_]+)=([^}]*)\}\}", md):
+        vars_[m.group(1)] = m.group(2)
+    # 2. @field[Label|VAR=default] — register VAR with default
+    for m in _re.finditer(r"^@(?:field|dir)\[.+?\|([A-Z0-9_]+)=([^\]]*)\]", md, _re.M):
+        vars_[m.group(1)] = m.group(2)
+    # 3. @credential[Label|VAR] — register VAR with empty default
+    for m in _re.finditer(r"^@credential\[.+?\|([A-Z0-9_]+)\]", md, _re.M):
+        vars_.setdefault(m.group(1), "")
+    return vars_, md
+
+
+def render_html(md: str, title: str, collapsible: bool = False, force_walkthrough: bool = False,
+                nav_docs: list = None, current_output: str = "") -> str:
+    tpl_vars, md = _extract_tpl_vars(md)
+    body = _render_blocks(md, tpl_vars, collapsible=collapsible)
+
+    params_html = ""
+    if tpl_vars:
+        rows = ""
+        for name, default in tpl_vars.items():
+            slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            rows += (
+                f'<div class="param-row">'
+                f'<label for="p-{slug}">{html.escape(name)}</label>'
+                f'<input id="p-{slug}" class="param-input" type="text" data-var="{html.escape(name)}" '
+                f'value="{html.escape(default)}" placeholder="{html.escape(default)}">'
+                f'</div>'
+            )
+        params_html = (
+            '<div id="params"><h3>Parameters</h3>'
+            f'<p class="params-hint">Fill in values here — every command below updates live. '
+            'Copy button copies the resolved command.</p>'
+            f'{rows}</div>'
+        )
+
+    is_walkthrough = force_walkthrough or bool(tpl_vars) or bool(re.search(
+        r"(?m)^@(?:field|area|credential|radio|check|table|parse|filename|dir)\[", md))
+
+    doc_slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "doc"
+
+    # ── build nav panel HTML (if nav_docs provided) ──
+    nav_panel_html = ''
+    if nav_docs:
+        import os as _os
+        cur_base = _os.path.basename(current_output) if current_output else ''
+        type_order = [('runbook','Runbooks'),('guide','Guides'),('reference','Reference'),('index','Index')]
+        grouped = {}
+        for doc in nav_docs:
+            t = doc.get('type','other')
+            grouped.setdefault(t, []).append(doc)
+        nav_inner = ''
+        first_group = True
+        for type_key, type_label in type_order:
+            if type_key not in grouped:
+                continue
+            if not first_group:
+                nav_inner += '<div class="bf-nav-sep"></div>'
+            first_group = False
+            nav_inner += f'<div class="bf-nav-group"><div class="bf-nav-group-label">{type_label}</div>'
+            for doc in grouped[type_key]:
+                out_file = _os.path.basename(doc.get('output',''))
+                doc_title = doc.get('title', out_file)
+                is_current = (out_file == cur_base)
+                cls = 'bf-nav-item current' if is_current else 'bf-nav-item'
+                nav_inner += (f'<a class="{cls}" href="{html.escape(out_file)}"'
+                              f' title="{html.escape(doc_title)}">{html.escape(doc_title)}</a>')
+            nav_inner += '</div>'
+        nav_panel_html = f'<div id="bf-nav-panel">{nav_inner}</div>'
+
+    toolbar = '<div id="bf-toolbar">'
+    # ── main button row (wraps on narrow windows) ──
+    toolbar += '<div class="bf-toolbar-main">'
+    if nav_docs:
+        toolbar += '<button id="bf-nav-toggle" type="button">☰ Docs</button>'
+        toolbar += nav_panel_html
+    toolbar += ('<a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank"'
+                ' title="About this documentation — how fields, notes, and export work">ⓘ About</a>')
+    toolbar += '<div class="bf-toolbar-end">'
+    if is_walkthrough:
+        toolbar += '<button id="bf-clear-fields-btn" type="button">\u2298 Clear Fields</button>'
+    toolbar += '<button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">\u2b07 Download with Edits</button>'
+    toolbar += '<button id="bf-theme-btn" type="button">\u2600 Light</button>'
+    if collapsible:
+        toolbar += '<span id="bf-section-count"></span>'
+        toolbar += '<button id="bf-collapse-all" type="button">\u229f Collapse All</button>'
+        toolbar += '<button id="bf-expand-all" type="button">\u229e Expand All</button>'
+    toolbar += '</div></div>'  # close toolbar-end + toolbar-main
+    # ── attachments row — always its own line, only in walkthrough docs ──
+    if is_walkthrough:
+        toolbar += ('<div class="bf-attach-bar">'
+                    '<button id="bf-attach-toggle" type="button"'
+                    ' title="Attach files — bundled into the export package">📎 Attach'
+                    ' <span id="bf-attach-count"></span></button>'
+                    '<span class="bf-attach-hint">Drag files anywhere on the page to attach</span>'
+                    '<div class="bf-attach-bar-end">'
+                    '<button id="bf-import-session-btn" type="button">\u2191 Import Session</button>'
+                    f'<button id="bf-export-btn" type="button">\u2b07 Export {html.escape(title)} Package</button>'
+                    '</div>'
+                    '</div>')
+    if is_walkthrough:
+        toolbar += (
+            '<div id="bf-attach-panel">'
+            '<input type="file" id="bf-attach-input" multiple style="display:none">'
+            '<div id="bf-attach-zone">'
+            '<span class="bf-attach-prompt">Drag files here — logs, screenshots, manifests</span>'
+            '<button type="button" class="bf-attach-btn" id="bf-attach-add">⬆ Browse…</button>'
+            '</div>'
+            '<ul class="attach-list" id="bf-attach-list"></ul>'
+            '</div>'
+        )
+    toolbar += '</div>'  # close bf-toolbar
+
+
+    hint_html = ""
+    if is_walkthrough:
+        hint_html = (
+            '<div id="bf-walkthrough-hint">📋 Walkthrough — fill in fields as you go; '
+            'entries are saved in your browser. Credential fields (🔑) are exported in '
+            'encrypted packages. <a href="ABOUT-DOCS.html" target="_blank">How this works ↗</a></div>'
+        )
+
+    return (
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n"
+        '<meta charset="UTF-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+        f"<title>{html.escape(title)}</title>\n"
+        f"<style>{_CSS}</style>\n"
+        "</head>\n"
+        f'<body data-doc="{doc_slug}">\n'
+        '<div id="bf-app">\n'
+        '  <div id="bf-doc-pane">\n'
+        f"    {toolbar}\n"
+        f"    {hint_html}\n"
+        f"    {params_html}\n"
+        '    <div id="bf-doc-body">\n'
+        f"{body}\n"
+        "    </div>\n"
+        "  </div>\n"
+        '  <div id="bf-drag"></div>\n'
+        '  <div id="bf-notes-pane">\n'
+        f"{_NOTES_HTML}"
+        "  </div>\n"
+        "</div>\n"
+        f"<script>{_JS}</script>\n"
+        "</body>\n</html>"
+    )
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description="Render a Markdown doc to broodforge-style HTML.")
+    ap.add_argument("--title", default="")
+    ap.add_argument("--collapsible", action="store_true")
+    ap.add_argument("--playbook", action="store_true")
+    ap.add_argument("--manifest", default="", help="Path to doc-manifest.json for nav tree")
+    ap.add_argument("src")
+    ap.add_argument("dst")
+    args = ap.parse_args()
+    src = Path(args.src)
+    dst = Path(args.dst)
+    md = src.read_text(encoding="utf-8")
+    title = args.title or ""
+    nav_docs = []
+    if args.manifest:
+        import json
+        mf=json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+        nav_docs=mf.get

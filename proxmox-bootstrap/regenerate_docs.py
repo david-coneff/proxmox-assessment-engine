@@ -50,6 +50,10 @@ def regenerate(doc: dict, force: bool = False, check_only: bool = False) -> tupl
     Regenerate a single doc entry.
     Returns (success, message).
     """
+    # Skip hand-authored HTML files — they have no source Markdown
+    if doc.get("handAuthored") or "source" not in doc:
+        return True, "hand-authored (skipped)"
+
     src = REPO_ROOT / doc["source"]
     out = REPO_ROOT / doc["output"]
 
@@ -137,6 +141,9 @@ def main():
             failed += 1
         elif msg == "up-to-date":
             print(f"  ✓  {doc_id}  up-to-date")
+            ok += 1
+        elif "hand-authored" in msg:
+            print(f"  ⊙  {doc_id}  {msg}")
             ok += 1
         else:
             print(f"  ✓  {doc_id}  {msg}")

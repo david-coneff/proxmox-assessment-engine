@@ -8,7 +8,7 @@
   :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
     --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a;--bg2-rgb:34,38,46}
-  body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#b0bac5;--text:#1f2328;--muted:#57606a;
+  body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#6b7a8a;--text:#1f2328;--muted:#57606a;
     --accent:#0969da;--green:#1a7f37;--yellow:#9a6700;--orange:#bc4c00;--red:#cf222e;
     --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2;--bg2-rgb:244,245,247}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -153,11 +153,13 @@
   details.subsection .sub-body{padding-left:14px;padding-bottom:6px}
   /* +/- controls and clear button appear right-aligned in the summary row */
   .bf-sub-controls{display:flex;gap:3px;flex-shrink:0;margin-left:auto;margin-right:10px;align-items:center}
-  .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--accent);
-    color:var(--accent);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
+  .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--border);
+    color:var(--muted);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
     line-height:1.6;font-family:inherit;font-weight:700}
-  .bf-sub-expand:hover,.bf-sub-collapse:hover{background:var(--accent);color:var(--bg)}
+  .bf-sub-expand:hover,.bf-sub-collapse:hover{border-color:var(--accent);color:var(--accent)}
   .bf-ctrl-sep{width:10px;flex-shrink:0}
+  /* ghost = always-present placeholder when button not applicable */
+  .bf-ctrl-ghost{color:transparent !important;pointer-events:none;cursor:default;opacity:0.25}
   /* ── split-pane layout ─────────────────────────────────────────────────── */
   #bf-app{display:flex;height:100vh;overflow:hidden}
   #bf-doc-pane{flex:1 1 auto;overflow-y:auto;padding:24px 28px 80px;min-width:0;scrollbar-gutter:stable}
@@ -184,11 +186,9 @@
   .nts-section{margin:4px 0;border:1px solid var(--border);border-radius:var(--radius);
     overflow:hidden}
   /* dim only a section's OWN header + direct body content — nested sections unaffected */
-  .nts-ch{opacity:1!important}  /* child-section wrapper: never inherit parent dim */
-  .nts-section>summary.nts-hdr,
-  .nts-section>.nts-body>:not(.nts-section):not(.nts-ch){transition:opacity .15s}
-  .nts-section[data-nts-dim]>summary.nts-hdr,
-  .nts-section[data-nts-dim]>.nts-body>:not(.nts-section):not(.nts-ch){opacity:var(--nts-dim-op,0.7)}
+  .nts-section.nts-dim>summary.nts-hdr{opacity:0.35}
+  .nts-section.nts-dim>.nts-body>textarea.note-area{opacity:0.35!important;border-color:transparent!important}
+  .nts-section.nts-dim>.nts-body>textarea.note-area::placeholder{opacity:0.25!important}
   .nts-section>summary.nts-hdr{list-style:none;cursor:pointer;user-select:none;
     display:flex;align-items:center;gap:4px;background:var(--bg3);
     padding:5px 8px;font-size:.79em}
@@ -427,14 +427,14 @@
   .bf-edited-mark{font-size:.65em;color:var(--muted);margin-left:6px;opacity:.7}
   @media print{#bf-doc-pane{padding:12px}#bf-notes-pane,#bf-drag{display:none}
     #bf-theme-btn,.copy-btn{display:none}
-    .bf-edit-btn,.bf-edit-controls{display:none}
+    .bf-sub-controls,.bf-edit-btn,.bf-edit-controls{display:none}
     .param-input,.note-input,.note-area,#bf-session-notes{border:1px solid #999}}
 </style>
 </head>
 <body data-doc="broodforge-architecture">
 <div id="bf-app">
   <div id="bf-doc-pane">
-    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item current" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><div class="bf-toolbar-end"><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button><span id="bf-section-count"></span><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button></div></div></div>
+    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item current" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Tools</div><a class="bf-nav-item" href="forge-image-builder.html" title="Forge Image Builder">Forge Image Builder</a><a class="bf-nav-item" href="bfvault.html" title="BFVault — Secret Store">BFVault — Secret Store</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><div class="bf-toolbar-end"><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button><span id="bf-section-count"></span><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button></div></div></div>
     
     
     <div id="bf-doc-body">
@@ -2008,22 +2008,9 @@ On pass    → proceed to [B]</code></pre>
       return det.querySelector('.note-input,.note-area,.cred-input,input[type=radio],input[type=checkbox],.input-table')!==null;
     }
     function directChildSubs(det){
-      // Find the direct body child (.sec-body or .sub-body) without relying on :scope> in querySelectorAll
-      var body=null;
-      for(var i=0;i<det.children.length;i++){
-        var ch=det.children[i];
-        if(ch.classList.contains('sec-body')||ch.classList.contains('sub-body')){body=ch;break;}
-      }
+      var body=det.querySelector(':scope>.sec-body,:scope>.sub-body');
       if(!body)return[];
-      // Collect direct child <details> that are sections or subsections
-      var result=[];
-      for(var i=0;i<body.children.length;i++){
-        var ch=body.children[i];
-        if(ch.tagName==='DETAILS'&&(ch.classList.contains('section')||ch.classList.contains('subsection'))){
-          result.push(ch);
-        }
-      }
-      return result;
+      return Array.prototype.slice.call(body.querySelectorAll(':scope>details.subsection'));
     }
     function clearSection(det){
       det.querySelectorAll('.note-input,.note-area').forEach(function(f){
@@ -2040,44 +2027,55 @@ On pass    → proceed to [B]</code></pre>
     }
     document.querySelectorAll('details.section,details.subsection').forEach(function(det){
       var sum=det.querySelector(':scope>summary');if(!sum)return;
+      var controls=sum.querySelector('.bf-sub-controls');
+      if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
       var children=directChildSubs(det);
       var hasChildren=children.length>=1;
       var canClear=hasInputs(det);
-if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
-      var controls=sum.querySelector('.bf-sub-controls');
-      if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
-      // order: clear | sep | collapse | expand (rightmost)
+      // clear button — leftmost; ghost placeholder when no inputs
+      var clr=document.createElement('button');
+      clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
       if(canClear){
-        var clr=document.createElement('button');
-        clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
         clr.title='Clear all fields in this section';
         clr.addEventListener('click',function(e){
           e.stopPropagation();
           if(!confirm('Clear all fields in this section?'))return;
           clearSection(det);
         });
-        controls.appendChild(clr);
+      } else {
+        clr.classList.add('bf-ctrl-ghost');clr.title='';
       }
+      // separator
+      var sep=document.createElement('div');sep.className='bf-ctrl-sep';
+      // collapse button — always active when section has any child subsections
+      var cBtn=document.createElement('button');
+      cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
       if(hasChildren){
-        var sep=document.createElement('div');sep.className='bf-ctrl-sep';
-        var cBtn=document.createElement('button');
-        cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
         cBtn.title='Collapse child sections';
         cBtn.addEventListener('click',function(e){
           e.stopPropagation();
           directChildSubs(det).forEach(function(d){d.removeAttribute('open');});
         });
-        var eBtn=document.createElement('button');
-        eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
+      } else {
+        cBtn.classList.add('bf-ctrl-ghost');cBtn.title='';
+      }
+      // expand button — always active when section has any child subsections
+      var eBtn=document.createElement('button');
+      eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
+      if(hasChildren){
         eBtn.title='Expand child sections';
         eBtn.addEventListener('click',function(e){
           e.stopPropagation();
           directChildSubs(det).forEach(function(d){d.setAttribute('open','');});
         });
-        controls.appendChild(sep);
-        controls.appendChild(cBtn);
-        controls.appendChild(eBtn);
+      } else {
+        eBtn.classList.add('bf-ctrl-ghost');eBtn.title='';
       }
+      // order: clear | sep | collapse | expand (rightmost)
+      controls.appendChild(clr);
+      controls.appendChild(sep);
+      controls.appendChild(cBtn);
+      controls.appendChild(eBtn);
     });
   })();
 
@@ -2150,8 +2148,8 @@ if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
     /* The last-focused notes container (quick-notes textarea or a .nts-section) */
     var activeNoteContainer=null;
     function fieldOpacity(){
-      /* Non-active notes fields dim to a fixed fraction — independent of panel opacity */
-      return '0.35';
+      /* Non-active notes fields: panel opacity + 10%, capped at 100% */
+      return (Math.min(100,opPct+10)/100).toFixed(2);
     }
     function getNoteContainer(el){
       /* Quick-notes textarea is its own box; section notes live inside .nts-section */
@@ -2166,25 +2164,18 @@ if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
         /* Header toolbar always 100% — set nothing on hdr */
         /* Apply per-container opacity: non-active containers fade, active stays 100% */
         if(notesBody){
-          var fOp=fieldOpacity();
+          var fOp='0.35';
           var qn=document.getElementById('bf-session-notes');
           /* quick-notes textarea: direct opacity fine (leaf element, no children) */
-          if(qn) qn.style.opacity=(qn===activeNoteContainer)?'1':fOp;
-          /* sections: directly dim own header+notes textarea; nested sections untouched */
+          if(qn) qn.style.opacity=(qn===activeNoteContainer)?'':fOp;
+          /* sections: set attribute so CSS dims only own header+content, not nested sections */
           notesBody.querySelectorAll('.nts-section').forEach(function(s){
             var dim=(s!==activeNoteContainer);
-            var hdr=null,body=null;
-            for(var ci=0;ci<s.children.length;ci++){
-              var ch=s.children[ci];
-              if(!hdr&&ch.tagName==='SUMMARY') hdr=ch;
-              if(!body&&ch.classList.contains('nts-body')) body=ch;
-            }
-            var ta=null;
-            if(body){for(var bi=0;bi<body.children.length;bi++){
-              if(body.children[bi].tagName==='TEXTAREA'){ta=body.children[bi];break;}
-            }}
+            s.classList.toggle('nts-dim',dim);
+            var hdr=s.querySelector(':scope>summary');
             if(hdr) hdr.style.opacity=dim?fOp:'';
-            if(ta) ta.style.opacity=dim?fOp:'';
+            var ta=s.querySelector(':scope>.nts-body>textarea');
+            if(ta){ta.style.opacity=dim?fOp:'';ta.style.borderColor=dim?'transparent':'';}
           });
         }
       }
@@ -2247,20 +2238,11 @@ if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
           var qn2=document.getElementById('bf-session-notes');
           if(qn2) qn2.style.opacity='';
           notesBody.querySelectorAll('.nts-section').forEach(function(s){
-            var hdr=null,body=null;
-            for(var ci=0;ci<s.children.length;ci++){
-              var ch=s.children[ci];
-              if(!hdr&&ch.tagName==='SUMMARY') hdr=ch;
-              if(!body&&ch.classList.contains('nts-body')) body=ch;
-            }
-            var ta=null;
-            if(body){for(var bi=0;bi<body.children.length;bi++){
-              if(body.children[bi].tagName==='TEXTAREA'){ta=body.children[bi];break;}
-            }}
+            s.classList.remove('nts-dim');
+            var hdr=s.querySelector(':scope>summary');
             if(hdr) hdr.style.opacity='';
-            if(ta) ta.style.opacity='';
-            s.removeAttribute('data-nts-dim');
-            s.style.removeProperty('--nts-dim-op');
+            var ta=s.querySelector(':scope>.nts-body>textarea');
+            if(ta){ta.style.opacity='';ta.style.borderColor='';}
           });
         }
         if(drag) drag.classList.remove('notes-floating');

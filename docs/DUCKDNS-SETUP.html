@@ -8,7 +8,7 @@
   :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
     --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a;--bg2-rgb:34,38,46}
-  body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#b0bac5;--text:#1f2328;--muted:#57606a;
+  body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#6b7a8a;--text:#1f2328;--muted:#57606a;
     --accent:#0969da;--green:#1a7f37;--yellow:#9a6700;--orange:#bc4c00;--red:#cf222e;
     --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2;--bg2-rgb:244,245,247}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -153,11 +153,13 @@
   details.subsection .sub-body{padding-left:14px;padding-bottom:6px}
   /* +/- controls and clear button appear right-aligned in the summary row */
   .bf-sub-controls{display:flex;gap:3px;flex-shrink:0;margin-left:auto;margin-right:10px;align-items:center}
-  .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--accent);
-    color:var(--accent);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
+  .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--border);
+    color:var(--muted);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
     line-height:1.6;font-family:inherit;font-weight:700}
-  .bf-sub-expand:hover,.bf-sub-collapse:hover{background:var(--accent);color:var(--bg)}
+  .bf-sub-expand:hover,.bf-sub-collapse:hover{border-color:var(--accent);color:var(--accent)}
   .bf-ctrl-sep{width:10px;flex-shrink:0}
+  /* ghost = always-present placeholder when button not applicable */
+  .bf-ctrl-ghost{color:transparent !important;pointer-events:none;cursor:default;opacity:0.25}
   /* ── split-pane layout ─────────────────────────────────────────────────── */
   #bf-app{display:flex;height:100vh;overflow:hidden}
   #bf-doc-pane{flex:1 1 auto;overflow-y:auto;padding:24px 28px 80px;min-width:0;scrollbar-gutter:stable}
@@ -184,11 +186,9 @@
   .nts-section{margin:4px 0;border:1px solid var(--border);border-radius:var(--radius);
     overflow:hidden}
   /* dim only a section's OWN header + direct body content — nested sections unaffected */
-  .nts-ch{opacity:1!important}  /* child-section wrapper: never inherit parent dim */
-  .nts-section>summary.nts-hdr,
-  .nts-section>.nts-body>:not(.nts-section):not(.nts-ch){transition:opacity .15s}
-  .nts-section[data-nts-dim]>summary.nts-hdr,
-  .nts-section[data-nts-dim]>.nts-body>:not(.nts-section):not(.nts-ch){opacity:var(--nts-dim-op,0.7)}
+  .nts-section.nts-dim>summary.nts-hdr{opacity:0.35}
+  .nts-section.nts-dim>.nts-body>textarea.note-area{opacity:0.35!important;border-color:transparent!important}
+  .nts-section.nts-dim>.nts-body>textarea.note-area::placeholder{opacity:0.25!important}
   .nts-section>summary.nts-hdr{list-style:none;cursor:pointer;user-select:none;
     display:flex;align-items:center;gap:4px;background:var(--bg3);
     padding:5px 8px;font-size:.79em}
@@ -427,14 +427,14 @@
   .bf-edited-mark{font-size:.65em;color:var(--muted);margin-left:6px;opacity:.7}
   @media print{#bf-doc-pane{padding:12px}#bf-notes-pane,#bf-drag{display:none}
     #bf-theme-btn,.copy-btn{display:none}
-    .bf-edit-btn,.bf-edit-controls{display:none}
+    .bf-sub-controls,.bf-edit-btn,.bf-edit-controls{display:none}
     .param-input,.note-input,.note-area,#bf-session-notes{border:1px solid #999}}
 </style>
 </head>
 <body data-doc="duckdns-setup">
 <div id="bf-app">
   <div id="bf-doc-pane">
-    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item current" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><div class="bf-toolbar-end"><button id="bf-clear-fields-btn" type="button">⊘ Clear Fields</button><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button><span id="bf-section-count"></span><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button></div></div><div class="bf-attach-bar"><button id="bf-attach-toggle" type="button" title="Attach files — bundled into the export package">📎 Attach <span id="bf-attach-count"></span></button><span class="bf-attach-hint">Drag files anywhere on the page to attach</span><div class="bf-attach-bar-end"><button id="bf-import-session-btn" type="button">↑ Import Session</button><button id="bf-export-btn" type="button">⬇ Export DuckDNS Setup Package</button></div></div><div id="bf-attach-panel"><input type="file" id="bf-attach-input" multiple style="display:none"><div id="bf-attach-zone"><span class="bf-attach-prompt">Drag files here — logs, screenshots, manifests</span><button type="button" class="bf-attach-btn" id="bf-attach-add">⬆ Browse…</button></div><ul class="attach-list" id="bf-attach-list"></ul></div></div>
+    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item current" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Tools</div><a class="bf-nav-item" href="forge-image-builder.html" title="Forge Image Builder">Forge Image Builder</a><a class="bf-nav-item" href="bfvault.html" title="BFVault — Secret Store">BFVault — Secret Store</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><div class="bf-toolbar-end"><button id="bf-clear-fields-btn" type="button">⊘ Clear Fields</button><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button><span id="bf-section-count"></span><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button></div></div><div class="bf-attach-bar"><button id="bf-attach-toggle" type="button" title="Attach files — bundled into the export package">📎 Attach <span id="bf-attach-count"></span></button><span class="bf-attach-hint">Drag files anywhere on the page to attach</span><div class="bf-attach-bar-end"><button id="bf-import-session-btn" type="button">↑ Import Session</button><button id="bf-export-btn" type="button">⬇ Export DuckDNS Setup Package</button></div></div><div id="bf-attach-panel"><input type="file" id="bf-attach-input" multiple style="display:none"><div id="bf-attach-zone"><span class="bf-attach-prompt">Drag files here — logs, screenshots, manifests</span><button type="button" class="bf-attach-btn" id="bf-attach-add">⬆ Browse…</button></div><ul class="attach-list" id="bf-attach-list"></ul></div></div>
     <div id="bf-walkthrough-hint">📋 Walkthrough — fill in fields as you go; entries are saved in your browser. Credential fields (🔑) are exported in encrypted packages. <a href="ABOUT-DOCS.html" target="_blank">How this works ↗</a></div>
     <div id="params"><h3>Parameters</h3><p class="params-hint">Fill in values here — every command below updates live. Copy button copies the resolved command.</p><div class="param-row"><label for="p-subdomain">SUBDOMAIN</label><input id="p-subdomain" class="param-input" type="text" data-var="SUBDOMAIN" value="myhatchery" placeholder="myhatchery"></div><div class="param-row"><label for="p-le-email">LE_EMAIL</label><input id="p-le-email" class="param-input" type="text" data-var="LE_EMAIL" value="admin@{{SUBDOMAIN}}.duckdns.org" placeholder="admin@{{SUBDOMAIN}}.duckdns.org"></div><div class="param-row"><label for="p-kdbx-path">KDBX_PATH</label><input id="p-kdbx-path" class="param-input" type="text" data-var="KDBX_PATH" value="Infrastructure/duckdns/token" placeholder="Infrastructure/duckdns/token"></div><div class="param-row"><label for="p-duckdns-token">DUCKDNS_TOKEN</label><input id="p-duckdns-token" class="param-input" type="text" data-var="DUCKDNS_TOKEN" value="" placeholder=""></div></div>
     <div id="bf-doc-body">
@@ -610,7 +610,8 @@ curl -s "https://www.duckdns.org/update?domains=<span class="tpl" data-var="SUBD
 </div></details>
 <details class="section" open><summary><h2 id="limitations-compared-to-cloudflare">Limitations compared to Cloudflare</h2></summary><div class="sec-body" style="margin-left:12px">
 <table><thead><tr><th>Feature</th><th>DuckDNS</th><th>Cloudflare</th></tr></thead><tbody><tr><td>Own domain</td><td>No — <code>*.duckdns.org</code> only</td><td>Yes — your domain</td></tr><tr><td>cert-manager native integration</td><td>No — manual sync</td><td>Yes — ClusterIssuer</td></tr><tr><td>Wildcard cert</td><td>Yes (via acme.sh)</td><td>Yes (via certbot)</td></tr><tr><td>DDNS for your own domain</td><td>No</td><td>Yes</td></tr><tr><td>Additional DNS records</td><td>No</td><td>Yes</td></tr><tr><td>API reliability</td><td>Good</td><td>Excellent</td></tr></tbody></table>
-<p><strong>Document created:</strong> 2026-05-31 <strong>Review by:</strong> 2027-05-31 This guide covers using DuckDNS as the dynamic DNS (DDNS) provider for your broodforge hatchery. DuckDNS is a free service that provides subdomains under <code>duckdns.org</code> (e.g. <code>{{SUBDOMAIN}}.duckdns.org</code>). It is a good option if you do not have your own domain or want the simplest possible setup. <strong>Trade-off vs Cloudflare:</strong> DuckDNS is free and simple, but your hatchery's address will be <code>{{SUBDOMAIN}}.duckdns.org</code> rather than a subdomain of your own domain. If you have your own domain, consider the Cloudflare path (see <code>docs/CLOUDFLARE-SETUP.md</code>) for a cleaner address and wildcard certificate support. Fill in the values below before following any steps. Every command on this page auto-populates with your actual values as you type. Your token is the only credential DuckDNS requires. Store it in KeePass at: <code>{{KDBX_PATH}}</code> DuckDNS updates via a single HTTPS GET. No client software required for the update itself. Expected response: <code>OK</code> If you see <code>KO</code>, your token is wrong or the subdomain doesn't exist in your account. During forging, <code>forge.sh</code> runs <code>setup_ddns.py</code> which handles configuration. To configure manually afterwards: Select <strong>DuckDNS</strong>, enter your subdomain name and the KeePass path for your token. The wizard tests the connection before saving. Broodforge installs a systemd timer that calls the DuckDNS update URL every 5 minutes: The update script (<code>update-dns.py</code>) fetches your current WAN IP, compares to the cached last IP, and only calls DuckDNS when the IP has changed. Broodforge uses <strong>acme.sh</strong> for Let's Encrypt certificates when DuckDNS is selected. acme.sh is a shell script with no dependencies that has built-in DuckDNS DNS-01 challenge support. <strong>Why acme.sh instead of certbot for DuckDNS:</strong> certbot's DuckDNS plugin is a third-party community plugin with inconsistent maintenance. acme.sh has first-class DuckDNS support and is actively maintained. For the Cloudflare path, certbot is used (it has an official Cloudflare plugin). For DuckDNS, acme.sh is used. Unlike the Cloudflare path, cert-manager's DNS-01 solver does not natively support DuckDNS. Broodforge handles k3s certificate distribution by syncing the acme.sh-issued cert into a Kubernetes TLS secret and refreshing it on renewal. acme.sh installs to <code>~/.acme.sh/</code> and sets up a cron job for auto-renewal. <code>--dnssleep 60</code> gives DuckDNS time to propagate the TXT record before Let's Encrypt checks it. If the challenge fails, increase to 120. This creates a wildcard cert covering <code>{{SUBDOMAIN}}.duckdns.org</code> and all subdomains (<code>*.{{SUBDOMAIN}}.duckdns.org</code>). Even though broodforge may use subdomains internally, they all resolve to the same IP, so the wildcard covers them. acme.sh keeps certs in its own directory but can copy them to a stable path and run a command after each renewal: After every successful renewal, acme.sh copies the cert files and runs the reload command. In <code>/etc/headscale/config.yaml</code>: Restart Headscale: acme.sh renews automatically when the cert is within 30 days of expiry. cert-manager does not have native DuckDNS DNS-01 support. Broodforge takes a simpler approach: the wildcard cert issued by acme.sh on the Proxmox host is synced into a Kubernetes TLS secret and refreshed whenever acme.sh renews. For other namespaces (monitoring, applications), copy the secret: Add a sync step to the acme.sh reload command: Create <code>/opt/broodforge/sync-cert-to-k8s.sh</code>: k3s Ingress resources reference the pre-existing TLS secret rather than requesting a cert from cert-manager: When acme.sh renews the cert, <code>sync-cert-to-k8s.sh</code> updates the secret, and Kubernetes serves the new cert on the next request (no Ingress restart needed). After <code>setup_ddns.py</code> completes, these fields are set in bootstrap-state.json: The documentation engine uses these fields to pre-populate recovery runbook steps for certificate retrieval and renewal. When <code>forge.sh</code> runs, it handles all of the above automatically. The operator provides (once, at forge time): (becomes <code>{subdomain}.duckdns.org</code>) Everything else — acme.sh install, cert issuance, Headscale config, k8s secret creation, sync script, DDNS timer — is automated. <strong>acme.sh: DuckDNS DNS-01 challenge fails</strong> Increase <code>--dnssleep</code> to 120 seconds. DuckDNS propagation is usually fast but Let's Encrypt's validation servers occasionally poll before the TXT record is visible. <strong>acme.sh: "Verify error: DNS problem"</strong> Check that the TXT record was actually created: If empty, the DuckDNS token may be wrong or the API call failed. <strong>k8s secret not updating after cert renewal</strong> Check the sync script ran: Run manually: <code>/opt/broodforge/sync-cert-to-k8s.sh</code> <strong>Headscale shows expired cert</strong> acme.sh's reload command should handle this. Force: <strong>DDNS update failing</strong> Check that your token in KeePass matches the one on the DuckDNS dashboard. I</p>
+<ol><li>Setting up Cloudflare (this guide → CLOUDFLARE-SETUP.md)</li><li>Updating <code>host_identity.fqdn</code> and <code>network_topology.*</code> in bootstrap-state.json</li><li>Re-issuing certs with certbot</li><li>Updating the ClusterIssuer to Cloudflare DNS-01</li><li>Updating any external references to the old duckdns.org address</li></ol>
+<p><strong>Document created:</strong> 2026-05-31 <strong>Review by:</strong> 2027-05-31 This guide covers using DuckDNS as the dynamic DNS (DDNS) provider for your broodforge hatchery. DuckDNS is a free service that provides subdomains under <code>duckdns.org</code> (e.g. <code>{{SUBDOMAIN}}.duckdns.org</code>). It is a good option if you do not have your own domain or want the simplest possible setup. <strong>Trade-off vs Cloudflare:</strong> DuckDNS is free and simple, but your hatchery's address will be <code>{{SUBDOMAIN}}.duckdns.org</code> rather than a subdomain of your own domain. If you have your own domain, consider the Cloudflare path (see <code>docs/CLOUDFLARE-SETUP.md</code>) for a cleaner address and wildcard certificate support. Fill in the values below before following any steps. Every command on this page auto-populates with your actual values as you type. Your token is the only credential DuckDNS requires. Store it in KeePass at: <code>{{KDBX_PATH}}</code> DuckDNS updates via a single HTTPS GET. No client software required for the update itself. Expected response: <code>OK</code> If you see <code>KO</code>, your token is wrong or the subdomain doesn't exist in your account. During forging, <code>forge.sh</code> runs <code>setup_ddns.py</code> which handles configuration. To configure manually afterwards: Select <strong>DuckDNS</strong>, enter your subdomain name and the KeePass path for your token. The wizard tests the connection before saving. Broodforge installs a systemd timer that calls the DuckDNS update URL every 5 minutes: The update script (<code>update-dns.py</code>) fetches your current WAN IP, compares to the cached last IP, and only calls DuckDNS when the IP has changed. Broodforge uses <strong>acme.sh</strong> for Let's Encrypt certificates when DuckDNS is selected. acme.sh is a shell script with no dependencies that has built-in DuckDNS DNS-01 challenge support. <strong>Why acme.sh instead of certbot for DuckDNS:</strong> certbot's DuckDNS plugin is a third-party community plugin with inconsistent maintenance. acme.sh has first-class DuckDNS support and is actively maintained. For the Cloudflare path, certbot is used (it has an official Cloudflare plugin). For DuckDNS, acme.sh is used. Unlike the Cloudflare path, cert-manager's DNS-01 solver does not natively support DuckDNS. Broodforge handles k3s certificate distribution by syncing the acme.sh-issued cert into a Kubernetes TLS secret and refreshing it on renewal. acme.sh installs to <code>~/.acme.sh/</code> and sets up a cron job for auto-renewal. <code>--dnssleep 60</code> gives DuckDNS time to propagate the TXT record before Let's Encrypt checks it. If the challenge fails, increase to 120. This creates a wildcard cert covering <code>{{SUBDOMAIN}}.duckdns.org</code> and all subdomains (<code>*.{{SUBDOMAIN}}.duckdns.org</code>). Even though broodforge may use subdomains internally, they all resolve to the same IP, so the wildcard covers them. acme.sh keeps certs in its own directory but can copy them to a stable path and run a command after each renewal: After every successful renewal, acme.sh copies the cert files and runs the reload command. In <code>/etc/headscale/config.yaml</code>: Restart Headscale: acme.sh renews automatically when the cert is within 30 days of expiry. cert-manager does not have native DuckDNS DNS-01 support. Broodforge takes a simpler approach: the wildcard cert issued by acme.sh on the Proxmox host is synced into a Kubernetes TLS secret and refreshed whenever acme.sh renews. For other namespaces (monitoring, applications), copy the secret: Add a sync step to the acme.sh reload command: Create <code>/opt/broodforge/sync-cert-to-k8s.sh</code>: k3s Ingress resources reference the pre-existing TLS secret rather than requesting a cert from cert-manager: When acme.sh renews the cert, <code>sync-cert-to-k8s.sh</code> updates the secret, and Kubernetes serves the new cert on the next request (no Ingress restart needed). After <code>setup_ddns.py</code> completes, these fields are set in bootstrap-state.json: The documentation engine uses these fields to pre-populate recovery runbook steps for certificate retrieval and renewal. When <code>forge.sh</code> runs, it handles all of the above automatically. The operator provides (once, at forge time): (becomes <code>{subdomain}.duckdns.org</code>) Everything else — acme.sh install, cert issuance, Headscale config, k8s secret creation, sync script, DDNS timer — is automated. <strong>acme.sh: DuckDNS DNS-01 challenge fails</strong> Increase <code>--dnssleep</code> to 120 seconds. DuckDNS propagation is usually fast but Let's Encrypt's validation servers occasionally poll before the TXT record is visible. <strong>acme.sh: "Verify error: DNS problem"</strong> Check that the TXT record was actually created: If empty, the DuckDNS token may be wrong or the API call failed. <strong>k8s secret not updating after cert renewal</strong> Check the sync script ran: Run manually: <code>/opt/broodforge/sync-cert-to-k8s.sh</code> <strong>Headscale shows expired cert</strong> acme.sh's reload command should handle this. Force: <strong>DDNS update failing</strong> Check that your token in KeePass matches the one on the DuckDNS dashboard. If you outgrow DuckDNS and acquire your own domain, migrating to Cloudflare involves: Broodforge forge-time documentation should be re-generated after this migration (<code>engine.py --mode bootstrap --manifest proxmox-bootstrap/bootstrap-state.json</code>).</p>
 </div></details>
 </div></details>
     </div>
@@ -2006,22 +2007,9 @@ curl -s "https://www.duckdns.org/update?domains=<span class="tpl" data-var="SUBD
       return det.querySelector('.note-input,.note-area,.cred-input,input[type=radio],input[type=checkbox],.input-table')!==null;
     }
     function directChildSubs(det){
-      // Find the direct body child (.sec-body or .sub-body) without relying on :scope> in querySelectorAll
-      var body=null;
-      for(var i=0;i<det.children.length;i++){
-        var ch=det.children[i];
-        if(ch.classList.contains('sec-body')||ch.classList.contains('sub-body')){body=ch;break;}
-      }
+      var body=det.querySelector(':scope>.sec-body,:scope>.sub-body');
       if(!body)return[];
-      // Collect direct child <details> that are sections or subsections
-      var result=[];
-      for(var i=0;i<body.children.length;i++){
-        var ch=body.children[i];
-        if(ch.tagName==='DETAILS'&&(ch.classList.contains('section')||ch.classList.contains('subsection'))){
-          result.push(ch);
-        }
-      }
-      return result;
+      return Array.prototype.slice.call(body.querySelectorAll(':scope>details.subsection'));
     }
     function clearSection(det){
       det.querySelectorAll('.note-input,.note-area').forEach(function(f){
@@ -2038,44 +2026,55 @@ curl -s "https://www.duckdns.org/update?domains=<span class="tpl" data-var="SUBD
     }
     document.querySelectorAll('details.section,details.subsection').forEach(function(det){
       var sum=det.querySelector(':scope>summary');if(!sum)return;
+      var controls=sum.querySelector('.bf-sub-controls');
+      if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
       var children=directChildSubs(det);
       var hasChildren=children.length>=1;
       var canClear=hasInputs(det);
-if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
-      var controls=sum.querySelector('.bf-sub-controls');
-      if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
-      // order: clear | sep | collapse | expand (rightmost)
+      // clear button — leftmost; ghost placeholder when no inputs
+      var clr=document.createElement('button');
+      clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
       if(canClear){
-        var clr=document.createElement('button');
-        clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
         clr.title='Clear all fields in this section';
         clr.addEventListener('click',function(e){
           e.stopPropagation();
           if(!confirm('Clear all fields in this section?'))return;
           clearSection(det);
         });
-        controls.appendChild(clr);
+      } else {
+        clr.classList.add('bf-ctrl-ghost');clr.title='';
       }
+      // separator
+      var sep=document.createElement('div');sep.className='bf-ctrl-sep';
+      // collapse button — always active when section has any child subsections
+      var cBtn=document.createElement('button');
+      cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
       if(hasChildren){
-        var sep=document.createElement('div');sep.className='bf-ctrl-sep';
-        var cBtn=document.createElement('button');
-        cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
         cBtn.title='Collapse child sections';
         cBtn.addEventListener('click',function(e){
           e.stopPropagation();
           directChildSubs(det).forEach(function(d){d.removeAttribute('open');});
         });
-        var eBtn=document.createElement('button');
-        eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
+      } else {
+        cBtn.classList.add('bf-ctrl-ghost');cBtn.title='';
+      }
+      // expand button — always active when section has any child subsections
+      var eBtn=document.createElement('button');
+      eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
+      if(hasChildren){
         eBtn.title='Expand child sections';
         eBtn.addEventListener('click',function(e){
           e.stopPropagation();
           directChildSubs(det).forEach(function(d){d.setAttribute('open','');});
         });
-        controls.appendChild(sep);
-        controls.appendChild(cBtn);
-        controls.appendChild(eBtn);
+      } else {
+        eBtn.classList.add('bf-ctrl-ghost');eBtn.title='';
       }
+      // order: clear | sep | collapse | expand (rightmost)
+      controls.appendChild(clr);
+      controls.appendChild(sep);
+      controls.appendChild(cBtn);
+      controls.appendChild(eBtn);
     });
   })();
 
@@ -2148,8 +2147,8 @@ if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
     /* The last-focused notes container (quick-notes textarea or a .nts-section) */
     var activeNoteContainer=null;
     function fieldOpacity(){
-      /* Non-active notes fields dim to a fixed fraction — independent of panel opacity */
-      return '0.35';
+      /* Non-active notes fields: panel opacity + 10%, capped at 100% */
+      return (Math.min(100,opPct+10)/100).toFixed(2);
     }
     function getNoteContainer(el){
       /* Quick-notes textarea is its own box; section notes live inside .nts-section */
@@ -2164,25 +2163,18 @@ if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
         /* Header toolbar always 100% — set nothing on hdr */
         /* Apply per-container opacity: non-active containers fade, active stays 100% */
         if(notesBody){
-          var fOp=fieldOpacity();
+          var fOp='0.35';
           var qn=document.getElementById('bf-session-notes');
           /* quick-notes textarea: direct opacity fine (leaf element, no children) */
-          if(qn) qn.style.opacity=(qn===activeNoteContainer)?'1':fOp;
-          /* sections: directly dim own header+notes textarea; nested sections untouched */
+          if(qn) qn.style.opacity=(qn===activeNoteContainer)?'':fOp;
+          /* sections: set attribute so CSS dims only own header+content, not nested sections */
           notesBody.querySelectorAll('.nts-section').forEach(function(s){
             var dim=(s!==activeNoteContainer);
-            var hdr=null,body=null;
-            for(var ci=0;ci<s.children.length;ci++){
-              var ch=s.children[ci];
-              if(!hdr&&ch.tagName==='SUMMARY') hdr=ch;
-              if(!body&&ch.classList.contains('nts-body')) body=ch;
-            }
-            var ta=null;
-            if(body){for(var bi=0;bi<body.children.length;bi++){
-              if(body.children[bi].tagName==='TEXTAREA'){ta=body.children[bi];break;}
-            }}
+            s.classList.toggle('nts-dim',dim);
+            var hdr=s.querySelector(':scope>summary');
             if(hdr) hdr.style.opacity=dim?fOp:'';
-            if(ta) ta.style.opacity=dim?fOp:'';
+            var ta=s.querySelector(':scope>.nts-body>textarea');
+            if(ta){ta.style.opacity=dim?fOp:'';ta.style.borderColor=dim?'transparent':'';}
           });
         }
       }
@@ -2245,20 +2237,11 @@ if(!hasChildren&&!canClear)return; // nothing applicable — skip entirely
           var qn2=document.getElementById('bf-session-notes');
           if(qn2) qn2.style.opacity='';
           notesBody.querySelectorAll('.nts-section').forEach(function(s){
-            var hdr=null,body=null;
-            for(var ci=0;ci<s.children.length;ci++){
-              var ch=s.children[ci];
-              if(!hdr&&ch.tagName==='SUMMARY') hdr=ch;
-              if(!body&&ch.classList.contains('nts-body')) body=ch;
-            }
-            var ta=null;
-            if(body){for(var bi=0;bi<body.children.length;bi++){
-              if(body.children[bi].tagName==='TEXTAREA'){ta=body.children[bi];break;}
-            }}
+            s.classList.remove('nts-dim');
+            var hdr=s.querySelector(':scope>summary');
             if(hdr) hdr.style.opacity='';
-            if(ta) ta.style.opacity='';
-            s.removeAttribute('data-nts-dim');
-            s.style.removeProperty('--nts-dim-op');
+            var ta=s.querySelector(':scope>.nts-body>textarea');
+            if(ta){ta.style.opacity='';ta.style.borderColor='';}
           });
         }
         if(drag) drag.classList.remove('notes-floating');
