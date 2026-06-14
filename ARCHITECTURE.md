@@ -1,9 +1,12 @@
 # Broodforge Architecture — Forging, Hatchery, Stargate
 
-Version: 7.2
-Date: 2026-06-13 UTC (AD-073 added — Kyverno policy enforcement (Phase 2.J): Helm-managed admission controller, ClusterPolicy/Policy registry in kyverno-state.json, Audit→Enforce promotion path, PAP-compliant subprocess handling)
+Codebase stamp: `2026-06-13_20-05-27_UTC_c0831145`
+Date: 2026-06-13 UTC (AD-073–AD-090 added — AD-073: Kyverno; Phase 3: EventBus, capability engine,
+execution broker, operational intelligence, incidents/advisories, secrets brokerage, governance integrity chain,
+Control Nexus tiered dashboard, Portal; AD-083: codebase-hash stamp practice; AD-084: portal context indicator.)
 Design history & rationale: docs/DESIGN-HISTORY.md
 Full historical reviews (v4–v7): deprecated/
+Stamp format: `YYYY-MM-DD_HH-MM-SS_<tz>_<shorthash>` — reproduce with `python3 proxmox-bootstrap/version_stamp.py`
 
 ---
 
@@ -153,135 +156,190 @@ Proxmox installation and executed there. The broodling never needs to query the
 hatchery's API during execution; the manifest embedded in the package is the
 point-in-time reservation snapshot it operates from.
 
+### Hatchery Pre-Package Phase
+
+*Runs on the hatchery before the package is sent to the broodling.*
+
+#### Step 1 — Hardware Discovery (autonomous mode)
+
+The hatchery is a trusted node on a secured LAN. Password-based SSH from the hatchery
+to a fresh broodling is acceptable — no pre-exchanged key required. The spawn planner
+generates a suggested temporary root password (readable passphrase format) before the
+operator installs Proxmox. The operator uses that password during installation; the
+hatchery connects automatically with it after install completes.
+
+```bash
+python3 spawn_hardware_discovery.py --host {broodling-ip} --user root --password-prompt
+# → hardware-profile-{hostname}.json   (password-based via sshpass)
 ```
-HATCHERY PROCESS — PRE-PACKAGE (on the hatchery)
-──────────────────────────────
-1. Hardware discovery (autonomous mode only):
-   The hatchery is a trusted node on a secured LAN. Password-based SSH from
-   the hatchery to a fresh broodling is acceptable — no pre-exchanged key required.
-   The spawn planner generates a suggested temporary root password (readable passphrase
-   format) before the operator installs Proxmox. The operator uses that password during
-   installation; the hatchery connects automatically with it after install completes.
-   Discovery runs from the hatchery using that temporary password:
-     python3 spawn_hardware_discovery.py --host {broodling-ip} --user root --password-prompt (password-based via sshpass)
-     → hardware-profile-{hostname}.json
-   Temporary password is valid only until the spawn package's Cloud-Init phase
-   replaces it with a KeePass-managed credential.
-   For interactive mode: no hardware profile needed on the hatchery; spawn.sh
-   discovers hardware on the broodling at runtime.
 
-2. Assessment Engine reads current cluster state
-   → spawn-manifest.json: all reserved VMIDs, IPs, hostnames,
-     Proxmox cluster join address + fingerprint, k3s join tokens
+The temporary password is valid only until the spawn package's Cloud-Init phase
+replaces it with a KeePass-managed credential. For interactive mode: no hardware
+profile is needed on the hatchery; `spawn.sh` discovers hardware on the broodling at
+runtime.
 
-3. spawn-planner.py — execution mode gate, then conditional service selection
-   Execution mode is asked FIRST:
-     Autonomous (default): triggers service selection on the hatchery; selection
-       locked into package; spawn.sh runs unattended after KeePass gate.
-     Interactive: no selection on hatchery; package includes all service scripts;
-       spawn.sh presents service menu on the broodling against actual hardware.
+#### Step 2 — Assessment Engine: Cluster State Snapshot
 
-   Service selection (autonomous only) — three modes:
-     Mode 1 — Full mirror: select all services that fit this hardware
-       Exclusions shown with reason; operator confirms or switches mode
-     Mode 2 — Select by group: Infrastructure / Platform / Intelligence /
-               Monitoring / Applications — toggle whole groups, then fine-tune
-     Mode 3 — Select individually: every service listed with fit status:
-       [✓] k3s-server        4 GB RAM req  /  14 GB avail
-       [✓] prometheus        2 GB RAM req  /  fits
-       [✗] loki              4 GB RAM req  /  insufficient
-       Dependencies enforced (selecting nextcloud auto-selects longhorn if needed)
+Reads current cluster state and produces `spawn-manifest.json`, capturing all reserved
+VMIDs, IPs, and hostnames, plus the Proxmox cluster join address and fingerprint and
+k3s join tokens. This snapshot is the broodling's authoritative offline reference
+during execution.
 
-   Intelligence baseline always included, cannot be deselected:
-   Proxmox cluster membership, k3s worker, assessment/doc engine visibility,
-   bootstrap-state.json contribution.
+#### Step 3 — spawn-planner.py: Execution Mode & Service Selection
 
-   Disposition stored as `disposition.execution_mode`, `disposition.services` (selected,
-   autonomous only), `disposition.excluded` (didn't fit + reason, autonomous only)
-   in spawn-plan.json.
+Execution mode is asked **first**, before any service selection:
 
-4. validate-spawn.py → conflict check on all proposed allocations
-   RED on any VMID / IP / hostname collision — blocks package generation
+- **Autonomous (default)** — triggers service selection on the hatchery; selection is
+  locked into the package; `spawn.sh` runs end-to-end on the broodling unattended
+  after the KeePass gate.
+- **Interactive** — no service selection on the hatchery; the package includes all
+  service scripts; `spawn.sh` presents the service menu on the broodling against actual
+  hardware at runtime.
 
-5. spawn-plan.json assembled
-   Non-conflicting VMID block, IPs, hostnames, ZFS topology, bridge definitions,
-   only VM roles / Cloud-Init / Ansible roles for selected services,
-   k3s labels + taints derived from service list (Flux schedules accordingly)
+Service selection (autonomous mode only) offers three modes:
 
-6. assemble-spawn-package.py
-   spawn-package-{cell}-{hostname}-{ts}.tar.gz
-     ├── spawn-manifest.json   (reservation snapshot — used offline)
-     ├── spawn-plan.json       (disposition + conflict-validated allocations)
-     ├── hardware-profile.json (disk IDs, NIC layout for host config)
-     ├── scripts/spawn.sh + phase-00 through phase-06
-     ├── opentofu/             (only disposition-declared VM roles)
-     ├── cloud-init/           (snippets for disposition VMs only)
-     ├── ansible/              (inventory additions + disposition-scoped role vars)
-     └── spawn-workbook.html   (auditable execution record)
-
-[operator copies package to broodling — only manual step after install]
-
-SPAWN EXECUTION (on the broodling)
-────────────────────────────────────
-HOST-LEVEL PHASES — must complete before any VM can be created:
-
-  phase-00-host-bootstrap.sh
-
-    [A] Hardware pre-flight — read-only, no changes made
-        Re-scans actual hardware, diffs against embedded hardware-profile.json:
-        ├── Disk IDs in plan present + capacity matches
-        ├── NIC names/MACs match profile (renumbering happens after kernel updates)
-        ├── Available RAM ≥ plan VM total + 10% host overhead
-        ├── No existing ZFS pool name conflicts with planned pool
-        ├── No existing bridge name conflicts with planned bridges
-        └── Conflict re-validation vs spawn-manifest.json
-            (catches any new hatchery reservations since package was built)
-        On mismatch → failure package with diff, exit without touching anything
-        On pass    → proceed to [B]
-
-    [B] Host configuration — writes files, creates pool, activates network
-        ├── Set hostname + fix /etc/hosts   (pvecm add fails if host → 127.0.0.1)
-        ├── Write bridge definitions        (/etc/network/interfaces from NIC layout)
-        ├── ifreload -a                     (activate bridges without reboot)
-        ├── zpool create                    (disk IDs confirmed by pre-flight)
-        ├── pvesm add zfspool               (register pool as Proxmox datastore)
-        └── Configure apt repos
-    → Broodling ready: bridges exist, storage registered, hostname correct
-
-  phase-01-join-proxmox.sh
-    pvecm add <hatchery-address> --fingerprint <from manifest>
-    → Broodling visible in Proxmox datacenter
-
-VM PROVISIONING PHASES — bridge + datastore names from phase-00 must exist:
-
-  phase-02-vms.sh
-    tofu apply   (disposition-scoped tfvars; bridge/datastore names from phase-00)
-    → Disposition-declared VMs created on broodling
-
-  phase-03-cloudinit.sh
-    Install Cloud-Init snippets into Proxmox snippet store
-    Start VMs → Cloud-Init runs: hostname, IP, SSH keys, packages
-    Poll SSH readiness before proceeding
-
-CLUSTER JOIN PHASES — depend on VMs running:
-
-  phase-04-join-k3s.sh
-    Ansible: k3s-server or k3s-worker role, join token from manifest
-    → Broodling's k3s nodes join the hatchery cluster
-
-  phase-05-promote-ha.sh   [conditional — only if broodling is the 3rd server node]
-    SQLite → embedded etcd migration; control plane distributed across hosts
-
-  phase-06-verify.sh
-    Cluster health check, all disposition VMs running, conflict re-validation vs live state
-
-AUTOMATIC (no operator action after phase-06):
-  Flux CD     → schedules disposition-appropriate workloads on broodling
-  Assessment  → detects broodling in Proxmox API, scores against its disposition
-  Doc Engine  → regenerates topology with broodling included
-
-bootstrap-state.json updated on hatchery → committed to Forgejo
 ```
+Mode 1 — Full mirror: select all services that fit this hardware
+           Exclusions shown with reason; operator confirms or switches mode
+Mode 2 — Select by group: Infrastructure / Platform / Intelligence /
+           Monitoring / Applications — toggle whole groups, then fine-tune
+Mode 3 — Select individually: every service listed with fit status:
+  [✓] k3s-server        4 GB RAM req  /  14 GB avail
+  [✓] prometheus        2 GB RAM req  /  fits
+  [✗] loki              4 GB RAM req  /  insufficient
+  Dependencies enforced (selecting nextcloud auto-selects longhorn if needed)
+```
+
+The intelligence baseline (Proxmox cluster membership, k3s worker, assessment/doc
+engine visibility, `bootstrap-state.json` contribution) is always included and cannot
+be deselected.
+
+Disposition is stored as `disposition.execution_mode`, `disposition.services`
+(autonomous only), and `disposition.excluded` (with fit reason, autonomous only) in
+`spawn-plan.json`.
+
+#### Step 4 — validate-spawn.py: Conflict Check
+
+Conflict-checks all proposed allocations. RED on any VMID, IP, or hostname collision —
+blocks package generation until resolved.
+
+#### Step 5 — spawn-plan.json Assembly
+
+Records the non-conflicting VMID block, IPs, hostnames, ZFS topology, bridge
+definitions, only the VM roles / Cloud-Init / Ansible roles for selected services,
+and k3s labels + taints derived from the service list (Flux schedules accordingly).
+
+#### Step 6 — assemble-spawn-package.py: Package Assembly
+
+Produces the self-contained archive delivered to the broodling:
+
+```
+spawn-package-{cell}-{hostname}-{ts}.tar.gz
+  ├── spawn-manifest.json   (reservation snapshot — used offline)
+  ├── spawn-plan.json       (disposition + conflict-validated allocations)
+  ├── hardware-profile.json (disk IDs, NIC layout for host config)
+  ├── scripts/spawn.sh + phase-00 through phase-06
+  ├── opentofu/             (only disposition-declared VM roles)
+  ├── cloud-init/           (snippets for disposition VMs only)
+  ├── ansible/              (inventory additions + disposition-scoped role vars)
+  └── spawn-workbook.html   (auditable execution record)
+```
+
+> Operator copies the package to the broodling — the only manual step after Proxmox install.
+
+### Spawn Execution Phase
+
+*Runs on the broodling. All phases use only the embedded manifest — no hatchery API calls.*
+
+#### Host-Level Phases
+
+These must complete before any VM can be created.
+
+##### phase-00-host-bootstrap.sh
+
+**[A] Hardware pre-flight — read-only, no changes made**
+
+Re-scans actual hardware and diffs against the embedded `hardware-profile.json`:
+
+```
+├── Disk IDs in plan present + capacity matches
+├── NIC names/MACs match profile (renumbering happens after kernel updates)
+├── Available RAM ≥ plan VM total + 10% host overhead
+├── No existing ZFS pool name conflicts with planned pool
+├── No existing bridge name conflicts with planned bridges
+└── Conflict re-validation vs spawn-manifest.json
+    (catches any new hatchery reservations since package was built)
+On mismatch → failure package with diff, exit without touching anything
+On pass    → proceed to [B]
+```
+
+**[B] Host configuration — writes files, creates pool, activates network**
+
+```
+├── Set hostname + fix /etc/hosts   (pvecm add fails if host → 127.0.0.1)
+├── Write bridge definitions        (/etc/network/interfaces from NIC layout)
+├── ifreload -a                     (activate bridges without reboot)
+├── zpool create                    (disk IDs confirmed by pre-flight)
+├── pvesm add zfspool               (register pool as Proxmox datastore)
+└── Configure apt repos
+```
+
+→ Broodling ready: bridges exist, storage registered, hostname correct.
+
+##### phase-01-join-proxmox.sh
+
+```bash
+pvecm add <hatchery-address> --fingerprint <from manifest>
+```
+
+→ Broodling visible in Proxmox datacenter.
+
+#### VM Provisioning Phases
+
+Bridge and datastore names from phase-00 must exist before these run.
+
+##### phase-02-vms.sh
+
+```bash
+tofu apply   # disposition-scoped tfvars; bridge/datastore names from phase-00
+```
+
+→ Disposition-declared VMs created on broodling.
+
+##### phase-03-cloudinit.sh
+
+Installs Cloud-Init snippets into the Proxmox snippet store, starts VMs (Cloud-Init
+runs hostname, IP, SSH keys, packages), and polls for SSH readiness before proceeding.
+
+#### Cluster Join Phases
+
+These depend on VMs from phase-03 being reachable.
+
+##### phase-04-join-k3s.sh
+
+Ansible applies the `k3s-server` or `k3s-worker` role using the join token from the
+manifest. → Broodling's k3s nodes join the hatchery cluster.
+
+##### phase-05-promote-ha.sh *(conditional)*
+
+Only runs if the broodling is the 3rd server node. Migrates from SQLite to embedded
+etcd; distributes the control plane across hosts.
+
+##### phase-06-verify.sh
+
+Cluster health check: all disposition VMs running, conflict re-validation against live
+state. On success, POSTs completion report to the hatchery receiver; `bootstrap-state.json`
+updated on hatchery and committed to Forgejo.
+
+#### Post-Spawn Automation
+
+No operator action required after phase-06:
+
+- **Flux CD** — schedules disposition-appropriate workloads on the broodling.
+- **Assessment engine** — detects the broodling in the Proxmox API, scores against its declared disposition.
+- **Doc engine** — regenerates topology with broodling included.
+
+### Node Adaptation Model
 
 **What adapts to each broodling's hardware:** ZFS pool topology (disk count/mix),
 NIC bridge/bond layout, VM RAM sizing within available capacity,
@@ -291,11 +349,12 @@ IP/VMID/hostname allocations, services trimmed to what hardware can support.
 Proxmox cluster membership, the intelligence collection baseline (assessment + doc
 engine visibility), secret references.
 
-**Disposition determines what is deployed, not just hardware:**
+### Disposition Model
+
 A broodling's disposition is chosen at spawn time and recorded in `bootstrap-state.json`.
-The assessment engine reads it — a broodling without `k3s-server` is not scored
-against HA control-plane requirements. Disposition declares intent; the assessment
-engine scores reality against that declared intent, not against the hatchery's full configuration.
+The assessment engine reads it — a broodling without `k3s-server` is not scored against
+HA control-plane requirements. Disposition declares intent; the assessment engine scores
+reality against that declared intent, not against the hatchery's full configuration.
 
 **k3s topology decisions are disposition-driven, not just host-count-driven:**
 
@@ -362,8 +421,21 @@ See Phase 12.E in [ROADMAP.md](ROADMAP.md) for full milestone detail.
 | AD-069 | **Longhorn for persistent storage (Phase 2.E, implemented 2026-06-10).** Longhorn chosen as the k3s default StorageClass for replicated block volumes. Rationale: Kubernetes-native (runs fully inside the cluster — no separate Ceph or NFS server to manage), default replica count 2 balances redundancy against capacity on homelab clusters (where nodes frequently share disks), built-in backup to S3/NFS targets integrates with Phase 1.O (CQB backup engine) at the block-volume layer, and Longhorn Manager exposes node disk management via its own CRD/API. Alternative — NFS — has no replication and requires an external NFS server. Ceph requires ≥3 dedicated storage nodes. Longhorn is the simplest path from "k3s cluster" to "replicated PVCs" with no external infrastructure. |
 | AD-070 | **Flux CD GitOps wiring (Phase 2.G, implemented 2026-06-10).** Extends AD-023 (Flux CD as GitOps engine). Phase 2.G provides the broodforge management layer: GitSource and Kustomization registry in flux-state.json, manifest generation for source.toolkit.fluxcd.io/v1 GitRepository and kustomize.toolkit.fluxcd.io/v1 Kustomization CRDs, and the forge-init-flux.sh KeePass-gated bootstrap. SSH-key authentication only — no GITHUB_TOKEN or OAuth credential string in subprocess argv or environment (following the no-credentials-in-argv constraint established in Phase 2.A–2.F). Flux bootstrap delegates entirely to the `flux bootstrap git` CLI; no reimplementation of bootstrap logic in Python. |
 | AD-071 | **Velero for workload backup (Phase 2.H, implemented 2026-06-10).** Velero chosen for Kubernetes workload backup (PVC snapshots + etcd state). Rationale: vendor-neutral (supports S3, Azure Blob, GCS, MinIO), provider credentials via `existingSecret` k8s reference (never inlined in Helm values — satisfying the no-credentials-in-values constraint), pod volume backup via restic (consistent with the restic-first backup philosophy of AD-044), and the restore path is tested and well-documented. Velero backup schedules are registered in velero-state.json and applied to the cluster as VolumeSnapshotLocation/Schedule CRs. Recent backup sync is capped at MAX_RECENT_BACKUPS=50 entries to prevent unbounded state growth. |
-| AD-072 | **Linkerd for service mesh (Phase 2.I, implemented 2026-06-10).** Linkerd chosen over Istio for mTLS pod-to-pod encryption. Rationale: Linkerd is significantly lighter (no Envoy sidecar, pure-Go proxy), mTLS is enabled by default without per-service configuration, and the control plane installation is a single CLI pipeline (`linkerd install | kubectl apply -f -`). Istio requires a significantly larger control-plane footprint and per-service EnvoyFilter configuration that adds operational overhead disproportionate to the homelab reference stack target. Namespace enrollment uses `linkerd.io/inject=enabled` annotation plus a Server CR (policy.linkerd.io/v1beta3) for default-deny mTLS enforcement — the Server CR is the declarative expression of the mTLS policy and is the correct pattern for Linkerd v2.14+. Three `shell=True` subprocess calls in linkerd_manager.py for the piped install commands are a known pattern (see R8-001 in AUDIT-FINDINGS.md); command strings are hardcoded constants. |
-| AD-073 | **Kyverno for policy enforcement (Phase 2.J, implemented 2026-06-13).** Kyverno chosen over OPA/Gatekeeper as the admission controller for k8s policy enforcement. Rationale: Kyverno is Kubernetes-native (policies are CRDs, no Rego language required), Audit mode enables non-blocking policy introduction before enforcement, and the Helm chart deploys cleanly into an existing k3s cluster. OPA/Gatekeeper requires learning and maintaining Rego policy files — a separate language investment not justified for the broodforge homelab reference stack. kyverno_manager.py manages Helm install/upgrade and maintains a ClusterPolicy/Policy registry (kyverno-state.json) tracking policy kind, action mode (Audit/Enforce), rules count, and manifest path. forge-init-kyverno.sh provides the KeePass-gated install entrypoint; forge-kyverno-policy.sh applies and registers individual policy YAMLs. No credentials in env vars, argv, or log output per PAP constraint. |
-
-Full architectural rationale: docs/DESIGN-HISTORY.md (design evolution) +
-the AD table above (current decisions). Historical review text: deprecated/.
+| AD-072 | **Linkerd for service mesh (Phase 2.I, implemented 2026-06-10).** Linkerd chosen over Istio for mTLS pod-to-pod encryption. Rationale: Linkerd is significantly lighter (no Envoy sidecar, pure-Go proxy), mTLS is enabled by default without per-service configuration, and the control plane installation is a single CLI pipeline (`linkerd install | kubectl apply -f -`). Istio requires a significantly larger control-plane footprint and per-service EnvoyFilter configuration that adds operational overhead disproportionate to the homelab reference stack target. Namespace enrollment uses `linkerd.io/inject=enabled` annotation plus a Server CR (policy.linkerd.io/v1beta3) for default-deny mTLS enforcement — the Server CR is the declarative expression of the mTLS policy and is the correct pattern for Linkerd v2.14+. Three `shell=True` subprocess calls in linkerd_manager.py for the piped install commands are a known pattern (see R8-001 in AUDIT-FINDINGS.md); command strings are hardcoded constants (not user-supplied), so injection risk is negligible; documented in AUDIT-FINDINGS.md R8-001. |
+| AD-073 | **Kyverno policy enforcement (Phase 2.J, proposed).** Kyverno chosen as the Kubernetes-native policy engine over OPA/Gatekeeper. Rationale: Kyverno policies are Kubernetes resources (CRDs) rather than Rego — no separate language to learn, and policies apply the same GitOps/Flux reconciliation as any other k8s manifest. Policy scope: (1) image registry allowlist — only images from Forgejo and approved registries admitted; (2) resource limit enforcement — all Pods must declare CPU/memory limits (prevents unbounded resource consumption on the homelab cluster); (3) no-privileged-containers — reject Pods with `securityContext.privileged: true` outside the platform namespace. Policy CRDs stored in `k8s/policies/kyverno/`; managed by Flux. Admission webhook operates in `enforce` mode for all non-platform namespaces; platform namespace uses `audit` mode to avoid locking out cluster bootstrap. Kyverno reports surface in the Control Nexus dashboard (Phase 3.J) as policy violation counts per namespace. |
+| AD-074 | **EventBus — internal event streaming platform (Phase 3.A, proposed).** NATS JetStream chosen as the event streaming backbone over Kafka and Redis Streams. Rationale: NATS is a single Go binary with no JVM/ZooKeeper dependency (critical for homelab resource constraints), JetStream provides durable, at-least-once delivery and consumer groups comparable to Kafka, and the NATS operator (nats.io/nats-operator) deploys cleanly into k3s via Helm. Kafka requires a separate ZooKeeper ensemble or KRaft cluster and minimum 3 brokers for durability — excessive for a single-cell homelab. Redis Streams lack schema enforcement and cross-service fan-out without additional tooling. EventBus topics follow the convention `bf.<domain>.<event_type>` (e.g., `bf.node.health_changed`, `bf.remediation.proposal_created`). All Phase 3 components publish and subscribe through the EventBus; no direct inter-service RPC calls. Schema registry: Avro schemas stored in `eventbus/schemas/`; producers validate before publish; consumers validate on receipt. |
+| AD-075 | **Capability engine (Phase 3.B, proposed).** The capability engine is the authoritative registry of what broodforge knows how to do — a structured catalog of `Capability` records (name, preconditions, postconditions, implementation_ref, risk_level, rollback_ref) stored in `capability-engine/catalog.yaml`. It bridges the gap between "what the execution broker can run" and "what the remediation planner proposes" by providing a queryable surface: `capabilities.query(tags=["storage", "k3s"])` returns all capabilities matching those facets. The execution broker (Phase 3.C) resolves a `RemediationProposal.action_type` → `Capability` before executing; if no capability is found, the proposal is held for operator review rather than silently failing. Capability records are versioned alongside the codebase — changing a capability's preconditions changes the hash (covered by the codebase stamp, AD-083). |
+| AD-076 | **Execution broker (Phase 3.C, proposed).** The execution broker is the sole authorised pathway for autonomous remediation actions. It receives approved `RemediationProposal` records from the Phase 26 remediation planner, resolves each to a `Capability` (Phase 3.B), checks all preconditions, executes the implementation, verifies postconditions, and publishes the result to the EventBus (Phase 3.A). **Operator gate**: any proposal with `risk_level >= HIGH` requires an explicit operator approval token before the broker will proceed — the broker does not self-approve high-risk actions. Dry-run mode (default for new capability registrations) executes the precondition checks only and reports what *would* happen. All broker actions are logged to the governance integrity chain (Phase 3.I) as `execution_event` records so the chain provides a tamper-evident audit trail of every autonomous action taken. |
+| AD-077 | **Operational intelligence — time-series prediction and anomaly detection (Phases 3.D–3.E, proposed).** Prophet (Meta's time-series library) chosen over ARIMA and LSTM for resource forecasting. Rationale: Prophet is Python-native, requires no GPU, handles homelab-typical irregular sampling and missing data gracefully, and produces human-interpretable trend + seasonality decompositions alongside its forecast. ARIMA requires stationary series and manual parameter tuning. LSTM requires a GPU or extended CPU training time — incompatible with the homelab reference stack constraint. Anomaly detection uses Isolation Forest (scikit-learn) over DBSCAN: Isolation Forest is O(n log n), works on high-dimensional node telemetry without distance-metric tuning, and produces per-point anomaly scores that map cleanly to dashboard severity tiers. All predictions are published to the EventBus and surfaced in the Control Nexus dashboard (Phase 3.J) as projected resource exhaustion alerts with estimated time-to-threshold. |
+| AD-078 | **Incidents and advisories subsystem (Phase 3.F, proposed).** `IncidentRecord` and `AdvisoryRecord` are first-class data structures in the broodforge data model (`data-model/incident.json`, `data-model/advisory.json`). An incident is an unplanned degradation or outage affecting a node, service, or cluster component; an advisory is a proactive notification (upcoming capacity threshold, pending certificate expiry, drift above baseline) that does not yet require action but warrants operator awareness. Both are published to the EventBus (`bf.incident.*`, `bf.advisory.*`) and rendered in the Control Nexus dashboard (Phase 3.J). Access-request submissions from the Portal (Phase 3.K) create an `IncidentRecord` of type `access_request` and are routed to the operator approval queue — this is the unifying abstraction that lets both operational incidents and user-initiated requests flow through the same triage surface. |
+| AD-079 | **Secrets brokerage (Phases 3.G–3.H, proposed).** The secrets broker is the runtime interface between k8s workloads and the KeePass credential store. It replaces ad-hoc `keepass_gate.py` calls scattered across deployment scripts with a single, audited, rate-limited internal service. Architecture: a sidecar container (or init-container) per workload namespace requests credentials via a Unix socket using a short-lived workload identity token issued by Authentik (Phase 2.A); the broker verifies the token, looks up the credential in KeePass, returns it once over the socket, and never writes it to disk or env. The broker maintains a per-session credential cache invalidated on workload termination. All accesses logged to the governance integrity chain (Phase 3.I) as `credential_access_event` records. This closes the gap where the existing in-process KeePass gate cannot be audited across workload restarts without reading log files. |
+| AD-080 | **Governance integrity chain (Phase 3.I, proposed).** An append-only, hash-linked checkpoint log providing tamper-evident audit of governance state changes across the federation. Each checkpoint record contains: `chain_hash = SHA-256(prev_chain_hash + state_merkle_root + timestamp + tz)`, `state_merkle_root` (SHA-256 over canonical JSON of all active policy, capability, and execution-broker configuration), `event_type` (governance_checkpoint | migration_approval | migration_event | execution_event | credential_access_event), and the event payload. **Migration approval proof**: before any governance schema migration (policy engine config, capability catalog, execution broker rules), a `migration_approval` record is sealed into the chain with `from_schema_hash`, `to_schema_hash`, `approved_by`, and `approval_chain_hash`. After migration, a `migration_event` record is appended with `adopted_schema_hash` and `approval_ref`. The audit tool compares these two hashes; a mismatch identifies the exact checkpoint at which an unapproved change occurred, giving a precise rollback target. Chain storage: `integrity/chain.jsonl` — one JSON record per line, never deleted, append-only enforced at the filesystem layer. `integrity/` lives at the repository root, peer to `proxmox-bootstrap/` (independent of bootstrap scope). |
+| AD-081 | **Control Nexus — tiered operator dashboard (Phase 3.J, proposed).** The Control Nexus is the primary operator interface, structured in three tiers that match the broodforge architecture hierarchy: **Node tier** — per-node health (existing `broodforge_dashboard.py` surface extended with Phase 3 telemetry: EventBus consumer lag, execution broker queue depth, integrity chain tail hash); **Cluster tier** — cross-node aggregate view: readiness scores, drift summary, Kyverno policy violation counts, predicted resource exhaustion timeline, open incidents and advisories, remediation queue; **Federation tier** — stub in Phase 3.J, fully implemented in Phase 4: cross-cluster health roll-up, federation governance chain status. Control Nexus is implemented as an extension of the existing `broodforge_dashboard.py` Flask application, not a separate service — new tier tabs are rendered server-side, consistent with the existing HTML-first, stdlib-compatible pattern. |
+| AD-082 | **Portal — user self-service hub (Phase 3.K, proposed).** The Portal is the end-user interface, distinct from the Control Nexus (operator-only). It provides: OIDC login via Authentik (Phase 2.A); service registry panel (services the authenticated user is enrolled in, with per-service status and direct links); account management (display name, SSH key, session management); access request flow (submits an `IncidentRecord` of type `access_request` to the operator queue via Phase 3.F). The Portal does not expose k8s, Proxmox, or any administrative API — all administrative capability remains in the Control Nexus. Implemented as `portal/` — a self-contained Flask (or static + OIDC-proxy) application, separate from the Control Nexus Flask app, with its own Authentik OIDC client. |
+| AD-083 | **Codebase-hash versioning stamp (implemented 2026-06-13).** All broodforge documentation headers use a reproducible stamp format `YYYY-MM-DD_HH-MM-SS_<tz>_<shorthash>` in place of semantic version numbers (e.g., `v7.1`). The `<shorthash>` is the first 8 hex characters of a SHA-256 computed over all codebase files (Python, shell, YAML, TOML, tests) sorted by POSIX path, with documentation files excluded to avoid the self-referential hashing problem (a document cannot embed its own hash before it is written). The `<tz>` component (e.g., `UTC`, `MST`) is the timezone label of the timestamp, preventing ambiguity when stamps are generated in different timezone contexts. The canonical generator always uses UTC. Exclusion rules are codified in `proxmox-bootstrap/version-hash-schema.yaml` — the schema file is itself a `.yaml` and therefore IS included in the hash, so changing exclusion rules changes the stamp. Implementation: `proxmox-bootstrap/version_stamp.py`; schema is both human- and machine-readable (pyyaml or stdlib fallback parser). |
+| AD-084 | **Portal federation/cluster context indicator (Phase 3.K, proposed).** Every Portal page displays a small, inconspicuous chip in the bottom-right corner showing the current federation name and cluster identity (e.g., `homelab-fed / hatchery`). Purpose: when a user has access to multiple broodforge environments, the chip provides unambiguous context about which system they are operating in, similar to a browser secure-site| AD-085 | **Cell codename convention — adjective-animal format.** Infrastructure cells may be identified by either a numeric index (`cell-1`, `cell-2`) or a human-readable codename in `adjective-animal` format (e.g., `flying-bat`, `crouching-tiger`, `silent-wolf`). Codenames are optional but strongly encouraged for any deployment with more than one cell: they are shorter, more memorable, and easier to distinguish at a glance than numeric IDs in logs, KeePass entry paths, backup manifests, and verbal communication. Codename rules: (1) exactly one adjective, one animal, joined by a single hyphen; (2) all lowercase, no spaces, no digits; (3) unique within a federation; (4) once assigned, the codename is permanent — renaming a cell requires a migration record in the governance integrity chain (AD-080). Generation: `proxmox-bootstrap/cell_codename.py` offers `suggest_codename(existing)` at forge time; operator may accept, regenerate, or supply their own. Codenames appear in `forge-manifest.json` as `cell_codename`, in KeePass entry alias paths, in backup manifest component prefixes, and in all generated HTML companions. Numeric `cell_id` remains the canonical machine key; `cell_codename` is a display alias stored in `bootstrap-state.json`. Word lists: `data-model/cell-codename-words.yaml`. |
+| AD-086 | **Cryptographic Asset Management (CAM) — Secrets Broker and Artifact Broker abstractions (proposed).** Broodforge deployments involving LUKS-encrypted volumes, encrypted backup images, or other cryptographic material require a unified model for referencing secrets and binary artifacts without embedding raw values in packages or scripts. The CAM layer defines two broker abstractions: (1) **Secrets Broker** — resolves `secrets://` URIs to credential values at runtime, authority-agnostically. URI scheme: `secrets://<authority-class>/<asset-type>/<scope>/<label>` (e.g., `secrets://crypto/luks/node01/rootfs/passphrase`). The broker prompts the operator to unlock the configured authority (initially KeePass) and then fulfils all secret references for the session — matching the AD-042 KeePass unlock gate. Authority-pluggable: KeePass is default; any provider implementing the `SecretsAuthority` protocol can replace it without changing callers. (2) **Artifact Broker** — resolves `artifacts://` URI references to binary objects (LUKS headers, certificate PEM files, key backup archives). URI scheme: `artifacts://<authority-class>/<asset-type>/<scope>/<label>`. Initial authority stores LUKS headers as KeePassXC entry attachments (`AssetID` custom field = URI; binary attachment = raw bytes; `<label>-sha256` custom field = integrity hash). Phoenix package assembler replaces all raw secret values and artifact paths with URI references; Phoenix runner resolves URIs via the broker at restore time, never storing plaintext in the package. Forge-planner.py enumerates crypto assets and writes `crypto-assets.yaml` — the authoritative asset registry — with one entry per asset: `asset_id`, `asset_type`, `secret_ref`, `artifact_ref`, `validation`, `recovery_procedure`. Schema: `data-model/crypto-asset.yaml`. |
+| AD-087 | **CAM — KeePassXC as initial authority and per-asset validation (proposed).** For each cryptographic asset, the operator creates a KeePass entry with: `Title` = human-readable label; `AssetID` (custom field) = full `secrets://` or `artifacts://` URI; `Password` = secret value; binary attachment = artifact bytes; `<label>-sha256` (custom field) = hex SHA-256 of attachment. The `crypto-assets.yaml` registry records the KeePass Group path (`keepass_group: Crypto/LUKS/node01`) so the broker navigates to the entry without scanning the full database. Validation: `cam_validate.py` runs three checks per asset — (1) *Presence*: URI resolves to a non-empty value; (2) *Integrity*: SHA-256 of fetched bytes matches stored hash; (3) *Recovery simulation* (opt-in, scheduled by Reconstruction Drill — Phase 12): asset is used in a dry-run of its recovery procedure against a non-production target. All results appended to the readiness certificate (AD-059). Gap closed: without CAM, there is no systematic check that LUKS headers and passphrases stored in KeePass at forge time remain valid and accessible at recovery time — a drift or accidental deletion would only surface mid-incident. CAM's validation makes this detectable in a scheduled drill. |
+| AD-088 | **BFVault — browser-native encrypted secrets backup vault (proposed).** BFVault is a portable, zero-dependency backup artifact for secrets, credentials, and binary cryptographic assets (LUKS headers, KeePass `.kdbx` files, TLS certificates, SSH keys). It is the "break glass" backup that requires nothing beyond a modern browser to open. Design constraints: (1) **zero dependencies** — all cryptography uses the native Web Crypto API (AES-256-GCM, PBKDF2-SHA256 at 600,000 iterations; no WASM, no CDN); (2) **plaintext on unlock** — the outer artifact is strongly encrypted; once the passphrase is supplied, every asset and binary attachment is visible in the browser without any further tool; (3) **outer ZIP, inner JSON** — the exported `.zip` contains `meta.json` (plaintext KDF parameters: salt, IV, algorithm), `payload.enc` (AES-256-GCM ciphertext), and `bfvault.html` (self-contained browser viewer/editor that can re-export an updated vault); the inner payload is a single JSON document with all assets and base64-encoded binary attachments, avoiding a nested ZIP and the need for any ZIP library at read time; (4) **self-replicating exporter** — when exporting a new vault, `bfvault.html` serialises `document.documentElement.outerHTML` and includes itself in the output ZIP, so every exported vault is also an opener. **Asset types**: `credential`, `ssh-key`, `luks-header`, `certificate`, `totp`, `recovery-codes`, `keepass-database`, `note`, `generic-binary`. **KeePass integration**: the tool generates a standard KeePass XML export (importable via KeePassXC → Database → Import) with `AssetID` and `SecretsPath` custom fields set to the broodforge `secrets://` URI (AD-086), so importing the XML immediately wires up the secrets broker reference paths. **Relationship to walkthrough export**: the `@credential` field export in `md_to_html.py` (AD-036) uses the same cryptographic primitives and outer-ZIP structure, but its inner payload is a walkthrough-specific content ZIP rather than a BFVault JSON envelope; the two formats are parallel, not interchangeable. Schema: `data-model/bfvault-schema.yaml`. Tool: `docs/bfvault.html`. |
+| AD-089 | **CAB — Cryptographic Asset Bundle, single-asset portable unit (proposed).** A CAB is the single-asset subset of BFVault: it packages one cryptographic asset for transfer, escrow, or sharing with a third party without exposing the full vault. Structure: same outer ZIP format as BFVault (`meta.json` + `payload.enc` + `cab-open.html`); inner payload contains only one asset's `manifest.json`, `fields.json`, `attachments/`, and `keepass-import.xml`. A CAB can be imported into a BFVault (the `bfvault.html` tool has an "Import CAB" function that decrypts the CAB and merges the asset into the current vault session). CABs are generated either from `bfvault.html` (export one asset as a CAB) or as standalone exports from walkthrough companions whose sole purpose is capturing a single credential set. The CAB format supersedes the standalone `decrypt.html` + `payload.enc` pattern used in the AD-036 walkthrough export — the walkthrough export will migrate to producing a CAB-shaped inner payload in a future iteration. Passphrase for a CAB may differ from the parent vault — this is intentional, as CABs are designed for selective disclosure. Schema shares `data-model/bfvault-schema.yaml` (the single-asset section). |
+| AD-090 | **SecretsAuthority adapter interface — authority-agnostic secrets resolution (proposed).** The `SecretsAuthority` protocol is the single interface point that decouples the secrets broker (AD-086) from any specific vault implementation. An authority must implement: `resolve(uri: str) → str` (return secret value for a `secrets://` URI); `resolve_artifact(uri: str) → bytes` (return raw bytes for an `artifacts://` URI); `health_check() → bool` (confirm authority is reachable and unlocked). Current implementations: **KeePassXCAuthority** (AD-087, initial) — navigates KeePass group/entry by `keepass_group` + `AssetID` field; **BFVaultAuthority** (AD-088/089) — decrypts vault JSON and resolves from the in-memory asset map. Planned adapters: HashiCorpVaultAuthority (`secrets://hashicorp/...`), BitwardenAuthority, EnvAuthority (for CI/CD injection). Authority selection is configured in `cam-config.yaml` as a priority-ordered list; the broker tries each authority in order and returns the first successful resolution. This structure preserves all `secrets://` reference paths across migrations to new vault software — only the adapter changes, not the URI or any calling code. Schema: `data-model/secrets-authority-schema.yaml` (to be created). |

@@ -1,7 +1,8 @@
 # Broodforge — Roadmap
 
-Version: 7.1
-Last updated: 2026-06-13 (phases 1.L–2.J implemented since 2026-06-08:
+Codebase stamp: `2026-06-13_20-05-27_UTC_c0831145`
+Last updated: 2026-06-13 (phases 1.L–2.J implemented since 2026-06-08;
+Phase 3.A–3.K proposed 2026-06-13.
 **Phase 1.L** — Static Analysis Self-Audit Integration (AD-062, commit f7446be);
 **Phase 1.M** — Dynamic Analysis Self-Audit Integration (2026-06-09);
 **Phase 1.N** — Migration Infrastructure (AD-065, 2026-06-09);
@@ -12,7 +13,9 @@ Last updated: 2026-06-13 (phases 1.L–2.J implemented since 2026-06-08:
 **Phases 2.A–2.J** — Cluster Services: SSO/Authentik, cert-manager, Prometheus/Grafana,
 Loki/Promtail, Longhorn, nginx-ingress, Flux CD, Velero, Linkerd, Kyverno (2026-06-10/13);
 **Phase 2.K** — External Secrets Operator: proposed, not yet implemented)
-Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)
+Architecture stamp: `2026-06-13_20-05-27_UTC_c0831145` (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY.md)
+Stamp format: `YYYY-MM-DD_HH-MM-SS_<tz>_<shorthash>` where shorthash = SHA-256[:8] of all codebase files
+(Python, shell, YAML, TOML, tests — documentation excluded). Reproduce: `python3 proxmox-bootstrap/version_stamp.py`
 
 ---
 
@@ -221,6 +224,336 @@ Architecture: v7.1 (see ARCHITECTURE.md; design evolution in docs/DESIGN-HISTORY
       external_secrets_manager.py + forge-init-eso/register-secret-store.sh;
       ESO syncs secrets from Vault/AWS SM/etc. into k8s Secrets via ExternalSecret CRDs.
       Proposed scope: Helm install, SecretStore/ClusterSecretStore registry, ExternalSecret lifecycle tracking, ~20 tests.
+
+---
+
+## Proposed Phase 3 — Intelligence, Governance & Experience Layer
+
+Phase 3 introduces the advisory, integrity, and operator/user experience systems
+synthesized from the ChatGPT architecture corpus (2026-06-11 session).  All phases
+are **proposed, not yet implemented**.  Phases 3.A–3.H form the core intelligence
+stack; 3.I–3.K address cluster integrity, operator dashboarding, and user self-service.
+
+Phases are designed to be implemented sequentially (each builds on the prior)
+though 3.A–3.C may proceed in parallel with 3.I.
+
+---
+
+### Phase 3.A — Event Platform *(proposed)*
+
+**Purpose:** Introduce a lightweight internal event bus that all broodforge components
+publish to and consume from.  Replaces the current pattern of direct inter-module
+function calls with a structured event log that other phases (especially 3.D, 3.F,
+3.G, 3.I) can inspect and react to.
+
+**Scope:**
+- `event_platform.py` — EventBus, EventRecord, subscription registry
+- `EventRecord` fields: `event_id`, `source_component`, `event_type`, `timestamp`,
+  `payload` (typed dict), `correlation_id`
+- In-process publish/subscribe; optional append-only disk journal (one file per day)
+- CLI: `publish`, `tail`, `replay` subcommands
+- ~20 unit tests
+
+**Design constraints:** no external message broker required; single-node first.
+Federation routing deferred to Phase 4.
+
+---
+
+### Phase 3.B — Capability & Policy Engine *(proposed)*
+
+**Purpose:** Centralise what each operator role/service account is allowed to do and
+under what conditions.  Currently each manager module enforces its own KeePass gate
+(AD-061); Phase 3.B replaces ad-hoc checks with a unified policy layer that other
+components query.
+
+**Scope:**
+- `capability_engine.py` — CapabilityPolicy, RoleBinding, CapabilityEngine
+- Policy schema: `{ role, resource_type, action, conditions: [...] }`
+- Conditions: time-of-day windows, quorum requirement (N-of-M approvers), label selectors
+- Decision log written to EventBus (3.A) for integrity chain (3.I)
+- Policy files stored as versioned YAML under `proxmox-bootstrap/policies/`
+- CLI: `check`, `explain`, `list-roles`, `apply-policy` subcommands
+- ~25 unit tests
+
+**Design constraints:** stateless evaluation (policy files are source of truth); no
+runtime database.  KeePass gate (AD-061) remains the authentication source.
+
+---
+
+### Phase 3.C — Execution Broker *(proposed)*
+
+**Purpose:** All side-effectful operations (Helm install, kubectl apply, node
+provisioning, backup trigger) are routed through a single broker that enforces
+capability checks (3.B), records execution state, and provides a clean retry/timeout
+surface.
+
+**Scope:**
+- `execution_broker.py` — ExecutionRequest, ExecutionRecord, ExecutionBroker
+- `ExecutionRecord` fields: `request_id`, `operation_type`, `args`, `approved_by`,
+  `status` (queued/running/succeeded/failed/timed-out), `started_at`, `ended_at`,
+  `stdout_digest`, `stderr_digest`
+- Broker enforces capability check before running; publishes lifecycle events to 3.A
+- Atomic state file per request; full request journal
+- CLI: `submit`, `status`, `cancel`, `history` subcommands
+- ~25 unit tests
+
+**Design constraints:** synchronous execution only (no async worker pool) in Phase 3;
+parallel execution queue deferred to Phase 4.  Broker never stores raw credential
+material.
+
+---
+
+### Phase 3.D — Operational Intelligence & Expectations Engine *(proposed)*
+
+**Purpose:** Provide operators with data-driven time estimates before any long-running
+operation executes.  Strictly advisory — the engine never blocks or triggers execution.
+
+**Scope:**
+- `operational_intelligence.py` — DurationSample, DurationModel, HistoricalRollup,
+  Expectation, Prediction, OperationalIntelligence
+- `DurationSample` fields: `operation_type`, `args_hash`, `duration_seconds`, `outcome`,
+  `recorded_at`
+- `HistoricalRollup` granularities: `MINUTE / HOUR / DAY / WEEK / MONTH / QUARTER / YEAR`
+- `Prediction` fields: `operation_type`, `p50_seconds`, `p90_seconds`, `p99_seconds`,
+  `confidence` (0.0–1.0), `sample_count`, `generated_at`
+- `Expectation`: operator-defined threshold (warn if p50 > X seconds); raises advisory
+  event via 3.A if actual duration deviates significantly
+- CLI: `predict <operation>`, `record <operation> <duration>`, `rollup <granularity>`,
+  `expectations list/set/clear`
+- ~20 unit tests
+
+**Design constraints:** purely read/advisory; never calls subprocess.  No ML model —
+percentile statistics over raw samples only.
+
+---
+
+### Phase 3.E — Countdown / ETA Display *(proposed)*
+
+**Purpose:** Surface Phase 3.D predictions in the Control Nexus dashboard (3.J) and
+CLI before any Execution Broker (3.C) operation is dispatched, so the operator sees
+an estimated completion time and confidence band.
+
+**Scope:**
+- Dashboard panel: "Predicted duration" card shown in operation confirmation dialogs
+- CLI flag `--predict` on any `execution_broker submit` call prints the prediction
+  before prompting to confirm
+- Live progress timer shown for running operations (time elapsed vs. p50 estimate)
+- No new Python module — thin integration layer between 3.C, 3.D, and 3.J
+
+**Design constraints:** display only; confirmation/approval flow is unchanged.
+
+---
+
+### Phase 3.F — Incident System & Internal Ticketing *(proposed)*
+
+**Purpose:** Provide a lightweight, self-hosted incident and task-tracking system
+scoped to the broodforge cluster.  Not a replacement for external project management;
+intended for operational incidents, remediation tracking, and change requests that
+affect cluster state.
+
+**Scope:**
+- `incident_manager.py` — IncidentRecord, IncidentStatus, RemediationStep, IncidentManager
+- `IncidentRecord` fields: `incident_id`, `title`, `severity` (P1–P4), `source_event_id`
+  (link to 3.A EventRecord), `affected_components`, `opened_at`, `resolved_at`,
+  `resolution_summary`, `steps: list[RemediationStep]`
+- Auto-opened by anomaly correlation (3.G) or manually via CLI
+- Published to EventBus (3.A); visible in Control Nexus (3.J)
+- CLI: `open`, `update`, `close`, `list`, `show` subcommands
+- ~20 unit tests
+
+**Design constraints:** local-only store (JSON file per incident); no external ITSM
+integration in Phase 3.
+
+---
+
+### Phase 3.G — Advisories & Anomaly Correlation *(proposed)*
+
+**Purpose:** Correlate events from the EventBus (3.A) and metrics from Prometheus (Phase
+2.C) to surface actionable advisories.  Strictly read-only; never takes automated
+remediation actions.
+
+**Scope:**
+- `advisory_engine.py` — AdvisoryRule, AdvisoryRecord, CorrelationEngine
+- Built-in rules: duration deviation (actual vs. 3.D p90), repeated failure of same
+  operation type, secret expiry horizon (from vault_manager if present), policy audit
+  violations (from 3.B decision log)
+- `AdvisoryRecord` fields: `advisory_id`, `rule_name`, `severity`, `message`,
+  `source_events`, `created_at`, `acknowledged_at`, `acknowledged_by`
+- Advisory triggers incident auto-open in 3.F when severity ≥ P2
+- Dashboard panel: advisory feed with acknowledge action
+- ~20 unit tests
+
+**Design constraints:** advisory rules are evaluated on-demand (not a streaming engine);
+no ML anomaly detection — rule-based only.
+
+---
+
+### Phase 3.H — Secrets & Trust Brokerage *(proposed)*
+
+**Purpose:** Extend the credential gate (AD-061) with a structured secrets broker that
+mediates all runtime secret delivery to components.  Phase 3.H is the Phase 3 version
+of what Phase 2.K (ESO) does for Kubernetes — it covers the broader credential surface
+including operator-level secrets, cluster CA material, and inter-service tokens.
+
+**Scope:**
+- `secrets_broker.py` — SecretDescriptor, SecretLease, SecretsBroker
+- `SecretDescriptor` fields: `secret_id`, `kind` (tls-cert / api-token / ssh-key /
+  arbitrary), `scope` (node / cluster / federation), `rotation_interval_days`,
+  `last_rotated_at`, `holder_components`
+- `SecretLease`: time-bounded delivery record; published to EventBus (3.A) and
+  included in integrity chain coverage (3.I)
+- Audit trail: every secret access creates an EventRecord; lease expiry creates an
+  advisory (3.G)
+- CLI: `register`, `deliver`, `rotate`, `revoke`, `list`, `audit` subcommands
+- ~25 unit tests
+
+**Design constraints:** broker never stores plaintext secrets; stores metadata and
+leases only.  KeePass remains the root credential store (AD-061).
+
+---
+
+### Phase 3.I — Governance Integrity Chain *(proposed)*
+
+**Purpose:** Bake a compact, hash-linked audit record into the core operation of every
+node, cluster, and federation tier.  Provides tamper-evidence for governance events,
+policy changes, secret lease events, and execution records without requiring an
+external blockchain or consensus engine.
+
+**Location:** `integrity/` (top-level directory, peer to `proxmox-bootstrap/` — bootstrap
+is scoped to initial node setup; the integrity chain spans all tiers and is an
+independent, foundational oversight function)
+
+**Schema — checkpoint record (JSON, append-only chain file):**
+
+```json
+{
+  "checkpoint_id":    "string (UUID)",
+  "seq":              "integer (monotonic, per-scope)",
+  "scope":            "node | cluster | federation",
+  "scope_id":         "string (node hostname / cluster name / federation name)",
+  "prev_chain_hash":  "string (SHA-256 of previous checkpoint JSON, hex)",
+  "state_merkle_root":"string (SHA-256 of covered entries, hex)",
+  "covered_entries":  ["event_id_1", "event_id_2", "..."],
+  "timestamp":        "ISO-8601 UTC",
+  "chain_hash":       "string (SHA-256 of: prev_chain_hash + state_merkle_root + timestamp)"
+}
+```
+
+**Migration approval record** (embedded in `covered_entries` before any schema migration):
+
+```json
+{
+  "entry_type":          "migration_approval",
+  "migration_id":        "string (UUID)",
+  "from_schema_hash":    "string (SHA-256 of current governance/policy/execution schema)",
+  "to_schema_hash":      "string (SHA-256 of proposed replacement schema)",
+  "approved_by":         ["role_or_principal_1", "..."],
+  "approved_at":         "ISO-8601 UTC",
+  "approval_chain_hash": "string (chain_hash of the checkpoint that sealed this approval)"
+}
+```
+
+**Migration event record** (appended immediately after migration executes):
+
+```json
+{
+  "entry_type":        "migration_event",
+  "migration_id":      "string (same UUID as approval above)",
+  "adopted_schema_hash":"string (SHA-256 of the schema actually deployed)",
+  "approval_ref":      "checkpoint_id of the approval record",
+  "migrated_at":       "ISO-8601 UTC"
+}
+```
+
+The audit tool compares `adopted_schema_hash` to `to_schema_hash` from the approval
+record.  A mismatch (or a migration event with no corresponding approval record in
+the chain) is flagged as an **unapproved migration**, pinpointing exactly which
+checkpoint to use as the rollback target.
+
+**Scope:**
+- `integrity/chain_manager.py` — ChainEntry, MigrationApproval, MigrationEvent,
+  IntegrityChain, ChainManager
+- `integrity/audit_tool.py` — CLI: `verify`, `show`, `migrations`, `check-migration <id>`
+- Per-scope chain files: `integrity/chains/<scope>/<scope_id>.jsonl`
+  (e.g. `integrity/chains/node/homelab-01.jsonl`, `integrity/chains/cluster/main.jsonl`)
+- ChainManager appends checkpoint on every significant state transition (execution
+  completed, policy changed, secret rotated, migration approved/executed)
+- `audit_tool verify` walks the entire chain recomputing `chain_hash` at each step;
+  first hash mismatch identifies the exact corrupted checkpoint
+- `audit_tool check-migration <id>` confirms that a given migration's
+  `adopted_schema_hash == to_schema_hash` from its approval record
+- ~25 unit tests
+
+**Design constraints:** no consensus algorithm, no gas, no token.  Chain files are
+append-only (never in-place edited).  Schema is deliberately minimal: hashes +
+entry references, not full state snapshots.  A node can verify its own chain
+offline without contacting any peer.
+
+---
+
+### Phase 3.J — Control Nexus: Tiered Operator Dashboard *(proposed)*
+
+**Purpose:** Replace the current single-tier `broodforge_dashboard.py` with a
+three-tier operator console that presents the right view at the right scope.
+Renamed from "sidecar GUI" to Control Nexus to reflect its broader function.
+
+**Tiers:**
+
+- **Node tier** — physical host + Proxmox view (hardware stats, VM inventory,
+  storage pools, Proxmox cluster membership).  Runs on the node itself.
+- **Cluster tier** — k3s cluster view (current dashboard.py scope extended with
+  Phase 3 panels: incidents, advisories, integrity chain status, ETA display).
+  Runs on any cluster node.
+- **Federation tier** — multi-cluster aggregate view (Phase 4 stub; included as
+  empty placeholder panel in Phase 3 so the routing logic is designed now).
+
+**Scope:**
+- Extend `broodforge_dashboard.py`: tier selector in header (Node / Cluster /
+  Federation), dynamic panel routing
+- New panels: Incident Feed (3.F), Advisory Feed (3.G), Integrity Chain Status
+  (3.I — last checkpoint + any failed verifications), ETA card (3.D/3.E),
+  Secrets Lease Expiry (3.H)
+- Node-tier panels: Proxmox summary, VM states, disk health (reads local API)
+- Federation-tier panel: placeholder "Not yet implemented — Phase 4"
+- ~15 unit tests (panel routing, tier detection)
+
+**Design constraints:** single-process Flask server; no added JS framework beyond
+what is already used.  Federation panel is intentionally minimal in Phase 3.
+
+---
+
+### Phase 3.K — Portal: User Self-Service Hub *(proposed)*
+
+**Purpose:** Provide a unified web interface for end-users (not operators) of the
+services running in the k3s cluster.  Users log in once via Authentik SSO (Phase 2.A)
+and see all the services they have access to, can manage their account centrally, and
+can request access to additional services without operator intervention.
+
+**Scope:**
+- `portal/` — self-contained Flask (or static + OIDC-proxy) application
+- OIDC login via Authentik; session scoped to authenticated user
+- **Service registry panel:** list of all k8s-layer services the user is enrolled in
+  (Nextcloud, Gitea, etc.) with per-service account status and direct links
+- **Account management:** change display name, upload SSH public key, view active
+  sessions, revoke sessions
+- **Access request:** user submits request for a new service; request creates an
+  IncidentRecord (3.F) routed to operator queue
+- **SSO chain view:** shows which upstream identity provider (e.g., Google → Authentik)
+  is backing the user's session
+- Operator-visible queue in Control Nexus (3.J) Cluster tier for approving access
+  requests
+- ~15 unit tests (route auth, service registry rendering, access request flow)
+
+**Context indicator:** A small, inconspicuous chip in the bottom-right corner of
+every Portal page displays the current federation name and cluster identity (e.g.,
+`homelab-fed / hatchery`).  This gives users unambiguous context when accessing
+multiple broodforge environments.  The chip is populated from Authentik OIDC token
+claims or a `/api/v1/context` endpoint backed by `bootstrap-state.json`; it is
+read-only and styled to be visible but not distracting (muted colour, small font,
+similar to a browser status bar indicator).
+
+**Design constraints:** Portal is user-facing only — no cluster admin functions.
+Operators use Control Nexus (3.J).  Portal does not expose raw k8s or Proxmox APIs.
 
 ---
 
@@ -3127,303 +3460,4 @@ New endpoints:
 - `POST /api/remediations/approve-batch` — approve multiple by severity threshold
 
 Dashboard HTML additions:
-- New **Remediations** section in the main dashboard page
-- Pending proposals listed with: severity badge, action description, target, dry-run summary, approve/reject buttons
-- Executed history section showing resolved and failed proposals
-- Auto-approve policy display and toggle
-
-Token requirement: all POST endpoints require the `X-Broodforge-Token` header
-(already enforced for `analyze-failures`). A proposal approved from the dashboard
-records `approval_channel: dashboard`.
-
-- [x] 26.4.1: `GET /api/remediations` and `GET /api/remediations/{id}` endpoints
-- [x] 26.4.2: `POST` approval/rejection endpoints with token gate
-- [x] 26.4.3: Dashboard HTML section — proposal cards with approve/reject buttons
-- [x] 26.4.4: Batch approve endpoint with severity filter
-- [x] 26.4.5: Tests (dashboard endpoints: 15+ cases)
-
-**26.5 — Feedback Loop and Reporting**
-
-Close the loop: verify that approved remediations actually resolved the issue,
-and surface the closed-loop record in operational reports.
-
-- `RemediationRecord` — links a proposal, its execution result, and the post-execution
-  assessment delta (was the gap actually closed?)
-- Operational Report (Section 8 — new) — Remediation Summary:
-  - Pending proposals awaiting approval (count by severity)
-  - Recently executed proposals (last 30 days) with outcomes
-  - Failed remediations requiring operator attention
-  - Issues that were auto-approved and resolved without intervention
-  - Issues that resisted remediation (executed but issue persists after reassessment)
-
-- [x] 26.5.1: `RemediationRecord` — execution + post-assessment delta + closed-loop status
-- [x] 26.5.2: Operational report Section 8 — Remediation Summary renderer
-- [x] 26.5.3: HTML operational report update — Section 8 added to `html_operational_report.py`
-- [x] 26.5.4: `resists_remediation` flag — if an action executed successfully but the
-  underlying issue is still present in the next assessment, the proposal is marked
-  `resisted` and escalated to the operator
-- [x] 26.5.5: Tests (feedback loop: 20+ cases)
-
-**26.6 — Policy Engine and Federation Remediation**
-
-*Advanced optional sub-phase.*
-
-**Policy engine** (`proxmox-bootstrap/remediation_policy.py`):
-Fine-grained control over what can be auto-approved, what requires human approval,
-and what is blocked entirely. Per-action-type overrides supplement the global
-severity threshold.
-
-Policy fields (stored in `bootstrap-state.json remediation_policy`):
-- `auto_approve_threshold`: global max severity for auto-approval (default: null)
-- `blocked_action_types`: list of action types that are always blocked regardless of approval
-- `require_approval_action_types`: action types always requiring approval even if under threshold
-- `max_concurrent_executions`: number of proposals that can execute simultaneously (default: 1)
-- `execution_window`: time-of-day window when executions may run (cron-style expression)
-- `notify_on_proposal`: emit a structured log event when new proposals are generated
-- `notify_on_approval`: emit a structured log event when proposals are approved
-- `notify_on_outcome`: emit a structured log event when proposals complete or fail
-
-**Federation remediation**:
-A federated remediation proposal is one that requires coordination across cells.
-Example: Cell A's backup is failing because Cell B (the backup destination) is
-full. The proposal must be visible to operators of both cells; approval from
-the "owning cell" operator is required before execution.
-
-Cross-cell proposals are stored in the federation state (Phase 19) alongside the
-originating cell's bootstrap-state.json. The federation runbook (Phase 20) gains a
-"Pending Remediations" section.
-
-- [x] 26.6.1: `RemediationPolicy` dataclass and schema; CLI to update policy
-- [x] 26.6.2: Execution window enforcement (don't execute outside configured hours)
-- [x] 26.6.3: Concurrent execution limit (serialize by default; operator can allow parallel)
-- [x] 26.6.4: Cross-cell proposal format — `owning_cell_id`, `requires_cell_approval[]`
-- [x] 26.6.5: Federation remediation view in Federation Workbook (Phase 20 extension)
-- [x] 26.6.6: Tests (policy engine: 20+ cases; cross-cell: 10+ cases)
-
-**26.7 — Fully Autonomous Mode** *(optional — must be explicitly enabled by an operator)*
-
-An opt-in execution mode in which the assessment engine detects issues, the
-planner generates proposals, and the executor runs them without waiting for
-per-action approval. The gated model (Phase 26.1–26.6) remains the default and
-is always available regardless of whether this mode is active.
-
-**This mode exists for operators who are comfortable with the bounded action
-list and want the platform to self-maintain without manual intervention on
-routine maintenance tasks.** It is not the right mode for initial deployment,
-unstable environments, or any cell where operator oversight of each change is
-required.
-
-*Autonomous mode never changes which actions are possible — only who initiates
-execution. The bounded action-type list, the hard exclusions, and the full audit
-trail from Phases 26.1–26.6 apply without exception.*
-
----
-
-**Enabling ceremony — two-step confirmation required**
-
-Autonomous mode cannot be turned on by editing a config file directly. It
-requires a deliberate interactive ceremony so the operator understands exactly
-what they are enabling before it takes effect:
-
-```
-$ python3 proxmox-bootstrap/remediation-cli.py enable-autonomous
-
-Current policy review
-=====================
-Cell:            proxmox-cell-a
-Assessment:      operational (running every 1 hour)
-Pending queue:   3 proposals awaiting approval
-Action types in scope for autonomous execution:
-  restart-service, run-backup, renew-cert, regenerate-phoenix,
-  sync-cert-to-k8s, restart-assessment-timer, schedule-drill
-Maximum severity for autonomous execution: ORANGE
-Execution window: any time (no restriction)
-
-HARD EXCLUSIONS — these are NEVER executed autonomously regardless of policy:
-  ✗ Any action with reversibility: irreversible
-  ✗ RED-severity findings
-  ✗ Actions requiring KeePass gate (those remain per-action gated)
-  ✗ Cross-cell actions (those remain per-cell-operator gated)
-
-What will happen if you continue:
-  Approved: new proposals at or below ORANGE will execute automatically
-            on the next assessment cycle after they are proposed.
-  NOT approved: the 3 existing proposals in the queue still require
-                per-action approval — autonomous mode applies to new proposals
-                generated after this point, not retroactively.
-
-This mode will auto-disable after 30 days (2026-07-02) unless renewed.
-To disable at any time: remediation-cli.py disable-autonomous
-
-Type 'enable autonomous' to confirm, or Ctrl-C to cancel:
-> _
-```
-
-The confirmation phrase must be typed exactly. A mistype aborts with no change.
-After confirmation the mode is recorded in `bootstrap-state.json` with:
-- `enabled_by` — Unix user + hostname at enable time
-- `enabled_at` — UTC timestamp
-- `enabled_via` — `cli` | `dashboard`
-- `expires_at` — UTC timestamp (default 30 days; configurable; null = no expiry)
-- `scope` — the exact policy in effect at enable time (snapshot)
-
-The operator is shown a summary of the enabling record before the prompt
-returns, confirming what was stored.
-
----
-
-**Hard exclusions — enforced at the executor layer, not by policy**
-
-These restrictions cannot be overridden by any policy setting. They are checked
-inside the executor before any autonomous execution begins:
-
-| Exclusion | Reason |
-|---|---|
-| `reversibility: irreversible` actions | Cannot be undone if the assessment was wrong |
-| RED-severity findings | The system should not self-heal critical failures without a human confirming the diagnosis |
-| KeePass-gated actions | Unattended secrets access requires a separate unlock mechanism not yet implemented; these remain per-action gated in all modes |
-| Actions affecting more than one cell | Cross-cell blast radius requires coordinated approval |
-| Actions on a cell whose last assessment is older than 2× the assessment interval | Stale state means the proposal may be based on outdated information |
-| Actions during an active reconstruction drill | Do not remediate a cell that is deliberately in a degraded state for testing |
-
----
-
-**Scope constraints — set at enable time**
-
-The operator can restrict autonomous mode to a subset of actions and severity
-levels at enable time. Restrictions are stored in the enabling record and cannot
-be loosened without re-running the enabling ceremony.
-
-| Constraint | Default | Meaning |
-|---|---|---|
-| `autonomous_action_types` | All safe types | List of action types that may execute autonomously; `rotate-join-token` excluded from default |
-| `autonomous_max_severity` | `ORANGE` | Maximum severity level; cannot be set to `RED` |
-| `autonomous_execution_window` | Any time | Cron-style expression restricting when executions may run |
-| `autonomous_max_concurrent` | 1 | How many proposals may execute in parallel |
-| `autonomous_expires_at` | 30 days | UTC timestamp after which mode auto-disables; `null` = no expiry |
-| `autonomous_notify` | `true` | Emit a structured log event for every autonomous execution |
-
----
-
-**Notifications — what happens without per-action approval**
-
-Because the operator is not involved in each action, the platform must report
-what it did. Every autonomous execution emits a structured notification event
-that the operator can consume via:
-- The dashboard **Remediation History** view (always)
-- The operational report Section 8 "Autonomous Executions" subsection (always)
-- SMTP email (if external SMTP dependency configured in bootstrap-state.json)
-- A structured log entry in the systemd journal (always; can be monitored by any log aggregator)
-
-The notification includes: what issue was detected, what action ran, what changed,
-the outcome (success/failed/resisted), and the next scheduled reassessment time.
-
-If an autonomous execution fails or a remediated issue persists after reassessment
-(`resisted`), the finding is escalated: an immediate notification is sent and the
-specific proposal is moved back to the `gated` approval mode until the operator
-reviews it. Repeated failures disable autonomous mode for that action type
-automatically.
-
----
-
-**Disabling autonomous mode**
-
-Autonomous mode can be disabled at any time with no confirmation required:
-
-```
-$ python3 proxmox-bootstrap/remediation-cli.py disable-autonomous
-[remediation] Autonomous mode disabled.
-[remediation] Proposals in queue: 2 now require per-action approval.
-[remediation] Disable recorded: 2026-06-15T14:22:00Z by root@hatchery
-```
-
-Or from the dashboard via the "Disable autonomous mode" button (no confirmation
-prompt in the UI — disabling is always safe and immediate).
-
-Auto-disable triggers (without operator action):
-- `expires_at` timestamp reached
-- N consecutive failed executions (configurable; default: 3)
-- N consecutive `resisted` outcomes (configurable; default: 2 for the same issue)
-- Cell readiness drops to RED (the platform self-demotes out of autonomous mode
-  when the cell is in a critical state)
-
-Every auto-disable event is logged with the triggering reason and sent as a
-high-priority notification.
-
----
-
-**Dashboard integration**
-
-New elements in `broodforge_dashboard.py`:
-- Prominent **autonomous mode status badge** in the topbar: `AUTO` (green) when enabled, `GATED` (muted) when not
-- **Enable/Disable** button in the Remediations section (Enable requires a confirmation modal that mirrors the CLI ceremony; Disable is immediate)
-- **Autonomous executions** subsection in Remediation History — separate from the manual-approval history
-- **Scope display** — shows the exact constraints in effect when autonomous mode is enabled
-- **Auto-disable countdown** — shows time remaining until expiry if `expires_at` is set
-
----
-
-- [x] 26.7.1: `autonomous_mode` field group in `bootstrap-state-schema.json` and `RemediationPolicy`
-- [x] 26.7.2: Enabling ceremony in `remediation-cli.py` — two-step confirmation, scope review, enabling record
-- [x] 26.7.3: Executor integration — skip approval-wait step for in-scope proposals when autonomous mode is active
-- [x] 26.7.4: Hard exclusion enforcement in executor — checked independently of policy
-- [x] 26.7.5: Auto-disable triggers (expiry, consecutive failures, RED cell state)
-- [x] 26.7.6: Notification events — structured log + SMTP if configured + dashboard update
-- [x] 26.7.7: Dashboard — autonomous mode badge, enable/disable controls, scope display, auto-disable countdown
-- [x] 26.7.8: Stale-state guard — refuse autonomous execution if last assessment is older than 2× interval
-- [x] 26.7.9: Drill guard — refuse autonomous execution while a reconstruction drill is active
-- [x] 26.7.10: Tests:
-      - Enabling ceremony: confirmation phrase correct/wrong/abort
-      - Hard exclusions: RED, irreversible, KeePass-gated, stale-state, drill-active all blocked
-      - Scope constraints: action type filter, severity cap, execution window
-      - Auto-disable: expiry, consecutive failures, RED cell state
-      - Notification events: structured log fields, SMTP trigger conditions
-      - Re-enable after auto-disable: ceremony required again
-      *(40+ test cases)*
-
----
-
-**Gate:** Phase 26 completion (including 26.7) adds the full autonomous action layer.
-Phases 26.1–26.6 deliver human-gated remediation. Phase 26.7 adds fully autonomous
-execution as an explicit opt-in on top of that foundation.
-
-**Track 4 begins after Track 3. No Track 4 phase requires any Track 4 prerequisite
-beyond a working Phase 24 (continuous assessment) deployment.**
-
----
-
-## Design Principles
-
-1. **Reconstruction is the objective.** Every state category, metadata field, and
-   documentation artifact is evaluated against: "Does this enable reconstruction
-   from repository state after complete infrastructure loss?"
-
-2. **Documentation is generated, not authored.** Technical infrastructure information
-   is collected automatically. Operators provide only what cannot be discovered.
-
-3. **Cell scope is universal.** `cell_id` is mandatory on every state document.
-   No single-environment assumptions anywhere in the data model.
-
-4. **The Digital Twin is the source of truth.** All outputs derive from the twin.
-
-5. **Recovery relationships are explicit.** Which cell holds what for whom is
-   declared and verified, not assumed.
-
-6. **Missing information is surfaced, never silently omitted.** UNRESOLVED and
-   STALE fields are always visible with reason, impact, and remediation guidance.
-
-7. **Trust is declared and verified.** Inter-cell trust has expiry, is verified at
-   Tier 3 assessment, and expired trust degrades federation readiness scores.
-
-8. **Historical snapshots are reproducible.** Same twin state always produces same outputs.
-
-9. **Readiness scoring is honest.** RED means recovery will likely fail.
-
-10. **Single-cell work must be federation-ready from the start.** `cell_id` in all
-    schemas. Recovery playbooks organized by cell. Documentation scoped by cell.
-    The federation layer is added above, not retrofitted below.
-
-11. **Remediation is proposed, not imposed.** The assessment engine recommends;
-    the operator approves; the system executes. No autonomous action changes
-    infrastructure state without a recorded human approval. This is an
-    architectural constraint, not a configuration option.
+- New **Remediations** section in the main dashboard

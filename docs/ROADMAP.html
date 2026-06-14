@@ -3,15 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Broodforge — Roadmap</title>
+<title>Broodforge Roadmap</title>
 <style>
-
   :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
-    --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a}
+    --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a;--bg2-rgb:34,38,46}
   body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#d0d7de;--text:#1f2328;--muted:#57606a;
     --accent:#0969da;--green:#1a7f37;--yellow:#9a6700;--orange:#bc4c00;--red:#cf222e;
-    --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2}
+    --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2;--bg2-rgb:244,245,247}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;overflow:hidden;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
@@ -43,8 +42,18 @@
   tr:last-child td{border-bottom:none}
   .doc-meta{color:var(--muted);font-size:.8em;margin:4px 0 20px}
   /* theme toggle */
-  #bf-toolbar{position:sticky;top:0;z-index:50;display:flex;gap:8px;
-    justify-content:flex-end;padding:6px 0;background:var(--bg)}
+  #bf-toolbar{position:sticky;top:0;z-index:50;display:flex;flex-direction:column;
+    background:var(--bg)}
+  .bf-toolbar-main{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:6px 0}
+  .bf-toolbar-end{margin-left:auto;display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap}
+  .bf-attach-bar{display:flex;align-items:center;gap:10px;
+    padding:4px 0 6px;border-top:1px solid var(--border)}
+  .bf-attach-hint{color:var(--muted);font-size:.76em}
+  #bf-collapse-all,#bf-expand-all{background:var(--btn-bg);color:var(--text);
+    border:1px solid var(--border);border-radius:var(--radius);padding:5px 12px;
+    cursor:pointer;font-size:.8em;font-family:inherit}
+  #bf-collapse-all:hover,#bf-expand-all:hover{border-color:var(--accent);color:var(--accent)}
+  #bf-section-count{color:var(--muted);font-size:.75em;white-space:nowrap}
   #bf-toolbar button{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
     border-radius:var(--radius);padding:5px 12px;cursor:pointer;font-size:.8em;font-family:inherit}
   #bf-toolbar button:hover{border-color:var(--accent);color:var(--accent)}
@@ -52,31 +61,57 @@
     border-radius:var(--radius);padding:5px 10px;display:inline-flex;align-items:center;
     font-size:.8em;text-decoration:none;cursor:pointer;flex-shrink:0;font-family:inherit}
   .about-docs-link:hover{border-color:var(--accent);color:var(--accent)}
-  /* attachments */
-  .attachments{margin-top:30px;border-top:1px solid var(--border);padding-top:14px}
-  .attachments input[type=file]{color:var(--muted);font-size:.85em;margin-top:6px}
-  .attach-list{list-style:none;margin:10px 0 0;padding:0}
-  .attach-list li{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);
-    border-radius:var(--radius);padding:5px 10px;margin:4px 0;font-size:.85em}
+  /* attachments - toolbar dropdown panel */
+  #bf-attach-count{font-size:.75em;opacity:.8}
+  #bf-attach-panel{position:absolute;top:100%;right:0;width:360px;
+    background:var(--bg2);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 var(--radius) var(--radius);
+    box-shadow:0 6px 18px rgba(0,0,0,.38);z-index:51;
+    display:none;padding:12px 14px}
+  #bf-attach-panel.open{display:block}
+  #bf-attach-zone{border:1.5px dashed var(--border);border-radius:var(--radius);
+    background:var(--bg);padding:12px 14px;display:flex;align-items:center;
+    gap:10px;cursor:default;transition:border-color .15s,background .15s;margin-bottom:6px}
+  #bf-attach-zone.drag-over{border-color:var(--accent);background:rgba(137,180,250,.06)}
+  .bf-attach-prompt{color:var(--muted);font-size:.82em;flex:1}
+  .bf-attach-btn{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 10px;font-size:.78em;cursor:pointer;
+    font-family:inherit;flex-shrink:0;white-space:nowrap}
+  .bf-attach-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .attach-list{list-style:none;margin:4px 0 0;padding:0}
+  .attach-list li{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 8px;margin:3px 0;font-size:.82em}
   .attach-list .sz{color:var(--muted);font-size:.9em}
   .attach-list button{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);
-    border-radius:4px;cursor:pointer;padding:1px 8px;font-size:.85em}
+    border-radius:4px;cursor:pointer;padding:1px 6px;font-size:.82em}
   .attach-list button:hover{border-color:var(--red);color:var(--red)}
+  /* doc navigation panel */
+  #bf-nav-panel{position:absolute;top:100%;left:0;width:300px;
+    background:var(--bg2);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 var(--radius) var(--radius);
+    box-shadow:0 6px 18px rgba(0,0,0,.38);z-index:51;
+    display:none;padding:8px 0;max-height:70vh;overflow-y:auto}
+  #bf-nav-panel.open{display:block}
+  .bf-nav-group{padding:4px 0}
+  .bf-nav-group-label{font-size:.68em;color:var(--muted);font-weight:700;
+    text-transform:uppercase;letter-spacing:.08em;padding:6px 14px 3px}
+  .bf-nav-item{display:block;padding:5px 14px;font-size:.82em;color:var(--text);
+    text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bf-nav-item:hover{background:var(--bg3);color:var(--accent)}
+  .bf-nav-item.current{color:var(--accent);font-weight:600;
+    border-left:2px solid var(--accent);padding-left:12px}
+  .bf-nav-sep{height:1px;background:var(--border);margin:4px 0}
   /* collapsible sections (--collapsible) */
   details.section{margin:8px 0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
   details.section>summary{background:var(--bg2);color:var(--accent);cursor:pointer;user-select:none;
-    padding:9px 14px;font-weight:600;font-size:1.0em;list-style:none;text-transform:uppercase;letter-spacing:.04em}
+    padding:9px 14px;font-weight:600;font-size:1.0em;list-style:none;text-transform:uppercase;
+    letter-spacing:.04em;display:flex;align-items:center;gap:6px}
   details.section>summary::-webkit-details-marker{display:none}
-  details.section>summary::before{content:'▶';font-size:.7em;color:var(--muted);margin-right:8px;transition:transform .15s}
+  details.section>summary::before{content:'▶';font-size:.7em;color:var(--muted);margin-right:4px;flex-shrink:0;transition:transform .15s}
   details.section[open]>summary::before{transform:rotate(90deg)}
+  details.section>summary>*:not(.bf-sub-controls){flex:1;margin:0;padding:0}
   details.section>summary h2{display:inline;border:none;margin:0;padding:0;font-size:inherit;color:inherit;letter-spacing:inherit}
   details.section .sec-body{padding:6px 16px 14px}
-  /* collapse/expand all bar */
-  .bf-collapse-bar{display:flex;gap:8px;margin:10px 0 16px;align-items:center}
-  .bf-collapse-bar button{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
-    border-radius:var(--radius);padding:4px 14px;cursor:pointer;font-size:.8em;font-family:inherit}
-  .bf-collapse-bar button:hover{border-color:var(--accent);color:var(--accent)}
-  .bf-collapse-bar .bf-section-count{color:var(--muted);font-size:.78em;margin-left:4px}
   /* code block + copy */
   .codewrap{position:relative;margin:10px 0}
   .copy-btn{position:absolute;top:6px;right:6px;background:var(--btn-bg);color:var(--muted);
@@ -112,14 +147,15 @@
   details.subsection>summary.sub-summary>*:not(.bf-sub-controls){flex:1;display:inline;
     margin:0;padding:0;font-size:inherit;color:inherit}
   details.subsection .sub-body{padding-left:14px;padding-bottom:6px}
-  /* +/- controls appear on any summary (section or subsection) that has children */
-  details.section>summary.sec-summary{display:flex;align-items:center;gap:6px}
-  details.section>summary.sec-summary>*:not(.bf-sub-controls){flex:1}
-  .bf-sub-controls{display:flex;gap:3px;flex-shrink:0;margin-left:auto}
+  /* +/- controls and clear button appear right-aligned in the summary row */
+  .bf-sub-controls{display:flex;gap:3px;flex-shrink:0;margin-left:auto;margin-right:10px;align-items:center}
   .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--border);
     color:var(--muted);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
     line-height:1.6;font-family:inherit;font-weight:700}
   .bf-sub-expand:hover,.bf-sub-collapse:hover{border-color:var(--accent);color:var(--accent)}
+  .bf-ctrl-sep{width:10px;flex-shrink:0}
+  /* ghost = always-present placeholder when button not applicable */
+  .bf-ctrl-ghost{color:transparent !important;pointer-events:none;cursor:default;opacity:0.25}
   /* ── split-pane layout ─────────────────────────────────────────────────── */
   #bf-app{display:flex;height:100vh;overflow:hidden}
   #bf-doc-pane{flex:1 1 auto;overflow-y:auto;padding:24px 28px 80px;min-width:0}
@@ -159,7 +195,8 @@
   .nts-hdr-btn{background:none;border:none;color:var(--muted);cursor:pointer;
     padding:0 4px;font-size:.95em;line-height:1;border-radius:3px;flex-shrink:0}
   .nts-hdr-btn:hover{color:var(--accent)}
-  .nts-hdr-btn.del:hover{color:var(--red)}
+  .nts-hdr-btn.del{color:var(--red)}
+  .nts-hdr-btn.del:hover{opacity:.75}
   .nts-body{padding:5px 8px 8px;background:var(--bg)}
   .nts-body textarea{width:100%;min-height:50px;resize:vertical;margin-bottom:4px;
     font-size:.81em}
@@ -192,14 +229,30 @@
   #bf-drag.notes-hidden{display:none}
   /* ── notes floating / pop-out ── */
   #bf-notes-pane.floating{
-    position:fixed !important;right:20px;top:48px;
-    width:340px !important;height:70vh;
-    flex:none !important;min-width:unset !important;max-width:unset !important;
-    border-radius:8px;border:1px solid var(--accent) !important;
+    position:fixed !important;
+    width:400px;height:70vh;
+    flex:none !important;min-width:400px !important;max-width:unset !important;
+    border-radius:8px;border:2px solid var(--accent) !important;
     box-shadow:0 8px 32px rgba(0,0,0,.55);
-    z-index:300;resize:both;overflow:hidden}
+    z-index:300;resize:both;overflow:hidden;
+    /* background driven by JS via --notes-bg-alpha; border stays at full opacity */
+    background:rgba(var(--bg2-rgb),var(--notes-bg-alpha,1)) !important;
+    backdrop-filter:blur(var(--notes-blur,0px));
+    -webkit-backdrop-filter:blur(var(--notes-blur,0px));
+    transition:background .15s,backdrop-filter .15s}
   #bf-notes-pane.floating #bf-notes-header{cursor:move;user-select:none}
   #bf-notes-pane.floating~#bf-drag,#bf-drag.notes-floating{display:none}
+  /* opacity + blur controls (only visible when floating) */
+  #bf-notes-opacity-ctrl{display:none;flex-direction:column;gap:2px;
+    font-size:.63em;color:var(--muted);flex-shrink:0;white-space:nowrap}
+  #bf-notes-pane.floating #bf-notes-opacity-ctrl{display:flex}
+  .bf-ctrl-row{display:flex;align-items:center;gap:3px}
+  .bf-ctrl-label{min-width:34px;text-align:right}
+  #bf-notes-opacity-val,#bf-notes-blur-val{min-width:30px;text-align:center;font-variant-numeric:tabular-nums}
+  .bf-op-btn{background:var(--btn-bg);color:var(--muted);border:1px solid var(--border);
+    border-radius:3px;width:16px;height:16px;padding:0;cursor:pointer;font-size:.75em;
+    line-height:1;display:flex;align-items:center;justify-content:center;font-family:inherit}
+  .bf-op-btn:hover{border-color:var(--accent);color:var(--accent)}
   /* ── walkthrough hint (compact) ── */
   #bf-walkthrough-hint{font-size:.8em;color:var(--muted);
     border-left:2px solid var(--border);padding:3px 10px;margin:0 0 10px;line-height:1.5}
@@ -221,10 +274,24 @@
     cursor:pointer;padding:4px 8px;font-size:.85em;color:var(--muted);flex-shrink:0}
   .cred-toggle:hover{color:var(--accent);border-color:var(--accent)}
   .cred-hint{color:var(--orange);font-size:.75em;display:block;margin-top:3px}
+  .cred-methods{display:flex;gap:12px;margin:5px 0 6px;flex-wrap:wrap}
+  .cred-method-opt{display:flex;align-items:center;gap:5px;font-size:.82em;color:var(--muted);cursor:pointer;user-select:none}
+  .cred-method-opt input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:13px;height:13px}
+  .cred-method-section{margin-top:4px}
+  .cred-section-label{font-size:.72em;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
   .cred-confirm-row{margin-top:4px}
   .cred-confirm-input{flex:1;border-color:var(--border)}
   .cred-match-indicator{font-size:.8em;padding:0 6px;flex-shrink:0;font-weight:600}
   .cred-match-ok{color:var(--green)}.cred-match-fail{color:var(--red)}
+  /* ── suggest controls (schema select + suggest button) ──────────────────── */
+  .bf-suggest-select{background:var(--bg3);color:var(--muted);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 6px;font-size:.78em;font-family:inherit;
+    cursor:pointer;flex-shrink:0}
+  .bf-suggest-select:hover,.bf-suggest-select:focus{border-color:var(--accent);outline:none}
+  .bf-suggest-btn{background:var(--bg3);color:var(--muted);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 10px;font-size:.78em;font-family:inherit;
+    cursor:pointer;flex-shrink:0;white-space:nowrap}
+  .bf-suggest-btn:hover{border-color:var(--accent);color:var(--accent)}
   /* ── masked credential spans in code blocks ─────────────────────────────── */
   .cred-tpl{background:rgba(243,139,168,.15);color:var(--red);border-radius:3px;
     padding:0 4px;letter-spacing:.12em;cursor:default;font-style:normal;
@@ -257,11 +324,11 @@
   #bf-enc-cancel:hover{color:var(--red)}
   /* ── radio/checkbox choice fields ───────────────────────────────────────── */
   .choice-field{margin:10px 0}
-  .choice-row{display:flex;align-items:center;gap:8px;margin:5px 0;flex-wrap:wrap}
-  .choice-opt{display:flex;align-items:center;gap:5px;min-width:160px;
-    font-size:.88em;cursor:pointer;user-select:none}
-  .choice-opt input{cursor:pointer;accent-color:var(--accent)}
-  .choice-note{flex:1;min-width:180px}
+  .choice-rows{display:grid;grid-template-columns:18px max-content 1fr;
+    align-items:center;column-gap:8px;row-gap:5px;margin:4px 0}
+  .choice-row{display:contents}
+  .choice-label{font-size:.88em;cursor:pointer;user-select:none;white-space:nowrap}
+  .choice-note{min-width:120px}
   /* ── tabular input fields ────────────────────────────────────────────────── */
   .table-field{margin:10px 0}
   .input-table-wrap{overflow-x:auto;margin:4px 0 6px}
@@ -332,23 +399,40 @@
     border-radius:3px;padding:0 6px;cursor:pointer;font-size:.72em;
     line-height:1.6;font-family:inherit}
   .sec-clear-btn:hover{border-color:var(--red);color:var(--red)}
+  /* ── inline editor ─────────────────────────────────────────────────────────── */
+  .bf-editable-block{position:relative}
+  .bf-edit-btn{position:absolute;top:2px;right:2px;opacity:0;background:var(--btn-bg);
+    color:var(--muted);border:1px solid var(--border);border-radius:3px;
+    padding:1px 6px;font-size:.68em;cursor:pointer;transition:opacity .15s;z-index:10;
+    font-family:inherit}
+  .bf-editable-block:hover .bf-edit-btn{opacity:1}
+  .bf-edit-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .bf-edit-area{width:100%;min-height:60px;resize:vertical;background:var(--code-bg);
+    color:var(--text);border:1px solid var(--accent);border-radius:var(--radius);
+    padding:6px 8px;font-family:inherit;font-size:.9em;line-height:1.6;
+    box-sizing:border-box;margin:4px 0}
+  .bf-edit-controls{display:flex;gap:6px;margin-bottom:6px}
+  .bf-edit-save{background:var(--accent);color:var(--bg);border:none;border-radius:3px;
+    padding:3px 10px;cursor:pointer;font-size:.78em;font-family:inherit}
+  .bf-edit-cancel{background:none;color:var(--muted);border:1px solid var(--border);
+    border-radius:3px;padding:3px 10px;cursor:pointer;font-size:.78em;font-family:inherit}
+  .bf-edited-mark{font-size:.65em;color:var(--muted);margin-left:6px;opacity:.7}
   @media print{#bf-doc-pane{padding:12px}#bf-notes-pane,#bf-drag{display:none}
     #bf-theme-btn,.copy-btn{display:none}
-    .bf-sub-controls{display:none}
+    .bf-sub-controls,.bf-edit-btn,.bf-edit-controls{display:none}
     .param-input,.note-input,.note-area,#bf-session-notes{border:1px solid #999}}
-
 </style>
 </head>
 <body data-doc="broodforge-roadmap">
 <div id="bf-app">
   <div id="bf-doc-pane">
-    <div id="bf-toolbar"><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">? Docs</a><button id="bf-theme-btn" type="button">☀ Light</button></div>
+    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button><span id="bf-section-count"></span><div class="bf-toolbar-end"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item current" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button></div></div></div>
     
     
     <div id="bf-doc-body">
-<details class="section" open><summary><h1>Broodforge — Roadmap</h1></summary><div class="sec-body" style="margin-left:0px">
+<details class="section" open><summary><h1 id="broodforge-roadmap">Broodforge — Roadmap</h1></summary><div class="sec-body" style="margin-left:0px">
 <hr>
-<details class="section" open><summary><h2>Completed</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="section" open><summary><h2 id="completed">Completed</h2></summary><div class="sec-body" style="margin-left:12px">
 <ul><li>[x] Phase 1: Core assessment engine (Tier 2 foundation)</li><li>[x] Phase 2: Assessment history store</li><li>[x] Phase 3: Forgejo integration and repository export</li><li>[x] Phase 4: Bootstrap assessment package (proxmox-audit-package-v1)</li><li>[x] Milestone 5.1: Data Model Formalization (five schemas)</li><li>[x] Milestone 5.2: Tier 1 Bootstrap Assessment Rebuild</li><li>[x] Milestone 5.3: Bootstrap Documentation Generator</li><li>[x] Milestone 5.4: Recovery Documentation Generator</li><li>[x] Milestone 5.5: Recovery Readiness Scoring (with backup inventory)</li><li>[x] Milestone 5.6: Historical State Integration (drift detection, snapshot index, reproducibility)</li><li>[x] Milestones 6.0–6.8: Bootstrap State schema, Cloud-Init templates, Secret/DNS registries,</li></ul>
 <ul><li>[x] Milestones 7.1–7.4: Service contract implementation, service state schema and collection,</li></ul>
 <ul><li>[x] Phase 6.B: Backup infrastructure — restic + rclone engine, BackupNaming, SpaceProbe,</li></ul>
@@ -356,7 +440,7 @@
 <ul><li>[x] Phase 12.E: Node spawn bootstrap — hatchery state, conflict validator, spawn planner,</li></ul>
 <ul><li>[x] Phases 13–18: Hardware, Platform, Cluster, Storage, Data Protection, Observability,</li></ul>
 <ul><li>[x] Phases 19–25: Federation State and Trust, Federation Documentation, Failure Domain Modeling,</li></ul>
-<details class="subsection" open><summary><h3>Remaining / Future Work</h3></summary><div class="sec-body" style="margin-left:24px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="remaining-future-work">Remaining / Future Work</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] <strong>Phase 26 — Autonomous Remediation</strong> (Track 4): Detect → Propose → Approve → Execute → Reassess loop.</li></ul>
 <ul><li>[x] <strong>Full-stack audit findings</strong> — all HIGH, MEDIUM, LOW items resolved:</li></ul>
 <ul><li>[x] 9.T (foundation): Talos Linux alternative support — foundation tier complete.</li></ul>
@@ -383,20 +467,25 @@
 <ul><li>[x] <strong>Phases 2.A–2.J — Cluster Services</strong> (2026-06-10/13):</li></ul>
 <ul><li>[ ] <strong>Phase 2.K — External Secrets Operator</strong> *(proposed, not yet implemented)*:</li></ul>
 <hr>
-<details class="section" open><summary><h2>Proposed Phase 3 — Intelligence, Governance &amp; Experience Layer</h2></summary><div class="sec-body" style="margin-left:12px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="proposed-phase-3-intelligence-governance-experience-layer">Proposed Phase 3 — Intelligence, Governance &amp; Experience Layer</h2></summary><div class="sec-body" style="margin-left:12px">
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.A — Event Platform *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-a-event-platform-proposed">Phase 3.A — Event Platform *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>event_platform.py</code> — EventBus, EventRecord, subscription registry</li><li><code>EventRecord</code> fields: <code>event_id</code>, <code>source_component</code>, <code>event_type</code>, <code>timestamp</code>,</li></ul>
 <ul><li>In-process publish/subscribe; optional append-only disk journal (one file per day)</li><li>CLI: <code>publish</code>, <code>tail</code>, <code>replay</code> subcommands</li><li>~20 unit tests</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.B — Capability &amp; Policy Engine *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-b-capability-policy-engine-proposed">Phase 3.B — Capability &amp; Policy Engine *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>capability_engine.py</code> — CapabilityPolicy, RoleBinding, CapabilityEngine</li><li>Policy schema: <code>{ role, resource_type, action, conditions: [...] }</code></li><li>Conditions: time-of-day windows, quorum requirement (N-of-M approvers), label selectors</li><li>Decision log written to EventBus (3.A) for integrity chain (3.I)</li><li>Policy files stored as versioned YAML under <code>proxmox-bootstrap/policies/</code></li><li>CLI: <code>check</code>, <code>explain</code>, <code>list-roles</code>, <code>apply-policy</code> subcommands</li><li>~25 unit tests</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.C — Execution Broker *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-c-execution-broker-proposed">Phase 3.C — Execution Broker *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>execution_broker.py</code> — ExecutionRequest, ExecutionRecord, ExecutionBroker</li><li><code>ExecutionRecord</code> fields: <code>request_id</code>, <code>operation_type</code>, <code>args</code>, <code>approved_by</code>,</li></ul>
 <ul><li>Broker enforces capability check before running; publishes lifecycle events to 3.A</li><li>Atomic state file per request; full request journal</li><li>CLI: <code>submit</code>, <code>status</code>, <code>cancel</code>, <code>history</code> subcommands</li><li>~25 unit tests</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.D — Operational Intelligence &amp; Expectations Engine *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-d-operational-intelligence-expectations-engine-proposed">Phase 3.D — Operational Intelligence &amp; Expectations Engine *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>operational_intelligence.py</code> — DurationSample, DurationModel, HistoricalRollup,</li></ul>
 <ul><li><code>DurationSample</code> fields: <code>operation_type</code>, <code>args_hash</code>, <code>duration_seconds</code>, <code>outcome</code>,</li></ul>
 <ul><li><code>HistoricalRollup</code> granularities: <code>MINUTE / HOUR / DAY / WEEK / MONTH / QUARTER / YEAR</code></li><li><code>Prediction</code> fields: <code>operation_type</code>, <code>p50_seconds</code>, <code>p90_seconds</code>, <code>p99_seconds</code>,</li></ul>
@@ -404,26 +493,31 @@
 <ul><li>CLI: <code>predict &lt;operation&gt;</code>, <code>record &lt;operation&gt; &lt;duration&gt;</code>, <code>rollup &lt;granularity&gt;</code>,</li></ul>
 <ul><li>~20 unit tests</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.E — Countdown / ETA Display *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-e-countdown-eta-display-proposed">Phase 3.E — Countdown / ETA Display *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Dashboard panel: "Predicted duration" card shown in operation confirmation dialogs</li><li>CLI flag <code>--predict</code> on any <code>execution_broker submit</code> call prints the prediction</li></ul>
 <ul><li>Live progress timer shown for running operations (time elapsed vs. p50 estimate)</li><li>No new Python module — thin integration layer between 3.C, 3.D, and 3.J</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.F — Incident System &amp; Internal Ticketing *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-f-incident-system-internal-ticketing-proposed">Phase 3.F — Incident System &amp; Internal Ticketing *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>incident_manager.py</code> — IncidentRecord, IncidentStatus, RemediationStep, IncidentManager</li><li><code>IncidentRecord</code> fields: <code>incident_id</code>, <code>title</code>, <code>severity</code> (P1–P4), <code>source_event_id</code></li></ul>
 <ul><li>Auto-opened by anomaly correlation (3.G) or manually via CLI</li><li>Published to EventBus (3.A); visible in Control Nexus (3.J)</li><li>CLI: <code>open</code>, <code>update</code>, <code>close</code>, <code>list</code>, <code>show</code> subcommands</li><li>~20 unit tests</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.G — Advisories &amp; Anomaly Correlation *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-g-advisories-anomaly-correlation-proposed">Phase 3.G — Advisories &amp; Anomaly Correlation *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>advisory_engine.py</code> — AdvisoryRule, AdvisoryRecord, CorrelationEngine</li><li>Built-in rules: duration deviation (actual vs. 3.D p90), repeated failure of same</li></ul>
 <ul><li><code>AdvisoryRecord</code> fields: <code>advisory_id</code>, <code>rule_name</code>, <code>severity</code>, <code>message</code>,</li></ul>
 <ul><li>Advisory triggers incident auto-open in 3.F when severity ≥ P2</li><li>Dashboard panel: advisory feed with acknowledge action</li><li>~20 unit tests</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.H — Secrets &amp; Trust Brokerage *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-h-secrets-trust-brokerage-proposed">Phase 3.H — Secrets &amp; Trust Brokerage *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>secrets_broker.py</code> — SecretDescriptor, SecretLease, SecretsBroker</li><li><code>SecretDescriptor</code> fields: <code>secret_id</code>, <code>kind</code> (tls-cert / api-token / ssh-key /</li></ul>
 <ul><li><code>SecretLease</code>: time-bounded delivery record; published to EventBus (3.A) and</li></ul>
 <ul><li>Audit trail: every secret access creates an EventRecord; lease expiry creates an</li></ul>
 <ul><li>CLI: <code>register</code>, <code>deliver</code>, <code>rotate</code>, <code>revoke</code>, <code>list</code>, <code>audit</code> subcommands</li><li>~25 unit tests</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.I — Governance Integrity Chain *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-i-governance-integrity-chain-proposed">Phase 3.I — Governance Integrity Chain *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <pre><code class="lang-json">{
   "checkpoint_id":    "string (UUID)",
   "seq":              "integer (monotonic, per-scope)",
@@ -458,7 +552,8 @@
 <ul><li><code>audit_tool check-migration &lt;id&gt;</code> confirms that a given migration's</li></ul>
 <ul><li>~25 unit tests</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.J — Control Nexus: Tiered Operator Dashboard *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-j-control-nexus-tiered-operator-dashboard-proposed">Phase 3.J — Control Nexus: Tiered Operator Dashboard *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><strong>Node tier</strong> — physical host + Proxmox view (hardware stats, VM inventory,</li></ul>
 <ul><li><strong>Cluster tier</strong> — k3s cluster view (current dashboard.py scope extended with</li></ul>
 <ul><li><strong>Federation tier</strong> — multi-cluster aggregate view (Phase 4 stub; included as</li></ul>
@@ -466,7 +561,8 @@
 <ul><li>New panels: Incident Feed (3.F), Advisory Feed (3.G), Integrity Chain Status</li></ul>
 <ul><li>Node-tier panels: Proxmox summary, VM states, disk health (reads local API)</li><li>Federation-tier panel: placeholder "Not yet implemented — Phase 4"</li><li>~15 unit tests (panel routing, tier detection)</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 3.K — Portal: User Self-Service Hub *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-3-k-portal-user-self-service-hub-proposed">Phase 3.K — Portal: User Self-Service Hub *(proposed)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>portal/</code> — self-contained Flask (or static + OIDC-proxy) application</li><li>OIDC login via Authentik; session scoped to authenticated user</li><li><strong>Service registry panel:</strong> list of all k8s-layer services the user is enrolled in</li></ul>
 <ul><li><strong>Account management:</strong> change display name, upload SSH public key, view active</li></ul>
 <ul><li><strong>Access request:</strong> user submits request for a new service; request creates an</li></ul>
@@ -474,27 +570,32 @@
 <ul><li>Operator-visible queue in Control Nexus (3.J) Cluster tier for approving access</li></ul>
 <ul><li>~15 unit tests (route auth, service registry rendering, access request flow)</li></ul>
 <hr>
-<details class="section" open><summary><h2>Phases from <code>new/</code> corpus analysis *(all proposed phases implemented; deferred items remain out of scope)*</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Phase 1.H — Pre-Install Forge Package and Image Builder *(implemented — commit 072112e; GUI wizard added)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="phases-from-new-corpus-analysis-all-proposed-phases-implemented-deferred-items-remain-out-of-scope">Phases from <code>new/</code> corpus analysis *(all proposed phases implemented; deferred items remain out of scope)*</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-h-pre-install-forge-package-and-image-builder-implemented-commit-072112e-gui-wizard-added">Phase 1.H — Pre-Install Forge Package and Image Builder *(implemented — commit 072112e; GUI wizard added)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] <code>generate-bootstrap-image.py</code> — Image Builder CLI. Consumes</li></ul>
 <ul><li>[x] Answer-file template generator — <code>generate-answer-file.py</code> CLI and</li></ul>
 <ul><li>[x] First-boot automation hook — a systemd unit installed by the answer</li></ul>
 <ul><li>[x] Image artifact verification — hash/signature manifest for the generated</li></ul>
 <ul><li>[x] <code>FORGING.md</code> gains an alternative "Step 0 — Build pre-install media</li></ul>
 <ul><li>[x] <code>forge-image-builder.html</code> — cross-platform GUI wizard for the Image</li></ul>
-<details class="subsection" open><summary><h3>What was reviewed and found already covered</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-was-reviewed-and-found-already-covered">What was reviewed and found already covered</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><strong>Documentation Engine / Infrastructure Memory publication</strong></li></ul>
 <ul><li><strong>Reference UI and Knowledge Visualization</strong></li></ul>
 <ul><li><strong>Reference API/CLI</strong> (<code>new/BroodForge_Specification_87...docx</code>) — "the</li></ul>
-<details class="subsection" open><summary><h3>What was deferred and why</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-was-deferred-and-why">What was deferred and why</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Federation/economic/marketplace/trust-scoring specifications (138–145)</li><li>Knowledge-preservation/civilization/century-scale specifications (116–132)</li><li>The RFC-graph self-governance series (Coherence Dashboard, Master Control</li></ul>
 <ul><li>The formal axiomatic-kernel / proof-system PDF series (v1.5–v1.27)</li></ul>
-<details class="subsection" open><summary><h3>Phase 1.I — Recovery-Readiness Conformance *(implemented — commit 3b32137)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-i-recovery-readiness-conformance-implemented-commit-3b32137">Phase 1.I — Recovery-Readiness Conformance *(implemented — commit 3b32137)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] <code>recovery-readiness-certificate.json</code> (+ HTML, AD-051 pattern) —</li></ul>
 <ul><li>[x] Hash recording wired into snapshot generation — each</li></ul>
 <ul><li>[x] <code>replay-snapshot.py</code> — re-derives a manifest's readiness score and</li></ul>
 <ul><li>[x] Documentation pass — write down, in plain language, what broodforge</li></ul>
-<details class="subsection" open><summary><h4>Human Intervention Boundary — what's autonomous vs. operator-required</h4></summary><div class="sec-body" style="margin-left:36px">
+<details class="subsection" open><summary class="sub-summary"><h4 id="human-intervention-boundary-what-s-autonomous-vs-operator-required">Human Intervention Boundary — what's autonomous vs. operator-required</h4></summary><div class="sec-body" style="margin-left:36px">
 <ul><li>*Certificate generation* (<code>generate-recovery-readiness-certificate.py</code>) —</li></ul>
 <ul><li>*Hash recording* (<code>history/index.py::build_index</code>) — regenerates</li></ul>
 <ul><li>*Replay / conformance check* (<code>replay-snapshot.py</code>) — re-derives a stored</li></ul>
@@ -510,7 +611,9 @@ that the state observed matches the intent manifest on record."</blockquote>
 <ol><li><strong>Provable recovery readiness</strong> — not just "we scored GREEN," but a</li></ol>
 <ol><li><strong>Observed-state ↔ intent-manifest conformance</strong> — a defensible answer to</li></ol>
 <table><thead><tr><th>Formal concept (PDF series)</th><th>broodforge today</th><th>Possible additive extension</th></tr></thead><tbody><tr><td>Root Manifest (hashed, Ed25519-signed, chained)</td><td><code>bootstrap-state.json</code> + 10 metadata YAMLs (plain JSON/YAML, git-tracked, KeePass-gated)</td><td>Add a canonical-serialization + SHA-256 content hash for the manifest set, recorded alongside each snapshot in <code>history/</code> — tamper-evidence without changing the trust model (git + KeePass + restic remain the actual trust anchors)</td></tr><tr><td>System Graph (content-addressed nodes/edges, <code>graph_hash</code>)</td><td>Five dependency graphs in <code>doc-gen/dependencies.py</code></td><td>Hash each graph's canonical form at generation time; store the hash next to the graph in the snapshot index so "the graph that produced this readiness score" is independently checkable</td></tr><tr><td>Reconciliation engine <code>R(actual, spec) → next</code>, fixed-point convergence</td><td><code>remediation_planner.py</code> / <code>remediation_queue.py</code> / <code>remediation_executor.py</code> (Phase 26)</td><td>Record, per remediation cycle, the pre-/post-state deviation vector and whether it shrank monotonically — turns "did remediation help?" into a measured, logged claim instead of an assumption</td></tr><tr><td>Drift classification + deviation vector δ, threshold δ_threshold</td><td><code>doc-gen/drift.py</code> field-level diff</td><td>Bucket existing drift findings into structural/behavioral/performance/security classes and attach a magnitude, so drift reports gain a comparable severity axis (this is a reclassification of existing output, not a new detector)</td></tr><tr><td>Benchmark scores (GFS/RCS/ADS/PCS)</td><td>RRS/ACS/DCS/CRS/OSS scores already in <code>readiness.py</code> / assessment engine</td><td>No new scores needed — the formal series is naming the same idea (composite, comparable health metrics) with different letters</td></tr><tr><td>Deployment Certificate (manifest hash + graph hash + conformance level)</td><td>Readiness scoring (GREEN…BLOCKED) + drift report + Phase 12 <code>DrillRecord</code>, generated separately</td><td><strong>The one genuinely new artifact worth drafting further</strong>: a single generated <code>recovery-readiness-certificate.json</code> (+ HTML) that bundles the manifest hash, graph hash, current readiness score, latest drift summary, and latest drill result into one timestamped, signed-by-reference object — "as of this run, here is the evidence that this cell could recover, and here is what it was declared to be"</td></tr><tr><td>Hash-chained event log + deterministic replay (Strict/Evaluated/Debug modes)</td><td><code>history/snapshots/</code> + provenance registry + audit logging already present</td><td>Add a <code>replay-snapshot.py</code> that re-derives a manifest's readiness score and drift report from a stored snapshot and asserts it matches what was recorded at the time — turns "snapshots are reproducible" (an existing design constraint, see <code>.ai/CURRENT_STATE.md</code> "Key Design Constraints") from an assumption into a checked, reportable fact</td></tr><tr><td>Idempotent action runtime, global invariants I1–I5</td><td>Remediation actions are already required to be idempotent (Phase 26 design); <code>ALLOWED_ACTION_TYPES</code>/<code>_HANDLERS</code> assertion in <code>continuous_assessment.py</code></td><td>Document the existing idempotency guarantees and the handler-set invariant explicitly as "invariants broodforge already enforces," rather than inventing new ones — most of I1–I5 already hold informally</td></tr><tr><td>Trusted/Controlled/Untrusted boundary, "Human Intervention Boundary," explicit non-guarantees</td><td>Implicit in KeePass-gated secrets, restic/rclone backup trust model, and the reconstruction-drill model (a human runs the drill)</td><td>Write down, in plain language, what broodforge does *not* promise to recover automatically (e.g., "if the KeePass database itself is lost, no amount of manifest replay restores secrets — that is the documented Human Intervention Boundary") — this is a documentation task, not a code task</td></tr></tbody></table>
-<details class="subsection" open><summary><h3>Phase 1.J — Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn Media *(implemented — commit f883540)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-j-hypervisor-recovery-constrained-accounts-and-pre-generated-spawn-media-implemented-commit-f883540">Phase 1.J — Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn Media *(implemented — commit f883540)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] <strong>Constrained recovery account per hypervisor</strong> — a dedicated,</li></ul>
 <ul><li>[x] <strong>Break-glass root — storage annotation, not a new mechanism.</strong></li></ul>
 <ul><li>[x] <strong>Pre-generated spawn-media credentials.</strong> Run the existing AD-043</li></ul>
@@ -524,7 +627,8 @@ that the state observed matches the intent manifest on record."</blockquote>
 <ul><li><code>proxmox-bootstrap/assemble_spawn_package.py</code> and <code>proxmox-bootstrap/phoenix_scripts.py</code>:</li></ul>
 <ul><li><code>tests/unit/test_forge_assembler.py</code>, <code>test_phase_05_calls_keepass_gate_before_kdbx_get</code></li></ul>
 <ul><li>No <code>kdbx_get</code>, <code>keepassxc-cli</code>, or KeePass credential access appears in</li></ul>
-<details class="subsection" open><summary><h3>Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User Provisioning *(implemented — commit c750ed6)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-k-granular-secret-access-silos-vault-hierarchy-and-user-provisioning-implemented-commit-c750ed6">Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User Provisioning *(implemented — commit c750ed6)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>user provisioning design).</li></ul>
 <ul><li>[x] <strong><code>Role</code>/<code>Scope</code> registry</strong> — a new authoritative YAML (following the</li></ul>
 <ul><li>[x] <strong><code>derive-scoped-vault</code> generator</strong> — reads the canonical KeePass DB</li></ul>
@@ -536,7 +640,8 @@ that the state observed matches the intent manifest on record."</blockquote>
 <ul><li><strong>A <code>derive-scoped-vault</code> generator</strong>: reads the canonical KeePass DB plus</li></ul>
 <ul><li>**Authorization model: only holders of the canonical vault can mint scoped</li></ul>
 <ul><li><strong>Revocation = rotate + reissue</strong>, not real-time access removal — this is</li></ul>
-<details class="subsection" open><summary><h3>Phase 1.L — Static Analysis Self-Audit Integration *(implemented — commit f7446be)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-l-static-analysis-self-audit-integration-implemented-commit-f7446be">Phase 1.L — Static Analysis Self-Audit Integration *(implemented — commit f7446be)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>Tier</th><th>Artifact</th><th>Tools</th><th>Trigger</th></tr></thead><tbody><tr><td>1</td><td><code>tools/run-static-audit.sh</code></td><td>shellcheck, ruff, bandit, vulture, detect-secrets, pytest-cov</td><td>Manual / CI</td></tr><tr><td>2</td><td>pytest integration</td><td>shellcheck via <code>tests/static/test_shellcheck.py</code>, ruff + bandit via pyproject.toml</td><td>Every <code>pytest</code> run</td></tr><tr><td>3</td><td>Dashboard Code Health card</td><td><code>assess_code_health()</code> in <code>continuous_assessment.py</code>, card in <code>broodforge_dashboard.py</code></td><td>Continuous assessment cycle</td></tr></tbody></table>
 <ul><li>[x] <code>tools/run-static-audit.sh</code> — standalone audit script (Tier 1):</li></ul>
 <ul><li>[x] <code>.audit/</code> directory with <code>.gitkeep</code>; <code>*.json</code> and <code>*-report.md</code> added to <code>.gitignore</code>;</li></ul>
@@ -545,7 +650,8 @@ that the state observed matches the intent manifest on record."</blockquote>
 <ul><li>[x] <code>code_health_to_remediation_candidates()</code> in <code>continuous_assessment.py</code>:</li></ul>
 <ul><li>[x] "Code Health" card in <code>broodforge_dashboard.py</code> alongside existing readiness/drift/</li></ul>
 <ul><li>[x] Tests: <code>assess_code_health()</code> unit tests (subprocess mocked), shellcheck test file,</li></ul>
-<details class="subsection" open><summary><h3>Phase 1.M — Dynamic Analysis Self-Audit Integration *(implemented — 2026-06-09)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-m-dynamic-analysis-self-audit-integration-implemented-2026-06-09">Phase 1.M — Dynamic Analysis Self-Audit Integration *(implemented — 2026-06-09)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] <code>DynamicHealthScore</code> dataclass in <code>continuous_assessment.py</code>:</li></ul>
 <ul><li>[x] <code>assess_dynamic_health()</code> in <code>continuous_assessment.py</code>:</li></ul>
 <ul><li>[x] <code>_build_dynamic_health_subcard()</code> in <code>broodforge_dashboard.py</code>:</li></ul>
@@ -559,7 +665,8 @@ that the state observed matches the intent manifest on record."</blockquote>
 <ul><li>[x] <code>tests/bash/forge_phase_test.bats</code> — phase script exit code tests with</li></ul>
 <ul><li>[x] <code>tests/fuzz/fuzz_manifest.py</code> and <code>tests/fuzz/fuzz_spawn_planner.py</code> —</li></ul>
 <ul><li>[x] Tests: 51 new tests across dynamic health scoring, dashboard rendering,</li></ul>
-<details class="subsection" open><summary><h3>Phase 1.N — Migration Infrastructure *(implemented — 2026-06-09, revised 2026-06-09)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-n-migration-infrastructure-implemented-2026-06-09-revised-2026-06-09">Phase 1.N — Migration Infrastructure *(implemented — 2026-06-09, revised 2026-06-09)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] <code>proxmox-bootstrap/version.py</code> — Single source of truth for the package's</li></ul>
 <ul><li>[x] <code>lib/forge-lib.sh</code> — Shared operator utility library: <code>forge_keepass_gate</code>,</li></ul>
 <ul><li>[x] <code>scripts/forge-quiesce.sh</code> — Stops <code>broodforge-continuous-assessment.timer</code></li></ul>
@@ -580,7 +687,8 @@ that the state observed matches the intent manifest on record."</blockquote>
 <ul><li><code>proxmox-bootstrap/continuous_assessment.py</code> and</li></ul>
 <ul><li><code>proxmox-bootstrap/setup-continuous-assessment-schedule.sh</code>: installs a</li></ul>
 <ul><li><code>tests/unit/test_ad065_migration_lock.py</code>: confirms that direct invocation of</li></ul>
-<details class="subsection" open><summary><h3>Phase 1.O — Coordinated Quiesce + Backup (CQB) *(implemented — 2026-06-09)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-o-coordinated-quiesce-backup-cqb-implemented-2026-06-09">Phase 1.O — Coordinated Quiesce + Backup (CQB) *(implemented — 2026-06-09)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>k8s workload backup = etcd snapshot (<code>etcdctl snapshot save</code>) + restic PVC</li></ul>
 <ul><li>Governance VM: phoenix pack covers <code>BROODFORGE_STATE_DIR</code>. No vzdump by</li></ul>
 <ul><li><code>full_vm_disk_snapshot=True</code> is an explicit operator opt-in (e.g. `--scope</li></ul>
@@ -606,14 +714,19 @@ that the state observed matches the intent manifest on record."</blockquote>
 <ul><li>restic requires <code>RESTIC_REPOSITORY</code> + <code>RESTIC_PASSWORD</code> env vars.</li><li>PVC candidate paths: <code>/var/lib/rancher/k3s/storage</code>, <code>/var/openebs/local</code>,</li></ul>
 <ul><li>Scheduled backup: create <code>${BROODFORGE_STATE_DIR}/backup-schedule.json</code></li></ul>
 <hr>
-<details class="section" open><summary><h2>Phase 1.P — Credential Hierarchy and Key Rotation *(implemented — 2026-06-09)*</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Child DB domains</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="phase-1-p-credential-hierarchy-and-key-rotation-implemented-2026-06-09">Phase 1.P — Credential Hierarchy and Key Rotation *(implemented — 2026-06-09)*</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="child-db-domains">Child DB domains</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>Database</th><th>Scope</th></tr></thead><tbody><tr><td><code>forge-autonomous.kdbx</code></td><td>Autonomous operation credentials: restic repo password, k8s service account tokens, monitoring API keys, Headscale API key</td></tr><tr><td><code>forge-spawn.kdbx</code></td><td>Spawn-phase credentials: Cloud-Init keypairs, spawn-phase node credentials, Headscale pre-auth keys</td></tr><tr><td><code>forge-migrate.kdbx</code></td><td>Migration-phase credentials: temporary elevated access (populated only during migration ceremony)</td></tr></tbody></table>
-<details class="subsection" open><summary><h3>KeeShare sync</h3></summary><div class="sec-body" style="margin-left:24px">
-<details class="subsection" open><summary><h3>Secrets broker</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="keeshare-sync">KeeShare sync</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="secrets-broker">Secrets broker</h3></summary><div class="sec-body" style="margin-left:24px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">secret=$(kdbx_get_child "child://forge-autonomous/restic/repo-password")
 code=$(kdbx_totp "child://forge-autonomous/admin-ui/totp")</code></pre></div>
-<details class="subsection" open><summary><h3>Key rotation ceremony (strict order — never deviate)</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="key-rotation-ceremony-strict-order-never-deviate">Key rotation ceremony (strict order — never deviate)</h3></summary><div class="sec-body" style="margin-left:24px">
 <pre><code class="lang-">1. Generate new credential
 2. Register NEW with service while OLD still active (dual-validity window)
 3. Verify NEW credential authenticates against service     ← EXIT 1 if fails
@@ -621,30 +734,41 @@ code=$(kdbx_totp "child://forge-autonomous/admin-ui/totp")</code></pre></div>
 5. forge-sync-credentials.sh                              ← runs automatically
 6. Child DBs updated → consumers get NEW on next broker call
 7. Remove OLD credential from service</code></pre>
-<details class="subsection" open><summary><h3>Security properties</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="security-properties">Security properties</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Child process cannot observe out-of-scope master contents</li><li>Child DB password never passed on CLI, written to env, logged, or persisted outside</li></ul>
 <ul><li>Sync is automatic within the rotation ceremony; standalone <code>forge-sync-credentials.sh</code></li></ul>
 <ul><li>Rotation propagation enforced by ceremony structure — no step can be silently skipped</li></ul>
-<details class="subsection" open><summary><h3>Delivered files</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="delivered-files">Delivered files</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>File</th><th>Purpose</th></tr></thead><tbody><tr><td><code>proxmox-bootstrap/credential_hierarchy.py</code></td><td><code>ChildDatabase</code>, <code>CredentialHierarchy</code> dataclasses; <code>HierarchyManager</code> (load/save/validate); CLI <code>--list</code> / <code>--validate-ref</code> / <code>--init</code></td></tr><tr><td><code>lib/forge-lib.sh</code></td><td><code>kdbx_get_child()</code> broker, <code>kdbx_totp()</code>, <code>_broker_*</code> internal helpers</td></tr><tr><td><code>scripts/forge-init-credential-hierarchy.sh</code></td><td>One-time child DB creation, master password storage, <code>credential-hierarchy.json</code> write, KeeShare GUI instructions</td></tr><tr><td><code>scripts/forge-sync-credentials.sh</code></td><td>Per-entry credential propagation from master → child DBs; called automatically by rotation ceremony; standalone for ad-hoc sync</td></tr><tr><td><code>scripts/forge-rotate-credential.sh</code></td><td>Full key rotation ceremony; service handlers for <code>restic</code>, <code>headscale</code>, <code>k8s-sa</code>, <code>generic</code></td></tr><tr><td><code>tests/unit/test_credential_hierarchy.py</code></td><td>11 unit tests covering load, validate_reference, get_child_db, save roundtrip, --init skeleton</td></tr></tbody></table>
-<details class="subsection" open><summary><h3>keepassxc-cli KeeShare capability gap</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="keepassxc-cli-keeshare-capability-gap">keepassxc-cli KeeShare capability gap</h3></summary><div class="sec-body" style="margin-left:24px">
 <hr>
-<details class="section" open><summary><h2>Phase 1.U — Kubernetes User Registry *(implemented — 2026-06-10)*</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Design motivation</h3></summary><div class="sec-body" style="margin-left:24px">
-<details class="subsection" open><summary><h3>User disposition model</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="phase-1-u-kubernetes-user-registry-implemented-2026-06-10">Phase 1.U — Kubernetes User Registry *(implemented — 2026-06-10)*</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="design-motivation">Design motivation</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="user-disposition-model">User disposition model</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>Disposition</th><th>Rebuild behaviour</th></tr></thead><tbody><tr><td><code>active</code></td><td>Created/reset in every enrolled service by default</td></tr><tr><td><code>archived</code></td><td>Skipped during provisioning; record retained for audit</td></tr><tr><td><code>pending-deletion</code></td><td>Skipped during provisioning; awaiting manual account deletion</td></tr></tbody></table>
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">python3 proxmox-bootstrap/user_registry.py --disposition alice archived</code></pre></div>
-<details class="subsection" open><summary><h3>Per-service enrollment and roles</h3></summary><div class="sec-body" style="margin-left:24px">
-<details class="subsection" open><summary><h3>Credential storage convention</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="per-service-enrollment-and-roles">Per-service enrollment and roles</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="credential-storage-convention">Credential storage convention</h3></summary><div class="sec-body" style="margin-left:24px">
 <pre><code class="lang-">Broodforge/users/&lt;username&gt;/&lt;service&gt;/password
 Broodforge/users/&lt;username&gt;/&lt;service&gt;/totp-secret</code></pre>
-<details class="subsection" open><summary><h3>Zero-knowledge and key throw-away</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="zero-knowledge-and-key-throw-away">Zero-knowledge and key throw-away</h3></summary><div class="sec-body" style="margin-left:24px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">python3 proxmox-bootstrap/user_registry.py \
     --throw-away-key alice vaultwarden</code></pre></div>
 <ul><li><code>key_thrown_away = false</code> → <strong>auto-provision</strong>: stored password re-applied</li><li><code>key_thrown_away = true</code>  → <strong>reset flow</strong>: service account created with</li></ul>
-<details class="subsection" open><summary><h3>Sidecar GUI surface</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="sidecar-gui-surface">Sidecar GUI surface</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Active user list with per-service enrollment and disposition badges</li><li>"Onboard new user" form (calls <code>forge-onboard-user.sh</code>)</li><li>Per-user disposition controls (active / archive / mark-for-deletion)</li><li>"Key throw-away" action (requires onboarding acknowledged)</li><li>"Provision all" / "Provision user" rebuild triggers</li><li>Rebuild status: shows which users were auto-provisioned vs reset-flow</li></ul>
-<details class="subsection" open><summary><h3>Provisioning flow (rebuild)</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="provisioning-flow-rebuild">Provisioning flow (rebuild)</h3></summary><div class="sec-body" style="margin-left:24px">
 <pre><code class="lang-">1. forge-provision-users.sh reads config/user-registry.json
 2. For each active user × enrolled service:
    a. key_thrown_away=false → call service adapter → create/reset account
@@ -652,59 +776,81 @@ Broodforge/users/&lt;username&gt;/&lt;service&gt;/totp-secret</code></pre>
    b. key_thrown_away=true  → call service adapter → create account with
       temp password + notify user to reset on first login
 3. Print rebuild report: N auto-provisioned, M reset-flow</code></pre>
-<details class="subsection" open><summary><h3>Delivered files</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="delivered-files">Delivered files</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>File</th><th>Purpose</th></tr></thead><tbody><tr><td><code>proxmox-bootstrap/user_registry.py</code></td><td><code>UserRecord</code>, <code>ServiceEnrollment</code>, <code>UserRegistry</code> dataclasses; <code>UserRegistryManager</code> (load/save/add/disposition/throw-away-key/users-for-rebuild); CLI</td></tr><tr><td><code>scripts/forge-onboard-user.sh</code></td><td>Add user to registry, generate password+TOTP, store in KeePass, render onboarding package</td></tr><tr><td><code>scripts/forge-provision-users.sh</code></td><td>Re-provision all active users into k8s services; auto-provision or reset flow per key_thrown_away state; service adapters for Vaultwarden, Headscale, Gitea</td></tr></tbody></table>
-<details class="subsection" open><summary><h3>KeePass path convention</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="keepass-path-convention">KeePass path convention</h3></summary><div class="sec-body" style="margin-left:24px">
 <pre><code class="lang-">Broodforge/users/&lt;username&gt;/&lt;service&gt;/password      ← auto-provision source
 Broodforge/users/&lt;username&gt;/&lt;service&gt;/totp-secret   ← TOTP base32 + URI in Notes</code></pre>
 <hr>
-<details class="section" open><summary><h2>Phase 1.Q — Zero-Touch Node Provisioning</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Node lifecycle</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="phase-1-q-zero-touch-node-provisioning">Phase 1.Q — Zero-Touch Node Provisioning</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="node-lifecycle">Node lifecycle</h3></summary><div class="sec-body" style="margin-left:24px">
 <pre><code class="lang-">planned → iso-built → joining → pending-approval → active
                                                   ↘ blacklisted (any pre-active state)
 active → decommissioned</code></pre>
-<details class="subsection" open><summary><h3>Design decisions</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="design-decisions">Design decisions</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><strong>Headscale</strong> is the single mechanism for both LAN and WAN node joining.</li></ul>
 <ul><li><strong>Codenames</strong> (adjective-animal, e.g. <code>swift-falcon</code>) are operator-friendly</li></ul>
 <ul><li><strong>Join PIN</strong> (<code>###-###-###-###</code>) is generated at plan time using</li></ul>
 <ul><li><strong>Join deadline</strong> (optional): the sysadmin can set a cutoff after which an</li></ul>
 <ul><li><strong>Operator approval required</strong>: no node reaches <code>active</code> without explicit</li></ul>
 <ul><li><strong>Atomic state writes</strong>: all state mutations write to <code>.tmp</code> then <code>rename()</code></li></ul>
-<details class="subsection" open><summary><h3>Delivered files</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="delivered-files">Delivered files</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>File</th><th>Purpose</th></tr></thead><tbody><tr><td><code>proxmox-bootstrap/node_planner.py</code></td><td>Core lifecycle module — planning, registration, approval, decommission; CLI</td></tr><tr><td><code>scripts/forge-plan-nodes.sh</code></td><td>KeePass-gated interactive batch node planner</td></tr><tr><td><code>scripts/forge-build-node-iso.sh</code></td><td>Generates <code>answer.toml</code>, <code>broodling-bootstrap.sh</code>, and operator README for ISO build</td></tr><tr><td><code>tests/unit/test_node_planner.py</code></td><td>16 unit tests covering all lifecycle paths + PIN + deadline</td></tr><tr><td><code>proxmox-bootstrap/broodforge_dashboard.py</code></td><td>Nodes panel added: pending-approval queue (with PIN), lifecycle table, active node detail panel, decommission, rename-headscale, reassign-address, join deadline; new endpoints: <code>POST /api/node-register</code>, <code>GET /api/provisioning-nodes</code>, <code>GET /api/provisioning-nodes/&lt;codename&gt;</code>, <code>POST .../approve</code>, <code>POST .../blacklist</code>, <code>POST .../unblacklist</code>, <code>POST .../decommission</code>, <code>POST .../rename-headscale</code>, <code>POST .../reassign-address</code>, <code>POST .../set-deadline</code>, <code>PATCH .../&lt;codename&gt;</code></td></tr></tbody></table>
-<details class="subsection" open><summary><h3>Operator workflow</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="operator-workflow">Operator workflow</h3></summary><div class="sec-body" style="margin-left:24px">
 <ol><li><code>./scripts/forge-plan-nodes.sh --count N --role worker</code> — plans N nodes,</li></ol>
 <ol><li><code>./scripts/forge-build-node-iso.sh --codename &lt;name&gt;</code> — generates</li></ol>
 <ol><li>Operator copies artifacts to a Proxmox host and runs</li></ol>
 <ol><li>Burn ISO to USB, power on server — Proxmox installs automatically.</li><li>On first boot the node generates its RSA key pair, POSTs to</li></ol>
 <ol><li>Approve the join from the sidecar dashboard Nodes panel — verify codename</li></ol>
-<details class="subsection" open><summary><h3>PAP compliance</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="pap-compliance">PAP compliance</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>No bare <code>datetime.now()</code> — all clock access via injected <code>now_fn</code> parameter.</li><li>All <code>subprocess.run()</code> calls use <code>timeout=60</code>.</li><li>Exit codes: 0=success, 1=fatal, 2=NOT_IMPLEMENTED.</li><li>Atomic state writes via <code>.tmp</code> → <code>rename()</code> with <code>fcntl.flock</code>.</li></ul>
 <hr>
-<details class="section" open><summary><h2>Phase 2.A — Identity &amp; SSO (Authentik)</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Summary</h3></summary><div class="sec-body" style="margin-left:24px">
-<details class="subsection" open><summary><h3>Technology</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="phase-2-a-identity-sso-authentik">Phase 2.A — Identity &amp; SSO (Authentik)</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="summary">Summary</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="technology">Technology</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Helm chart deployment to k8s cluster</li><li>Backend: PostgreSQL (shared cluster instance) + Redis</li><li>Protocols: OIDC, SAML 2.0, LDAP (read-only)</li></ul>
-<details class="subsection" open><summary><h3>Key design properties</h3></summary><div class="sec-body" style="margin-left:24px">
-<details class="subsection" open><summary><h3>Service integrations</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="key-design-properties">Key design properties</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="service-integrations">Service integrations</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Nextcloud — <code>user_oidc</code> app; local Nextcloud accounts and SSO accounts coexist, linkable to same user</li><li>Future self-hosted services — OIDC/SAML as available; LDAP read-only for services that support only LDAP</li><li>Proxmox — OIDC realm for sidecar/web UI login (optional, operator auth remains primary)</li></ul>
-<details class="subsection" open><summary><h3>Deployment components</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="deployment-components">Deployment components</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Authentik Helm chart (values.yaml managed in repo)</li><li>PostgreSQL database: <code>authentik</code> schema in cluster PostgreSQL instance</li><li>Redis: dedicated or shared cluster Redis</li><li>Ingress: <code>auth.&lt;cluster-domain&gt;</code> via Headscale/internal DNS</li><li>Initial admin account provisioned via forge-init-authentik.sh (KeePass-gated)</li></ul>
-<details class="subsection" open><summary><h3>Credential integration (Phase 1.P)</h3></summary><div class="sec-body" style="margin-left:24px">
-<details class="subsection" open><summary><h3>Authorization constraints</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="credential-integration-phase-1-p">Credential integration (Phase 1.P)</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="authorization-constraints">Authorization constraints</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>AD-060 applies: autonomous ops never wield Authentik admin credentials</li><li>Authentik admin access is operator-only (KeePass gate)</li><li>OIDC client secrets for services are service-level credentials (forge-autonomous child DB scope)</li></ul>
-<details class="subsection" open><summary><h3>Dependencies</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="dependencies">Dependencies</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Phase 1.P (credential hierarchy) — for OIDC client secret storage and rotation</li><li>Phase 1.Q (node provisioning) — cluster nodes must exist before Helm deploy</li><li>k8s cluster operational with ingress controller</li></ul>
 <hr>
-<details class="section" open><summary><h2>Roadmap Overview</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Three Processes — Three Package Types</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="roadmap-overview">Roadmap Overview</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="three-processes-three-package-types">Three Processes — Three Package Types</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>Process</th><th>Package</th><th>Phases</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Forging</strong></td><td>Forge package</td><td>Phase 0–3 + Phase 1.F</td><td>Bare hardware → first operational hatchery</td></tr><tr><td><strong>Hatchery Process</strong></td><td>Spawn package</td><td>Phase 12.E</td><td>Hatchery → broodling joins without conflict</td></tr><tr><td><strong>Stargate Process</strong></td><td>Phoenix package</td><td>Phase 9 + Phase C/D</td><td>Failed node → identity resurrected</td></tr></tbody></table>
-<details class="subsection" open><summary><h3>Four Tracks</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="four-tracks">Four Tracks</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Phase 9 (Stargate Process) — phoenix playbooks that reconstitute a failed node's</li></ul>
 <ul><li>Phase 12.E (Hatchery Process) — spawn package that a broodling runs after bare</li></ul>
 <hr>
-<details class="section" open><summary><h2>Forging Foundation — Phase 0 through Phase 3</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Phase 1.F — Forge Package Assembly *(Forging Process capstone)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="forging-foundation-phase-0-through-phase-3">Forging Foundation — Phase 0 through Phase 3</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-f-forge-package-assembly-forging-process-capstone">Phase 1.F — Forge Package Assembly *(Forging Process capstone)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 1.F.1: <code>forge-pack.sh</code> — assembles forge package from current repo state:</li></ul>
 <ul><li>[x] 1.F.2: <code>forge.sh</code> — orchestrated entry point with 8 phases:</li></ul>
 <ul><li>[x] 1.F.3: Forge workbook (HTML) — tracks forge execution with same checkpoint/status</li></ul>
@@ -736,7 +882,8 @@ active → decommissioned</code></pre>
 <ul><li>All backups encrypted by default with restic (encryption is mandatory, not optional);</li></ul>
 <ul><li>Separate choices for: (a) secrets / KeePass DB, (b) configuration state,</li></ul>
 <ul><li>Retention policy: number of versions to keep (default: 5); permanent checkpoint option</li><li>All backup config stored in bootstrap-state.json as first-class readiness metadata</li><li>[x] 1.F.11: Documentation: <code>FORGING.md</code> — operator runbook covering prerequisites,</li></ul>
-<details class="subsection" open><summary><h3>Phase 1.G — Guided Setup Framework *(cross-cutting: forge, spawn, phoenix)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-1-g-guided-setup-framework-cross-cutting-forge-spawn-phoenix">Phase 1.G — Guided Setup Framework *(cross-cutting: forge, spawn, phoenix)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>Mode</th><th>Operator interaction</th><th>When to use</th></tr></thead><tbody><tr><td><strong>Autonomous</strong> (default)</td><td>None — all settings calculated automatically</td><td>Standard deployment</td></tr><tr><td><strong>IP-Selective</strong></td><td>Choose IP addressing only; everything else is automatic</td><td>Operator has a specific IP plan</td></tr><tr><td><strong>Group-Manual</strong></td><td>Group selector → configure chosen groups manually, rest is automatic</td><td>Operator wants control over specific areas</td></tr><tr><td><strong>Full Manual</strong></td><td>Walk through all settings with auto-suggestions</td><td>Complete control</td></tr></tbody></table>
 <table><thead><tr><th>Group</th><th>Settings covered</th></tr></thead><tbody><tr><td>Network</td><td>Management CIDR, gateway, bridge names, VLAN IDs, DNS, Headscale URL</td></tr><tr><td>Storage</td><td>ZFS pool topology, pool name, datastore names, disk assignment</td></tr><tr><td>VM Sizing</td><td>VMID block, per-VM RAM/CPU/disk, placement constraints</td></tr><tr><td>Identity</td><td>Hostname, domain, FQDN, cell_id, naming convention</td></tr><tr><td>Security</td><td>KeePass location, password format, SSH key references</td></tr><tr><td>k3s</td><td>Pod/service CIDR, CNI plugin, initial role (server/worker)</td></tr><tr><td>Backup</td><td>Restic destinations, retention policy, DDNS provider</td></tr></tbody></table>
 <ul><li>VMID collisions with existing or other declared VMs</li><li>IP address collisions with DNS registry or other declared VMs</li><li>Subnet overlaps with k3s pod/service CIDR or other networks</li><li>RAM allocation exceeding host total RAM</li><li>ZFS pool or bridge names that already exist on the host</li></ul>
@@ -748,8 +895,10 @@ active → decommissioned</code></pre>
 <ul><li>[x] 1.G.5: Wire into spawn (Phase 12.E):</li></ul>
 <ul><li>[x] 1.G.6: Wire into phoenix (Phase 9):</li></ul>
 <hr>
-<details class="section" open><summary><h2>Track 1 — Cell-Scoped Foundation</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Phase 6 — Bootstrap State</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="track-1-cell-scoped-foundation">Track 1 — Cell-Scoped Foundation</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-6-bootstrap-state">Phase 6 — Bootstrap State</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] <code>external_backup</code> section in bootstrap-state-schema.json</li><li>[x] <code>backup.py</code> — archive naming, GPG encryption, transfer, listing, pruning</li><li>[x] <code>setup-external-backup.py</code> — GitHub or encrypted-archive interactive wizard</li><li>[x] <code>init-bootstrap-state.py</code> — prompts for external backup as part of init flow</li><li>[x] Recovery runbook Step 0 — pre-populated bootstrap state retrieval commands</li></ul>
 <ul><li>[x] <code>data-model/bootstrap-state-schema.json</code> (Cloud-Init, image registry, templates,</li></ul>
 <ul><li>[x] <code>data-model/service-state-schema.json</code></li><li>[x] <code>cell_id</code> field in both schemas</li><li>[x] <code>proxmox-bootstrap/</code> repository structure</li><li>[x] Schema validation tests (90 tests in test_bootstrap_service_schemas.py)</li></ul>
@@ -824,20 +973,23 @@ active → decommissioned</code></pre>
 <ul><li>If a destination is unreachable at restore time, tries other destinations that</li></ul>
 <ul><li>Supports <code>--dry-run</code> (lists what would be restored, from where, which keys used)</li><li>Supports <code>--component</code> flag: restore a single VM, container, or volume</li><li>Supports <code>--snapshot-set</code> flag: restore all components of a specific backup point</li></ul>
 <ul><li>[x] 6.B.9: Documentation: <code>docs/CLOUD-STORAGE-SETUP.md</code> — step-by-step provider guides:</li><li>Google Drive (OAuth2 / Service Account — most complex; full walkthrough) ✓ written</li><li>Backblaze B2 (Application Key — simplest cloud option) ✓ written</li><li>AWS S3 (IAM user, access key/secret) ✓ written</li><li>Cloudflare R2 (S3-compatible, no egress fees) ✓ written</li><li>Self-hosted MinIO (S3-compatible, full privacy) ✓ written</li><li>Each guide dated; review reminder in document header</li></ul>
-<details class="subsection" open><summary><h3>Phase 7 — Service State</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-7-service-state">Phase 7 — Service State</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] Service Contract YAML spec format</li><li>[x] Initial contracts for all known VMs</li><li>[x] Service contract reader in Tier 2 collector</li><li>[x] Service contract validator (observed vs. declared)</li><li>[x] Dependency graph builder updated to use contracts as primary source</li></ul>
 <ul><li>[x] Finalise <code>service-state-schema.json</code> with <code>cell_id</code></li><li>[x] Service state collector</li><li>[x] Service state in Tier 2 manifest</li><li>[x] Service contract completeness in readiness scorer</li></ul>
 <ul><li>[x] <code>data-model/external-dependency-state-schema.json</code></li><li>[x] External dependency declaration format (DNS provider, SMTP, cert authority) — <code>external_dependencies</code> in bootstrap-state.json; <code>doc-gen/external_dependencies.py</code> ExternalDependencyRegistry</li><li>[x] Certificate expiry monitoring (RED ≤ 7d, ORANGE ≤ 30d, YELLOW ≤ 60d) — <code>_score_external_dependency_state()</code> in readiness.py</li><li>[x] External dependency section in Recovery Runbook — Appendix G (endpoint, type, required_by, cert expiry with severity callouts)</li></ul>
 <ul><li>[x] Service contract block per VM in restore sequence: provided interfaces,</li></ul>
 <ul><li>[x] Health check commands derived from contract: curl for HTTP/HTTPS (uses</li></ul>
 <ul><li>[x] Service restart commands: ssh ubuntu@{ip} 'sudo systemctl restart {svc}'</li><li>[x] Appendix A: edge type legend (SERVICE★/DEPENDS_ON/STORAGE/NETWORK/BACKUP)</li><li>★ marker on SERVICE edges to distinguish contract-driven from heuristic</li></ul>
-<details class="subsection" open><summary><h3>Phase 8 — Network Topology as Code</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-8-network-topology-as-code">Phase 8 — Network Topology as Code</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 8.1: Network topology declaration format — <code>data-model/network-topology-schema.json</code></li></ul>
 <ul><li>[x] 8.2: Network topology collector — <code>proxmox-bootstrap/network_topology_collector.py</code>:</li></ul>
 <ul><li>[x] 8.3: Network topology drift detection — compare_topology() returns</li></ul>
 <ul><li>[x] 8.4: Recovery documentation Wave 0 — build_recovery_runbook() now emits</li></ul>
 <ul><li>[x] 8.5: Network topology completeness in readiness scorer —</li></ul>
-<details class="subsection" open><summary><h3>Phase 9 — Phoenix Playbooks *(Stargate Process — reconstruction scripts)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-9-phoenix-playbooks-stargate-process-reconstruction-scripts">Phase 9 — Phoenix Playbooks *(Stargate Process — reconstruction scripts)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 9.1: Phoenix playbook format and schema — <code>data-model/phoenix-playbook-schema.json</code>:</li></ul>
 <ul><li>[x] 9.2: Playbook generator — <code>proxmox-bootstrap/phoenix_playbook.py</code>:</li></ul>
 <ul><li>[x] 9.3: Wave 0 (network reconstruction) + Wave 1 (ZFS pool) + Wave 2 (host config) +</li></ul>
@@ -863,7 +1015,8 @@ active → decommissioned</code></pre>
 <ul><li>[x] 9.T.15: Migration state file <code>bootstrap-state.json migration_history</code> array</li></ul>
 <ul><li>[x] 9.T.16: Rollback procedure — if post-migration verifier fails, restore VM from</li></ul>
 <ul><li>[x] 9.T.17: Tests for both migration scripts (mock Proxmox API + mock talosctl/ansible)</li></ul>
-<details class="subsection" open><summary><h3>Phase 10 — Operational Documentation</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-10-operational-documentation">Phase 10 — Operational Documentation</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 10.1: Operational documentation class design — <code>doc-gen/renderers/operational_report.py</code>;</li></ul>
 <ul><li>[x] 10.2: Drift summary renderer — Section 2 reads manifest["drift"] (from compute_drift());</li></ul>
 <ul><li>[x] 10.3: Capacity trend renderer — Section 3 reads cpu/memory/storage from manifest;</li></ul>
@@ -871,18 +1024,21 @@ active → decommissioned</code></pre>
 <ul><li>[x] 10.5: Secret registry completeness renderer — Section 5 reads manifest["secret_registry"];</li></ul>
 <ul><li>[x] 10.6: Wire into engine.py — run_operational() function + <code>--mode operational</code> choice;</li></ul>
 <ul><li>[x] 10.7: Scheduled refresh — <code>proxmox-bootstrap/setup-operational-schedule.sh</code> installs</li></ul>
-<details class="subsection" open><summary><h3>Phase 11 — Capacity Model</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-11-capacity-model">Phase 11 — Capacity Model</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 11.1: Capacity model schema — <code>capacity_model</code> section added to bootstrap-state-schema.json:</li></ul>
 <ul><li>[x] 11.2: Capacity tracking — <code>proxmox-bootstrap/capacity_collector.py</code>:</li></ul>
 <ul><li>[x] 11.3: Capacity validation in readiness scorer — _score_capacity_model():</li></ul>
 <ul><li>[x] 11.4: Trend analysis — compute_trend() derives direction (increasing/stable/decreasing)</li></ul>
 <ul><li>[x] 11.5: ORANGE if target host cannot accommodate restored workload —</li></ul>
-<details class="subsection" open><summary><h3>Phase 12 — Full Single-Cell Reconstruction Test</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-12-full-single-cell-reconstruction-test">Phase 12 — Full Single-Cell Reconstruction Test</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 12.1: End-to-end drill framework — <code>proxmox-bootstrap/reconstruction_drill.py</code>:</li></ul>
 <ul><li>[x] 12.2: Reconstruction time measurement — DrillRecord.record_wave() tracks</li></ul>
 <ul><li>[x] 12.3: Gap identification — DrillRecord.gaps_found/gaps_remediated; readiness scorer</li></ul>
 <ul><li>[x] 12.4: Scheduled drill activity — <code>proxmox-bootstrap/schedule-reconstruction-drill.sh</code></li></ul>
-<details class="subsection" open><summary><h3>Phase 12.E — Node Spawn Bootstrap *(Hatchery Process)*</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-12-e-node-spawn-bootstrap-hatchery-process">Phase 12.E — Node Spawn Bootstrap *(Hatchery Process)*</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 12.E.1: <strong>Hatchery state reader</strong> — reads <code>bootstrap-state.json</code> and queries</li></ul>
 <ul><li>[x] 12.E.2: <strong>Conflict validator</strong> (<code>proxmox-bootstrap/validate-spawn.py</code>) —</li></ul>
 <ul><li>No VMID collisions (proposed new VMIDs vs all VMIDs in spawn-manifest.json)</li><li>No IP collisions (proposed new IPs vs all IPs in spawn-manifest.json)</li><li>No hostname collisions (proposed hostnames vs all hostnames in spawn-manifest.json)</li><li>Placement policy satisfied (proposed roles are declared for this host type)</li><li>Capacity check: broodling RAM sufficient for its assigned VM roles</li></ul>
@@ -934,41 +1090,59 @@ active → decommissioned</code></pre>
 <ul><li>[x] 12.E.11: <strong>Spawn scenarios tested:</strong></li><li>Baseline only (small machine): joins cluster, visible to assessment, no workloads</li><li>Compute disposition: k3s workers added, Flux schedules workloads</li><li>Storage disposition: PBS datastore added, Longhorn replicas</li><li>Control-plane disposition: HA promotion if 3rd server node</li><li>Mixed disposition (compute + storage): combined deployment</li><li>Hardware insufficient for selected flag: flag dropped with warning, rest proceeds</li><li>Full peer disposition: matches hatchery capabilities</li></ul>
 <ul><li>[x] 12.E.12: <strong>Documentation:</strong> <code>proxmox-bootstrap/NODE-SPAWNING.md</code> — operator</li></ul>
 <hr>
-<details class="section" open><summary><h2>Track 2 — Expanded State Model</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Phase 13 — Hardware and Platform State</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="track-2-expanded-state-model">Track 2 — Expanded State Model</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-13-hardware-and-platform-state">Phase 13 — Hardware and Platform State</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 13.1: <code>data-model/hardware-state-schema.json</code> (BIOS, firmware, disks, NICs, UPS)</li><li>[x] 13.2: Hardware State Tier 1 collector (extend bootstrap assessment)</li><li>[x] 13.3: <code>data-model/platform-state-schema.json</code> (Proxmox config, certs, packages)</li><li>[x] 13.4: Platform State Tier 2 collector</li><li>[x] 13.5: Hardware requirements declaration in Bootstrap State</li><li>[x] 13.6: Pre-reconstruction hardware verification playbook</li><li>[x] 13.7: Hardware and Platform readiness scoring</li></ul>
-<details class="subsection" open><summary><h3>Phase 14 — Cluster and Storage State</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-14-cluster-and-storage-state">Phase 14 — Cluster and Storage State</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 14.1: <code>data-model/cluster-state-schema.json</code> (identity, topology, membership, history)</li><li>[x] 14.2: Cluster State collector (Proxmox cluster API, Corosync, HA manager)</li><li>[x] 14.3: <code>data-model/storage-state-schema.json</code> (ZFS, Ceph, CephFS, RBD, datastores)</li><li>[x] 14.4: Storage State collector (ZFS CLI, Ceph status API)</li><li>[x] 14.5: Ceph FSID in readiness scorer (RED if missing)</li><li>[x] 14.6: Cluster and Storage waves in Reconstruction Playbook generator</li></ul>
-<details class="subsection" open><summary><h3>Phase 15 — Data Protection State</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-15-data-protection-state">Phase 15 — Data Protection State</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 15.1: <code>data-model/data-protection-state-schema.json</code> (PBS, jobs, retention, RTO/RPO)</li><li>[x] 15.2: Data Protection collector (PBS API, backup job inventory, verification status)</li><li>[x] 15.3: RTO/RPO declaration format and compliance scoring</li><li>[x] 15.4: Backup encryption key recoverability check (RED if not recoverable)</li><li>[x] 15.5: PBS self-recovery plan check (ORANGE if absent)</li><li>[x] 15.6: Data Protection readiness scoring additions</li></ul>
-<details class="subsection" open><summary><h3>Phase 16 — Observability State</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-16-observability-state">Phase 16 — Observability State</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 16.1: <code>data-model/observability-state-schema.json</code> (monitoring stack, alerts, dashboards)</li><li>[x] 16.2: Observability State collector</li><li>[x] 16.3: Observability reconstruction in playbook generator</li><li>[x] 16.4: Alert rule restoration in Recovery Runbook</li></ul>
-<details class="subsection" open><summary><h3>Phase 17 — Digital Twin Foundation</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-17-digital-twin-foundation">Phase 17 — Digital Twin Foundation</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 17.1: Cell Identity schema and registry (<code>twin/federation/cells/</code>)</li><li>[x] 17.2: Twin storage layout (full <code>twin/</code> directory structure)</li><li>[x] 17.3: Twin state writer (all collectors write to twin, not only history/)</li><li>[x] 17.4: Staleness manifest (per-field confidence and last-updated tracking)</li><li>[x] 17.5: Twin consistency checker (stale, missing, conflicting state detection)</li><li>[x] <strong>17.6: <code>cell_id</code> migration — all existing schemas updated (federation gate)</strong></li></ul>
-<details class="subsection" open><summary><h3>Phase 18 — Capability and Secret Reference State</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-18-capability-and-secret-reference-state">Phase 18 — Capability and Secret Reference State</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 18.1: <code>data-model/capability-state-schema.json</code> (all capability categories)</li><li>[x] 18.2: Capability declaration format and initial declaration</li><li>[x] 18.3: Capability verification in Tier 2 assessment</li><li>[x] 18.4: Capability index builder (aggregation across all cells)</li><li>[x] 18.5: <code>data-model/secret-reference-state-schema.json</code> (standalone, with <code>owning_cell</code>)</li><li>[x] 18.6: Secret Reference State migration (extract from Bootstrap State)</li><li>[x] 18.7: Capability-based readiness scoring additions</li></ul>
 <hr>
-<details class="section" open><summary><h2>Track 3 — Digital Twin and Federation</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Phase 19 — Federation State and Trust Model</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="track-3-digital-twin-and-federation">Track 3 — Digital Twin and Federation</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-19-federation-state-and-trust-model">Phase 19 — Federation State and Trust Model</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 19.1: <code>data-model/federation-state-schema.json</code> (cell registry, relationships, trust)</li><li>[x] 19.2: Cell identity and federation registry</li><li>[x] 19.3: Trust relationship schema and declaration format (all relationship types)</li><li>[x] 19.4: Trust relationship verification procedure (CLI + automated check)</li><li>[x] 19.5: Recovery relationship schema and declaration format</li><li>[x] 19.6: Recovery relationship verification (backup reachable, history readable)</li><li>[x] 19.7: Tier 3 assessment engine (cross-cell, federation-scope)</li><li>[x] 19.8: Federation State tests</li></ul>
-<details class="subsection" open><summary><h3>Phase 20 — Federation Documentation Generation</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-20-federation-documentation-generation">Phase 20 — Federation Documentation Generation</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 20.1: Federation Workbook renderer (all cells, all relationships, federation readiness)</li><li>[x] 20.2: Federation Runbook renderer (coordination procedures)</li><li>[x] 20.3: Cell Workbook (full 17-state view per cell)</li><li>[x] 20.4: Cell Runbook (full cell reconstruction)</li><li>[x] 20.5: Cluster Workbook and Runbook</li><li>[x] 20.6: Node Workbook and Runbook</li><li>[x] 20.7: Dependency Workbook (all five graph types, multi-cell scope)</li><li>[x] 20.8: Command Reference Sheets (pre-populated for all known values)</li><li>[x] 20.9: Validation Sheets (post-recovery checklists)</li></ul>
-<details class="subsection" open><summary><h3>Phase 21 — Failure Domain Modeling</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-21-failure-domain-modeling">Phase 21 — Failure Domain Modeling</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 21.1: Failure domain taxonomy schema</li><li>[x] 21.2: Failure propagation rules engine (storage → VMs → services propagation)</li><li>[x] 21.3: Blast radius calculator (given failure at level X, enumerate affected)</li><li>[x] 21.4: SPOF detection (components with no recovery alternative)</li><li>[x] 21.5: Circular recovery dependency detection</li><li>[x] 21.6: Failure domain analysis in readiness reports</li></ul>
-<details class="subsection" open><summary><h3>Phase 22 — Multi-Level Readiness Assessment</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-22-multi-level-readiness-assessment">Phase 22 — Multi-Level Readiness Assessment</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 22.1: Hardware-level readiness scoring (new inputs from Phase 13)</li><li>[x] 22.2: Cluster-level readiness scoring (new inputs from Phase 14)</li><li>[x] 22.3: Cell-level readiness (aggregation across all 17 state categories)</li><li>[x] 22.4: Federation-level readiness (aggregation across all cells)</li><li>[x] 22.5: Federation Readiness Report</li><li>[x] 22.6: Tier 3 assessment integration with multi-level readiness</li></ul>
-<details class="subsection" open><summary><h3>Phase 23 — Federated Reconstruction Planning</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-23-federated-reconstruction-planning">Phase 23 — Federated Reconstruction Planning</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 23.1: Recovery coordinator model (coordinator selection from capability index)</li><li>[x] 23.2: Phoenix package assembly (history, docs, repos, secrets, backup locations)</li><li>[x] 23.3: Capability matching (find available cells for each recovery need)</li><li>[x] 23.4: Multi-phase reconstruction playbook generator (all 7 phases)</li><li>[x] 23.5: Cross-cell trust establishment automation</li><li>[x] 23.6: Temporary workload migration planning</li><li>[x] 23.7: Federated reconstruction tests</li></ul>
-<details class="subsection" open><summary><h3>Phase 24 — Continuous Assessment and Twin Maintenance</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-24-continuous-assessment-and-twin-maintenance">Phase 24 — Continuous Assessment and Twin Maintenance</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 24.1: Scheduled assessment framework (cron-driven, cell-scoped)</li><li>[x] 24.2: Repository ingestion hooks (git webhook → twin update on push)</li><li>[x] 24.3: Deployment event hooks (tofu apply / ansible run → twin update)</li><li>[x] 24.4: Staleness alerting (notify when state categories exceed threshold)</li><li>[x] 24.5: Twin diff reporting (what changed in the twin since last report)</li><li>[x] 24.6: PBS API integration for continuous Data Protection State updates</li><li>[x] 24.7: Certificate expiry monitoring (continuous External Dependency State)</li></ul>
-<details class="subsection" open><summary><h3>Phase 25 — Reconstruction Validation</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-25-reconstruction-validation">Phase 25 — Reconstruction Validation</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>[x] 25.1: Reconstruction drill framework (scheduled full-destroy + reconstruct)</li><li>[x] 25.2: Reconstruction time measurement and RTO validation</li><li>[x] 25.3: Automated post-reconstruction assessment and comparison</li><li>[x] 25.4: Gap identification and remediation tracking</li><li>[x] 25.5: Federation reconstruction drill (multi-cell coordinated scenario)</li></ul>
 <hr>
-<details class="section" open><summary><h2>Track 4 — Autonomous Operations</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary><h3>Design contract for autonomous remediation</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="track-4-autonomous-operations">Track 4 — Autonomous Operations</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="design-contract-for-autonomous-remediation">Design contract for autonomous remediation</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Destruction of data, VMs, volumes, or snapshots</li><li>Changes to Proxmox cluster membership (those go through forge/spawn/phoenix flows)</li><li>Modifications to authoritative metadata YAML files</li><li>KeePass credential changes (those require the KeePass gate in an operator session)</li><li>Network topology declaration changes (operators must update the source of truth)</li><li>Any operation the operator has not explicitly approved in this session</li></ul>
 <hr>
-<details class="subsection" open><summary><h3>Phase 26 — Autonomous Remediation</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-26-autonomous-remediation">Phase 26 — Autonomous Remediation</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><code>proposal_id</code> — stable UUID; survives across assessment cycles until resolved</li><li><code>issue_id</code> — references the specific gap or readiness finding that triggered it</li><li><code>severity</code> — mirrors the assessment score (YELLOW/ORANGE/RED) of the underlying issue</li><li><code>action_type</code> — enumerated type (see below); determines which executor handler runs</li><li><code>action_description</code> — human-readable "what will happen if you approve this"</li><li><code>target</code> — component, service name, or node hostname the action affects</li><li><code>dry_run_output</code> — what the action would produce, captured without making changes</li><li><code>reversibility</code> — <code>reversible</code> | <code>irreversible</code> | <code>manual-rollback</code>; RED is blocked unless reversible</li><li><code>estimated_duration_seconds</code> — from historical execution data</li><li><code>proposed_at</code> — UTC timestamp</li><li><code>prerequisite_ids</code> — other proposals that must execute successfully first</li></ul>
 <table><thead><tr><th>Action type</th><th>What it does</th><th>Reversibility</th></tr></thead><tbody><tr><td><code>restart-service</code></td><td><code>systemctl restart {svc}</code> on target VM</td><td>Reversible (stop again)</td></tr><tr><td><code>run-backup</code></td><td><code>python3 run-backup.py --layer {layer}</code></td><td>Reversible (restore from prior)</td></tr><tr><td><code>renew-cert</code></td><td><code>certbot renew</code> or <code>acme.sh --renew</code> for near-expiry cert</td><td>Reversible (prior cert still valid)</td></tr><tr><td><code>regenerate-phoenix</code></td><td>Re-run phoenix playbook generator for stale node package</td><td>Reversible (old package kept)</td></tr><tr><td><code>sync-cert-to-k8s</code></td><td>Re-run <code>sync-cert-to-k8s.sh</code> to push renewed cert into cluster secrets</td><td>Reversible (old secret restored from cert)</td></tr><tr><td><code>rotate-join-token</code></td><td>Generate new k3s join token; update bootstrap-state.json</td><td>Manual rollback</td></tr><tr><td><code>restart-assessment-timer</code></td><td><code>systemctl enable --now broodforge-operational.timer</code></td><td>Reversible</td></tr><tr><td><code>schedule-drill</code></td><td>Append a drill reminder entry to bootstrap-state.json</td><td>Reversible (delete entry)</td></tr><tr><td><code>flag-manual</code></td><td>Mark a finding for manual operator attention; no system change</td><td>N/A</td></tr></tbody></table>
 <ul><li>[x] 26.1.1: <code>RemediationProposal</code> dataclass and schema additions to <code>bootstrap-state-schema.json</code></li><li>[x] 26.1.2: Planner logic — map each gap type to its allowed action type</li><li>[x] 26.1.3: Dry-run execution for each action type (produces <code>dry_run_output</code> without making changes)</li><li>[x] 26.1.4: Proposal deduplication — if an identical proposal already exists in the queue, update it rather than creating a duplicate</li><li>[x] 26.1.5: Integration with <code>engine.py --mode operational</code> — proposals generated automatically at the end of each operational assessment run</li><li>[x] 26.1.6: Tests (propose phase: 30+ cases covering all action types and edge cases)</li></ul>
@@ -990,106 +1164,13 @@ active → decommissioned</code></pre>
 </div></details>
 </div></details>
 </div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
-</div></details>
     </div>
-    
   </div>
   <div id="bf-drag"></div>
   <div id="bf-notes-pane">
-<div id="bf-notes-header"><span>Session Notes</span><button type="button" class="nts-export-btn" id="bf-notes-export-md" title="Export notes as Markdown">↓ MD</button><button type="button" class="nts-export-btn" id="bf-notes-export-html" title="Export notes as HTML">↓ HTML</button><button type="button" class="nts-export-btn" id="bf-notes-import" title="Import notes from Markdown file">↑ Import</button><button type="button" class="nts-clear-btn" id="bf-notes-clear" title="Clear all notes for this document">🗑</button><button type="button" id="bf-notes-float-btn" title="Pop out notes panel">⊞</button><button type="button" id="bf-notes-toggle" title="Hide notes panel">◄</button></div><div id="bf-notes-body"><p style="color:var(--muted);font-size:.75em;margin:0 0 6px">Free-form notes — saved in your browser.</p><textarea id="bf-session-notes" placeholder="Quick notes…"></textarea><hr class="nts-divider"><p class="nts-label">Sections</p><div id="bf-notes-tree"></div><button type="button" id="bf-notes-add-root">+ Add section</button></div>
-  </div>
+<div id="bf-notes-header"><span>Session Notes</span><button type="button" class="nts-export-btn" id="bf-notes-export-md" title="Export notes as Markdown">↓ MD</button><button type="button" class="nts-export-btn" id="bf-notes-export-html" title="Export notes as HTML">↓ HTML</button><button type="button" class="nts-export-btn" id="bf-notes-import" title="Import notes from Markdown file">↑ Import</button><button type="button" class="nts-clear-btn" id="bf-notes-clear" title="Clear all notes for this document">🗑</button><div id="bf-notes-opacity-ctrl"><div class="bf-ctrl-row" title="Adjust panel transparency"><span class="bf-ctrl-label">opacity</span><button type="button" class="bf-op-btn" id="bf-notes-opacity-down" title="Less opaque">−</button><span id="bf-notes-opacity-val">95%</span><button type="button" class="bf-op-btn" id="bf-notes-opacity-up" title="More opaque">+</button></div><div class="bf-ctrl-row" title="Blur content behind panel"><span class="bf-ctrl-label">blur</span><button type="button" class="bf-op-btn" id="bf-notes-blur-down" title="Less blur">−</button><span id="bf-notes-blur-val">0px</span><button type="button" class="bf-op-btn" id="bf-notes-blur-up" title="More blur">+</button></div></div><button type="button" id="bf-notes-float-btn" title="Pop out notes panel">⊞</button><button type="button" id="bf-notes-toggle" title="Hide notes panel">◄</button></div><div id="bf-notes-body"><p style="color:var(--muted);font-size:.75em;margin:0 0 6px">Free-form notes — saved in your browser.</p><textarea id="bf-session-notes" placeholder="Quick notes…"></textarea><hr class="nts-divider"><p class="nts-label">Sections</p><div id="bf-notes-tree"></div><button type="button" id="bf-notes-add-root">+ Add section</button></div>  </div>
 </div>
 <script>
-
 (function(){
   var ns = 'bf:' + (document.body.dataset.doc || 'doc') + ':';
   // ---- theme ----
@@ -1172,18 +1253,89 @@ active → decommissioned</code></pre>
       li.appendChild(nm); li.appendChild(sz); li.appendChild(rm); attList.appendChild(li);
     });
   }
+  function readFileList(files){
+    var pending=files.length; if(!pending) return;
+    files.forEach(function(f){
+      var rd=new FileReader();
+      rd.onload=function(){ atts.push({name:f.name, type:f.type||'application/octet-stream', bytes:new Uint8Array(rd.result)});
+        if(--pending===0) renderAtts(); };
+      rd.readAsArrayBuffer(f);
+    });
+  }
+  var attachAdd=document.getElementById('bf-attach-add');
+  var attachZone=document.getElementById('bf-attach-zone');
+  // toggle nav panel
+  var navToggle=document.getElementById('bf-nav-toggle');
+  var navPanel=document.getElementById('bf-nav-panel');
+  if(navToggle&&navPanel){
+    navToggle.addEventListener('click',function(e){
+      e.stopPropagation();
+      navPanel.classList.toggle('open');
+    });
+    document.addEventListener('click',function(e){
+      if(navPanel.classList.contains('open')&&!navPanel.contains(e.target)&&e.target!==navToggle){
+        navPanel.classList.remove('open');
+      }
+    });
+  }
+  var attachPanel=document.getElementById('bf-attach-panel');
+  var attachToggle=document.getElementById('bf-attach-toggle');
+  var attachCount=document.getElementById('bf-attach-count');
+  function updateAttachCount(){
+    if(attachCount) attachCount.textContent=atts.length?'('+atts.length+')':''; }
+  var _origRenderAtts=renderAtts;
+  renderAtts=function(){ _origRenderAtts(); updateAttachCount(); };
+  // toggle button
+  if(attachToggle&&attachPanel){
+    attachToggle.addEventListener('click',function(e){
+      e.stopPropagation();
+      attachPanel.classList.toggle('open');
+    });
+  }
+  // click outside to close
+  document.addEventListener('click',function(e){
+    if(attachPanel&&attachPanel.classList.contains('open')){
+      if(!attachPanel.contains(e.target)&&e.target!==attachToggle){
+        attachPanel.classList.remove('open');}
+    }
+  });
   if(fileInput){
     fileInput.addEventListener('change', function(){
-      var files=Array.prototype.slice.call(fileInput.files||[]);
-      var pending=files.length; if(!pending) return;
-      files.forEach(function(f){
-        var rd=new FileReader();
-        rd.onload=function(){ atts.push({name:f.name, type:f.type||'application/octet-stream', bytes:new Uint8Array(rd.result)});
-          if(--pending===0) renderAtts(); };
-        rd.readAsArrayBuffer(f);
-      });
+      readFileList(Array.prototype.slice.call(fileInput.files||[]));
       fileInput.value='';
     });
+  }
+  if(attachAdd&&fileInput){ attachAdd.addEventListener('click', function(e){ e.stopPropagation(); fileInput.click(); }); }
+  if(attachZone){
+    attachZone.addEventListener('dragover', function(e){ e.preventDefault(); e.stopPropagation(); attachZone.classList.add('drag-over'); });
+    attachZone.addEventListener('dragleave', function(e){ e.stopPropagation(); attachZone.classList.remove('drag-over'); });
+    attachZone.addEventListener('drop', function(e){
+      e.preventDefault(); e.stopPropagation(); attachZone.classList.remove('drag-over');
+      if(e.dataTransfer&&e.dataTransfer.files) readFileList(Array.prototype.slice.call(e.dataTransfer.files));
+    });
+  }
+  // auto-open panel when user drags files anywhere over the document
+  if(attachPanel){
+    var _dragEnterCount=0;
+  // allow drop anywhere on page
+  document.addEventListener('dragover',function(e){e.preventDefault();});
+    document.addEventListener('dragenter',function(e){
+      if(e.dataTransfer&&e.dataTransfer.types&&Array.prototype.indexOf.call(e.dataTransfer.types,'Files')>=0){
+        _dragEnterCount++;
+        attachPanel.classList.add('open');
+      }
+    });
+    document.addEventListener('dragleave',function(){
+      _dragEnterCount=Math.max(0,_dragEnterCount-1);
+    });
+  document.addEventListener('drop',function(e){
+    e.preventDefault();
+    _dragEnterCount=0;
+    if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length>0){
+      readFileList(Array.prototype.slice.call(e.dataTransfer.files));
+      if(attachPanel) attachPanel.classList.add('open');
+    }
+  });
   }
   var crcTable=(function(){ var t=[],c,n,k; for(n=0;n<256;n++){ c=n; for(k=0;k<8;k++){ c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); } t[n]=c>>>0; } return t; })();
   function crc32(buf){ var c=0xFFFFFFFF; for(var i=0;i<buf.length;i++){ c=crcTable[(c^buf[i])&0xFF]^(c>>>8); } return (c^0xFFFFFFFF)>>>0; }
@@ -1221,9 +1373,20 @@ active → decommissioned</code></pre>
       if(div.classList.contains('cred-field')){
         var credInp=div.querySelector('.cred-input');
         var credVal='';
-        try{var cslug=credInp?credInp.dataset.cred:'';credVal=sessionStorage.getItem('bf:cred:'+cslug)||'';}catch(e){}
+        var credSlug=credInp?credInp.dataset.cred:'';
+        try{credVal=sessionStorage.getItem('bf:cred:'+credSlug)||'';}catch(e){}
         if(!credVal&&credInp) credVal=credInp.value||'';
-        notes.push({label:labText, value:credVal||'(blank)', type:'credential'});
+        var totpInp=div.querySelector('.cred-totp-input');
+        var totpVal='';
+        if(totpInp){
+          try{totpVal=sessionStorage.getItem('bf:totp:'+credSlug+'-totp')||'';}catch(e){}
+          if(!totpVal) totpVal=totpInp.value||'';
+        }
+        var methods=[];
+        div.querySelectorAll('.cred-method-cb').forEach(function(cb){if(cb.checked)methods.push(cb.value);});
+        var entry={label:labText, value:credVal||'(blank)', type:'credential', methods:methods};
+        if(totpInp&&totpVal) entry.totp_secret=totpVal;
+        notes.push(entry);
       } else if(div.classList.contains('choice-field')){
         var hid=div.querySelector('input[type=hidden][data-note]');
         var optNotes=[];
@@ -2078,6 +2241,38 @@ active → decommissioned</code></pre>
         _updateCredMatch(conf.dataset.for||'');
       });
     });
+    // TOTP secret inputs — load saved value + persist on change
+    document.querySelectorAll('.cred-totp-input').forEach(function(inp){
+      var k='bf:totp:'+(inp.dataset.cred||inp.id||'');
+      try{var s=sessionStorage.getItem(k);if(s!==null)inp.value=s;}catch(e){}
+      inp.addEventListener('input',function(){
+        try{sessionStorage.setItem(k,inp.value);}catch(e){}
+      });
+    });
+    // Auth method checkboxes — show/hide sections, persist selection
+    document.querySelectorAll('.cred-method-cb').forEach(function(cb){
+      var cslug=cb.dataset.cred, method=cb.value;
+      var mk='bf:method:'+cslug+':'+method;
+      // Restore saved state (password defaults to checked, others to unchecked)
+      try{
+        var saved=sessionStorage.getItem(mk);
+        if(saved!==null) cb.checked=(saved==='1');
+      }catch(e){}
+      function applyVisibility(){
+        if(method==='password'){
+          var sec=document.getElementById('cred-pw-section-'+cslug);
+          if(sec) sec.style.display=cb.checked?'':'none';
+        } else if(method==='totp'){
+          var sec=document.getElementById('cred-totp-section-'+cslug);
+          if(sec) sec.style.display=cb.checked?'':'none';
+        }
+      }
+      applyVisibility();
+      cb.addEventListener('change',function(){
+        applyVisibility();
+        try{sessionStorage.setItem(mk,cb.checked?'1':'0');}catch(e){}
+      });
+    });
     // Click-to-peek on {{cred:slug}} masked spans in code blocks
     // Single click reveals for 4s, or click again to re-mask immediately
     document.querySelectorAll('.cred-tpl[data-cred-slug]').forEach(function(span){
@@ -2214,6 +2409,58 @@ active → decommissioned</code></pre>
       }
     });
   })();
+  // ---- auto-suggest (codename / passphrase) ----
+  (function(){
+    var _adj=['amber','bold','brisk','calm','chief','crisp','dark','deep','fast','firm','fleet','fresh','grand','grey','hard','high','keen','kind','lean','light','long','mild','neat','noble','pale','prime','pure','quiet','rare','rich','safe','sharp','slow','small','soft','still','swift','tall','thin','true','warm','wide','wild'];
+    var _ani=['bat','bear','bee','buck','bull','cat','cod','crane','crow','deer','doe','dog','dove','duck','elk','emu','falcon','finch','fox','frog','gnu','hawk','hen','hog','ibis','jay','kite','lark','lynx','mink','mole','moose','moth','mule','newt','owl','pike','ram','rat','raven','robin','stag','swan','toad','vole','wasp','wolf','wren','yak'];
+    var _wds=['alpine','bridge','castle','circuit','current','delta','ember','engine','flare','forest','forge','gleam','hammer','herald','island','lantern','mantle','needle','nexus','onyx','pillar','quartz','relay','ridge','shield','signal','silver','spiral','summit','thunder','timber','torque','tunnel','vector','vertex','warden','winter','zenith'];
+    function _rnd(arr){var b=new Uint16Array(1);crypto.getRandomValues(b);return arr[b[0]%arr.length];}
+    function _rndN(max){var b=new Uint16Array(1);crypto.getRandomValues(b);return b[0]%max;}
+    function genSuggestion(kind,schema){
+      if(kind==='codename'){
+        if(schema==='adj-animal-nn') return _rnd(_adj)+'-'+_rnd(_ani)+'-'+(String(_rndN(99)+1).padStart(2,'0'));
+        if(schema==='cell-n') return 'cell-'+(_rndN(20)+1);
+        return _rnd(_adj)+'-'+_rnd(_ani);
+      }
+      if(schema==='3word-n') return _rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds)+'-'+(_rndN(900)+100);
+      if(schema==='random'){
+        var chars='abcdefghjkmnpqrstuvwxyz23456789';
+        var rb=new Uint8Array(18);crypto.getRandomValues(rb);
+        var s=Array.from(rb).map(function(b){return chars[b%chars.length];}).join('');
+        return s.slice(0,6)+'-'+s.slice(6,12)+'-'+s.slice(12,18);
+      }
+      if(kind==='totp-secret'){
+        var nb=schema==='totp-32'?32:20;
+        var b32='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        var rb=new Uint8Array(nb);crypto.getRandomValues(rb);
+        // encode bytes as base32
+        var bits=0,acc=0,out='';
+        for(var i=0;i<rb.length;i++){acc=(acc<<8)|rb[i];bits+=8;
+          while(bits>=5){bits-=5;out+=b32[(acc>>bits)&31];}}
+        if(bits>0)out+=b32[(acc<<(5-bits))&31];
+        // group in chunks of 4 for readability
+        return out.match(/.{1,4}/g).join(' ');
+      }
+      return _rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds);
+    }
+    document.querySelectorAll('.bf-suggest-btn').forEach(function(btn){
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        var kind=btn.dataset.suggest, forId=btn.dataset.for;
+        var sel=document.querySelector('.bf-suggest-select[data-suggest-for="'+forId+'"]');
+        var val=genSuggestion(kind,sel?sel.value:'');
+        var inp=document.querySelector('[data-note="'+forId+'"]')||document.getElementById('cred-'+forId)||document.getElementById('cred-totp-'+forId);
+        if(!inp)return;
+        inp.value=val;
+        inp.dispatchEvent(new Event('input',{bubbles:true}));
+        inp.dispatchEvent(new Event('change',{bubbles:true}));
+        if(kind==='passphrase'){
+          var conf=document.getElementById('cred-confirm-'+forId);
+          if(conf){conf.value=val;conf.dispatchEvent(new Event('input',{bubbles:true}));}
+        }
+      });
+    });
+  })();
   // ---- filename auto-suggest fields ----
   (function(){
     document.querySelectorAll('.filename-field').forEach(function(div){
@@ -2299,30 +2546,81 @@ active → decommissioned</code></pre>
       document.querySelectorAll('.input-table tbody').forEach(function(tb){tb.innerHTML='';});
     });
   })();
-  // ---- per-section / subsection clear buttons ----
+  // ---- per-section / subsection clear + local collapse/expand buttons ----
+  // Always render all controls; non-applicable ones become ghost placeholders.
   (function(){
+    function hasInputs(det){
+      return det.querySelector('.note-input,.note-area,.cred-input,input[type=radio],input[type=checkbox],.input-table')!==null;
+    }
+    function directChildSubs(det){
+      var body=det.querySelector(':scope>.sec-body,:scope>.sub-body');
+      if(!body)return[];
+      return Array.prototype.slice.call(body.querySelectorAll(':scope>details.subsection'));
+    }
+    function clearSection(det){
+      det.querySelectorAll('.note-input,.note-area').forEach(function(f){
+        f.value='';try{localStorage.removeItem(ns+'note:'+(f.dataset.note||f.id));}catch(e){}f.dispatchEvent(new Event('input'));
+      });
+      det.querySelectorAll('.cred-input').forEach(function(f){
+        var slug=f.dataset.cred||'';
+        f.value='';try{sessionStorage.removeItem('bf:cred:'+slug);}catch(e){}
+        var conf=document.getElementById('cred-confirm-'+slug);if(conf)conf.value='';
+        if(slug&&window._updateCredMatch)window._updateCredMatch(slug);
+      });
+      det.querySelectorAll('input[type=radio],input[type=checkbox]:not(.cred-method-cb)').forEach(function(cb){cb.checked=false;cb.dispatchEvent(new Event('change'));});
+      det.querySelectorAll('.input-table tbody').forEach(function(tb){tb.innerHTML='';});
+    }
     document.querySelectorAll('details.section,details.subsection').forEach(function(det){
       var sum=det.querySelector(':scope>summary');if(!sum)return;
       var controls=sum.querySelector('.bf-sub-controls');
       if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
-      var btn=document.createElement('button');
-      btn.type='button';btn.className='sec-clear-btn';btn.title='Clear all fields in this section';btn.textContent='⊘ Clear';
-      btn.addEventListener('click',function(e){
-        e.stopPropagation();
-        if(!confirm('Clear all fields in this section?'))return;
-        det.querySelectorAll('.note-input,.note-area').forEach(function(f){
-          f.value='';try{localStorage.removeItem(ns+'note:'+(f.dataset.note||f.id));}catch(e){}f.dispatchEvent(new Event('input'));
+      var children=directChildSubs(det);
+      var hasChildren=children.length>=1;
+      var canClear=hasInputs(det);
+      // clear button — leftmost; ghost placeholder when no inputs
+      var clr=document.createElement('button');
+      clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
+      if(canClear){
+        clr.title='Clear all fields in this section';
+        clr.addEventListener('click',function(e){
+          e.stopPropagation();
+          if(!confirm('Clear all fields in this section?'))return;
+          clearSection(det);
         });
-        det.querySelectorAll('.cred-input').forEach(function(f){
-          var slug=f.dataset.cred||'';
-          f.value='';try{sessionStorage.removeItem('bf:cred:'+slug);}catch(e){}
-          var conf=document.getElementById('cred-confirm-'+slug);if(conf)conf.value='';
-          if(slug&&window._updateCredMatch)window._updateCredMatch(slug);
+      } else {
+        clr.classList.add('bf-ctrl-ghost');clr.title='';
+      }
+      // separator
+      var sep=document.createElement('div');sep.className='bf-ctrl-sep';
+      // collapse button — always active when section has any child subsections
+      var cBtn=document.createElement('button');
+      cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
+      if(hasChildren){
+        cBtn.title='Collapse child sections';
+        cBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          directChildSubs(det).forEach(function(d){d.removeAttribute('open');});
         });
-        det.querySelectorAll('input[type=radio],input[type=checkbox]').forEach(function(cb){cb.checked=false;cb.dispatchEvent(new Event('change'));});
-        det.querySelectorAll('.input-table tbody').forEach(function(tb){tb.innerHTML='';});
-      });
-      controls.insertBefore(btn,controls.firstChild);
+      } else {
+        cBtn.classList.add('bf-ctrl-ghost');cBtn.title='';
+      }
+      // expand button — always active when section has any child subsections
+      var eBtn=document.createElement('button');
+      eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
+      if(hasChildren){
+        eBtn.title='Expand child sections';
+        eBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          directChildSubs(det).forEach(function(d){d.setAttribute('open','');});
+        });
+      } else {
+        eBtn.classList.add('bf-ctrl-ghost');eBtn.title='';
+      }
+      // order: clear | sep | collapse | expand (rightmost)
+      controls.appendChild(clr);
+      controls.appendChild(sep);
+      controls.appendChild(cBtn);
+      controls.appendChild(eBtn);
     });
   })();
 
@@ -2378,9 +2676,89 @@ active → decommissioned</code></pre>
     var drag=document.getElementById('bf-drag');
     var fbtn=document.getElementById('bf-notes-float-btn');
     var hdr=document.getElementById('bf-notes-header');
+    var opDown=document.getElementById('bf-notes-opacity-down');
+    var opUp=document.getElementById('bf-notes-opacity-up');
+    var opVal=document.getElementById('bf-notes-opacity-val');
+    var blurDown=document.getElementById('bf-notes-blur-down');
+    var blurUp=document.getElementById('bf-notes-blur-up');
+    var blurVal=document.getElementById('bf-notes-blur-val');
+    var notesBody=document.getElementById('bf-notes-body');
     if(!pane||!fbtn) return;
     var FKEY='bf:notes-floating';
+    var OPKEY='bf:notes-opacity';
+    var BLURKEY='bf:notes-blur';
     var floating=false;
+    var opPct=95;
+    var blurPx=0;
+    /* The last-focused notes container (quick-notes textarea or a .nts-section) */
+    var activeNoteContainer=null;
+    function fieldOpacity(){
+      /* Non-active notes fields: panel opacity + 10%, capped at 100% */
+      return (Math.min(100,opPct+10)/100).toFixed(2);
+    }
+    function getNoteContainer(el){
+      /* Quick-notes textarea is its own box; section notes live inside .nts-section */
+      if(el.id==='bf-session-notes') return el;
+      return el.closest('.nts-section')||el;
+    }
+    function applyOpacity(){
+      if(floating){
+        var alpha=(opPct/100).toFixed(2);
+        /* Panel background fades via rgba — border unaffected */
+        pane.style.setProperty('--notes-bg-alpha',alpha);
+        /* Header toolbar always 100% — set nothing on hdr */
+        /* Apply per-container opacity: non-active containers fade, active stays 100% */
+        if(notesBody){
+          var fOp=fieldOpacity();
+          var qn=document.getElementById('bf-session-notes');
+          if(qn&&qn!==activeNoteContainer) qn.style.opacity=fOp;
+          notesBody.querySelectorAll('.nts-section').forEach(function(s){
+            if(s!==activeNoteContainer) s.style.opacity=fOp;
+          });
+          if(activeNoteContainer){
+            activeNoteContainer.style.opacity='1';
+            /* CSS opacity is multiplicative — un-fade all ancestor .nts-section elements
+               so a nested active subsection isn't dimmed by its parent's fOp */
+            var par=activeNoteContainer.parentElement;
+            while(par&&par!==notesBody){
+              if(par.classList&&par.classList.contains('nts-section')) par.style.opacity='1';
+              par=par.parentElement;
+            }
+          }
+        }
+      }
+      if(opVal) opVal.textContent=opPct+'%';
+    }
+    function adjustOpacity(delta){
+      /* Lower bound 20%: below that the panel becomes dangerously invisible */
+      opPct=Math.min(100,Math.max(20,opPct+delta));
+      applyOpacity();
+      try{localStorage.setItem(OPKEY,String(opPct));}catch(e){}
+    }
+    function applyBlur(){
+      if(floating) pane.style.setProperty('--notes-blur',blurPx+'px');
+      if(blurVal) blurVal.textContent=blurPx+'px';
+    }
+    function adjustBlur(delta){
+      blurPx=Math.min(20,Math.max(0,blurPx+delta));
+      applyBlur();
+      try{localStorage.setItem(BLURKEY,String(blurPx));}catch(e){}
+    }
+    /* Per-container focus: the clicked notes box goes to 100%; previous reverts.
+       No focusout handler — clicking outside the panel does NOT revert the active
+       box. Only selecting a different notes input triggers the swap. */
+    if(notesBody){
+      notesBody.addEventListener('focusin',function(e){
+        if(!floating) return;
+        if(e.target.tagName!=='TEXTAREA'&&e.target.tagName!=='INPUT') return;
+        var container=getNoteContainer(e.target);
+        if(container!==activeNoteContainer){
+          if(activeNoteContainer) activeNoteContainer.style.opacity=fieldOpacity();
+          container.style.opacity='1';
+          activeNoteContainer=container;
+        }
+      });
+    }
     function setFloat(f){
       floating=f;
       if(f){
@@ -2388,20 +2766,58 @@ active → decommissioned</code></pre>
         pane.classList.remove('collapsed');
         if(drag) drag.classList.add('notes-floating');
         fbtn.textContent='⊟'; fbtn.title='Dock notes panel';
-        // reset position to default top-right on first float
-        if(!pane.style.left){ pane.style.right='20px'; pane.style.top='48px'; }
+        // position top-right using left (not right) so resize:both works for width
+        if(!pane.style.left){
+          /* Position so full panel (min 400px) is within viewport with a 10px margin */
+          var initW=Math.max(pane.offsetWidth||400,400);
+          pane.style.left=Math.max(0,document.documentElement.clientWidth-initW-10)+'px';
+          pane.style.top='48px';
+        }
+        pane.style.right='auto';
+        applyOpacity();
+        applyBlur();
       }else{
         pane.classList.remove('floating');
         pane.style.left=''; pane.style.top=''; pane.style.right='';
+        pane.style.removeProperty('--notes-bg-alpha');
+        pane.style.removeProperty('--notes-blur');
+        /* Reset per-container opacity state */
+        activeNoteContainer=null;
+        if(notesBody){
+          var qn2=document.getElementById('bf-session-notes');
+          if(qn2) qn2.style.opacity='';
+          notesBody.querySelectorAll('.nts-section').forEach(function(s){ s.style.opacity=''; });
+        }
         if(drag) drag.classList.remove('notes-floating');
         fbtn.textContent='⊞'; fbtn.title='Pop out notes panel';
       }
       try{localStorage.setItem(FKEY,f?'1':'0');}catch(e){}
     }
+    try{var ops=localStorage.getItem(OPKEY);if(ops){opPct=Math.min(100,Math.max(20,parseInt(ops,10)||95));}}catch(e){}
+    if(opVal) opVal.textContent=opPct+'%';
+    try{var bls=localStorage.getItem(BLURKEY);if(bls){blurPx=Math.min(20,Math.max(0,parseInt(bls,10)||0));}}catch(e){}
+    if(blurVal) blurVal.textContent=blurPx+'px';
+    if(opDown) opDown.addEventListener('click',function(e){e.stopPropagation();adjustOpacity(-5);});
+    if(opUp) opUp.addEventListener('click',function(e){e.stopPropagation();adjustOpacity(5);});
+    if(blurDown) blurDown.addEventListener('click',function(e){e.stopPropagation();adjustBlur(-1);});
+    if(blurUp) blurUp.addEventListener('click',function(e){e.stopPropagation();adjustBlur(1);});
     fbtn.addEventListener('click',function(){ setFloat(!floating); });
     try{if(localStorage.getItem(FKEY)==='1') setFloat(true);}catch(e){}
-    // drag to reposition when floating
+    // drag to reposition when floating — clamp to viewport so panel can't be lost
     if(!hdr) return;
+    function clampPane(){
+      if(!floating) return;
+      var vw=document.documentElement.clientWidth;
+      var vh=document.documentElement.clientHeight;
+      var pw=pane.offsetWidth; var ph=pane.offsetHeight;
+      /* keep panel fully within viewport */
+      var left=Math.max(0,Math.min(parseFloat(pane.style.left)||0,vw-pw));
+      var top=Math.max(0,Math.min(parseFloat(pane.style.top)||0,vh-ph));
+      /* also shrink panel if it's now larger than the viewport */
+      if(pw>vw){ pane.style.width=vw+'px'; }
+      if(ph>vh){ pane.style.height=vh+'px'; }
+      pane.style.left=left+'px'; pane.style.top=top+'px'; pane.style.right='auto';
+    }
     var _dx=0,_dy=0,_sx=0,_sy=0;
     hdr.addEventListener('mousedown',function(e){
       if(!floating) return;
@@ -2410,17 +2826,93 @@ active → decommissioned</code></pre>
       var r=pane.getBoundingClientRect();
       _sx=e.clientX; _sy=e.clientY; _dx=r.left; _dy=r.top;
       function mv(e){
-        pane.style.left=(_dx+(e.clientX-_sx))+'px';
-        pane.style.top=(_dy+(e.clientY-_sy))+'px';
+        var vw=document.documentElement.clientWidth;
+        var vh=document.documentElement.clientHeight;
+        var pw=pane.offsetWidth; var ph=pane.offsetHeight;
+        pane.style.left=Math.max(0,Math.min(_dx+(e.clientX-_sx),vw-pw))+'px';
+        pane.style.top=Math.max(0,Math.min(_dy+(e.clientY-_sy),vh-ph))+'px';
         pane.style.right='auto';
       }
       function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); }
       document.addEventListener('mousemove',mv);
       document.addEventListener('mouseup',up);
     });
+    /* Re-clamp position when window resizes so panel never ends up outside viewport */
+    window.addEventListener('resize',clampPane);
+  })();
+
+  // ---- inline section editor ----
+  (function(){
+    var docBody=document.getElementById('bf-doc-body');
+    if(!docBody) return;
+    var EKEY=ns+'edit:';
+    // Only wrap content blocks, not field widgets or section summary headings
+    var blocks=Array.from(docBody.querySelectorAll('p,h2,h3,h4')).filter(function(el){
+      return !el.closest('.note-field,.cred-field,.param-row,.input-table,.params-hint,summary,#bf-walkthrough-hint');
+    });
+    var originals={};
+    blocks.forEach(function(el,i){
+      originals[i]=el.innerHTML;
+      el.dataset.editIdx=String(i);
+      // Re-apply stored edit on load
+      try{
+        var stored=localStorage.getItem(EKEY+i);
+        if(stored!==null) el.innerHTML=stored+'<span class="bf-edited-mark">(edited)</span>';
+      }catch(e){}
+      // Wrap
+      var wrap=document.createElement('div');
+      wrap.className='bf-editable-block';
+      el.parentNode.insertBefore(wrap,el);
+      wrap.appendChild(el);
+      // Edit button
+      var btn=document.createElement('button');
+      btn.type='button';btn.className='bf-edit-btn';btn.title='Edit this block';btn.textContent='✎';
+      wrap.appendChild(btn);
+      btn.addEventListener('click',function(){
+        if(wrap.querySelector('.bf-edit-area')) return;
+        btn.style.display='none';el.style.display='none';
+        var cur=el.innerHTML.replace(/<span class="bf-edited-mark">[^<]*<\/span>$/,'').trim();
+        var ta=document.createElement('textarea');
+        ta.className='bf-edit-area';ta.value=cur;
+        wrap.insertBefore(ta,btn);
+        ta.style.height=Math.max(80,ta.scrollHeight+6)+'px';
+        var ctrls=document.createElement('div');ctrls.className='bf-edit-controls';
+        var sv=document.createElement('button');sv.type='button';sv.className='bf-edit-save';sv.textContent='✓ Save';
+        var cl=document.createElement('button');cl.type='button';cl.className='bf-edit-cancel';cl.textContent='✕ Cancel';
+        var rs=document.createElement('button');rs.type='button';rs.className='bf-edit-cancel';rs.textContent='↺ Reset';
+        ctrls.appendChild(sv);ctrls.appendChild(cl);ctrls.appendChild(rs);
+        wrap.insertBefore(ctrls,btn);ta.focus();
+        function closeEd(){wrap.removeChild(ta);wrap.removeChild(ctrls);el.style.display='';btn.style.display='';}
+        sv.addEventListener('click',function(){
+          var val=ta.value;
+          el.innerHTML=val+'<span class="bf-edited-mark">(edited)</span>';
+          try{localStorage.setItem(EKEY+i,val);}catch(e){}
+          closeEd();
+        });
+        cl.addEventListener('click',closeEd);
+        rs.addEventListener('click',function(){
+          if(!confirm('Reset to original content?'))return;
+          try{localStorage.removeItem(EKEY+i);}catch(e){}
+          el.innerHTML=originals[i];closeEd();
+        });
+      });
+    });
+    // Download with edits
+    var dlBtn=document.getElementById('bf-download-edits-btn');
+    if(dlBtn){
+      dlBtn.addEventListener('click',function(){
+        var clone=document.documentElement.cloneNode(true);
+        clone.querySelectorAll('.bf-edit-btn,.bf-edited-mark,.bf-edit-controls,.bf-edit-area').forEach(function(e){e.remove();});
+        clone.querySelectorAll('.bf-editable-block').forEach(function(w){
+          var p=w.parentNode;while(w.firstChild)p.insertBefore(w.firstChild,w);p.removeChild(w);
+        });
+        var h='<!DOCTYPE html>\n'+clone.outerHTML;
+        var blob=new Blob([h],{type:'text/html'});
+        window.bfSave(blob,(document.title||'doc').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-edited.html');
+      });
+    }
   })();
 })();
-
 </script>
 </body>
 </html>

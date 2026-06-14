@@ -3,15 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forging</title>
+<title>FORGING — Hatchery Build</title>
 <style>
-
   :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
-    --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a}
+    --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a;--bg2-rgb:34,38,46}
   body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#d0d7de;--text:#1f2328;--muted:#57606a;
     --accent:#0969da;--green:#1a7f37;--yellow:#9a6700;--orange:#bc4c00;--red:#cf222e;
-    --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2}
+    --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2;--bg2-rgb:244,245,247}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;overflow:hidden;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
@@ -43,40 +42,76 @@
   tr:last-child td{border-bottom:none}
   .doc-meta{color:var(--muted);font-size:.8em;margin:4px 0 20px}
   /* theme toggle */
-  #bf-toolbar{position:sticky;top:0;z-index:50;display:flex;gap:8px;
-    justify-content:flex-end;padding:6px 0;background:var(--bg)}
+  #bf-toolbar{position:sticky;top:0;z-index:50;display:flex;flex-direction:column;
+    background:var(--bg)}
+  .bf-toolbar-main{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:6px 0}
+  .bf-toolbar-end{margin-left:auto;display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap}
+  .bf-attach-bar{display:flex;align-items:center;gap:10px;
+    padding:4px 0 6px;border-top:1px solid var(--border)}
+  .bf-attach-hint{color:var(--muted);font-size:.76em}
+  #bf-collapse-all,#bf-expand-all{background:var(--btn-bg);color:var(--text);
+    border:1px solid var(--border);border-radius:var(--radius);padding:5px 12px;
+    cursor:pointer;font-size:.8em;font-family:inherit}
+  #bf-collapse-all:hover,#bf-expand-all:hover{border-color:var(--accent);color:var(--accent)}
+  #bf-section-count{color:var(--muted);font-size:.75em;white-space:nowrap}
   #bf-toolbar button{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
     border-radius:var(--radius);padding:5px 12px;cursor:pointer;font-size:.8em;font-family:inherit}
   #bf-toolbar button:hover{border-color:var(--accent);color:var(--accent)}
   .about-docs-link{background:var(--btn-bg);color:var(--muted);border:1px solid var(--border);
-    border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;
-    font-size:.8em;font-weight:700;text-decoration:none;cursor:pointer;flex-shrink:0}
+    border-radius:var(--radius);padding:5px 10px;display:inline-flex;align-items:center;
+    font-size:.8em;text-decoration:none;cursor:pointer;flex-shrink:0;font-family:inherit}
   .about-docs-link:hover{border-color:var(--accent);color:var(--accent)}
-  /* attachments */
-  .attachments{margin-top:30px;border-top:1px solid var(--border);padding-top:14px}
-  .attachments input[type=file]{color:var(--muted);font-size:.85em;margin-top:6px}
-  .attach-list{list-style:none;margin:10px 0 0;padding:0}
-  .attach-list li{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);
-    border-radius:var(--radius);padding:5px 10px;margin:4px 0;font-size:.85em}
+  /* attachments - toolbar dropdown panel */
+  #bf-attach-count{font-size:.75em;opacity:.8}
+  #bf-attach-panel{position:absolute;top:100%;right:0;width:360px;
+    background:var(--bg2);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 var(--radius) var(--radius);
+    box-shadow:0 6px 18px rgba(0,0,0,.38);z-index:51;
+    display:none;padding:12px 14px}
+  #bf-attach-panel.open{display:block}
+  #bf-attach-zone{border:1.5px dashed var(--border);border-radius:var(--radius);
+    background:var(--bg);padding:12px 14px;display:flex;align-items:center;
+    gap:10px;cursor:default;transition:border-color .15s,background .15s;margin-bottom:6px}
+  #bf-attach-zone.drag-over{border-color:var(--accent);background:rgba(137,180,250,.06)}
+  .bf-attach-prompt{color:var(--muted);font-size:.82em;flex:1}
+  .bf-attach-btn{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 10px;font-size:.78em;cursor:pointer;
+    font-family:inherit;flex-shrink:0;white-space:nowrap}
+  .bf-attach-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .attach-list{list-style:none;margin:4px 0 0;padding:0}
+  .attach-list li{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 8px;margin:3px 0;font-size:.82em}
   .attach-list .sz{color:var(--muted);font-size:.9em}
   .attach-list button{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);
-    border-radius:4px;cursor:pointer;padding:1px 8px;font-size:.85em}
+    border-radius:4px;cursor:pointer;padding:1px 6px;font-size:.82em}
   .attach-list button:hover{border-color:var(--red);color:var(--red)}
+  /* doc navigation panel */
+  #bf-nav-panel{position:absolute;top:100%;left:0;width:300px;
+    background:var(--bg2);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 var(--radius) var(--radius);
+    box-shadow:0 6px 18px rgba(0,0,0,.38);z-index:51;
+    display:none;padding:8px 0;max-height:70vh;overflow-y:auto}
+  #bf-nav-panel.open{display:block}
+  .bf-nav-group{padding:4px 0}
+  .bf-nav-group-label{font-size:.68em;color:var(--muted);font-weight:700;
+    text-transform:uppercase;letter-spacing:.08em;padding:6px 14px 3px}
+  .bf-nav-item{display:block;padding:5px 14px;font-size:.82em;color:var(--text);
+    text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bf-nav-item:hover{background:var(--bg3);color:var(--accent)}
+  .bf-nav-item.current{color:var(--accent);font-weight:600;
+    border-left:2px solid var(--accent);padding-left:12px}
+  .bf-nav-sep{height:1px;background:var(--border);margin:4px 0}
   /* collapsible sections (--collapsible) */
   details.section{margin:8px 0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
   details.section>summary{background:var(--bg2);color:var(--accent);cursor:pointer;user-select:none;
-    padding:9px 14px;font-weight:600;font-size:1.0em;list-style:none;text-transform:uppercase;letter-spacing:.04em}
+    padding:9px 14px;font-weight:600;font-size:1.0em;list-style:none;text-transform:uppercase;
+    letter-spacing:.04em;display:flex;align-items:center;gap:6px}
   details.section>summary::-webkit-details-marker{display:none}
-  details.section>summary::before{content:'▶';font-size:.7em;color:var(--muted);margin-right:8px;transition:transform .15s}
+  details.section>summary::before{content:'▶';font-size:.7em;color:var(--muted);margin-right:4px;flex-shrink:0;transition:transform .15s}
   details.section[open]>summary::before{transform:rotate(90deg)}
+  details.section>summary>*:not(.bf-sub-controls){flex:1;margin:0;padding:0}
   details.section>summary h2{display:inline;border:none;margin:0;padding:0;font-size:inherit;color:inherit;letter-spacing:inherit}
   details.section .sec-body{padding:6px 16px 14px}
-  /* collapse/expand all bar */
-  .bf-collapse-bar{display:flex;gap:8px;margin:10px 0 16px;align-items:center}
-  .bf-collapse-bar button{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
-    border-radius:var(--radius);padding:4px 14px;cursor:pointer;font-size:.8em;font-family:inherit}
-  .bf-collapse-bar button:hover{border-color:var(--accent);color:var(--accent)}
-  .bf-collapse-bar .bf-section-count{color:var(--muted);font-size:.78em;margin-left:4px}
   /* code block + copy */
   .codewrap{position:relative;margin:10px 0}
   .copy-btn{position:absolute;top:6px;right:6px;background:var(--btn-bg);color:var(--muted);
@@ -112,14 +147,15 @@
   details.subsection>summary.sub-summary>*:not(.bf-sub-controls){flex:1;display:inline;
     margin:0;padding:0;font-size:inherit;color:inherit}
   details.subsection .sub-body{padding-left:14px;padding-bottom:6px}
-  /* +/- controls appear on any summary (section or subsection) that has children */
-  details.section>summary.sec-summary{display:flex;align-items:center;gap:6px}
-  details.section>summary.sec-summary>*:not(.bf-sub-controls){flex:1}
-  .bf-sub-controls{display:flex;gap:3px;flex-shrink:0;margin-left:auto}
+  /* +/- controls and clear button appear right-aligned in the summary row */
+  .bf-sub-controls{display:flex;gap:3px;flex-shrink:0;margin-left:auto;margin-right:10px;align-items:center}
   .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--border);
     color:var(--muted);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
     line-height:1.6;font-family:inherit;font-weight:700}
   .bf-sub-expand:hover,.bf-sub-collapse:hover{border-color:var(--accent);color:var(--accent)}
+  .bf-ctrl-sep{width:10px;flex-shrink:0}
+  /* ghost = always-present placeholder when button not applicable */
+  .bf-ctrl-ghost{color:transparent !important;pointer-events:none;cursor:default;opacity:0.25}
   /* ── split-pane layout ─────────────────────────────────────────────────── */
   #bf-app{display:flex;height:100vh;overflow:hidden}
   #bf-doc-pane{flex:1 1 auto;overflow-y:auto;padding:24px 28px 80px;min-width:0}
@@ -159,7 +195,8 @@
   .nts-hdr-btn{background:none;border:none;color:var(--muted);cursor:pointer;
     padding:0 4px;font-size:.95em;line-height:1;border-radius:3px;flex-shrink:0}
   .nts-hdr-btn:hover{color:var(--accent)}
-  .nts-hdr-btn.del:hover{color:var(--red)}
+  .nts-hdr-btn.del{color:var(--red)}
+  .nts-hdr-btn.del:hover{opacity:.75}
   .nts-body{padding:5px 8px 8px;background:var(--bg)}
   .nts-body textarea{width:100%;min-height:50px;resize:vertical;margin-bottom:4px;
     font-size:.81em}
@@ -171,23 +208,61 @@
     border:1px solid var(--border);border-radius:var(--radius);
     padding:4px 10px;cursor:pointer;font-size:.78em;font-family:inherit;margin-top:8px}
   #bf-notes-add-root:hover{border-color:var(--accent);color:var(--accent)}
-  /* notes panel collapse toggle */
-  #bf-notes-toggle{background:none;border:none;color:var(--muted);cursor:pointer;
+  /* notes panel icon buttons */
+  #bf-notes-toggle,#bf-notes-float-btn{background:none;border:none;color:var(--muted);cursor:pointer;
     padding:2px 6px;font-size:.85em;line-height:1;border-radius:3px;flex-shrink:0}
-  #bf-notes-toggle:hover{color:var(--accent)}
+  #bf-notes-toggle:hover,#bf-notes-float-btn:hover{color:var(--accent)}
   .nts-clear-btn{background:none;border:none;color:var(--muted);cursor:pointer;
     padding:2px 6px;font-size:.85em;line-height:1;border-radius:3px;flex-shrink:0}
   .nts-clear-btn:hover{color:var(--red)}
+  /* ── notes collapsed ── */
   #bf-notes-pane.collapsed{flex:0 0 30px !important;min-width:30px;overflow:hidden}
   #bf-notes-pane.collapsed #bf-notes-body,
   #bf-notes-pane.collapsed .nts-export-btn,
-  #bf-notes-pane.collapsed .nts-clear-btn{display:none}
+  #bf-notes-pane.collapsed .nts-clear-btn,
+  #bf-notes-pane.collapsed #bf-notes-float-btn{display:none}
   #bf-notes-pane.collapsed #bf-notes-header{
     writing-mode:vertical-rl;flex-direction:row;
     padding:14px 4px;gap:10px;justify-content:flex-start}
   #bf-notes-pane.collapsed #bf-notes-header>span{
     writing-mode:vertical-rl;text-orientation:mixed}
   #bf-drag.notes-hidden{display:none}
+  /* ── notes floating / pop-out ── */
+  #bf-notes-pane.floating{
+    position:fixed !important;
+    width:400px;height:70vh;
+    flex:none !important;min-width:400px !important;max-width:unset !important;
+    border-radius:8px;border:2px solid var(--accent) !important;
+    box-shadow:0 8px 32px rgba(0,0,0,.55);
+    z-index:300;resize:both;overflow:hidden;
+    /* background driven by JS via --notes-bg-alpha; border stays at full opacity */
+    background:rgba(var(--bg2-rgb),var(--notes-bg-alpha,1)) !important;
+    backdrop-filter:blur(var(--notes-blur,0px));
+    -webkit-backdrop-filter:blur(var(--notes-blur,0px));
+    transition:background .15s,backdrop-filter .15s}
+  #bf-notes-pane.floating #bf-notes-header{cursor:move;user-select:none}
+  #bf-notes-pane.floating~#bf-drag,#bf-drag.notes-floating{display:none}
+  /* opacity + blur controls (only visible when floating) */
+  #bf-notes-opacity-ctrl{display:none;flex-direction:column;gap:2px;
+    font-size:.63em;color:var(--muted);flex-shrink:0;white-space:nowrap}
+  #bf-notes-pane.floating #bf-notes-opacity-ctrl{display:flex}
+  .bf-ctrl-row{display:flex;align-items:center;gap:3px}
+  .bf-ctrl-label{min-width:34px;text-align:right}
+  #bf-notes-opacity-val,#bf-notes-blur-val{min-width:30px;text-align:center;font-variant-numeric:tabular-nums}
+  .bf-op-btn{background:var(--btn-bg);color:var(--muted);border:1px solid var(--border);
+    border-radius:3px;width:16px;height:16px;padding:0;cursor:pointer;font-size:.75em;
+    line-height:1;display:flex;align-items:center;justify-content:center;font-family:inherit}
+  .bf-op-btn:hover{border-color:var(--accent);color:var(--accent)}
+  /* ── walkthrough hint (compact) ── */
+  #bf-walkthrough-hint{font-size:.8em;color:var(--muted);
+    border-left:2px solid var(--border);padding:3px 10px;margin:0 0 10px;line-height:1.5}
+  #bf-walkthrough-hint a{color:var(--accent);text-decoration:none}
+  #bf-walkthrough-hint a:hover{text-decoration:underline}
+  /* ── params panel ── */
+  #params,#params.params{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 16px;margin:0 0 18px}
+  #params h3{margin:0 0 8px;color:var(--accent);font-size:.9em}
+  .params-hint{color:var(--muted);font-size:.8em;margin-bottom:10px}
 
   /* ── credential fields ──────────────────────────────────────────────────── */
   .cred-field{background:rgba(243,139,168,.05);border:1px solid rgba(243,139,168,.3);
@@ -199,10 +274,24 @@
     cursor:pointer;padding:4px 8px;font-size:.85em;color:var(--muted);flex-shrink:0}
   .cred-toggle:hover{color:var(--accent);border-color:var(--accent)}
   .cred-hint{color:var(--orange);font-size:.75em;display:block;margin-top:3px}
+  .cred-methods{display:flex;gap:12px;margin:5px 0 6px;flex-wrap:wrap}
+  .cred-method-opt{display:flex;align-items:center;gap:5px;font-size:.82em;color:var(--muted);cursor:pointer;user-select:none}
+  .cred-method-opt input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:13px;height:13px}
+  .cred-method-section{margin-top:4px}
+  .cred-section-label{font-size:.72em;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
   .cred-confirm-row{margin-top:4px}
   .cred-confirm-input{flex:1;border-color:var(--border)}
   .cred-match-indicator{font-size:.8em;padding:0 6px;flex-shrink:0;font-weight:600}
   .cred-match-ok{color:var(--green)}.cred-match-fail{color:var(--red)}
+  /* ── suggest controls (schema select + suggest button) ──────────────────── */
+  .bf-suggest-select{background:var(--bg3);color:var(--muted);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 6px;font-size:.78em;font-family:inherit;
+    cursor:pointer;flex-shrink:0}
+  .bf-suggest-select:hover,.bf-suggest-select:focus{border-color:var(--accent);outline:none}
+  .bf-suggest-btn{background:var(--bg3);color:var(--muted);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 10px;font-size:.78em;font-family:inherit;
+    cursor:pointer;flex-shrink:0;white-space:nowrap}
+  .bf-suggest-btn:hover{border-color:var(--accent);color:var(--accent)}
   /* ── masked credential spans in code blocks ─────────────────────────────── */
   .cred-tpl{background:rgba(243,139,168,.15);color:var(--red);border-radius:3px;
     padding:0 4px;letter-spacing:.12em;cursor:default;font-style:normal;
@@ -235,11 +324,11 @@
   #bf-enc-cancel:hover{color:var(--red)}
   /* ── radio/checkbox choice fields ───────────────────────────────────────── */
   .choice-field{margin:10px 0}
-  .choice-row{display:flex;align-items:center;gap:8px;margin:5px 0;flex-wrap:wrap}
-  .choice-opt{display:flex;align-items:center;gap:5px;min-width:160px;
-    font-size:.88em;cursor:pointer;user-select:none}
-  .choice-opt input{cursor:pointer;accent-color:var(--accent)}
-  .choice-note{flex:1;min-width:180px}
+  .choice-rows{display:grid;grid-template-columns:18px max-content 1fr;
+    align-items:center;column-gap:8px;row-gap:5px;margin:4px 0}
+  .choice-row{display:contents}
+  .choice-label{font-size:.88em;cursor:pointer;user-select:none;white-space:nowrap}
+  .choice-note{min-width:120px}
   /* ── tabular input fields ────────────────────────────────────────────────── */
   .table-field{margin:10px 0}
   .input-table-wrap{overflow-x:auto;margin:4px 0 6px}
@@ -310,31 +399,52 @@
     border-radius:3px;padding:0 6px;cursor:pointer;font-size:.72em;
     line-height:1.6;font-family:inherit}
   .sec-clear-btn:hover{border-color:var(--red);color:var(--red)}
+  /* ── inline editor ─────────────────────────────────────────────────────────── */
+  .bf-editable-block{position:relative}
+  .bf-edit-btn{position:absolute;top:2px;right:2px;opacity:0;background:var(--btn-bg);
+    color:var(--muted);border:1px solid var(--border);border-radius:3px;
+    padding:1px 6px;font-size:.68em;cursor:pointer;transition:opacity .15s;z-index:10;
+    font-family:inherit}
+  .bf-editable-block:hover .bf-edit-btn{opacity:1}
+  .bf-edit-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .bf-edit-area{width:100%;min-height:60px;resize:vertical;background:var(--code-bg);
+    color:var(--text);border:1px solid var(--accent);border-radius:var(--radius);
+    padding:6px 8px;font-family:inherit;font-size:.9em;line-height:1.6;
+    box-sizing:border-box;margin:4px 0}
+  .bf-edit-controls{display:flex;gap:6px;margin-bottom:6px}
+  .bf-edit-save{background:var(--accent);color:var(--bg);border:none;border-radius:3px;
+    padding:3px 10px;cursor:pointer;font-size:.78em;font-family:inherit}
+  .bf-edit-cancel{background:none;color:var(--muted);border:1px solid var(--border);
+    border-radius:3px;padding:3px 10px;cursor:pointer;font-size:.78em;font-family:inherit}
+  .bf-edited-mark{font-size:.65em;color:var(--muted);margin-left:6px;opacity:.7}
   @media print{#bf-doc-pane{padding:12px}#bf-notes-pane,#bf-drag{display:none}
     #bf-theme-btn,.copy-btn{display:none}
-    .bf-sub-controls{display:none}
+    .bf-sub-controls,.bf-edit-btn,.bf-edit-controls{display:none}
     .param-input,.note-input,.note-area,#bf-session-notes{border:1px solid #999}}
-
 </style>
 </head>
-<body>
+<body data-doc="forging-hatchery-build">
 <div id="bf-app">
   <div id="bf-doc-pane">
-    <div id="bf-toolbar"><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation">?</a><button id="bf-clear-fields-btn" type="button">⊘ Clear Fields</button><button id="bf-export-btn" type="button">⬇ Export Forging Package</button><button id="bf-theme-btn" type="button">☀ Light</button></div>
-    <div id="bf-walkthrough-hint">📋 <strong>Walkthrough document</strong> — fill in fields as you work through each step. Your entries are saved in your browser and included when you export the package. Credential fields (🔑) are session-only and cleared when you close this tab. Export the package when done to produce an auditable record. Use <code>{{cred:field-slug}}</code> in code blocks to reference credential fields (visually masked, real value copied).</div>
+    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button><span id="bf-section-count"></span><div class="bf-toolbar-end"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item current" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><button id="bf-clear-fields-btn" type="button">⊘ Clear Fields</button><button id="bf-import-session-btn" type="button">↑ Import Session</button><button id="bf-export-btn" type="button">⬇ Export FORGING — Hatchery Build Package</button><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button></div></div><div class="bf-attach-bar"><button id="bf-attach-toggle" type="button" title="Attach files — bundled into the export package">📎 Attach <span id="bf-attach-count"></span></button><span class="bf-attach-hint">Drag files anywhere on the page to attach</span></div><div id="bf-attach-panel"><input type="file" id="bf-attach-input" multiple style="display:none"><div id="bf-attach-zone"><span class="bf-attach-prompt">Drag files here — logs, screenshots, manifests</span><button type="button" class="bf-attach-btn" id="bf-attach-add">⬆ Browse…</button></div><ul class="attach-list" id="bf-attach-list"></ul></div></div>
+    <div id="bf-walkthrough-hint">📋 Walkthrough — fill in fields as you go; entries are saved in your browser. Credential fields (🔑) are exported in encrypted packages. <a href="ABOUT-DOCS.html" target="_blank">How this works ↗</a></div>
     
     <div id="bf-doc-body">
-<h1>FORGING.md — Operator Runbook</h1>
+<details class="section" open><summary><h1 id="forging-md-operator-runbook">FORGING.md — Operator Runbook</h1></summary><div class="sec-body" style="margin-left:0px">
 <hr>
-<h2>Prerequisites</h2>
-<h3>Hardware requirements</h3>
+<details class="section" open><summary><h2 id="prerequisites">Prerequisites</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="hardware-requirements">Hardware requirements</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>Component</th><th>Minimum</th><th>Recommended</th></tr></thead><tbody><tr><td>RAM</td><td>16 GiB</td><td>32 GiB</td></tr><tr><td>Disks (ZFS)</td><td>2 × ≥32 GiB</td><td>2-4 × ≥200 GiB SSD</td></tr><tr><td>NICs</td><td>1</td><td>2 (management + VM traffic)</td></tr><tr><td>CPU cores</td><td>2</td><td>4+</td></tr></tbody></table>
-<h3>Software requirements</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="software-requirements">Software requirements</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Proxmox VE installed on the target host (bare metal or nested virtualisation)</li><li>Proxmox CE (community edition, no subscription) is fully supported</li><li>Network access from your workstation to the target host (SSH on port 22)</li><li>Python 3.11+ on your workstation (for generating the forge package)</li></ul>
-<h3>Network requirements</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="network-requirements">Network requirements</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Static IP assigned to the hatchery host (or DHCP reservation)</li><li>Default gateway configured</li><li>Internet access from the hatchery host (for apt, Let's Encrypt, Flux CD)</li></ul>
 <hr>
-<h2>Step 0 — Build pre-install media (optional)</h2>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="step-0-build-pre-install-media-optional">Step 0 — Build pre-install media (optional)</h2></summary><div class="sec-body" style="margin-left:12px">
 <blockquote><strong>Note:</strong> Step 0 requires <code>forge-manifest.json</code>, which is generated in
 <strong>Step 1</strong> below. The recommended workflow is: complete Step 1 first
 (run <code>forge-planner.py</code>, review the manifest), then return here to build
@@ -350,50 +460,64 @@ python3 proxmox-bootstrap/generate-bootstrap-image.py --manifest forge-manifest.
 <ul><li><code>bootstrap-image-manifest.{json,html}</code> — a hash/contents manifest for the</li></ul>
 <ul><li><code>README.md</code> — exact instructions for combining this bundle with the</li></ul>
 <hr>
-<h2>Step 1 — Generate the forge manifest</h2>
+</div></details>
+<details class="section" open><summary><h2 id="step-1-generate-the-forge-manifest">Step 1 — Generate the forge manifest</h2></summary><div class="sec-body" style="margin-left:12px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">python3 proxmox-bootstrap/forge-planner.py</code></pre></div>
 <ol><li>Choose a setup mode (autonomous recommended for first forge)</li><li>Set the hatchery hostname and domain</li><li>Choose a network profile (LAN only or WAN-capable with Headscale)</li><li>Confirm your timezone</li><li>Configure at least one backup destination</li></ol>
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">cat forge-manifest.json</code></pre></div>
 <hr>
-<h2>Step 2 — Assemble the forge package</h2>
+</div></details>
+<details class="section" open><summary><h2 id="step-2-assemble-the-forge-package">Step 2 — Assemble the forge package</h2></summary><div class="sec-body" style="margin-left:12px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">python3 proxmox-bootstrap/assemble-forge-package.py --manifest forge-manifest.json</code></pre></div>
 <pre><code class="lang-">forge-package-{cell_id}-{timestamp}.tar.gz</code></pre>
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">python3 proxmox-bootstrap/assemble-forge-package.py \
     --manifest forge-manifest.json \
     --kdbx /path/to/keepass.kdbx</code></pre></div>
 <hr>
-<h2>Step 3 — Copy the forge package to the target host</h2>
+</div></details>
+<details class="section" open><summary><h2 id="step-3-copy-the-forge-package-to-the-target-host">Step 3 — Copy the forge package to the target host</h2></summary><div class="sec-body" style="margin-left:12px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">scp forge-package-*.tar.gz root@&lt;hatchery-ip&gt;:/root/</code></pre></div>
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash"># On the target host:
 sha256sum forge-package-*.tar.gz   # compare against the value printed in Step 2</code></pre></div>
 <hr>
-<h2>Step 4 — Execute the forge package</h2>
+</div></details>
+<details class="section" open><summary><h2 id="step-4-execute-the-forge-package">Step 4 — Execute the forge package</h2></summary><div class="sec-body" style="margin-left:12px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">cd /root
 tar xzf forge-package-*.tar.gz
 bash forge.sh</code></pre></div>
-<h3>What forge.sh does</h3>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-forge-sh-does">What forge.sh does</h3></summary><div class="sec-body" style="margin-left:24px">
 <table><thead><tr><th>Phase</th><th>Script</th><th>Action</th></tr></thead><tbody><tr><td>00</td><td><code>phase-00-discover.sh</code></td><td>Hardware discovery (disks, NICs, RAM, CPU)</td></tr><tr><td>01</td><td><code>phase-01-plan.sh</code></td><td>Identity planning (hostname, domain, cell_id)</td></tr><tr><td>02</td><td><code>phase-02-validate.sh</code></td><td>Hardware validation — RED findings block forge</td></tr><tr><td>03</td><td><code>phase-03-host.sh</code></td><td>Host config: hostname, ZFS pool, dnsmasq, KeePass init</td></tr><tr><td>04</td><td><code>phase-04-vms.sh</code></td><td>VM provisioning (OpenTofu — minimum viable stack)</td></tr><tr><td>05</td><td><code>phase-05-k3s.sh</code></td><td>k3s cluster init (Ansible k3s-server role)</td></tr><tr><td>06</td><td><code>phase-06-gitops.sh</code></td><td>Flux CD bootstrap → Forgejo</td></tr><tr><td>07</td><td><code>phase-07-intelligence.sh</code></td><td>Assessment + documentation engine init</td></tr><tr><td>08</td><td><code>phase-08-verify.sh</code></td><td>Cluster health check + state commit</td></tr></tbody></table>
-<h3>Resuming after failure</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="resuming-after-failure">Resuming after failure</h3></summary><div class="sec-body" style="margin-left:24px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash"># Resume from a specific phase (e.g. phase 3 if phase-03 failed)
 bash forge.sh --from 3
 
 # Start completely fresh
 bash forge.sh --reset</code></pre></div>
 <hr>
-<h2>Step 5 — Forge phase details</h2>
-<h3>Phase 00 — Discover</h3>
-<h3>Phase 01 — Plan</h3>
-<h3>Phase 02 — Validate</h3>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="step-5-forge-phase-details">Step 5 — Forge phase details</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-00-discover">Phase 00 — Discover</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-01-plan">Phase 01 — Plan</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-02-validate">Phase 02 — Validate</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><strong>RAM too low</strong>: add RAM or use a machine with ≥16 GiB</li><li><strong>Insufficient disks</strong>: add a second disk for ZFS mirror</li><li><strong>No NICs</strong>: check that the NIC is detected by the kernel</li></ul>
-<h3>Phase 03 — Host configuration</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-03-host-configuration">Phase 03 — Host configuration</h3></summary><div class="sec-body" style="margin-left:24px">
 <ol><li>Sets the hostname and /etc/hosts</li><li>Suppresses the Proxmox CE subscription nag</li><li>Creates the ZFS pool (topology derived from disk count)</li><li>Installs and configures dnsmasq (split-horizon DNS)</li><li>Initialises the KeePass database (master password prompt)</li><li>If WAN profile: installs Headscale, issues TLS cert, configures DDNS</li></ol>
 <ul><li>forge.sh suggests a readable passphrase (e.g. <code>Forest.amber.glide.8</code>)</li><li>Accept the suggestion, enter your own, or use KeePass's built-in generator</li><li>This is the single most important secret — choose carefully and record it safely</li></ul>
-<h3>Phase 03 — WAN profile only</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-03-wan-profile-only">Phase 03 — WAN profile only</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li><strong>Headscale</strong> is installed and configured as the hatchery's own tailnet coordinator</li><li><strong>TLS certificate</strong> is issued via Let's Encrypt (Cloudflare or DuckDNS path)</li><li><strong>DDNS</strong> timer is configured to update the external A record every 5 minutes</li></ul>
 <ol><li>Ensure your domain's A record or DDNS is set up (see <code>docs/CLOUDFLARE-SETUP.md</code> or <code>docs/DUCKDNS-SETUP.md</code>)</li><li>If using Cloudflare: have your API token ready (will be stored in KeePass)</li><li>If using DuckDNS: have your token ready</li><li>Configure port forwarding: 8080 → hatchery LAN IP (for Headscale)</li></ol>
-<h3>Phase 04 — VMs</h3>
-<h3>Phase 05 — k3s</h3>
-<h3>Forge provisioning status — what is automated today</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-04-vms">Phase 04 — VMs</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-05-k3s">Phase 05 — k3s</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="forge-provisioning-status-what-is-automated-today">Forge provisioning status — what is automated today</h3></summary><div class="sec-body" style="margin-left:24px">
 <blockquote><strong>Implementation status — read before forging on real hardware.</strong> <code>forge.sh</code> runs
 end-to-end, but several phases are part of the active *deploy-to-hardware* milestone
 and currently self-skip or require manual completion rather than failing silently.</blockquote>
@@ -405,12 +529,17 @@ with <code>bash forge.sh --from 6</code> for GitOps → intelligence → verify.
 
 The <strong>spawn</strong> flow, by contrast, generates its IaC fully (<code>spawn_iac_generator.py</code>)
 and provisions broodling VMs without these gaps.</blockquote>
-<h3>Phase 06 — Flux CD bootstrap</h3>
-<h3>Phase 07 — Intelligence layer</h3>
-<h3>Phase 08 — Verify and commit</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-06-flux-cd-bootstrap">Phase 06 — Flux CD bootstrap</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-07-intelligence-layer">Phase 07 — Intelligence layer</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-08-verify-and-commit">Phase 08 — Verify and commit</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Verifies all k3s nodes are Ready</li><li>Checks Flux CD reconciliation status</li><li>Commits <code>bootstrap-state.json</code> and <code>forge-manifest.json</code> to the Forgejo repository</li></ul>
 <hr>
-<h2>Step 6 — Verify the hatchery is operational</h2>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="step-6-verify-the-hatchery-is-operational">Step 6 — Verify the hatchery is operational</h2></summary><div class="sec-body" style="margin-left:12px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash"># Check k3s cluster health
 kubectl get nodes
 kubectl get pods -A
@@ -430,36 +559,43 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
 <div class="notefield"><label>Flux reconciliation status (flux get kustomizations)</label><input type="text" class="note-input" data-note="flux-reconciliation-status-flux-get-kustomizatio" placeholder="record here…"></div>
 <div class="notefield"><label>Any phase that needed --from resume, manual steps, or deviations</label><textarea class="note-area" data-note="any-phase-that-needed-from-resume-manual-steps-o" placeholder="record here…"></textarea></div>
 <hr>
-<h2>Troubleshooting</h2>
-<h3>Phase 02 fails with "hardware mismatch"</h3>
+</div></details>
+<details class="section" open><summary><h2 id="troubleshooting">Troubleshooting</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-02-fails-with-hardware-mismatch">Phase 02 fails with "hardware mismatch"</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Not enough disks: <code>lsblk</code> shows only 1 disk ≥32 GiB</li><li>Too little RAM: <code>/proc/meminfo MemTotal</code> shows &lt; 16 GiB</li><li>No physical NICs: <code>ip link</code> shows only loopback and virtual interfaces</li></ul>
-<h3>Phase 03 fails with "ZFS pool create failed"</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-03-fails-with-zfs-pool-create-failed">Phase 03 fails with "ZFS pool create failed"</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Disk already has a ZFS pool from a previous attempt: <code>zpool import -a</code> then <code>zpool destroy rpool</code></li><li>Disk is in use by the OS (boot disk): ensure the ZFS member disks are not the Proxmox boot disk</li></ul>
-<h3>Phase 05 fails with "Ansible unreachable"</h3>
-<h3>Phase 06 fails with "Flux bootstrap failed"</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-05-fails-with-ansible-unreachable">Phase 05 fails with "Ansible unreachable"</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-06-fails-with-flux-bootstrap-failed">Phase 06 fails with "Flux bootstrap failed"</h3></summary><div class="sec-body" style="margin-left:24px">
 <ul><li>Forgejo is not yet running: check VM health in phase 04</li><li>Git repository not pre-created: forge.sh will attempt to create it automatically,</li></ul>
-<h3>Headscale not accessible from WAN</h3>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="headscale-not-accessible-from-wan">Headscale not accessible from WAN</h3></summary><div class="sec-body" style="margin-left:24px">
 <ol><li>Verify port forwarding: router → 8080 → hatchery LAN IP</li><li>Verify external DNS A record: <code>dig hatchery.{domain} @8.8.8.8</code></li><li>Check Headscale service: <code>systemctl status headscale</code></li><li>Check TLS cert: <code>openssl s_client -connect hatchery.{domain}:8080</code></li></ol>
 <hr>
-<h2>Key files after forge</h2>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="key-files-after-forge">Key files after forge</h2></summary><div class="sec-body" style="margin-left:12px">
 <table><thead><tr><th>File</th><th>Location</th><th>Purpose</th></tr></thead><tbody><tr><td><code>forge-manifest.json</code></td><td><code>/root/</code></td><td>Cell identity snapshot</td></tr><tr><td><code>hardware-profile.json</code></td><td><code>/root/</code></td><td>Discovered hardware</td></tr><tr><td><code>bootstrap-state.json</code></td><td><code>proxmox-bootstrap/</code></td><td>Authoritative cell state</td></tr><tr><td><code>dns-registry.yaml</code></td><td><code>proxmox-bootstrap/</code></td><td>DNS records for all nodes</td></tr><tr><td>KeePass database</td><td><code>/etc/broodforge/keepass.kdbx</code></td><td>All service credentials</td></tr><tr><td>dnsmasq config</td><td><code>/etc/dnsmasq.d/broodforge.conf</code></td><td>Split-horizon DNS</td></tr><tr><td>Headscale config</td><td><code>/etc/headscale/config.yaml</code></td><td>Tailnet coordinator</td></tr><tr><td>TLS cert (WAN)</td><td><code>/etc/broodforge/ssl/</code></td><td>Let's Encrypt wildcard cert</td></tr></tbody></table>
 <hr>
-<h2>Next steps after forging</h2>
+</div></details>
+<details class="section" open><summary><h2 id="next-steps-after-forging">Next steps after forging</h2></summary><div class="sec-body" style="margin-left:12px">
 <ol><li><strong>Push GitOps repository</strong> to Forgejo — Flux CD will deploy application workloads</li><li><strong>Spawn broodlings</strong> — run <code>python3 proxmox-bootstrap/spawn-planner.py</code> on the hatchery</li></ol>
 <ol><li><strong>Run reconstruction drill</strong> — validate the hatchery can be reconstructed from state</li></ol>
 <ol><li><strong>Review the Bootstrap Workbook</strong> — generated in <code>reports/</code> by the intelligence layer</li><li><strong>Set up monitoring</strong> — deploy Prometheus agent via Flux GitOps</li></ol>
 <hr>
 <p><strong>Phase 1.F</strong> | Last updated: 2026-06-01 Forging is the process of taking bare Proxmox hardware to a fully operational broodforge hatchery using the forge package. This runbook covers the complete forge workflow end-to-end. <strong>This step is optional.</strong> The supported baseline remains: install Proxmox VE on the target host yourself (official installer, an existing cluster, hosting-provider-imaged hardware — whatever works for you), then start at Step 1 below. Skip this section entirely if you already have Proxmox VE installed. For operators who want to collapse "install Proxmox" + "copy the forge package over" + "SSH in and run forge.sh" into a single boot-and-walk-away operation, the Image Builder (Phase 1.H, AD-057) generates a <strong>bootstrap image staging bundle</strong> — a structured archive that documents and stages everything you need to combine with the official Proxmox VE ISO to produce bootable pre-install media. This produces <code>bootstrap-image-{cell_id}-{timestamp}.tar.gz</code>, containing an <code>iso-staging/</code> layout with: from <code>forge-manifest.json</code><strong> (hostname, domain, network, timezone) so you answer setup questions exactly once, not twice embedded so the new host can forge itself without a second copy step embedded forge package's <code>forge.sh</code> automatically on the new host's first boot, replacing the manual "SSH in and run forge.sh" step (Step 4) bundle (same SHA-256 verification pattern as the forge package, plus its AD-051 HTML twin) official Proxmox VE ISO </strong>Be clear about what this is.<strong> broodforge cannot download, mount, or remaster the official Proxmox VE ISO in an offline/stdlib-only environment — and does not redistribute Proxmox's installer media. The generated bundle is </strong>staging content<strong>, not a literal bootable ISO: you still combine it with the official ISO yourself, using Proxmox's own documented tooling (e.g. <code>proxmox-auto-install-assistant prepare-iso</code>). The bundle's <code>README.md</code> documents those steps precisely — read it before proceeding. </strong>Security note — the <code>answer.toml</code> root password.** The installer's answer file requires *some* root credential, and KeePass does not exist on the host yet at install time, so there is no reference-only option here. The Image Builder generates a <strong>fresh, single-use discovery passphrase</strong> (the exact pattern Cloud-Init already uses for spawned nodes — AD-039/AD-043), prints it once at build time, and embeds it in <code>answer.toml</code>. It is *not* a permanent credential and is never written to KeePass: the embedded forge package's phase-03 replaces it with a KeePass-managed credential during the automated forge run. <strong>Note the passphrase down when the builder prints it — you cannot recover it from the bundle afterward — and rotate or discard it once forging completes.</strong> If this step doesn't fit your situation (different hardware, different install method, you just prefer doing it by hand), skip it — Step 1 below is where every forge starts either way. On your <strong>workstation</strong>, generate the forge manifest using the interactive planner: The planner will ask you to: The planner writes <code>forge-manifest.json</code> in the current directory. <strong>Review the manifest:</strong> On your <strong>workstation</strong>, generate the self-contained forge package: This produces a package in the current directory: To embed the KeePass database in the package (convenient for offline use): <strong>Security note:</strong> The forge package never contains secret values — only KeePass paths (references). If you embed the KeePass database, it requires the master password to unlock. Without the database, the KeePass gate will prompt for the path at runtime. <strong>Verify integrity after transfer.</strong> The assembler prints the package SHA-256 (<code>SHA-256: …</code>) when it finishes Step 2. Confirm the copy on the target host matches before extracting: On the <strong>target host</strong> (SSH in or use the Proxmox console): The forge orchestrator runs 9 phases in order. Completed phases are checkpointed — if forge.sh fails or is interrupted, re-run it to resume from where it left off: Scans the hardware using <code>lsblk</code>, <code>ip link</code>, and <code>/proc/meminfo</code>. Writes <code>hardware-profile.json</code>. No changes are made to the system. Re-reads <code>forge-manifest.json</code>. If the manifest was generated on a different machine, this step adapts the plan to the actual discovered hardware. Runs <code>forge_validator.py</code> against <code>hardware-profile.json</code>. RED findings block the forge. Review the output and resolve issues before re-running. Common RED findings: This is the longest phase. It: <strong>KeePass gate:</strong> Phase 03 prompts for the KeePass master password once. All subsequent secret lookups during forging use this unlocked session — you will not be prompted again. <strong>Master password selection:</strong> If you selected the WAN network profile: <strong>Before running phase 03 in WAN mode:</strong> Provisions the minimum viable stack VMs (Forgejo + operations) using OpenTofu, from an <code>opentofu/</code> directory in the package. VM IDs, IPs, and roles are derived from <code>forge-manifest.json</code>. Runs the Ansible <code>k3s-server</code> playbook (<code>ansible/playbooks/04-k3s.yaml</code>) against the provisioned VMs, using the generated inventory at <code>ansible/inventory/hosts.yaml</code>. The k3s join token is retrieved from KeePass automatically. Bootstraps Flux CD against the Forgejo git server. Flux will continuously reconcile the GitOps repository to deploy application workloads. <strong>After forging:</strong> push your application manifests to the Forgejo repository. Flux CD will deploy them automatically without further manual intervention. Initialises <code>bootstrap-state.json</code> from the forge manifest and generates the first set of broodforge documentation (Bootstrap Workbook, Recovery Runbook, Readiness Report). After forge.sh completes: Expected output from <code>kubectl get nodes</code>: Record the outcome of this forge for your records (use <strong>Export</strong>, top-right, to save these notes + any attached logs as a timestamped package): The hardware does not meet minimum requirements. Review <code>hardware-profile.json</code> and the validator output. Common causes: Common causes: The k3s VMs are not yet accessible via SSH. Wait for Cloud-Init to complete (usually 1-3 minutes). Check VM status in the Proxmox web UI. Re-run <code>bash forge.sh --from 5</code>. Common causes: but if Forgejo credentials aren't in KeePass yet, it may fail to generate spawn packages for additional nodes (<code>docs/RECONSTRUCTION-DRILL.md</code>) *Broodforge FORGING.md | Phase 1.F | Architecture v7.1*</p>
+</div></details>
+</div></details>
     </div>
-    <div id="bf-attachments"><h3>Attachments</h3><p>Drag files here or click Add to include logs, screenshots, and manifests in your export package.</p><input type="file" id="bf-attach-input" multiple style="display:none"><button type="button" id="bf-attach-btn">+ Add files</button><ul id="bf-attach-list"></ul></div>
   </div>
   <div id="bf-drag"></div>
   <div id="bf-notes-pane">
-<div id="bf-notes-header"><span>Session Notes</span><button type="button" class="nts-export-btn" id="bf-notes-export-md" title="Export notes as Markdown">↓ MD</button><button type="button" class="nts-export-btn" id="bf-notes-export-html" title="Export notes as HTML">↓ HTML</button><button type="button" class="nts-export-btn" id="bf-notes-import" title="Import notes from Markdown file">↑ Import</button><button type="button" class="nts-clear-btn" id="bf-notes-clear" title="Clear all notes for this document">🗑</button><button type="button" id="bf-notes-toggle" title="Hide notes panel">◀</button></div><div id="bf-notes-body"><p style="color:var(--muted);font-size:.75em;margin:0 0 6px">Free-form notes — saved in your browser.</p><textarea id="bf-session-notes" placeholder="Quick notes…"></textarea><hr class="nts-divider"><p class="nts-label">Sections</p><div id="bf-notes-tree"></div><button type="button" id="bf-notes-add-root">+ Add section</button></div>
-  </div>
+<div id="bf-notes-header"><span>Session Notes</span><button type="button" class="nts-export-btn" id="bf-notes-export-md" title="Export notes as Markdown">↓ MD</button><button type="button" class="nts-export-btn" id="bf-notes-export-html" title="Export notes as HTML">↓ HTML</button><button type="button" class="nts-export-btn" id="bf-notes-import" title="Import notes from Markdown file">↑ Import</button><button type="button" class="nts-clear-btn" id="bf-notes-clear" title="Clear all notes for this document">🗑</button><div id="bf-notes-opacity-ctrl"><div class="bf-ctrl-row" title="Adjust panel transparency"><span class="bf-ctrl-label">opacity</span><button type="button" class="bf-op-btn" id="bf-notes-opacity-down" title="Less opaque">−</button><span id="bf-notes-opacity-val">95%</span><button type="button" class="bf-op-btn" id="bf-notes-opacity-up" title="More opaque">+</button></div><div class="bf-ctrl-row" title="Blur content behind panel"><span class="bf-ctrl-label">blur</span><button type="button" class="bf-op-btn" id="bf-notes-blur-down" title="Less blur">−</button><span id="bf-notes-blur-val">0px</span><button type="button" class="bf-op-btn" id="bf-notes-blur-up" title="More blur">+</button></div></div><button type="button" id="bf-notes-float-btn" title="Pop out notes panel">⊞</button><button type="button" id="bf-notes-toggle" title="Hide notes panel">◄</button></div><div id="bf-notes-body"><p style="color:var(--muted);font-size:.75em;margin:0 0 6px">Free-form notes — saved in your browser.</p><textarea id="bf-session-notes" placeholder="Quick notes…"></textarea><hr class="nts-divider"><p class="nts-label">Sections</p><div id="bf-notes-tree"></div><button type="button" id="bf-notes-add-root">+ Add section</button></div>  </div>
 </div>
 <script>
-
 (function(){
   var ns = 'bf:' + (document.body.dataset.doc || 'doc') + ':';
   // ---- theme ----
@@ -542,18 +678,89 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
       li.appendChild(nm); li.appendChild(sz); li.appendChild(rm); attList.appendChild(li);
     });
   }
+  function readFileList(files){
+    var pending=files.length; if(!pending) return;
+    files.forEach(function(f){
+      var rd=new FileReader();
+      rd.onload=function(){ atts.push({name:f.name, type:f.type||'application/octet-stream', bytes:new Uint8Array(rd.result)});
+        if(--pending===0) renderAtts(); };
+      rd.readAsArrayBuffer(f);
+    });
+  }
+  var attachAdd=document.getElementById('bf-attach-add');
+  var attachZone=document.getElementById('bf-attach-zone');
+  // toggle nav panel
+  var navToggle=document.getElementById('bf-nav-toggle');
+  var navPanel=document.getElementById('bf-nav-panel');
+  if(navToggle&&navPanel){
+    navToggle.addEventListener('click',function(e){
+      e.stopPropagation();
+      navPanel.classList.toggle('open');
+    });
+    document.addEventListener('click',function(e){
+      if(navPanel.classList.contains('open')&&!navPanel.contains(e.target)&&e.target!==navToggle){
+        navPanel.classList.remove('open');
+      }
+    });
+  }
+  var attachPanel=document.getElementById('bf-attach-panel');
+  var attachToggle=document.getElementById('bf-attach-toggle');
+  var attachCount=document.getElementById('bf-attach-count');
+  function updateAttachCount(){
+    if(attachCount) attachCount.textContent=atts.length?'('+atts.length+')':''; }
+  var _origRenderAtts=renderAtts;
+  renderAtts=function(){ _origRenderAtts(); updateAttachCount(); };
+  // toggle button
+  if(attachToggle&&attachPanel){
+    attachToggle.addEventListener('click',function(e){
+      e.stopPropagation();
+      attachPanel.classList.toggle('open');
+    });
+  }
+  // click outside to close
+  document.addEventListener('click',function(e){
+    if(attachPanel&&attachPanel.classList.contains('open')){
+      if(!attachPanel.contains(e.target)&&e.target!==attachToggle){
+        attachPanel.classList.remove('open');}
+    }
+  });
   if(fileInput){
     fileInput.addEventListener('change', function(){
-      var files=Array.prototype.slice.call(fileInput.files||[]);
-      var pending=files.length; if(!pending) return;
-      files.forEach(function(f){
-        var rd=new FileReader();
-        rd.onload=function(){ atts.push({name:f.name, type:f.type||'application/octet-stream', bytes:new Uint8Array(rd.result)});
-          if(--pending===0) renderAtts(); };
-        rd.readAsArrayBuffer(f);
-      });
+      readFileList(Array.prototype.slice.call(fileInput.files||[]));
       fileInput.value='';
     });
+  }
+  if(attachAdd&&fileInput){ attachAdd.addEventListener('click', function(e){ e.stopPropagation(); fileInput.click(); }); }
+  if(attachZone){
+    attachZone.addEventListener('dragover', function(e){ e.preventDefault(); e.stopPropagation(); attachZone.classList.add('drag-over'); });
+    attachZone.addEventListener('dragleave', function(e){ e.stopPropagation(); attachZone.classList.remove('drag-over'); });
+    attachZone.addEventListener('drop', function(e){
+      e.preventDefault(); e.stopPropagation(); attachZone.classList.remove('drag-over');
+      if(e.dataTransfer&&e.dataTransfer.files) readFileList(Array.prototype.slice.call(e.dataTransfer.files));
+    });
+  }
+  // auto-open panel when user drags files anywhere over the document
+  if(attachPanel){
+    var _dragEnterCount=0;
+  // allow drop anywhere on page
+  document.addEventListener('dragover',function(e){e.preventDefault();});
+    document.addEventListener('dragenter',function(e){
+      if(e.dataTransfer&&e.dataTransfer.types&&Array.prototype.indexOf.call(e.dataTransfer.types,'Files')>=0){
+        _dragEnterCount++;
+        attachPanel.classList.add('open');
+      }
+    });
+    document.addEventListener('dragleave',function(){
+      _dragEnterCount=Math.max(0,_dragEnterCount-1);
+    });
+  document.addEventListener('drop',function(e){
+    e.preventDefault();
+    _dragEnterCount=0;
+    if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length>0){
+      readFileList(Array.prototype.slice.call(e.dataTransfer.files));
+      if(attachPanel) attachPanel.classList.add('open');
+    }
+  });
   }
   var crcTable=(function(){ var t=[],c,n,k; for(n=0;n<256;n++){ c=n; for(k=0;k<8;k++){ c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); } t[n]=c>>>0; } return t; })();
   function crc32(buf){ var c=0xFFFFFFFF; for(var i=0;i<buf.length;i++){ c=crcTable[(c^buf[i])&0xFF]^(c>>>8); } return (c^0xFFFFFFFF)>>>0; }
@@ -589,7 +796,22 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
       var lab=div.querySelector('label');
       var labText=lab?lab.childNodes[0].textContent.trim():'';
       if(div.classList.contains('cred-field')){
-        notes.push({label:labText, value:'[credential — not exported for security]', type:'credential'});
+        var credInp=div.querySelector('.cred-input');
+        var credVal='';
+        var credSlug=credInp?credInp.dataset.cred:'';
+        try{credVal=sessionStorage.getItem('bf:cred:'+credSlug)||'';}catch(e){}
+        if(!credVal&&credInp) credVal=credInp.value||'';
+        var totpInp=div.querySelector('.cred-totp-input');
+        var totpVal='';
+        if(totpInp){
+          try{totpVal=sessionStorage.getItem('bf:totp:'+credSlug+'-totp')||'';}catch(e){}
+          if(!totpVal) totpVal=totpInp.value||'';
+        }
+        var methods=[];
+        div.querySelectorAll('.cred-method-cb').forEach(function(cb){if(cb.checked)methods.push(cb.value);});
+        var entry={label:labText, value:credVal||'(blank)', type:'credential', methods:methods};
+        if(totpInp&&totpVal) entry.totp_secret=totpVal;
+        notes.push(entry);
       } else if(div.classList.contains('choice-field')){
         var hid=div.querySelector('input[type=hidden][data-note]');
         var optNotes=[];
@@ -852,19 +1074,19 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
     modal.id='bf-enc-modal';
     modal.innerHTML=
       '<div id="bf-enc-box">'+
-      '<h3>🔒 Encrypt export package?</h3>'+
-      '<p>Credential fields were filled during this session. Your export will contain '+
-      'node details, paths, and configuration that may be sensitive.</p>'+
-      '<p>A passphrase-protected self-decrypting HTML file will be saved instead of a plain ZIP. '+
-      'Open it in any browser to decrypt and retrieve your ZIP.</p>'+
+      '<h3>🔑 Credential fields detected</h3>'+
+      '<p>One or more <strong>🔑 credential fields</strong> were filled. Their values will be '+
+      'included in the export so you can re-import and resume this session later.</p>'+
+      '<p>A passphrase has been generated below. <strong>Save it in KeePass or your vault '+
+      'before clicking Export</strong> — you will need it to decrypt the package.</p>'+
       '<div class="enc-phrase-row">'+
       '<input type="text" id="bf-enc-phrase" spellcheck="false" autocomplete="off" placeholder="passphrase…">'+
       '<button type="button" id="bf-enc-regen">↺ New</button>'+
       '</div>'+
-      '<p class="enc-hint">⚠ Save this passphrase in KeePass before proceeding.</p>'+
+      '<p class="enc-hint">⚠ Copy this passphrase to KeePass now — it will not be shown again.</p>'+
       '<div class="enc-actions">'+
       '<button type="button" id="bf-enc-confirm">🔒 Encrypt &amp; Export</button>'+
-      '<button type="button" id="bf-enc-plain">Export without encryption</button>'+
+      '<button type="button" id="bf-enc-plain">⚠ Export unencrypted (credentials in plaintext)</button>'+
       '<button type="button" id="bf-enc-cancel">Cancel</button>'+
       '</div></div>';
     document.body.appendChild(modal);
@@ -938,6 +1160,127 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
       }
     });
   }
+
+  // ---- session import ----
+  (function(){
+    var importBtn=document.getElementById('bf-import-session-btn');
+    if(!importBtn) return;
+    // Minimal stored-only ZIP reader (compression=0; our exports are always stored)
+    function parseZip(ab){
+      var buf=new Uint8Array(ab), view=new DataView(ab), files={};
+      var pos=buf.length-22;
+      while(pos>=0){if(buf[pos]===0x50&&buf[pos+1]===0x4b&&buf[pos+2]===0x05&&buf[pos+3]===0x06)break;pos--;}
+      if(pos<0) return null;
+      var cdOff=view.getUint32(pos+16,true), cdSz=view.getUint32(pos+12,true), p=cdOff;
+      while(p<cdOff+cdSz){
+        if(view.getUint32(p,true)!==0x02014b50) break;
+        var fnLen=view.getUint16(p+28,true),exLen=view.getUint16(p+30,true),cmtLen=view.getUint16(p+32,true);
+        var lOff=view.getUint32(p+42,true), cmpSz=view.getUint32(p+20,true), method=view.getUint16(p+10,true);
+        var name=new TextDecoder().decode(buf.slice(p+46,p+46+fnLen));
+        if(method===0){var lFn=view.getUint16(lOff+26,true),lEx=view.getUint16(lOff+28,true);
+          files[name]=ab.slice(lOff+30+lFn+lEx,lOff+30+lFn+lEx+cmpSz);}
+        p+=46+fnLen+exLen+cmtLen;
+      }
+      return files;
+    }
+    // Apply a parsed record.json to the current form
+    function applyRecord(rec){
+      var dec=new TextDecoder();
+      // Parameters
+      if(rec.parameters){
+        Object.keys(rec.parameters).forEach(function(k){
+          var inp=document.querySelector('.param-input[data-var="'+k+'"]');
+          if(inp){inp.value=rec.parameters[k];inp.dispatchEvent(new Event('input'));}
+        });
+      }
+      // Notes fields — match by label text
+      if(rec.notes&&rec.notes.length){
+        rec.notes.forEach(function(n){
+          // find notefield whose label text matches
+          var matched=null;
+          document.querySelectorAll('.notefield').forEach(function(div){
+            var lab=div.querySelector('label');
+            if(lab&&lab.childNodes[0].textContent.trim()===n.label) matched=div;
+          });
+          if(!matched) return;
+          if(n.type==='credential'){
+            var ci=matched.querySelector('.cred-input');
+            if(ci&&n.value&&n.value!=='(blank)'){
+              ci.value=n.value;
+              try{sessionStorage.setItem('bf:cred:'+ci.dataset.cred,n.value);}catch(e){}
+              ci.dispatchEvent(new Event('input'));
+            }
+          } else if(n.type==='field'){
+            var fi=matched.querySelector('.note-input');
+            if(fi){fi.value=n.value||'';
+              try{localStorage.setItem('bf:note:'+fi.dataset.note,fi.value);}catch(e){}
+              fi.dispatchEvent(new Event('input'));}
+          } else if(n.type==='area'){
+            var ai=matched.querySelector('.note-area');
+            if(ai){ai.value=n.value||'';
+              try{localStorage.setItem('bf:note:'+ai.dataset.note,ai.value);}catch(e){}
+              ai.dispatchEvent(new Event('input'));}
+          }
+          // radio/check/table: UI state is complex — skip for now; values visible in notes panel
+        });
+      }
+      // Session notes
+      if(rec.session_notes!==undefined){
+        var sn=document.getElementById('bf-session-notes');
+        if(sn){
+          sn.value=rec.session_notes;
+          try{var docSlug=document.body.dataset.doc||'doc';
+            localStorage.setItem('bf:notes:'+docSlug, rec.session_notes);}catch(e){}
+        }
+      }
+      alert('Session imported. Check fields and session notes — tables and choice fields may need manual review.');
+    }
+    // Handle a ZIP ArrayBuffer (plain or encrypted outer)
+    async function processZipAb(ab){
+      var files=parseZip(ab);
+      if(!files) return alert('Could not parse ZIP file.');
+      // Encrypted outer zip?
+      if(files['payload.enc']&&files['meta.json']){
+        var metaStr=new TextDecoder().decode(files['meta.json']);
+        var meta=JSON.parse(metaStr);
+        var phrase=prompt('This package is encrypted. Enter the passphrase to decrypt and import:','');
+        if(!phrase) return;
+        try{
+          var saltB64=meta.salt, ivB64=meta.iv;
+          function b64ToU8(s){var b=atob(s),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
+          var salt=b64ToU8(saltB64), iv=b64ToU8(ivB64);
+          var keyMat=await crypto.subtle.importKey('raw',new TextEncoder().encode(phrase),'PBKDF2',false,['deriveKey']);
+          var key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:600000,hash:'SHA-256'},
+            keyMat,{name:'AES-GCM',length:256},false,['decrypt']);
+          var ct=new Uint8Array(files['payload.enc']);
+          var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,ct);
+          // pt is the inner ZIP
+          var innerFiles=parseZip(pt);
+          if(!innerFiles||!innerFiles['record.json']) return alert('Decrypted successfully but record.json not found in inner ZIP.');
+          var rec=JSON.parse(new TextDecoder().decode(innerFiles['record.json']));
+          applyRecord(rec);
+        }catch(e){alert('Decryption failed — wrong passphrase or corrupted file.\n'+e.message);}
+      } else if(files['record.json']){
+        var rec=JSON.parse(new TextDecoder().decode(files['record.json']));
+        applyRecord(rec);
+      } else {
+        alert('ZIP does not contain a record.json or encrypted payload. Cannot import.');
+      }
+    }
+    // Wire button → hidden file input
+    var hiddenPick=document.createElement('input');
+    hiddenPick.type='file'; hiddenPick.accept='.zip'; hiddenPick.style.display='none';
+    document.body.appendChild(hiddenPick);
+    importBtn.addEventListener('click',function(){hiddenPick.click();});
+    hiddenPick.addEventListener('change',function(){
+      var f=hiddenPick.files&&hiddenPick.files[0];
+      if(!f) return;
+      hiddenPick.value='';
+      var rd=new FileReader();
+      rd.onload=function(){processZipAb(rd.result);};
+      rd.readAsArrayBuffer(f);
+    });
+  })();
 
   // ---- drag resizer ----
   (function(){
@@ -1323,6 +1666,38 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
         _updateCredMatch(conf.dataset.for||'');
       });
     });
+    // TOTP secret inputs — load saved value + persist on change
+    document.querySelectorAll('.cred-totp-input').forEach(function(inp){
+      var k='bf:totp:'+(inp.dataset.cred||inp.id||'');
+      try{var s=sessionStorage.getItem(k);if(s!==null)inp.value=s;}catch(e){}
+      inp.addEventListener('input',function(){
+        try{sessionStorage.setItem(k,inp.value);}catch(e){}
+      });
+    });
+    // Auth method checkboxes — show/hide sections, persist selection
+    document.querySelectorAll('.cred-method-cb').forEach(function(cb){
+      var cslug=cb.dataset.cred, method=cb.value;
+      var mk='bf:method:'+cslug+':'+method;
+      // Restore saved state (password defaults to checked, others to unchecked)
+      try{
+        var saved=sessionStorage.getItem(mk);
+        if(saved!==null) cb.checked=(saved==='1');
+      }catch(e){}
+      function applyVisibility(){
+        if(method==='password'){
+          var sec=document.getElementById('cred-pw-section-'+cslug);
+          if(sec) sec.style.display=cb.checked?'':'none';
+        } else if(method==='totp'){
+          var sec=document.getElementById('cred-totp-section-'+cslug);
+          if(sec) sec.style.display=cb.checked?'':'none';
+        }
+      }
+      applyVisibility();
+      cb.addEventListener('change',function(){
+        applyVisibility();
+        try{sessionStorage.setItem(mk,cb.checked?'1':'0');}catch(e){}
+      });
+    });
     // Click-to-peek on {{cred:slug}} masked spans in code blocks
     // Single click reveals for 4s, or click again to re-mask immediately
     document.querySelectorAll('.cred-tpl[data-cred-slug]').forEach(function(span){
@@ -1459,6 +1834,58 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
       }
     });
   })();
+  // ---- auto-suggest (codename / passphrase) ----
+  (function(){
+    var _adj=['amber','bold','brisk','calm','chief','crisp','dark','deep','fast','firm','fleet','fresh','grand','grey','hard','high','keen','kind','lean','light','long','mild','neat','noble','pale','prime','pure','quiet','rare','rich','safe','sharp','slow','small','soft','still','swift','tall','thin','true','warm','wide','wild'];
+    var _ani=['bat','bear','bee','buck','bull','cat','cod','crane','crow','deer','doe','dog','dove','duck','elk','emu','falcon','finch','fox','frog','gnu','hawk','hen','hog','ibis','jay','kite','lark','lynx','mink','mole','moose','moth','mule','newt','owl','pike','ram','rat','raven','robin','stag','swan','toad','vole','wasp','wolf','wren','yak'];
+    var _wds=['alpine','bridge','castle','circuit','current','delta','ember','engine','flare','forest','forge','gleam','hammer','herald','island','lantern','mantle','needle','nexus','onyx','pillar','quartz','relay','ridge','shield','signal','silver','spiral','summit','thunder','timber','torque','tunnel','vector','vertex','warden','winter','zenith'];
+    function _rnd(arr){var b=new Uint16Array(1);crypto.getRandomValues(b);return arr[b[0]%arr.length];}
+    function _rndN(max){var b=new Uint16Array(1);crypto.getRandomValues(b);return b[0]%max;}
+    function genSuggestion(kind,schema){
+      if(kind==='codename'){
+        if(schema==='adj-animal-nn') return _rnd(_adj)+'-'+_rnd(_ani)+'-'+(String(_rndN(99)+1).padStart(2,'0'));
+        if(schema==='cell-n') return 'cell-'+(_rndN(20)+1);
+        return _rnd(_adj)+'-'+_rnd(_ani);
+      }
+      if(schema==='3word-n') return _rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds)+'-'+(_rndN(900)+100);
+      if(schema==='random'){
+        var chars='abcdefghjkmnpqrstuvwxyz23456789';
+        var rb=new Uint8Array(18);crypto.getRandomValues(rb);
+        var s=Array.from(rb).map(function(b){return chars[b%chars.length];}).join('');
+        return s.slice(0,6)+'-'+s.slice(6,12)+'-'+s.slice(12,18);
+      }
+      if(kind==='totp-secret'){
+        var nb=schema==='totp-32'?32:20;
+        var b32='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        var rb=new Uint8Array(nb);crypto.getRandomValues(rb);
+        // encode bytes as base32
+        var bits=0,acc=0,out='';
+        for(var i=0;i<rb.length;i++){acc=(acc<<8)|rb[i];bits+=8;
+          while(bits>=5){bits-=5;out+=b32[(acc>>bits)&31];}}
+        if(bits>0)out+=b32[(acc<<(5-bits))&31];
+        // group in chunks of 4 for readability
+        return out.match(/.{1,4}/g).join(' ');
+      }
+      return _rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds);
+    }
+    document.querySelectorAll('.bf-suggest-btn').forEach(function(btn){
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        var kind=btn.dataset.suggest, forId=btn.dataset.for;
+        var sel=document.querySelector('.bf-suggest-select[data-suggest-for="'+forId+'"]');
+        var val=genSuggestion(kind,sel?sel.value:'');
+        var inp=document.querySelector('[data-note="'+forId+'"]')||document.getElementById('cred-'+forId)||document.getElementById('cred-totp-'+forId);
+        if(!inp)return;
+        inp.value=val;
+        inp.dispatchEvent(new Event('input',{bubbles:true}));
+        inp.dispatchEvent(new Event('change',{bubbles:true}));
+        if(kind==='passphrase'){
+          var conf=document.getElementById('cred-confirm-'+forId);
+          if(conf){conf.value=val;conf.dispatchEvent(new Event('input',{bubbles:true}));}
+        }
+      });
+    });
+  })();
   // ---- filename auto-suggest fields ----
   (function(){
     document.querySelectorAll('.filename-field').forEach(function(div){
@@ -1544,30 +1971,81 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
       document.querySelectorAll('.input-table tbody').forEach(function(tb){tb.innerHTML='';});
     });
   })();
-  // ---- per-section / subsection clear buttons ----
+  // ---- per-section / subsection clear + local collapse/expand buttons ----
+  // Always render all controls; non-applicable ones become ghost placeholders.
   (function(){
+    function hasInputs(det){
+      return det.querySelector('.note-input,.note-area,.cred-input,input[type=radio],input[type=checkbox],.input-table')!==null;
+    }
+    function directChildSubs(det){
+      var body=det.querySelector(':scope>.sec-body,:scope>.sub-body');
+      if(!body)return[];
+      return Array.prototype.slice.call(body.querySelectorAll(':scope>details.subsection'));
+    }
+    function clearSection(det){
+      det.querySelectorAll('.note-input,.note-area').forEach(function(f){
+        f.value='';try{localStorage.removeItem(ns+'note:'+(f.dataset.note||f.id));}catch(e){}f.dispatchEvent(new Event('input'));
+      });
+      det.querySelectorAll('.cred-input').forEach(function(f){
+        var slug=f.dataset.cred||'';
+        f.value='';try{sessionStorage.removeItem('bf:cred:'+slug);}catch(e){}
+        var conf=document.getElementById('cred-confirm-'+slug);if(conf)conf.value='';
+        if(slug&&window._updateCredMatch)window._updateCredMatch(slug);
+      });
+      det.querySelectorAll('input[type=radio],input[type=checkbox]:not(.cred-method-cb)').forEach(function(cb){cb.checked=false;cb.dispatchEvent(new Event('change'));});
+      det.querySelectorAll('.input-table tbody').forEach(function(tb){tb.innerHTML='';});
+    }
     document.querySelectorAll('details.section,details.subsection').forEach(function(det){
       var sum=det.querySelector(':scope>summary');if(!sum)return;
       var controls=sum.querySelector('.bf-sub-controls');
       if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
-      var btn=document.createElement('button');
-      btn.type='button';btn.className='sec-clear-btn';btn.title='Clear all fields in this section';btn.textContent='⊘ Clear';
-      btn.addEventListener('click',function(e){
-        e.stopPropagation();
-        if(!confirm('Clear all fields in this section?'))return;
-        det.querySelectorAll('.note-input,.note-area').forEach(function(f){
-          f.value='';try{localStorage.removeItem(ns+'note:'+(f.dataset.note||f.id));}catch(e){}f.dispatchEvent(new Event('input'));
+      var children=directChildSubs(det);
+      var hasChildren=children.length>=1;
+      var canClear=hasInputs(det);
+      // clear button — leftmost; ghost placeholder when no inputs
+      var clr=document.createElement('button');
+      clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
+      if(canClear){
+        clr.title='Clear all fields in this section';
+        clr.addEventListener('click',function(e){
+          e.stopPropagation();
+          if(!confirm('Clear all fields in this section?'))return;
+          clearSection(det);
         });
-        det.querySelectorAll('.cred-input').forEach(function(f){
-          var slug=f.dataset.cred||'';
-          f.value='';try{sessionStorage.removeItem('bf:cred:'+slug);}catch(e){}
-          var conf=document.getElementById('cred-confirm-'+slug);if(conf)conf.value='';
-          if(slug&&window._updateCredMatch)window._updateCredMatch(slug);
+      } else {
+        clr.classList.add('bf-ctrl-ghost');clr.title='';
+      }
+      // separator
+      var sep=document.createElement('div');sep.className='bf-ctrl-sep';
+      // collapse button — always active when section has any child subsections
+      var cBtn=document.createElement('button');
+      cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
+      if(hasChildren){
+        cBtn.title='Collapse child sections';
+        cBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          directChildSubs(det).forEach(function(d){d.removeAttribute('open');});
         });
-        det.querySelectorAll('input[type=radio],input[type=checkbox]').forEach(function(cb){cb.checked=false;cb.dispatchEvent(new Event('change'));});
-        det.querySelectorAll('.input-table tbody').forEach(function(tb){tb.innerHTML='';});
-      });
-      controls.insertBefore(btn,controls.firstChild);
+      } else {
+        cBtn.classList.add('bf-ctrl-ghost');cBtn.title='';
+      }
+      // expand button — always active when section has any child subsections
+      var eBtn=document.createElement('button');
+      eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
+      if(hasChildren){
+        eBtn.title='Expand child sections';
+        eBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          directChildSubs(det).forEach(function(d){d.setAttribute('open','');});
+        });
+      } else {
+        eBtn.classList.add('bf-ctrl-ghost');eBtn.title='';
+      }
+      // order: clear | sep | collapse | expand (rightmost)
+      controls.appendChild(clr);
+      controls.appendChild(sep);
+      controls.appendChild(cBtn);
+      controls.appendChild(eBtn);
     });
   })();
 
@@ -1602,6 +2080,7 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
     if(!pane||!btn) return;
     var CKEY='bf:notes-collapsed';
     function setCollapsed(v){
+      if(pane.classList.contains('floating')) return; // don't collapse while floating
       if(v){
         pane.classList.add('collapsed');
         if(drag) drag.classList.add('notes-hidden');
@@ -1616,8 +2095,249 @@ pve01-k3s    Ready    control-plane,master   5m    v1.28.x</code></pre>
     try{var s=localStorage.getItem(CKEY);if(s==='1') setCollapsed(true);}catch(e){}
     btn.addEventListener('click',function(){ setCollapsed(!pane.classList.contains('collapsed')); });
   })();
-})();
+  // ---- notes panel float / pop-out ----
+  (function(){
+    var pane=document.getElementById('bf-notes-pane');
+    var drag=document.getElementById('bf-drag');
+    var fbtn=document.getElementById('bf-notes-float-btn');
+    var hdr=document.getElementById('bf-notes-header');
+    var opDown=document.getElementById('bf-notes-opacity-down');
+    var opUp=document.getElementById('bf-notes-opacity-up');
+    var opVal=document.getElementById('bf-notes-opacity-val');
+    var blurDown=document.getElementById('bf-notes-blur-down');
+    var blurUp=document.getElementById('bf-notes-blur-up');
+    var blurVal=document.getElementById('bf-notes-blur-val');
+    var notesBody=document.getElementById('bf-notes-body');
+    if(!pane||!fbtn) return;
+    var FKEY='bf:notes-floating';
+    var OPKEY='bf:notes-opacity';
+    var BLURKEY='bf:notes-blur';
+    var floating=false;
+    var opPct=95;
+    var blurPx=0;
+    /* The last-focused notes container (quick-notes textarea or a .nts-section) */
+    var activeNoteContainer=null;
+    function fieldOpacity(){
+      /* Non-active notes fields: panel opacity + 10%, capped at 100% */
+      return (Math.min(100,opPct+10)/100).toFixed(2);
+    }
+    function getNoteContainer(el){
+      /* Quick-notes textarea is its own box; section notes live inside .nts-section */
+      if(el.id==='bf-session-notes') return el;
+      return el.closest('.nts-section')||el;
+    }
+    function applyOpacity(){
+      if(floating){
+        var alpha=(opPct/100).toFixed(2);
+        /* Panel background fades via rgba — border unaffected */
+        pane.style.setProperty('--notes-bg-alpha',alpha);
+        /* Header toolbar always 100% — set nothing on hdr */
+        /* Apply per-container opacity: non-active containers fade, active stays 100% */
+        if(notesBody){
+          var fOp=fieldOpacity();
+          var qn=document.getElementById('bf-session-notes');
+          if(qn&&qn!==activeNoteContainer) qn.style.opacity=fOp;
+          notesBody.querySelectorAll('.nts-section').forEach(function(s){
+            if(s!==activeNoteContainer) s.style.opacity=fOp;
+          });
+          if(activeNoteContainer){
+            activeNoteContainer.style.opacity='1';
+            /* CSS opacity is multiplicative — un-fade all ancestor .nts-section elements
+               so a nested active subsection isn't dimmed by its parent's fOp */
+            var par=activeNoteContainer.parentElement;
+            while(par&&par!==notesBody){
+              if(par.classList&&par.classList.contains('nts-section')) par.style.opacity='1';
+              par=par.parentElement;
+            }
+          }
+        }
+      }
+      if(opVal) opVal.textContent=opPct+'%';
+    }
+    function adjustOpacity(delta){
+      /* Lower bound 20%: below that the panel becomes dangerously invisible */
+      opPct=Math.min(100,Math.max(20,opPct+delta));
+      applyOpacity();
+      try{localStorage.setItem(OPKEY,String(opPct));}catch(e){}
+    }
+    function applyBlur(){
+      if(floating) pane.style.setProperty('--notes-blur',blurPx+'px');
+      if(blurVal) blurVal.textContent=blurPx+'px';
+    }
+    function adjustBlur(delta){
+      blurPx=Math.min(20,Math.max(0,blurPx+delta));
+      applyBlur();
+      try{localStorage.setItem(BLURKEY,String(blurPx));}catch(e){}
+    }
+    /* Per-container focus: the clicked notes box goes to 100%; previous reverts.
+       No focusout handler — clicking outside the panel does NOT revert the active
+       box. Only selecting a different notes input triggers the swap. */
+    if(notesBody){
+      notesBody.addEventListener('focusin',function(e){
+        if(!floating) return;
+        if(e.target.tagName!=='TEXTAREA'&&e.target.tagName!=='INPUT') return;
+        var container=getNoteContainer(e.target);
+        if(container!==activeNoteContainer){
+          if(activeNoteContainer) activeNoteContainer.style.opacity=fieldOpacity();
+          container.style.opacity='1';
+          activeNoteContainer=container;
+        }
+      });
+    }
+    function setFloat(f){
+      floating=f;
+      if(f){
+        pane.classList.add('floating');
+        pane.classList.remove('collapsed');
+        if(drag) drag.classList.add('notes-floating');
+        fbtn.textContent='⊟'; fbtn.title='Dock notes panel';
+        // position top-right using left (not right) so resize:both works for width
+        if(!pane.style.left){
+          /* Position so full panel (min 400px) is within viewport with a 10px margin */
+          var initW=Math.max(pane.offsetWidth||400,400);
+          pane.style.left=Math.max(0,document.documentElement.clientWidth-initW-10)+'px';
+          pane.style.top='48px';
+        }
+        pane.style.right='auto';
+        applyOpacity();
+        applyBlur();
+      }else{
+        pane.classList.remove('floating');
+        pane.style.left=''; pane.style.top=''; pane.style.right='';
+        pane.style.removeProperty('--notes-bg-alpha');
+        pane.style.removeProperty('--notes-blur');
+        /* Reset per-container opacity state */
+        activeNoteContainer=null;
+        if(notesBody){
+          var qn2=document.getElementById('bf-session-notes');
+          if(qn2) qn2.style.opacity='';
+          notesBody.querySelectorAll('.nts-section').forEach(function(s){ s.style.opacity=''; });
+        }
+        if(drag) drag.classList.remove('notes-floating');
+        fbtn.textContent='⊞'; fbtn.title='Pop out notes panel';
+      }
+      try{localStorage.setItem(FKEY,f?'1':'0');}catch(e){}
+    }
+    try{var ops=localStorage.getItem(OPKEY);if(ops){opPct=Math.min(100,Math.max(20,parseInt(ops,10)||95));}}catch(e){}
+    if(opVal) opVal.textContent=opPct+'%';
+    try{var bls=localStorage.getItem(BLURKEY);if(bls){blurPx=Math.min(20,Math.max(0,parseInt(bls,10)||0));}}catch(e){}
+    if(blurVal) blurVal.textContent=blurPx+'px';
+    if(opDown) opDown.addEventListener('click',function(e){e.stopPropagation();adjustOpacity(-5);});
+    if(opUp) opUp.addEventListener('click',function(e){e.stopPropagation();adjustOpacity(5);});
+    if(blurDown) blurDown.addEventListener('click',function(e){e.stopPropagation();adjustBlur(-1);});
+    if(blurUp) blurUp.addEventListener('click',function(e){e.stopPropagation();adjustBlur(1);});
+    fbtn.addEventListener('click',function(){ setFloat(!floating); });
+    try{if(localStorage.getItem(FKEY)==='1') setFloat(true);}catch(e){}
+    // drag to reposition when floating — clamp to viewport so panel can't be lost
+    if(!hdr) return;
+    function clampPane(){
+      if(!floating) return;
+      var vw=document.documentElement.clientWidth;
+      var vh=document.documentElement.clientHeight;
+      var pw=pane.offsetWidth; var ph=pane.offsetHeight;
+      /* keep panel fully within viewport */
+      var left=Math.max(0,Math.min(parseFloat(pane.style.left)||0,vw-pw));
+      var top=Math.max(0,Math.min(parseFloat(pane.style.top)||0,vh-ph));
+      /* also shrink panel if it's now larger than the viewport */
+      if(pw>vw){ pane.style.width=vw+'px'; }
+      if(ph>vh){ pane.style.height=vh+'px'; }
+      pane.style.left=left+'px'; pane.style.top=top+'px'; pane.style.right='auto';
+    }
+    var _dx=0,_dy=0,_sx=0,_sy=0;
+    hdr.addEventListener('mousedown',function(e){
+      if(!floating) return;
+      if(e.target.tagName==='BUTTON') return;
+      e.preventDefault();
+      var r=pane.getBoundingClientRect();
+      _sx=e.clientX; _sy=e.clientY; _dx=r.left; _dy=r.top;
+      function mv(e){
+        var vw=document.documentElement.clientWidth;
+        var vh=document.documentElement.clientHeight;
+        var pw=pane.offsetWidth; var ph=pane.offsetHeight;
+        pane.style.left=Math.max(0,Math.min(_dx+(e.clientX-_sx),vw-pw))+'px';
+        pane.style.top=Math.max(0,Math.min(_dy+(e.clientY-_sy),vh-ph))+'px';
+        pane.style.right='auto';
+      }
+      function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); }
+      document.addEventListener('mousemove',mv);
+      document.addEventListener('mouseup',up);
+    });
+    /* Re-clamp position when window resizes so panel never ends up outside viewport */
+    window.addEventListener('resize',clampPane);
+  })();
 
+  // ---- inline section editor ----
+  (function(){
+    var docBody=document.getElementById('bf-doc-body');
+    if(!docBody) return;
+    var EKEY=ns+'edit:';
+    // Only wrap content blocks, not field widgets or section summary headings
+    var blocks=Array.from(docBody.querySelectorAll('p,h2,h3,h4')).filter(function(el){
+      return !el.closest('.note-field,.cred-field,.param-row,.input-table,.params-hint,summary,#bf-walkthrough-hint');
+    });
+    var originals={};
+    blocks.forEach(function(el,i){
+      originals[i]=el.innerHTML;
+      el.dataset.editIdx=String(i);
+      // Re-apply stored edit on load
+      try{
+        var stored=localStorage.getItem(EKEY+i);
+        if(stored!==null) el.innerHTML=stored+'<span class="bf-edited-mark">(edited)</span>';
+      }catch(e){}
+      // Wrap
+      var wrap=document.createElement('div');
+      wrap.className='bf-editable-block';
+      el.parentNode.insertBefore(wrap,el);
+      wrap.appendChild(el);
+      // Edit button
+      var btn=document.createElement('button');
+      btn.type='button';btn.className='bf-edit-btn';btn.title='Edit this block';btn.textContent='✎';
+      wrap.appendChild(btn);
+      btn.addEventListener('click',function(){
+        if(wrap.querySelector('.bf-edit-area')) return;
+        btn.style.display='none';el.style.display='none';
+        var cur=el.innerHTML.replace(/<span class="bf-edited-mark">[^<]*<\/span>$/,'').trim();
+        var ta=document.createElement('textarea');
+        ta.className='bf-edit-area';ta.value=cur;
+        wrap.insertBefore(ta,btn);
+        ta.style.height=Math.max(80,ta.scrollHeight+6)+'px';
+        var ctrls=document.createElement('div');ctrls.className='bf-edit-controls';
+        var sv=document.createElement('button');sv.type='button';sv.className='bf-edit-save';sv.textContent='✓ Save';
+        var cl=document.createElement('button');cl.type='button';cl.className='bf-edit-cancel';cl.textContent='✕ Cancel';
+        var rs=document.createElement('button');rs.type='button';rs.className='bf-edit-cancel';rs.textContent='↺ Reset';
+        ctrls.appendChild(sv);ctrls.appendChild(cl);ctrls.appendChild(rs);
+        wrap.insertBefore(ctrls,btn);ta.focus();
+        function closeEd(){wrap.removeChild(ta);wrap.removeChild(ctrls);el.style.display='';btn.style.display='';}
+        sv.addEventListener('click',function(){
+          var val=ta.value;
+          el.innerHTML=val+'<span class="bf-edited-mark">(edited)</span>';
+          try{localStorage.setItem(EKEY+i,val);}catch(e){}
+          closeEd();
+        });
+        cl.addEventListener('click',closeEd);
+        rs.addEventListener('click',function(){
+          if(!confirm('Reset to original content?'))return;
+          try{localStorage.removeItem(EKEY+i);}catch(e){}
+          el.innerHTML=originals[i];closeEd();
+        });
+      });
+    });
+    // Download with edits
+    var dlBtn=document.getElementById('bf-download-edits-btn');
+    if(dlBtn){
+      dlBtn.addEventListener('click',function(){
+        var clone=document.documentElement.cloneNode(true);
+        clone.querySelectorAll('.bf-edit-btn,.bf-edited-mark,.bf-edit-controls,.bf-edit-area').forEach(function(e){e.remove();});
+        clone.querySelectorAll('.bf-editable-block').forEach(function(w){
+          var p=w.parentNode;while(w.firstChild)p.insertBefore(w.firstChild,w);p.removeChild(w);
+        });
+        var h='<!DOCTYPE html>\n'+clone.outerHTML;
+        var blob=new Blob([h],{type:'text/html'});
+        window.bfSave(blob,(document.title||'doc').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-edited.html');
+      });
+    }
+  })();
+})();
 </script>
 </body>
 </html>

@@ -31,9 +31,8 @@
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    padding: 24px;
-    max-width: 960px;
-    margin: 0 auto;
+    margin: 0;
+    padding: 0;
   }
   h1 { color: var(--accent); font-size: 1.6em; margin-bottom: 4px; }
   .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 0.9em; }
@@ -244,6 +243,79 @@
     .note-input { border: 1px solid #ccc; background: #fafafa; color: #000; }
     .toc a { color: #000; }
   }
+
+  /* ── split-pane layout ─────────────────────────────────────────────────── */
+  html,body{height:100%;overflow:hidden;margin:0;padding:0}
+  #bf-app{display:flex;height:100vh;overflow:hidden}
+  #bf-doc-pane{flex:1 1 auto;overflow-y:auto;padding:24px 28px 80px;min-width:0}
+  #bf-drag{flex:0 0 5px;cursor:col-resize;background:var(--border,#3a3f4d);
+    transition:background .1s;z-index:20}
+  #bf-drag:hover,#bf-drag.dragging{background:var(--accent,#89b4fa)}
+  #bf-notes-pane{flex:0 0 320px;min-width:180px;max-width:60vw;
+    display:flex;flex-direction:column;
+    border-left:1px solid var(--border,#3a3f4d);background:var(--bg2,#22262e);overflow:hidden}
+  #bf-notes-header{padding:8px 10px 6px;border-bottom:1px solid var(--border,#3a3f4d);
+    flex:0 0 auto;display:flex;align-items:center;gap:6px}
+  #bf-notes-header span{color:var(--accent,#89b4fa);font-size:.82em;font-weight:700;
+    text-transform:uppercase;letter-spacing:.06em;flex:1}
+  #bf-notes-body{flex:1;overflow-y:auto;padding:8px 10px 20px}
+  #bf-session-notes{width:100%;min-height:80px;resize:vertical;
+    background:var(--code-bg,#181b21);color:var(--text,#cdd6f4);
+    border:1px solid var(--border,#3a3f4d);border-radius:4px;
+    padding:5px 8px;font-family:inherit;font-size:.85em}
+  #bf-session-notes:focus{outline:none;border-color:var(--accent,#89b4fa)}
+  .nts-export-btn{background:var(--btn-bg,#2a2f3a);color:var(--muted,#7f8498);
+    border:1px solid var(--border,#3a3f4d);border-radius:4px;
+    padding:2px 8px;cursor:pointer;font-size:.72em;font-family:inherit;flex-shrink:0}
+  .nts-export-btn:hover{border-color:var(--accent,#89b4fa);color:var(--accent,#89b4fa)}
+  #bf-notes-toggle{background:none;border:none;color:var(--muted,#7f8498);cursor:pointer;
+    padding:2px 6px;font-size:.85em;line-height:1;border-radius:3px;flex-shrink:0}
+  #bf-notes-toggle:hover{color:var(--accent,#89b4fa)}
+  #bf-notes-pane.collapsed{flex:0 0 30px !important;min-width:30px;overflow:hidden}
+  #bf-notes-pane.collapsed #bf-notes-body,
+  #bf-notes-pane.collapsed .nts-export-btn{display:none}
+  #bf-notes-pane.collapsed #bf-notes-header{
+    writing-mode:vertical-rl;flex-direction:row;
+    padding:14px 4px;gap:10px;justify-content:flex-start}
+  #bf-notes-pane.collapsed #bf-notes-header>span{writing-mode:vertical-rl;text-orientation:mixed}
+  #bf-drag.notes-hidden{display:none}
+  .nts-divider{border:none;border-top:1px solid var(--border,#3a3f4d);margin:10px 0 6px}
+  .nts-label{color:var(--muted,#7f8498);font-size:.72em;font-weight:600;
+    text-transform:uppercase;letter-spacing:.07em;margin:0 0 4px}
+  .nts-section{margin:4px 0;border:1px solid var(--border,#3a3f4d);border-radius:4px;overflow:hidden}
+  .nts-section>summary.nts-hdr{list-style:none;cursor:pointer;user-select:none;
+    display:flex;align-items:center;gap:4px;background:var(--bg3,#2a2f3a);
+    padding:5px 8px;font-size:.79em}
+  .nts-section>summary.nts-hdr::-webkit-details-marker{display:none}
+  .nts-section>summary.nts-hdr::before{content:'\25B6';font-size:.6em;
+    color:var(--muted,#7f8498);flex-shrink:0;transition:transform .1s;margin-right:2px}
+  .nts-section[open]>summary.nts-hdr::before{transform:rotate(90deg)}
+  .nts-hdr-title{flex:1;background:none;border:none;border-bottom:1px solid transparent;
+    color:var(--text,#cdd6f4);font-size:inherit;font-family:inherit;cursor:text;padding:0 2px;min-width:0}
+  .nts-hdr-title:focus{outline:none;border-bottom-color:var(--accent,#89b4fa)}
+  .nts-hdr-btn{background:none;border:none;color:var(--muted,#7f8498);cursor:pointer;
+    padding:0 4px;font-size:.95em;line-height:1;border-radius:3px;flex-shrink:0}
+  .nts-hdr-btn:hover{color:var(--accent,#89b4fa)}
+  .nts-hdr-btn.del:hover{color:var(--red,#f38ba8)}
+  .nts-body{padding:5px 8px 8px;background:var(--bg,#1a1d23)}
+  .nts-body textarea{width:100%;min-height:50px;resize:vertical;margin-bottom:4px;
+    font-size:.81em;background:var(--code-bg,#181b21);color:var(--text,#cdd6f4);
+    border:1px solid var(--border,#3a3f4d);border-radius:4px;padding:4px 6px;font-family:inherit}
+  .nts-body textarea:focus{outline:none;border-color:var(--accent,#89b4fa)}
+  .nts-add-btn{display:block;width:100%;background:none;
+    border:1px dashed var(--border,#3a3f4d);color:var(--muted,#7f8498);border-radius:4px;
+    padding:3px;cursor:pointer;font-size:.72em;margin-top:4px;font-family:inherit}
+  .nts-add-btn:hover{border-color:var(--accent,#89b4fa);color:var(--accent,#89b4fa)}
+  #bf-notes-add-root{width:100%;background:var(--btn-bg,#2a2f3a);color:var(--text,#cdd6f4);
+    border:1px solid var(--border,#3a3f4d);border-radius:4px;
+    padding:4px 10px;cursor:pointer;font-size:.78em;font-family:inherit;margin-top:8px}
+  #bf-notes-add-root:hover{border-color:var(--accent,#89b4fa);color:var(--accent,#89b4fa)}
+  @media print{#bf-notes-pane,#bf-drag{display:none}#bf-doc-pane{overflow:visible}}
+
+  .nts-clear-btn{background:none;border:none;color:var(--muted,#7f8498);cursor:pointer;
+    padding:2px 6px;font-size:.85em;line-height:1;border-radius:3px;flex-shrink:0}
+  .nts-clear-btn:hover{color:#f38ba8}
+  #bf-notes-pane.collapsed .nts-clear-btn{display:none}
 </style>
 <!-- bf-theme-injected -->
 
@@ -275,6 +347,9 @@
 </style>
 </head>
 <body>
+<div id="bf-app">
+<div id="bf-doc-pane">
+
 
 <h1>🔥 Broodforge Setup Guide</h1>
 <p class="subtitle">Forge · Spawn · Phoenix — collapsible reference for all three deployment packages</p>
@@ -1858,5 +1933,213 @@ document.addEventListener('DOMContentLoaded', () => { restoreAll(); initMfaSelec
   })(pres[i]); }
 })();
 </script>
+
+</div>
+<div id="bf-drag"></div>
+<div id="bf-notes-pane">
+  <div id="bf-notes-header">
+    <span>Session Notes</span>
+    <button type="button" class="nts-export-btn" id="bf-notes-export-md" title="Export notes as Markdown">↓ MD</button>
+    <button type="button" class="nts-export-btn" id="bf-notes-export-html" title="Export notes as HTML">↓ HTML</button>
+    <button type="button" id="bf-notes-toggle" title="Hide notes panel">◀</button>
+  </div>
+  <div id="bf-notes-body">
+    <p style="color:var(--muted,#7f8498);font-size:.75em;margin:0 0 6px">Free-form notes — saved in your browser.</p>
+    <textarea id="bf-session-notes" placeholder="Quick notes…"></textarea>
+    <hr class="nts-divider">
+    <p class="nts-label">Sections</p>
+    <div id="bf-notes-tree"></div>
+    <button type="button" id="bf-notes-add-root">+ Add section</button>
+  </div>
+</div>
+</div>
+
+<script>
+/* ---- broodforge notes panel ---- */
+(function(){
+  var ns='bf:'+(document.body.dataset.doc||(document.title||'doc').replace(/\s+/g,'-').toLowerCase())+':';
+  // persist session notes textarea
+  var sn=document.getElementById('bf-session-notes');
+  if(sn){
+    try{var sv=localStorage.getItem(ns+'sn');if(sv!==null)sn.value=sv;}catch(e){}
+    sn.addEventListener('input',function(){try{localStorage.setItem(ns+'sn',sn.value);}catch(e){}});
+  }
+  // shared save-dialog helper
+  window.bfSave=async function(blob,suggestedName,types){
+    if(window.showSaveFilePicker){
+      try{
+        var handle=await window.showSaveFilePicker({suggestedName:suggestedName,
+          types:(types&&types.length)?types:undefined});
+        var w=await handle.createWritable();await w.write(blob);await w.close();return true;
+      }catch(e){if(e.name==='AbortError')return false;}
+    }
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download=suggestedName;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);return true;
+  };
+  // drag resizer
+  (function(){
+    var drag=document.getElementById('bf-drag');
+    var pane=document.getElementById('bf-notes-pane');
+    if(!drag||!pane)return;
+    var dragging=false,startX=0,startW=0;
+    function clamp(v){return Math.max(180,Math.min(window.innerWidth*0.6,v));}
+    drag.addEventListener('mousedown',function(e){
+      dragging=true;startX=e.clientX;startW=pane.offsetWidth;
+      drag.classList.add('dragging');document.body.style.userSelect='none';e.preventDefault();
+    });
+    document.addEventListener('mousemove',function(e){
+      if(!dragging)return;
+      var w=clamp(startW+(startX-e.clientX));pane.style.flex='0 0 '+w+'px';
+      try{localStorage.setItem('bf:notes-pane-w',w);}catch(err){}
+    });
+    document.addEventListener('mouseup',function(){
+      if(!dragging)return;dragging=false;drag.classList.remove('dragging');
+      document.body.style.userSelect='';
+    });
+    try{var sw=localStorage.getItem('bf:notes-pane-w');if(sw)pane.style.flex='0 0 '+sw+'px';}catch(e){}
+  })();
+  // notes tree
+  (function(){
+    var DOC=document.body.dataset.doc||(document.title||'doc').replace(/\s+/g,'-').toLowerCase();
+    var NTS_KEY='bf:'+DOC+':nts';
+    function load(){try{var s=localStorage.getItem(NTS_KEY);return s?JSON.parse(s):[];}catch(e){return[];}}
+    function save(t){try{localStorage.setItem(NTS_KEY,JSON.stringify(t));}catch(e){}}
+    function uid(){return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,5);}
+    function find(tree,id){for(var i=0;i<tree.length;i++){if(tree[i].id===id)return tree[i];var r=find(tree[i].ch||[],id);if(r)return r;}return null;}
+    function remove(tree,id){for(var i=0;i<tree.length;i++){if(tree[i].id===id){tree.splice(i,1);return true;}if(remove(tree[i].ch||[],id))return true;}return false;}
+    var tree=load(),container=document.getElementById('bf-notes-tree');
+    if(!container)return;
+    function mkNode(node){
+      var det=document.createElement('details');det.className='nts-section';
+      if(node.open)det.setAttribute('open','');det.dataset.id=node.id;
+      var sum=document.createElement('summary');sum.className='nts-hdr';
+      var ti=document.createElement('input');ti.type='text';ti.className='nts-hdr-title';
+      ti.value=node.title||'';ti.placeholder='Section name…';
+      ti.addEventListener('click',function(e){e.stopPropagation();});
+      ti.addEventListener('input',function(){var n=find(tree,node.id);if(n){n.title=ti.value;save(tree);}});
+      var db=document.createElement('button');db.type='button';db.className='nts-hdr-btn del';db.title='Remove';db.textContent='×';
+      db.addEventListener('click',function(e){e.stopPropagation();if(!confirm('Remove this section and all its subsections?'))return;remove(tree,node.id);save(tree);render();});
+      sum.appendChild(ti);sum.appendChild(db);det.appendChild(sum);
+      var body=document.createElement('div');body.className='nts-body';
+      var ta=document.createElement('textarea');ta.placeholder='Notes…';ta.value=node.body||'';
+      ta.addEventListener('input',function(){var n=find(tree,node.id);if(n){n.body=ta.value;save(tree);}});
+      body.appendChild(ta);
+      var chCont=document.createElement('div');(node.ch||[]).forEach(function(c){chCont.appendChild(mkNode(c));});body.appendChild(chCont);
+      var addBtn=document.createElement('button');addBtn.type='button';addBtn.className='nts-add-btn';addBtn.textContent='+ Add subsection';
+      addBtn.addEventListener('click',function(){var n=find(tree,node.id);if(!n)return;if(!n.ch)n.ch=[];n.ch.push({id:uid(),title:'',body:'',open:true,ch:[]});save(tree);render();});
+      body.appendChild(addBtn);det.appendChild(body);
+      det.addEventListener('toggle',function(){var n=find(tree,node.id);if(n){n.open=det.open;save(tree);}});
+      return det;
+    }
+    function render(){container.innerHTML='';tree.forEach(function(n){container.appendChild(mkNode(n));});}
+    window.bfNotesReset=function(newTree){tree=newTree||[];save(tree);render();};
+    var addRoot=document.getElementById('bf-notes-add-root');
+    if(addRoot){addRoot.addEventListener('click',function(){tree.push({id:uid(),title:'',body:'',open:true,ch:[]});save(tree);render();});}
+    render();
+  })();
+  // notes export
+  (function(){
+    var DOC=document.body.dataset.doc||(document.title||'doc').replace(/\s+/g,'-').toLowerCase();
+    function docSlug(){return (document.title||'Notes').trim().replace(/\.md\b/gi,'').replace(/[^\w\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'')||'Notes';}
+    function stamp(){var d=new Date();function p(n){return(n<10?'0':'')+n;}var tz=(new Date()).toLocaleTimeString('en-US',{timeZoneName:'short'}).split(' ').pop()||'UTC';return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+'-'+p(d.getMinutes())+'_'+p(d.getSeconds())+'_'+tz;}
+    function suggestName(ext){return docSlug()+'_notes_'+stamp()+'.'+ext;}
+    function getTree(){try{var s=localStorage.getItem('bf:'+DOC+':nts');return s?JSON.parse(s):[];}catch(e){return[];}}
+    function getSN(){var el=document.getElementById('bf-session-notes');return el?el.value:'';}
+    function treeToMd(nodes,depth){var out=[],prefix='#'.repeat(Math.min(depth+1,6))+' ';nodes.forEach(function(n){out.push(prefix+(n.title||'Untitled'));if(n.body&&n.body.trim())out.push('',n.body.trim(),'');if(n.ch&&n.ch.length)out.push(treeToMd(n.ch,depth+1));});return out.join('\n');}
+    function buildMd(){var t=document.title||'Notes',lines=['# '+t+' — Session Notes','','*Exported: '+new Date().toString()+'*',''],sn=getSN(),tree=getTree();if(sn.trim())lines.push('## Quick Notes','',sn.trim(),'');if(tree.length)lines.push('## Sections','',treeToMd(tree,2));return lines.join('\n');}
+    function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');}
+    function treeToHtml(nodes,depth){return nodes.map(function(n){var tag='h'+Math.min(depth,6),ch=(n.ch&&n.ch.length)?treeToHtml(n.ch,depth+1):'',body=n.body&&n.body.trim()?'<p style="white-space:pre-wrap;margin:6px 0 10px">'+esc(n.body.trim())+'</p>':'';return'<details open><summary><'+tag+' style="display:inline;font-size:inherit">'+esc(n.title||'Untitled')+'</'+tag+'></summary><div style="padding-left:16px">'+body+ch+'</div></details>';}).join('\n');}
+    function buildHtml(){var t=esc(document.title||'Notes'),sn=getSN(),tree=getTree();return'<!DOCTYPE html>\n<html lang="en"><head><meta charset="UTF-8"><title>'+t+' — Notes</title><style>body{font-family:Segoe UI,system-ui,sans-serif;font-size:14px;line-height:1.6;background:#1a1d23;color:#cdd6f4;max-width:860px;margin:0 auto;padding:24px}h1,h2,h3,h4,h5,h6{color:#89b4fa}details{margin:4px 0}summary{cursor:pointer;user-select:none;list-style:none;padding:4px 0}summary::-webkit-details-marker{display:none}p{margin:6px 0}</style></head><body><h1>'+t+' — Session Notes</h1><p style="color:#7f8498;font-size:.85em">Exported: '+new Date().toString()+'</p>'+(sn.trim()?'<section><h2>Quick Notes</h2><p style="white-space:pre-wrap">'+esc(sn.trim())+'</p></section>':'')+(tree.length?'<section><h2>Sections</h2>'+treeToHtml(tree,3)+'</section>':'')+'</body></html>\n';}
+    async function dl(text,name,mime,types){if(window.bfSave)return window.bfSave(new Blob([text],{type:mime}),name,types||[]);var url=URL.createObjectURL(new Blob([text],{type:mime}));var a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);return true;}
+    var btnMd=document.getElementById('bf-notes-export-md'),btnHtml=document.getElementById('bf-notes-export-html');
+    if(btnMd){btnMd.addEventListener('click',async function(){var saved=await dl(buildMd(),suggestName('md'),'text/markdown',[{description:'Markdown file',accept:{'text/markdown':['.md']}}]);if(saved!==false){var o=btnMd.textContent;btnMd.textContent='Saved ✓';setTimeout(function(){btnMd.textContent=o;},1400);}});}
+    if(btnHtml){btnHtml.addEventListener('click',async function(){var saved=await dl(buildHtml(),suggestName('html'),'text/html',[{description:'HTML file',accept:{'text/html':['.html']}}]);if(saved!==false){var o=btnHtml.textContent;btnHtml.textContent='Saved ✓';setTimeout(function(){btnHtml.textContent=o;},1400);}});}
+  })();
+
+  // ---- clear all notes for this document ----
+  (function(){
+    var btn=document.getElementById('bf-notes-clear');
+    if(!btn) return;
+    btn.addEventListener('click',function(){
+      if(!confirm('Clear all notes for this document? This cannot be undone.')) return;
+      var DOC=document.body.dataset.doc||(document.title||'doc').replace(/\s+/g,'-').toLowerCase();
+      try{localStorage.removeItem('bf:'+DOC+':nts');}catch(e){}
+      try{localStorage.removeItem('bf:'+DOC+':sn');}catch(e){}
+      var sn=document.getElementById('bf-session-notes');
+      if(sn) sn.value='';
+      if(window.bfNotesReset) window.bfNotesReset([]);
+    });
+  })();
+
+  // ---- import notes from exported *.md file ----
+  (function(){
+    var btn=document.getElementById('bf-notes-import');
+    if(!btn) return;
+    function uid(){return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,5);}
+    function parseMdSections(text){
+      var lines=text.split('\n'),stack=[],result=[],i=0;
+      while(i<lines.length){
+        var hm=lines[i].match(/^(#{1,6}) (.+)/);
+        if(hm){
+          var depth=hm[1].length,title=hm[2].trim();
+          var node={id:uid(),title:title,body:'',open:true,ch:[]};
+          while(stack.length&&stack[stack.length-1].depth>=depth) stack.pop();
+          if(!stack.length) result.push(node);
+          else { var par=stack[stack.length-1].node; if(!par.ch) par.ch=[]; par.ch.push(node); }
+          stack.push({node:node,depth:depth});
+          i++;
+          var bodyLines=[];
+          while(i<lines.length&&!lines[i].match(/^#{1,6} /)){bodyLines.push(lines[i]);i++;}
+          while(bodyLines.length&&!bodyLines[0].trim()) bodyLines.shift();
+          while(bodyLines.length&&!bodyLines[bodyLines.length-1].trim()) bodyLines.pop();
+          node.body=bodyLines.join('\n');
+        } else { i++; }
+      }
+      return result;
+    }
+    function applyImport(text){
+      var qnMatch=text.match(/^## Quick Notes\s*\n([\s\S]*?)(?=\n## |\n# |$)/m);
+      var qn=qnMatch?qnMatch[1].trim():'';
+      var secMatch=text.match(/^## Sections\s*\n([\s\S]*)$/m);
+      var newTree=secMatch?parseMdSections(secMatch[1].trim()):[];
+      var DOC=document.body.dataset.doc||(document.title||'doc').replace(/\s+/g,'-').toLowerCase();
+      var existSn=document.getElementById('bf-session-notes');
+      var existTree=[];
+      try{var s=localStorage.getItem('bf:'+DOC+':nts');if(s) existTree=JSON.parse(s);}catch(e){}
+      var hasExisting=(existSn&&existSn.value.trim())||(existTree&&existTree.length);
+      if(hasExisting&&!confirm('Importing will replace your current notes for this document. Continue?')) return;
+      if(existSn) existSn.value=qn;
+      try{localStorage.setItem('bf:'+DOC+':sn',qn);}catch(e){}
+      if(window.bfNotesReset) window.bfNotesReset(newTree);
+      btn.textContent='Imported ✓';
+      setTimeout(function(){btn.textContent='↑ Import';},1600);
+    }
+    btn.addEventListener('click',function(){
+      var input=document.createElement('input');
+      input.type='file';input.accept='.md,text/markdown,text/plain';
+      input.addEventListener('change',function(){
+        var file=input.files[0];if(!file) return;
+        var reader=new FileReader();
+        reader.onload=function(e){applyImport(e.target.result);};
+        reader.readAsText(file,'utf-8');
+      });
+      input.click();
+    });
+  })();
+
+  // collapse toggle
+  (function(){
+    var pane=document.getElementById('bf-notes-pane'),drag=document.getElementById('bf-drag'),btn=document.getElementById('bf-notes-toggle');
+    if(!pane||!btn)return;
+    var CKEY='bf:notes-collapsed';
+    function setCollapsed(v){if(v){pane.classList.add('collapsed');if(drag)drag.classList.add('notes-hidden');btn.textContent='▶';btn.title='Show notes panel';}else{pane.classList.remove('collapsed');if(drag)drag.classList.remove('notes-hidden');btn.textContent='◀';btn.title='Hide notes panel';}try{localStorage.setItem(CKEY,v?'1':'0');}catch(e){}}
+    try{var s=localStorage.getItem(CKEY);if(s==='1')setCollapsed(true);}catch(e){}
+    btn.addEventListener('click',function(){setCollapsed(!pane.classList.contains('collapsed'));});
+  })();
+})();
+</script>
 </body>
 </html>
+                              

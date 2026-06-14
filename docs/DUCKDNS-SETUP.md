@@ -5,13 +5,25 @@
 
 This guide covers using DuckDNS as the dynamic DNS (DDNS) provider for your
 broodforge hatchery. DuckDNS is a free service that provides subdomains under
-`duckdns.org` (e.g. `myhatchery.duckdns.org`). It is a good option if you do not
+`duckdns.org` (e.g. `{{SUBDOMAIN}}.duckdns.org`). It is a good option if you do not
 have your own domain or want the simplest possible setup.
 
 **Trade-off vs Cloudflare:** DuckDNS is free and simple, but your hatchery's address
-will be `myhatchery.duckdns.org` rather than a subdomain of your own domain. If you
+will be `{{SUBDOMAIN}}.duckdns.org` rather than a subdomain of your own domain. If you
 have your own domain, consider the Cloudflare path (see `docs/CLOUDFLARE-SETUP.md`)
 for a cleaner address and wildcard certificate support.
+
+---
+
+## Parameters
+
+Fill in the values below before following any steps. Every command on this page
+auto-populates with your actual values as you type.
+
+@field[DuckDNS subdomain name (e.g. myhatchery — the part before .duckdns.org)|SUBDOMAIN=myhatchery]
+@credential[DuckDNS token (UUID from dashboard — store in KeePass)|DUCKDNS_TOKEN]
+@field[Let's Encrypt registration email|LE_EMAIL=admin@{{SUBDOMAIN}}.duckdns.org]
+@field[KeePass path for DuckDNS token|KDBX_PATH=Infrastructure/duckdns/token]
 
 ---
 
@@ -19,10 +31,10 @@ for a cleaner address and wildcard certificate support.
 
 | Feature | Notes |
 |---|---|
-| Free subdomain | `myhatchery.duckdns.org` → your WAN IP |
+| Free subdomain | `{{SUBDOMAIN}}.duckdns.org` → your WAN IP |
 | DDNS auto-update | Simple HTTPS GET, no library required |
 | Let's Encrypt DNS-01 | Via acme.sh — DNS-01 challenge supported |
-| Wildcard certificates | `*.myhatchery.duckdns.org` — supported via DNS-01 |
+| Wildcard certificates | `*.{{SUBDOMAIN}}.duckdns.org` — supported via DNS-01 |
 | cert-manager integration | Via acme-dns relay or manual cert sync |
 
 ---
@@ -35,11 +47,11 @@ for a cleaner address and wildcard certificate support.
 2. Sign in with GitHub, Google, Twitter, or Reddit (any works)
 3. In the **sub domain** field, enter your chosen name (e.g. `myhatchery`)
 4. Click **add domain**
-5. Your subdomain is now `myhatchery.duckdns.org`
+5. Your subdomain is now `{{SUBDOMAIN}}.duckdns.org`
 6. Copy your **token** — shown on the main dashboard (a UUID like `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
 
 Your token is the only credential DuckDNS requires. Store it in KeePass at:
-`Infrastructure/duckdns/token`
+`{{KDBX_PATH}}`
 
 ### Step 1.2 — Test the update
 
@@ -48,7 +60,7 @@ itself.
 
 ```bash
 # Update to your current WAN IP (leave ip= blank for auto-detect)
-curl -s "https://www.duckdns.org/update?domains=myhatchery&token=YOUR-TOKEN&ip="
+curl -s "https://www.duckdns.org/update?domains={{SUBDOMAIN}}&token={{DUCKDNS_TOKEN}}&ip="
 ```
 
 Expected response: `OK`
@@ -103,7 +115,7 @@ DuckDNS support and is actively maintained. For the Cloudflare path, certbot is 
 
 | Layer | Tool | Cert covers |
 |---|---|
-| Proxmox host services (Headscale, nginx) | acme.sh | `myhatchery.duckdns.org`, `*.myhatchery.duckdns.org` |
+| Proxmox host services (Headscale, nginx) | acme.sh | `{{SUBDOMAIN}}.duckdns.org`, `*.{{SUBDOMAIN}}.duckdns.org` |
 | k3s workloads | Cert synced as k8s secret | Same cert mounted in cluster |
 
 Unlike the Cloudflare path, cert-manager's DNS-01 solver does not natively support
@@ -115,7 +127,7 @@ cert into a Kubernetes TLS secret and refreshing it on renewal.
 #### Install acme.sh
 
 ```bash
-curl https://get.acme.sh | sh -s email=admin@myhatchery.duckdns.org
+curl https://get.acme.sh | sh -s email={{LE_EMAIL}}
 # Reload shell to get acme.sh in PATH:
 source ~/.bashrc
 ```
@@ -125,12 +137,12 @@ acme.sh installs to `~/.acme.sh/` and sets up a cron job for auto-renewal.
 #### Issue the certificate
 
 ```bash
-export DuckDNS_Token="YOUR-DUCKDNS-TOKEN"
+export DuckDNS_Token="{{DUCKDNS_TOKEN}}"
 
 ~/.acme.sh/acme.sh --issue \
   --dns dns_duckdns \
-  -d myhatchery.duckdns.org \
-  -d "*.myhatchery.duckdns.org" \
+  -d {{SUBDOMAIN}}.duckdns.org \
+  -d "*.{{SUBDOMAIN}}.duckdns.org" \
   --server letsencrypt \
   --keylength 2048 \
   --dnssleep 60
@@ -139,8 +151,8 @@ export DuckDNS_Token="YOUR-DUCKDNS-TOKEN"
 `--dnssleep 60` gives DuckDNS time to propagate the TXT record before Let's Encrypt
 checks it. If the challenge fails, increase to 120.
 
-This creates a wildcard cert covering `myhatchery.duckdns.org` and all subdomains
-(`*.myhatchery.duckdns.org`). Even though broodforge may use subdomains internally,
+This creates a wildcard cert covering `{{SUBDOMAIN}}.duckdns.org` and all subdomains
+(`*.{{SUBDOMAIN}}.duckdns.org`). Even though broodforge may use subdomains internally,
 they all resolve to the same IP, so the wildcard covers them.
 
 #### Install the certificate to a stable location
@@ -152,7 +164,7 @@ run a command after each renewal:
 mkdir -p /etc/broodforge/ssl
 
 ~/.acme.sh/acme.sh --install-cert \
-  -d myhatchery.duckdns.org \
+  -d {{SUBDOMAIN}}.duckdns.org \
   --cert-file     /etc/broodforge/ssl/cert.pem \
   --key-file      /etc/broodforge/ssl/key.pem \
   --fullchain-file /etc/broodforge/ssl/fullchain.pem \
@@ -178,7 +190,7 @@ systemctl restart headscale
 
 ```bash
 # Test renewal without actually renewing
-~/.acme.sh/acme.sh --renew -d myhatchery.duckdns.org --force --staging
+~/.acme.sh/acme.sh --renew -d {{SUBDOMAIN}}.duckdns.org --force --staging
 
 # Check the cron job acme.sh installed
 crontab -l | grep acme
@@ -217,7 +229,7 @@ Add a sync step to the acme.sh reload command:
 
 ```bash
 ~/.acme.sh/acme.sh --install-cert \
-  -d myhatchery.duckdns.org \
+  -d {{SUBDOMAIN}}.duckdns.org \
   --cert-file     /etc/broodforge/ssl/cert.pem \
   --key-file      /etc/broodforge/ssl/key.pem \
   --fullchain-file /etc/broodforge/ssl/fullchain.pem \
@@ -259,10 +271,10 @@ metadata:
 spec:
   tls:
   - hosts:
-    - forgejo.myhatchery.duckdns.org
+    - forgejo.{{SUBDOMAIN}}.duckdns.org
     secretName: duckdns-wildcard-tls   # uses the synced cert
   rules:
-  - host: forgejo.myhatchery.duckdns.org
+  - host: forgejo.{{SUBDOMAIN}}.duckdns.org
     http:
       paths:
       - path: /
@@ -324,7 +336,7 @@ Let's Encrypt's validation servers occasionally poll before the TXT record is vi
 **acme.sh: "Verify error: DNS problem"**
 Check that the TXT record was actually created:
 ```bash
-dig TXT _acme-challenge.myhatchery.duckdns.org +short
+dig TXT _acme-challenge.{{SUBDOMAIN}}.duckdns.org +short
 ```
 If empty, the DuckDNS token may be wrong or the API call failed.
 
@@ -338,14 +350,14 @@ Run manually: `/opt/broodforge/sync-cert-to-k8s.sh`
 **Headscale shows expired cert**
 acme.sh's reload command should handle this. Force:
 ```bash
-~/.acme.sh/acme.sh --renew -d myhatchery.duckdns.org --force
+~/.acme.sh/acme.sh --renew -d {{SUBDOMAIN}}.duckdns.org --force
 systemctl restart headscale
 ```
 
 **DDNS update failing**
 ```bash
 # Test directly
-curl -s "https://www.duckdns.org/update?domains=myhatchery&token=YOUR-TOKEN&ip="
+curl -s "https://www.duckdns.org/update?domains={{SUBDOMAIN}}&token={{DUCKDNS_TOKEN}}&ip="
 # Should return OK
 ```
 Check that your token in KeePass matches the one on the DuckDNS dashboard.
@@ -363,12 +375,4 @@ Check that your token in KeePass matches the one on the DuckDNS dashboard.
 | Additional DNS records | No | Yes |
 | API reliability | Good | Excellent |
 
-If you outgrow DuckDNS and acquire your own domain, migrating to Cloudflare involves:
-1. Setting up Cloudflare (this guide → CLOUDFLARE-SETUP.md)
-2. Updating `host_identity.fqdn` and `network_topology.*` in bootstrap-state.json
-3. Re-issuing certs with certbot
-4. Updating the ClusterIssuer to Cloudflare DNS-01
-5. Updating any external references to the old duckdns.org address
-
-Broodforge forge-time documentation should be re-generated after this migration
-(`engine.py --mode bootstrap --manifest proxmox-bootstrap/bootstrap-state.json`).
+I

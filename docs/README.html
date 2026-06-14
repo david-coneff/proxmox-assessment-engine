@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cloud Storage Setup</title>
+<title>Broodforge README</title>
 <style>
   :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
@@ -423,224 +423,578 @@
     .param-input,.note-input,.note-area,#bf-session-notes{border:1px solid #999}}
 </style>
 </head>
-<body data-doc="cloud-storage-setup">
+<body data-doc="broodforge-readme">
 <div id="bf-app">
   <div id="bf-doc-pane">
-    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button><span id="bf-section-count"></span><div class="bf-toolbar-end"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item current" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button></div></div></div>
+    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button><span id="bf-section-count"></span><div class="bf-toolbar-end"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item current" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button></div></div></div>
     
     
     <div id="bf-doc-body">
-<details class="section" open><summary><h1 id="cloud-storage-setup-guide">Cloud Storage Setup Guide</h1></summary><div class="sec-body" style="margin-left:0px">
-<ul><li><a href="#google-drive">Google Drive</a> — OAuth2 or Service Account</li><li><a href="#backblaze-b2">Backblaze B2</a> — Application Key (recommended first cloud option)</li><li><a href="#aws-s3">AWS S3</a> — IAM user with access key</li><li><a href="#cloudflare-r2">Cloudflare R2</a> — S3-compatible, no egress fees</li><li><a href="#self-hosted-minio">Self-hosted MinIO</a> — S3-compatible, full local control</li></ul>
+<details class="section" open><summary><h1 id="broodforge">Broodforge</h1></summary><div class="sec-body" style="margin-left:0px">
+<table><thead><tr><th>Process</th><th>Package</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Forging</strong></td><td><strong>Forge package</strong></td><td>Bare hardware → first operational hatchery</td></tr><tr><td><strong>Hatchery process</strong></td><td><strong>Spawn package</strong></td><td>Hatchery → new broodling joins without conflict</td></tr><tr><td><strong>Stargate process</strong></td><td><strong>Phoenix package</strong></td><td>Failed node → identity resurrected on new hardware</td></tr></tbody></table>
 <hr>
-<details class="section" open><summary><h2 id="backblaze-b2">Backblaze B2</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-1-create-a-backblaze-account">Step 1 — Create a Backblaze account</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li>Go to <a href="https://www.backblaze.com">backblaze.com</a> → Sign Up</li><li>Verify your email address</li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-2-create-a-bucket">Step 2 — Create a bucket</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li>Log in → <strong>B2 Cloud Storage</strong> → <strong>Buckets</strong> → <strong>Create a Bucket</strong></li><li>Bucket name: e.g. <code>broodforge-cell-a-backup</code> (must be globally unique)</li><li>Files in bucket: <strong>Private</strong> (not public)</li><li>Server-side encryption: <strong>Enable</strong> (SSE-B2 is free; adds a second encryption</li></ol>
-<ol><li>Note the bucket name — you will need it for rclone / restic configuration</li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-3-create-a-restricted-application-key">Step 3 — Create a restricted Application Key</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li><strong>Account</strong> → <strong>App Keys</strong> → <strong>Add a New Application Key</strong></li><li>Name: <code>broodforge-backup</code> (descriptive, for your reference)</li><li>Allow access to bucket: select <strong>the specific bucket you just created</strong></li></ol>
-<ol><li>Type of access: <strong>Read and Write</strong></li><li>Allow List All Bucket Names: <strong>No</strong></li><li>File name prefix: leave blank (or set to <code>restic/</code> if you want to restrict key</li></ol>
-<ol><li>Click <strong>Create New Key</strong></li><li><strong>Copy both the Key ID and the Application Key immediately</strong> — the Application</li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-4-configure-in-broodforge">Step 4 — Configure in broodforge</h3></summary><div class="sec-body" style="margin-left:24px">
-<pre><code class="lang-">Provider: Backblaze B2
-Key ID:   (paste the Key ID from step 3)
-App Key:  (paste the Application Key from step 3)
-Bucket:   broodforge-cell-a-backup
-Path:     restic   (directory within the bucket for restic's repository)</code></pre>
+<details class="section" open><summary><h2 id="configuration-modes-automation-vs-manual-control">Configuration Modes — Automation vs. Manual Control</h2></summary><div class="sec-body" style="margin-left:12px">
+<pre><code class="lang-">How should this package be configured?
+
+  1. Autonomous (default) — broodforge calculates all settings from discovery data
+  2. IP-Selective         — autonomous except you choose IP addressing
+  3. Group-Manual         — pick which setting groups to configure manually
+  4. Full Manual          — walk through all settings with auto-suggestions
+
+&gt; _</code></pre>
+<pre><code class="lang-">Which setting groups do you want to configure manually?
+(press SPACE to toggle, ENTER to confirm)
+
+  [ ] Network    CIDR: 192.168.1.0/24 suggested  gateway: 192.168.1.1
+  [✓] Storage    ZFS mirror (2 disks detected)    pool: rpool suggested
+  [ ] VM Sizing  3 VMs × 4GB RAM (28GB available)
+  [ ] Identity   hostname: pve01  domain: home.example.com
+  [ ] Security   KeePass at /opt/broodforge/cluster.kdbx
+  [ ] k3s        pod_cidr: 10.42.0.0/16  single-node initially
+  [ ] Backup     Cloudflare + local /mnt/backup
+
+&gt; _</code></pre>
 <hr>
 </div></details>
+<details class="section" open><summary><h2 id="the-problem">The Problem</h2></summary><div class="sec-body" style="margin-left:12px">
+<ol><li><strong>How do I get from bare hardware to a fully self-managing cluster?</strong> (Forging)</li><li><strong>What is this system, exactly — and is it what was intended?</strong> (Documentation + Assessment)</li><li><strong>Could I fully reconstruct this from scratch today?</strong> (Recovery Readiness)</li><li><strong>If I spawn a broodling into this datacenter, what does it need to look like?</strong> (Node Spawning)</li><li><strong>When something goes wrong, what failed and why?</strong> (Failure Analysis)</li></ol>
+<hr>
 </div></details>
-<details class="section" open><summary><h2 id="aws-s3">AWS S3</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-1-create-an-s3-bucket">Step 1 — Create an S3 bucket</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li>AWS Console → <strong>S3</strong> → <strong>Create bucket</strong></li><li>Bucket name: e.g. <code>broodforge-cell-a-backup</code> (globally unique; lowercase, hyphens only)</li><li>Region: choose a region geographically close to you</li><li>Block all public access: <strong>enabled</strong> (all four checkboxes)</li><li>Bucket versioning: optional; restic manages its own versioning</li><li>Server-side encryption: <strong>Enable</strong> — SSE-S3 (free) or SSE-KMS (requires KMS key)</li><li>Create bucket</li></ol>
+<details class="section" open><summary><h2 id="core-philosophy">Core Philosophy</h2></summary><div class="sec-body" style="margin-left:12px">
+<ul><li><strong>Reproducibility</strong> — any component can be rebuilt from repository state alone</li><li><strong>Recoverability</strong> — any failure mode has a documented, tested, executable recovery path</li><li><strong>Observability</strong> — the platform continuously knows its own state against its own intent</li><li><strong>Forgeability</strong> — forging the first node produces a forge package the operator</li></ul>
+<ul><li><strong>Spawnability</strong> — spawning a broodling produces a hardware-aware spawn package</li></ul>
+<hr>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-2-create-an-iam-user-with-a-scoped-policy">Step 2 — Create an IAM user with a scoped policy</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li>AWS Console → <strong>IAM</strong> → <strong>Users</strong> → <strong>Create user</strong></li><li>Username: <code>broodforge-backup</code></li><li>Access type: <strong>Programmatic access</strong> (access key, not AWS Console login)</li><li>Permissions: attach a new inline policy:</li></ol>
-<pre><code class="lang-json">{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:ListBucket",
-        "s3:GetBucketLocation"
-      ],
-      "Resource": "arn:aws:s3:::broodforge-cell-a-backup"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject"
-      ],
-      "Resource": "arn:aws:s3:::broodforge-cell-a-backup/*"
-    }
-  ]
-}</code></pre>
-<ol><li>Finish creating the user. On the final screen, copy the <strong>Access Key ID</strong> and</li></ol>
+<details class="section" open><summary><h2 id="technology-stack">Technology Stack</h2></summary><div class="sec-body" style="margin-left:12px">
+<table><thead><tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr></thead><tbody><tr><td>Hypervisor</td><td>Proxmox VE</td><td>VM hosting, storage, networking, snapshots</td></tr><tr><td>IaC</td><td>OpenTofu</td><td>Proxmox infrastructure declaration</td></tr><tr><td>Configuration</td><td>Ansible</td><td>VM and service configuration</td></tr><tr><td>Provisioning</td><td>Cloud-Init</td><td>VM first-boot identity and networking</td></tr><tr><td>Git hosting</td><td>Forgejo (VM, pre-k3s)</td><td>All repositories — primary source of truth</td></tr><tr><td>GitOps</td><td>Flux CD</td><td>Continuous reconciliation: Git → k3s</td></tr><tr><td>Orchestration</td><td>k3s</td><td>All application workloads</td></tr><tr><td>Secrets</td><td>KeePassXC-compatible</td><td>Secret references only (paths, never values)</td></tr><tr><td>Workbooks</td><td>HTML (machine-generated)</td><td>Execution and audit records — browser-viewable, print-friendly</td></tr></tbody></table>
+<hr>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-3-configure-in-broodforge">Step 3 — Configure in broodforge</h3></summary><div class="sec-body" style="margin-left:24px">
-<pre><code class="lang-">Provider:        AWS S3
-Region:          (your bucket's region, e.g. ap-southeast-2)
-Access Key ID:   (paste from step 2)
-Secret Key:      (paste from step 2)
-Bucket:          broodforge-cell-a-backup
-Path:            restic</code></pre>
+<details class="section" open><summary><h2 id="four-intelligence-layers">Four Intelligence Layers</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-a-bootstrap-intelligence-pre-k3s-stdlib-python">Phase A — Bootstrap Intelligence *(pre-k3s, stdlib Python)*</h3></summary><div class="sec-body" style="margin-left:24px">
+<details class="subsection" open><summary class="sub-summary"><h4 id="forging-process-first-node-hatchery-process-broodling-spawn">· <strong>Forging Process</strong> (first node) · <strong>Hatchery Process</strong> (broodling spawn)</h4></summary><div class="sec-body" style="margin-left:36px">
+<ul><li>CPU topology (model, cores, threads, socket count, architecture)</li><li>RAM inventory (total, ECC status, DIMM population)</li><li>Storage discovery (drives: model, serial, capacity, type, interface, SMART health)</li><li>Network hardware (NIC models, ports, speed, MAC addresses, bonding capability)</li><li>Proxmox state (existing VMs, backups, cluster membership, storage pools)</li></ul>
+<ul><li>Cluster topology (single-node vs HA based on physical host count)</li><li>Storage pool topology (mirror/raidz1/raidz2/raidz3 from disk count and mix)</li><li>VM sizing (VMID allocation, RAM/CPU per role, IP assignment)</li><li>Naming plan (all hostnames, DNS entries, KeePass paths — convention-validated)</li></ul>
+<ul><li>OpenTofu variable files (<code>.auto.tfvars</code>) for each VM role</li><li>Cloud-Init snippets (user-data, network-config, vendor-data per VM)</li><li>Ansible inventory and k3s configuration files</li><li>Flux CD bootstrap configuration pointing at Forgejo</li></ul>
 <hr>
 </div></details>
 </div></details>
-<details class="section" open><summary><h2 id="cloudflare-r2">Cloudflare R2</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-1-enable-r2-on-your-cloudflare-account">Step 1 — Enable R2 on your Cloudflare account</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li><a href="https://dash.cloudflare.com">dash.cloudflare.com</a> → <strong>R2</strong> → <strong>Get Started</strong></li><li>Enter a credit card if prompted (required even for free tier)</li></ol>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-b-documentation-engine-k3s-workload-continuous">Phase B — Documentation Engine *(k3s workload, continuous)*</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li><strong>Intent-aware architecture docs</strong> — not just *what*, but *why* and *which policy*</li></ul>
+<ul><li><strong>Full resource inventory</strong> (VMs, pods, services, PVCs, storage pools)</li><li><strong>Service dependency graph</strong> (Mermaid source → rendered SVG)</li><li><strong>Drift report</strong> (declared vs observed divergence — what exists that shouldn't, and vice versa)</li><li><strong>Changelog</strong> (changes since previous generation)</li></ul>
+<hr>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-2-create-an-r2-bucket">Step 2 — Create an R2 bucket</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li><strong>R2</strong> → <strong>Create bucket</strong></li><li>Bucket name: e.g. <code>broodforge-cell-a-backup</code></li><li>Location: <strong>Automatic</strong> or choose a specific region</li><li>Create bucket</li></ol>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-b-5-assessment-engine-k3s-workload-scored">Phase B.5 — Assessment Engine *(k3s workload, scored)*</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th>Score</th><th>Category</th><th>What It Measures</th></tr></thead><tbody><tr><td><strong>ACS</strong></td><td>Architecture Compliance</td><td>Drift, naming violations, placement policy, unmanaged resources</td></tr><tr><td><strong>RRS</strong></td><td>Recovery Readiness</td><td>Backup age vs RPO, phoenix package validity, secret coverage</td></tr><tr><td><strong>DCS</strong></td><td>Documentation Coverage</td><td>Resources documented, mandatory fields complete, intent fields populated</td></tr><tr><td><strong>CRS</strong></td><td>Capacity Risk</td><td>CPU/RAM/storage utilization vs declared thresholds</td></tr><tr><td><strong>OSS</strong></td><td>Operational Stability</td><td>Pod restart rates, Flux reconciliation lag, k8s error event rate</td></tr></tbody></table>
+<hr>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-3-create-a-scoped-api-token">Step 3 — Create a scoped API Token</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li><strong>R2</strong> → <strong>Manage R2 API Tokens</strong> → <strong>Create API Token</strong></li><li>Token name: <code>broodforge-backup</code></li><li>Permissions: <strong>Object Read &amp; Write</strong></li><li>Specify bucket: select <strong>the specific bucket</strong> you created (not all buckets)</li><li>TTL: <strong>No expiration</strong> (or set a rotation schedule and update broodforge when rotating)</li><li>Create token</li><li>Copy: <strong>Access Key ID</strong>, <strong>Secret Access Key</strong>, and note your <strong>Account ID</strong></li></ol>
-<ol><li>Your S3 endpoint is: <code>https://{Account ID}.r2.cloudflarestorage.com</code></li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-4-configure-in-broodforge">Step 4 — Configure in broodforge</h3></summary><div class="sec-body" style="margin-left:24px">
-<pre><code class="lang-">Provider:        Cloudflare R2 (S3-compatible)
-Endpoint:        https://{your-account-id}.r2.cloudflarestorage.com
-Access Key ID:   (paste from step 3)
-Secret Key:      (paste from step 3)
-Bucket:          broodforge-cell-a-backup
-Path:            restic</code></pre>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phase-c-d-recovery-and-execution-intelligence-k3s-standalone-scripts-stargate-process">Phase C/D — Recovery and Execution Intelligence *(k3s + standalone scripts)* · <strong>Stargate Process</strong></h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">Wave 0    Network reconstruction   (bridges from declared network topology)
+Wave 1    ZFS pool restore/create  (topology adapted to the replacement disks)
+Wave 2    Proxmox host config      (hostname, /etc/hosts, datastore registration)
+Wave 2.5  Template rebuild         (conditional — only if a base template is missing)
+Wave 3    VM restore from PBS      (identity-preserving: same VMIDs/IPs; RECREATE where flagged)
+Wave 4    k3s cluster membership   (certs + node name preserved — rejoins, not re-bootstraps)
+Wave 5    Post-restore validation  (cluster health, all in-scope VMs running)</code></pre>
 <hr>
 </div></details>
 </div></details>
-<details class="section" open><summary><h2 id="google-drive">Google Drive</h2></summary><div class="sec-body" style="margin-left:12px">
-<table><thead><tr><th>Option</th><th>Best for</th><th>Complexity</th></tr></thead><tbody><tr><td><strong>OAuth2 (user account)</strong></td><td>Personal Google Drive; interactive setup</td><td>Medium</td></tr><tr><td><strong>Service Account</strong></td><td>Shared Drive / Google Workspace; non-interactive</td><td>Higher</td></tr></tbody></table>
-<details class="subsection" open><summary class="sub-summary"><h3 id="option-a-oauth2-personal-google-drive">Option A — OAuth2 (personal Google Drive)</h3></summary><div class="sec-body" style="margin-left:24px">
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-a-1-create-a-google-cloud-project">Step A.1 — Create a Google Cloud project</h4></summary><div class="sec-body" style="margin-left:36px">
-<ol><li>Go to <a href="https://console.cloud.google.com">console.cloud.google.com</a></li><li>Click the project selector at the top → <strong>New Project</strong></li><li>Project name: <code>broodforge-backup</code> (internal name; users won't see it)</li><li>Create project</li></ol>
+<details class="section" open><summary><h2 id="forging-building-the-first-node">Forging — Building the First Node</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="the-forge-package">The Forge Package</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">forge-package-{cell_id}-{ts}.tar.gz
+  ├── forge-manifest.json     Declared intent: cell identity, naming convention,
+  │                            hardware requirements, secret registry paths
+  ├── discovery/              Hardware, network, storage discovery scripts
+  ├── planners/               Cluster, storage, network, naming planners
+  ├── generators/             OpenTofu vars, Cloud-Init snippets, Ansible inventory
+  ├── [opentofu/]             IaC for Proxmox VMs (Forgejo, operations VM) — in progress (see FORGING.md)
+  ├── ansible/                Roles + playbooks: common, forgejo, operations-vm, k3s-server
+  ├── scripts/
+  │   ├── forge.sh            Orchestrated entry point — runs all phases
+  │   ├── phase-00-discover.sh   Hardware/network/storage discovery
+  │   ├── phase-01-plan.sh       Cluster/storage/network/naming planning
+  │   ├── phase-02-validate.sh   Capacity, naming, readiness validation (RED blocks)
+  │   ├── phase-03-host.sh       Proxmox host configuration (hostname, ZFS, bridges)
+  │   ├── phase-04-vms.sh        Forgejo + operations VM provisioning (tofu apply)
+  │   ├── phase-05-k3s.sh        k3s single-node cluster deployment
+  │   ├── phase-06-gitops.sh     Flux CD bootstrap → GitOps operational
+  │   ├── phase-07-intelligence.sh  Doc engine + assessment engine deployed
+  │   └── phase-08-verify.sh    Full health check; bootstrap-state.json committed
+  ├── workbook/
+  │   └── forge-workbook.html  Auditable execution record (same checkpoint pattern)
+  └── lib/                    checkpoint.sh, validation.sh, failure-package.sh</code></pre>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-a-2-enable-the-google-drive-api">Step A.2 — Enable the Google Drive API</h4></summary><div class="sec-body" style="margin-left:36px">
-<ol><li>With your project selected: <strong>APIs &amp; Services</strong> → <strong>Library</strong></li><li>Search for <code>Google Drive API</code></li><li>Click it → <strong>Enable</strong></li></ol>
+<details class="subsection" open><summary class="sub-summary"><h3 id="the-hatchery-s-domain-name">The hatchery's domain name</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">Your domain name (e.g. home.example.com): _</code></pre>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-a-3-configure-the-oauth-consent-screen">Step A.3 — Configure the OAuth consent screen</h4></summary><div class="sec-body" style="margin-left:36px">
-<ol><li><strong>APIs &amp; Services</strong> → <strong>OAuth consent screen</strong></li><li>User type: <strong>External</strong> (unless you have a Google Workspace organisation)</li><li>App name: <code>broodforge-backup</code></li><li>User support email: your email address</li><li>Developer contact: your email address</li><li><strong>Save and Continue</strong> through Scopes (no scopes needed here) → <strong>Save and Continue</strong></li><li>Add test users: add your own Google account email</li><li><strong>Save and Continue</strong> → <strong>Back to Dashboard</strong></li><li>Status will show "Testing" — this is fine for personal use (the app only</li></ol>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-forging-produces">What Forging Produces</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">Proxmox host configured
+  └── Forgejo VM                Git hosting — all repositories; source of truth
+  └── Operations VM             Phase A toolchain + emergency access
+  └── k3s cluster (single node)
+        └── flux-system         GitOps engine — reconciles from Forgejo
+        └── cert-manager        TLS management
+        └── ingress-nginx       HTTP routing
+        └── doc-engine          Documentation Engine — GATE 1
+        └── assessment-engine   Assessment Engine — GATE 2</code></pre>
+<ul><li>Document and assess its own state continuously</li><li>Produce spawn packages for broodlings (hatchery process)</li><li>Produce phoenix packages for self-recovery (stargate process)</li><li>Host user applications (after intelligence layer gates pass)</li></ul>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-a-4-create-oauth-2-0-credentials">Step A.4 — Create OAuth 2.0 credentials</h4></summary><div class="sec-body" style="margin-left:36px">
-<ol><li><strong>APIs &amp; Services</strong> → <strong>Credentials</strong> → <strong>Create Credentials</strong> → <strong>OAuth client ID</strong></li><li>Application type: <strong>Desktop app</strong></li><li>Name: <code>broodforge-rclone</code></li><li>Create</li><li>Download the JSON file (or copy Client ID and Client Secret)</li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-a-5-authorise-rclone-run-on-the-hatchery-or-your-workstation">Step A.5 — Authorise rclone (run on the hatchery or your workstation)</h4></summary><div class="sec-body" style="margin-left:36px">
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash"># On a machine with a browser (your workstation, not the Proxmox host):
-rclone config
+<details class="subsection" open><summary class="sub-summary"><h3 id="minimum-viable-forge">Minimum Viable Forge</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">forge.sh phase-00  Discover hardware → validated hardware profile
+forge.sh phase-01  Plan deployment → cluster/storage/network/naming plan
+forge.sh phase-02  Validate plan → RED finding blocks forge until resolved
+forge.sh phase-03  Configure host → ZFS, bridges, hostname, apt repos
+forge.sh phase-04  Provision VMs → Forgejo + operations VM online
+forge.sh phase-05  Deploy k3s → single-node cluster operational
+forge.sh phase-06  Bootstrap Flux → GitOps reconciling from Forgejo
+forge.sh phase-07  Deploy intelligence → doc engine + assessment engine
+forge.sh phase-08  Verify + commit → bootstrap-state.json in Forgejo
 
-# Follow the prompts:
-# n) New remote
-# name&gt; gdrive
-# Storage&gt; drive                          (Google Drive)
-# client_id&gt;   (paste Client ID from step A.4)
-# client_secret&gt;   (paste Client Secret from step A.4)
-# scope&gt; drive                            (full access)
-# root_folder_id&gt;   (leave blank)
-# service_account_file&gt;   (leave blank)
-# Edit advanced config? n
-# Use auto config? y                      (opens browser for authorisation)
-#   → Browser opens; log in as your Google account → Grant access
-# Configure this as a Shared Drive? n
-# Keep this remote? y</code></pre></div>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-a-6-configure-in-broodforge">Step A.6 — Configure in broodforge</h4></summary><div class="sec-body" style="margin-left:36px">
-<pre><code class="lang-">Provider:      Google Drive (rclone remote)
-rclone remote: gdrive
-Path:          broodforge-backup/restic</code></pre>
+[Hatchery is now forged — user applications can be added via GitOps]</code></pre>
 <hr>
 </div></details>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="option-b-service-account-shared-drive-workspace">Option B — Service Account (Shared Drive / Workspace)</h3></summary><div class="sec-body" style="margin-left:24px">
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-b-1-create-a-project-same-as-a-1-and-a-2-above">Step B.1 — Create a project (same as A.1 and A.2 above)</h4></summary><div class="sec-body" style="margin-left:36px">
+<details class="section" open><summary><h2 id="node-spawning-the-hatchery-process">Node Spawning — The Hatchery Process</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="the-spawn-package">The Spawn Package</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">spawn-package-{cell_id}-{new-hostname}-{ts}.tar.gz
+  ├── spawn-manifest.json        Reserved-resource snapshot from assessment engine:
+  │                               all existing VMIDs, IPs, hostnames, cluster state,
+  │                               k3s join tokens, Proxmox cluster join address
+  ├── spawn-plan.json            Conflict-validated allocations for this node:
+  │                               new VMID block, new IPs, new hostnames, ZFS topology,
+  │                               k3s role, VM roles per placement policy
+  ├── spawn.sh                   Orchestrated entry point — runs all phases
+  ├── [tailscale-join.sh]        WAN mode only: Headscale/Tailscale join (phase-00a)
+  ├── phase-00-preflight.sh      Hardware pre-flight (read-only; conflict re-validation)
+  ├── phase-00-host.sh           Hostname, bridges, ZFS pool, datastore registration
+  ├── phase-01-proxmox.sh        pvecm add + cluster membership verification
+  ├── phase-02-vms.sh            OpenTofu apply for this host's VM set
+  ├── phase-03-cloudinit.sh      Install Cloud-Init snippets into Proxmox snippet store; start VMs
+  ├── phase-04-k3s.sh            k3s join (worker or server role)
+  ├── [phase-05-ha.sh]           Conditional — etcd HA promotion (3rd server node only)
+  ├── phase-06-verify.sh         Post-spawn validation; POST /api/spawn-complete to hatchery
+  ├── validate-spawn.py          Conflict re-validator run by phase-00-preflight (+ import closure)
+  ├── opentofu/                  Hardware-adapted tfvars for this host's VMs
+  ├── cloud-init/                Adapted snippets (IPs from spawn-plan, not hatchery)
+  ├── ansible/                   Inventory additions for this host
+  ├── spawn-manifest.html        Human-readable package manifest (AD-051)
+  ├── spawn-workbook.html        Auditable execution record (same pattern as recovery workbook)
+  └── lib/                       checkpoint.sh, keepass-gate.sh</code></pre>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-b-2-create-a-service-account">Step B.2 — Create a Service Account</h4></summary><div class="sec-body" style="margin-left:36px">
-<ol><li><strong>IAM &amp; Admin</strong> → <strong>Service Accounts</strong> → <strong>Create Service Account</strong></li><li>Name: <code>broodforge-backup</code></li><li>Description: <code>restic backup agent for broodforge cluster</code></li><li>Create and continue</li><li>Role: skip (no project-level role needed for Drive access)</li><li>Done</li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-b-3-create-and-download-a-key">Step B.3 — Create and download a key</h4></summary><div class="sec-body" style="margin-left:36px">
-<ol><li>Click your new service account → <strong>Keys</strong> → <strong>Add Key</strong> → <strong>Create new key</strong></li><li>Key type: <strong>JSON</strong></li><li>Create — downloads a <code>.json</code> file. Store this securely; it is the service</li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-b-4-share-a-drive-folder-with-the-service-account">Step B.4 — Share a Drive folder with the service account</h4></summary><div class="sec-body" style="margin-left:36px">
-<ol><li>In Google Drive, create a folder: <code>broodforge-backup</code></li><li>Right-click → <strong>Share</strong></li><li>Add the service account email (shown in Step B.2; looks like</li></ol>
-<ol><li>Role: <strong>Editor</strong></li><li>Share</li></ol>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-b-5-configure-rclone-with-the-service-account">Step B.5 — Configure rclone with the service account</h4></summary><div class="sec-body" style="margin-left:36px">
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">rclone config
+<details class="subsection" open><summary class="sub-summary"><h3 id="disposition-what-the-new-node-is-meant-to-do">Disposition — What the New Node Is Meant to Do</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li>Joins the Proxmox cluster</li><li>Runs at least one k3s worker node</li><li>Is visible to the assessment and documentation engines (appears in inventory,</li></ul>
+<ul><li>Runs the intelligence collectors so the hatchery knows its state</li></ul>
+<pre><code class="lang-">Headscale server: https://hatchery.home.example.com:8080</code></pre>
+<ul><li>LAN broodlings resolve <code>hatchery.home.example.com</code> to the LAN IP via the</li></ul>
+<ul><li>WAN broodlings resolve the same name to the WAN IP via public DNS, routing</li></ul>
+<pre><code class="lang-">Is the broodling on the same LAN as the hatchery?
+[auto-detecting... timeout 5s]
 
-# n) New remote
-# name&gt; gdrive-sa
-# Storage&gt; drive
-# client_id&gt;   (leave blank)
-# client_secret&gt;   (leave blank)
-# scope&gt; drive
-# root_folder_id&gt;   (leave blank, or paste the folder ID from the URL)
-# service_account_file&gt;   /path/to/service-account-key.json
-# Edit advanced config? n
-# Use auto config? n    (service account; no browser needed)
-# Configure as Shared Drive? n   (unless using Google Workspace Shared Drive)
-# y</code></pre></div>
+  1. Same LAN  — direct SSH using temporary root password
+  2. WAN       — Headscale tailnet (phase-00a joins tailnet before discovery;
+                 Headscale URL is hatchery.{domain} — correct for both LAN and WAN)
+  3. Specify   — enter broodling IP / hostname manually
+
+&gt; _</code></pre>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --authkey tskey-auth-k1234XXXX \
+             --login-server https://hatchery.home.example.com:8080</code></pre></div>
+<pre><code class="lang-">How should the spawn package run on the broodling?
+
+  1. Autonomous (default)  — finalise service selection now; spawn.sh runs without
+                             prompting after the KeePass unlock gate
+  2. Interactive            — no service selection needed now; spawn.sh evaluates
+                             the broodling's hardware at runtime and presents the
+                             service menu there
+
+&gt; _</code></pre>
+<pre><code class="lang-">How should this node be configured?
+
+  1. Full mirror  — deploy all services the hatchery runs that fit this broodling's hardware
+  2. Select by group  — pick infrastructure / platform / application groups
+  3. Select individually  — choose specific services one by one
+
+&gt; _</code></pre>
+<pre><code class="lang-">INFRASTRUCTURE SERVICES
+  [✓] k3s-server        4 GB RAM req  /  14 GB avail  — adds HA control plane
+  [✓] k3s-worker        2 GB RAM req  /  14 GB avail  — adds compute capacity (selected by default)
+  [✓] pbs-datastore     requires dedicated disk  /  4 disks detected (raidz1)
+
+PLATFORM SERVICES
+  [✓] cert-manager      256 MB RAM req  /  fits
+  [✓] ingress-nginx     512 MB RAM req  /  fits
+  [✓] flux-system       512 MB RAM req  /  fits (replica of existing GitOps source)
+
+INTELLIGENCE LAYER
+  [✓] doc-engine        1 GB RAM req  /  fits  — HA replica of documentation engine
+  [✓] assessment-engine 1 GB RAM req  /  fits  — HA replica of assessment engine
+
+MONITORING
+  [✓] prometheus        2 GB RAM req  /  fits
+  [✓] grafana           512 MB RAM req  /  fits
+  [✗] loki              4 GB RAM req  /  insufficient (2 GB would remain after other services)
+
+APPLICATIONS
+  [✓] nextcloud         2 GB RAM req  /  fits  — requires storage disposition
+  [✓] immich            3 GB RAM req  /  fits  — requires storage disposition
+  [✗] gitea             RAM fits  /  no dedicated disk detected for data volume
+
+Total selected: 11.2 GB RAM / 14 GB available  (1 service excluded due to RAM, 1 due to storage)
+Proceed with this selection? [Y/n/edit]</code></pre>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h4 id="step-b-6-configure-in-broodforge">Step B.6 — Configure in broodforge</h4></summary><div class="sec-body" style="margin-left:36px">
-<pre><code class="lang-">Provider:      Google Drive (rclone remote — service account)
-rclone remote: gdrive-sa
-Path:          broodforge-backup/restic</code></pre>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-the-assessment-engine-accounts-for-at-package-generation">What the Assessment Engine Accounts For at Package Generation</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li><strong>Reserved VMIDs</strong> — all VMIDs in use across all existing hosts; allocates a</li></ul>
+<ul><li><strong>Reserved IPs</strong> — all addresses in the DNS registry and provenance records;</li></ul>
+<ul><li><strong>Reserved hostnames</strong> — all hostnames in the naming plan; new names are</li></ul>
+<ul><li><strong>Cluster join credentials</strong> — k3s join tokens and Proxmox cluster address embedded</li></ul>
+<ul><li><strong>Disposition vs. hardware</strong> — each selected capability flag is validated against</li></ul>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-adapts-to-the-new-host-s-hardware">What Adapts to the New Host's Hardware</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th>Hardware difference</th><th>How the spawn package adapts</th></tr></thead><tbody><tr><td>Different disk count / mix</td><td>ZFS pool topology recalculated (mirror / raidz1 / raidz2)</td></tr><tr><td>Different NIC count or speed</td><td>Bridge/bond configuration from that host's NIC inventory</td></tr><tr><td>Different RAM</td><td>Services that don't fit are excluded from selection with a reason</td></tr><tr><td>Lesser overall capability</td><td>Operator selects a reduced service list; baseline always included</td></tr></tbody></table>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="spawn-workflow">Spawn Workflow</h3></summary><div class="sec-body" style="margin-left:24px">
+<details class="subsection" open><summary class="sub-summary"><h4 id="on-the-hatchery-before-touching-the-broodling">On the Hatchery — before touching the broodling</h4></summary><div class="sec-body" style="margin-left:36px">
+<ul><li><strong>Interactive:</strong> skip to package assembly — no hardware profile needed. Service selection happens on the broodling at runtime.</li><li><strong>Autonomous:</strong> continue to Step 2.</li></ul>
+<pre><code class="lang-">Suggested temporary root password for Proxmox installation:
+  Ready.to.spawn.7
+Use this when setting the root password during Proxmox install.
+Press Enter here when the installation is complete and the node is reachable.</code></pre>
+<pre><code class="lang-">Connecting to 192.168.1.100 as root... ✓
+Running discover-hardware.py... ✓
+Running discover-network.py...  ✓
+Running discover-storage.py...  ✓
+hardware-profile-pve-node-02.json saved.</code></pre>
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">spawn-planner.py --hostname pve-node-02 --profile hardware-profile-pve-node-02.json</code></pre></div>
+<pre><code class="lang-">[✓] compute       — 12 GB RAM available, 6 GB required — fits
+[✓] storage       — 4 dedicated disks detected — fits (raidz1)
+[✗] control-plane — requires 4 GB RAM; only 2 GB available after other roles
+[✗] monitoring    — requires 2 GB RAM; insufficient after compute allocation</code></pre>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h4 id="on-the-broodling-bare-proxmox-just-installed">On the Broodling — bare Proxmox just installed</h4></summary><div class="sec-body" style="margin-left:36px">
+<ul><li><strong>[A] Hardware pre-flight</strong> (read-only, no changes made): Re-scans actual hardware and diffs against the embedded <code>hardware-profile.json</code> — disk IDs, NIC names/MACs, RAM vs disposition minimums, no conflicting pool or bridge names, conflict re-check vs manifest. A mismatch generates a failure package with a diff and exits; nothing is written to the host. On pass, proceeds to [B].</li></ul>
+<ul><li><strong>[B] Host configuration:</strong> Sets hostname and <code>/etc/hosts</code>, writes bridge definitions, runs <code>ifreload -a</code>, creates the ZFS pool (topology from plan, disk IDs confirmed by pre-flight), registers the Proxmox datastore with <code>pvesm add</code>, and configures apt repos. After this phase: bridges exist, storage is registered, hostname is correct.</li></ul>
+<ul><li><strong>phase-02</strong> <code>tofu apply</code> — only disposition-selected VM roles provisioned</li><li><strong>phase-03</strong> Cloud-Init snippets installed → VMs started → first-boot runs</li></ul>
+<ul><li><strong>phase-04</strong> k3s join — worker role always; server role only if disposition includes control-plane and hardware pre-flight confirmed it fits</li><li><strong>phase-05</strong> [conditional] etcd HA promotion if this is the 3rd server node</li><li><strong>phase-06</strong> Verify: cluster health, all disposition VMs running, no IP conflicts</li></ul>
+</div></details>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="example-broodling-dispositions">Example Broodling Dispositions</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th>Broodling type</th><th>Selection</th><th>Use case</th></tr></thead><tbody><tr><td>Full mirror</td><td>All services that fit</td><td>Matches hatchery capabilities; Flux schedules freely</td></tr><tr><td>Lightweight companion</td><td>k3s-worker + cert-manager + ingress</td><td>Small machine adds compute; no storage or HA</td></tr><tr><td>Storage node</td><td>k3s-worker + pbs-datastore + longhorn</td><td>NAS-class machine; adds backup target and PVC replicas</td></tr><tr><td>HA enabler</td><td>k3s-server (only)</td><td>Upgrades cluster to 3-server etcd quorum; minimal footprint</td></tr><tr><td>App replica node</td><td>k3s-worker + nextcloud + immich</td><td>Adds capacity for specific applications that support replicas</td></tr><tr><td>Observer only</td><td>*(baseline only)*</td><td>Joins cluster, visible to assessment, runs no workloads</td></tr></tbody></table>
 <hr>
 </div></details>
 </div></details>
+<details class="section" open><summary><h2 id="keepass-and-secret-security">KeePass and Secret Security</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="the-database-inclusion-choice">The database inclusion choice</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">Where should the KeePass database come from during deployment?
+
+  1. Include in this package  — database file is embedded in the archive
+                                (convenient; safe because it cannot auto-unlock)
+  2. Path on the target host  — database lives on a USB drive, a local disk,
+                                or a pre-agreed filesystem path on the new node
+                                (not embedded; operator specifies path at run time)
+  3. Prompt at run time       — spawn.sh asks the operator for the path when it runs
+
+&gt; _</code></pre>
 </div></details>
-<details class="section" open><summary><h2 id="self-hosted-minio">Self-Hosted MinIO</h2></summary><div class="sec-body" style="margin-left:12px">
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-1-install-minio">Step 1 — Install MinIO</h3></summary><div class="sec-body" style="margin-left:24px">
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash"># On the MinIO host (Debian/Ubuntu):
-wget https://dl.min.io/server/minio/release/linux-amd64/minio -O /usr/local/bin/minio
-chmod +x /usr/local/bin/minio
-
-# Create data directory
-mkdir -p /opt/minio/data
-
-# Create a systemd unit (/etc/systemd/system/minio.service):
-[Unit]
-Description=MinIO Object Storage
-After=network.target
-
-[Service]
-User=minio
-Environment="MINIO_ROOT_USER=admin"
-Environment="MINIO_ROOT_PASSWORD=change-me-on-first-run"
-ExecStart=/usr/local/bin/minio server /opt/minio/data --console-address :9001
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-
-systemctl enable --now minio</code></pre></div>
+<details class="subsection" open><summary class="sub-summary"><h3 id="the-keepass-unlock-gate">The KeePass unlock gate</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">KeePass database located at: /media/usb0/cluster.kdbx
+Enter master password: _</code></pre>
 </div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-2-access-the-minio-console">Step 2 — Access the MinIO console</h3></summary><div class="sec-body" style="margin-left:24px">
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-3-create-a-bucket-and-access-key">Step 3 — Create a bucket and access key</h3></summary><div class="sec-body" style="margin-left:24px">
-<ol><li><strong>Buckets</strong> → <strong>Create Bucket</strong></li></ol>
-<ul><li>Name: <code>broodforge-backup</code></li><li>Versioning: off (restic manages versioning)</li><li>Object locking: off</li></ul>
-<ol><li><strong>Access Keys</strong> → <strong>Create Access Key</strong></li></ol>
-<ul><li>Name: <code>broodforge-backup</code></li><li>Copy Access Key and Secret Key</li><li>Restrict to your bucket if MinIO version supports bucket-scoped keys</li></ul>
-</div></details>
-<details class="subsection" open><summary class="sub-summary"><h3 id="step-4-configure-in-broodforge">Step 4 — Configure in broodforge</h3></summary><div class="sec-body" style="margin-left:24px">
-<pre><code class="lang-">Provider:        MinIO (S3-compatible)
-Endpoint:        http://{minio-host}:9000    (use https if TLS is configured)
-Access Key ID:   (from step 3)
-Secret Key:      (from step 3)
-Bucket:          broodforge-backup
-Path:            restic</code></pre>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-packages-contain-vs-what-they-don-t">What packages contain vs. what they don't</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th>Always in package</th><th>Optional</th><th>Never included</th></tr></thead><tbody><tr><td>KeePass secret paths (references)</td><td>KeePass database file</td><td>Any secret value</td></tr><tr><td>Service configuration skeletons</td><td></td><td>Unlocked credential material</td></tr><tr><td>VM configuration parameters</td><td></td><td></td></tr><tr><td>Cluster join addresses and fingerprints</td><td></td><td></td></tr><tr><td>k3s join tokens*</td><td></td><td></td></tr></tbody></table>
 <hr>
 </div></details>
 </div></details>
-<details class="section" open><summary><h2 id="keeping-this-document-current">Keeping This Document Current</h2></summary><div class="sec-body" style="margin-left:12px">
-<ul><li>When a provider announces a console or API change</li><li>When a setup step produces a different screen than described</li><li>On an annual schedule (date at top of document)</li></ul>
-<p><strong>Document created:</strong> 2026-05-31 <strong>Review by:</strong> 2027-05-31 (cloud provider UIs change; verify steps are current) This guide covers setting up cloud storage credentials for use with broodforge's backup system (restic + rclone). Each section walks through a specific provider. Broodforge requires API-level access — not username + password — for all cloud backup destinations. This is enforced during <code>setup-backup.py</code> configuration. <strong>Supported providers covered here:</strong> <strong>If this document is more than 12 months old, treat the UI steps as approximate and verify against the provider's current documentation.</strong> *Recommended starting point for cloud backup — straightforward setup, competitive pricing, no egress fees to Cloudflare Workers (relevant for R2 users), and restic has native B2 support without rclone.* <strong>What you need:</strong> A Backblaze account (free tier available for evaluation). <strong>Authentication:</strong> Application Key (Key ID + Application Key string). <strong>Security note:</strong> Application Keys can be scoped to a single bucket with specific permissions. Always create a restricted key — not the Master Application Key. layer on top of restic's own encryption) (do NOT select "All Buckets") to a specific path) Key is shown only once. If you lose it, delete this key and create a new one. When <code>setup-backup.py</code> prompts for a B2 destination, enter: Broodforge will initialise a restic repository at <code>b2:broodforge-cell-a-backup/restic</code> and test the connection before saving the configuration. <strong>What you need:</strong> An AWS account. <strong>Authentication:</strong> IAM user with an access key (not root account credentials). <strong>Security note:</strong> Create a dedicated IAM user with a policy scoped to one bucket. Never use root account credentials or an access key with broad permissions. Replace <code>broodforge-cell-a-backup</code> with your actual bucket name. <strong>Secret Access Key</strong> — the Secret Access Key is shown only once. When <code>setup-backup.py</code> prompts for an S3 destination, enter: *S3-compatible. No egress fees (you pay for storage and operations, not downloads). A cost-effective option if you expect to restore frequently.* <strong>What you need:</strong> A Cloudflare account with R2 enabled (requires credit card on file; 10 GB free per month, then ~$0.015/GB/month as of 2026). <strong>Authentication:</strong> R2 API Token (not your Cloudflare account API key). (visible in the right sidebar of the R2 dashboard) When <code>setup-backup.py</code> prompts for a Cloudflare R2 destination: Broodforge configures rclone with <code>type = s3</code>, <code>provider = Cloudflare</code>, and the endpoint URL above. *The most complex provider to set up due to OAuth2 / Google Cloud project requirements. Read all steps before starting — the Google Cloud Console UI changes frequently.* <strong>Two authentication options:</strong> OAuth2 tokens are tied to your Google account. You set them up interactively once; rclone stores a refresh token that it uses automatically thereafter. needs to access your own Drive) The resulting token is saved in <code>~/.config/rclone/rclone.conf</code>. Copy this file to the Proxmox host at the same path. Broodforge will use <code>rclone:gdrive:broodforge-backup/restic</code> as the restic backend. A service account is a Google identity for applications — no human OAuth flow, no browser required. Better for production use, especially with Google Workspace. account's credential. Treat it like a private key — add it to KeePass. <code>broodforge-backup@your-project.iam.gserviceaccount.com</code>) *S3-compatible object storage you run yourself. Zero cloud dependency; good for operators who want the restic deduplication and encryption benefits without any external service.* <strong>What you need:</strong> A machine to run MinIO on (a spare node, a NAS, or even the Proxmox host itself — though a separate machine is preferred for independence). Open <code>http://{minio-host}:9001</code> in your browser. Log in with the root credentials. <strong>Change the root password immediately</strong> via <strong>Identity</strong> → <strong>Users</strong> → root account. Use a readable passphrase (the broodforge format <code>Capital.word.phrase.9</code> is suitable). MinIO is configured as an S3-compatible provider in rclone with <code>provider = Minio</code> and <code>endpoint = http://{minio-host}:9000</code>. Cloud provider UIs and API processes change. This document should be reviewed: To update: edit this file, update the date at the top, and commit to Forgejo. The assessment engine does not monitor this file for staleness — it is a manual maintenance responsibility. If you encounter a step that has changed significantly, open an issue in the broodforge Forgejo repository with the updated steps so other operators benefit.</p>
+<details class="section" open><summary><h2 id="password-generation">Password Generation</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="tier-1-readable-passphrases-default-for-all-user-facing-passwords">Tier 1 — Readable passphrases (default for all user-facing passwords)</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">Format:  Capital.word.phrase.9
+         └── Leading capital letter
+             └── Remaining letters lowercase
+                 └── Words separated by periods
+                     └── Trailing single digit
+                         └── Total length: 20–30 characters</code></pre>
+<pre><code class="lang-">Correct.horse.battery.3
+Network.surge.proxy.7
+Stable.margin.deploy.2</code></pre>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="tier-2-alphanumeric-fallback-for-services-that-reject-special-characters">Tier 2 — Alphanumeric fallback (for services that reject special characters)</h3></summary><div class="sec-body" style="margin-left:24px">
+<ol><li>Identifies the affected service and the likely character restriction</li><li>Offers to regenerate the credential as a plain alphanumeric password (letters +</li></ol>
+<ol><li>Retries the failed deployment phase with the new credential</li><li>Records the service name and character restriction in <code>service-catalog.yaml</code> as</li></ol>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="master-password-forging">Master password — forging</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">Choose your KeePass master password:
+
+  1. Generate  — produce a readable passphrase (e.g. Correct.horse.battery.3)
+  2. KeePass   — use KeePass's built-in password generator (stronger options available)
+  3. Enter     — type your own
+
+Password is confirmed by re-entry. It is never stored by broodforge.</code></pre>
+<hr>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="backup-architecture">Backup Architecture</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-gets-backed-up">What gets backed up</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th>Layer</th><th>What is included</th><th>Default</th><th>Trigger</th></tr></thead><tbody><tr><td><strong>Secrets</strong></td><td>KeePass database</td><td>Always</td><td>Any cluster state backup; also on any new secret added</td></tr><tr><td><strong>Configuration state</strong></td><td><code>bootstrap-state.json</code>, assessment history, generated docs, all node states</td><td>Always</td><td>Assessment engine run completes</td></tr><tr><td><strong>Application data</strong></td><td>VM data volumes (Nextcloud files, Immich photos, database dumps)</td><td>Opt-in per volume</td><td>Schedule declared per volume in service-catalog</td></tr></tbody></table>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="backup-destinations-ordered-chain-model">Backup destinations — ordered chain model</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th>Destination type</th><th>Examples</th><th>Authentication</th></tr></thead><tbody><tr><td>Local filesystem</td><td><code>/backup</code>, <code>/mnt/spare-drive</code></td><td>None (path)</td></tr><tr><td>Removable media</td><td><code>/media/usb-backup</code></td><td>None (path; mount must exist)</td></tr><tr><td>Backblaze B2</td><td><code>b2:bucket-name/path</code></td><td>Application Key (ID + secret)</td></tr><tr><td>AWS S3 / Cloudflare R2</td><td><code>s3:bucket/path</code></td><td>Access Key + Secret Key</td></tr><tr><td>Google Drive</td><td><code>rclone:gdrive:/backups/cell</code></td><td>OAuth2 / Service Account</td></tr><tr><td>SFTP</td><td><code>sftp:host:/backup/path</code></td><td>SSH key</td></tr><tr><td>Self-hosted (MinIO)</td><td><code>s3:minio-endpoint/bucket</code></td><td>Access Key + Secret Key</td></tr></tbody></table>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="encryption">Encryption</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">Backup/{layer}/{component}/2026-06-01_03_00_00/repo-password
+Backup/{layer}/{component}/current              → points to latest timestamp</code></pre>
+<pre><code class="lang-">File on disk
+  → restic encrypts with run-specific repo password (new per backup, from KeePass)
+  → Encrypted chunk written to destination
+  → Destination may add its own at-rest encryption (e.g., B2 SSE, S3 SSE)</code></pre>
+<pre><code class="lang-">1. Obtain forge/spawn/phoenix package  (contains backup destination credentials)
+2. Use embedded rclone config to access the KeePass backup destination
+3. Download latest .kdbx backup (or a pinned checkpoint version)
+4. Open with master password / KeePass authentication method
+5. All restic repo passwords and service credentials now available via secrets broker</code></pre>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="backup-modes">Backup modes</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">Configure backup destination chain (add as many as you like):
+
+  Destination 1: local path /mnt/backup-drive   [verified OK]
+  Destination 2: Backblaze B2 b2:cell-backup     [verified OK]
+  Add another destination?  [Y/n]
+
+What to back up:
+  [x] Secrets (KeePass database)   — always enabled once a destination is configured
+  [x] Configuration state          — backed up after every assessment run
+  [ ] Application data volumes     — opt-in per service
+
+Retention per layer:
+  Snapshots to keep:          [5]
+  Permanent checkpoints:      [Y] — operator can tag any snapshot to survive rotation</code></pre>
+<pre><code class="lang-">Backup policy for: nextcloud (Nextcloud application, VM 102)
+  Inherit parent chain (vm:102 → local + B2)?  [Y/n]
+  Add volume-level policy for /opt/nextcloud/data (47 GB)?
+    Chain: [inherit] / [new destination]  &gt;
+    Schedule:    daily at 03:00  &gt;
+    Retention:   7 daily, 4 weekly, 3 monthly  &gt;
+    Checkpoint?  [Y/n]</code></pre>
+<pre><code class="lang-">[BACKUP RUN SPACE PROBE]
+  destination 1 (/mnt/backup-drive):  12 GB available  (need 8 GB for forgejo) ✓
+  destination 2 (b2:cell-backup):      2 GB available  (need 8 GB for forgejo) ✗ full
+  destination 3 (rclone:gdrive):      40 GB available  ✓
+
+  Component routing:
+    forgejo          (8 GB)  → destination 1  [primary — space OK]
+    inventory        (3 GB)  → destination 1  [primary — space OK]
+    assessment-vm    (6 GB)  → destination 2  [space_fallback — dest 1 now tight]
+    nextcloud-data  (18 GB)  → chunked_split:
+                                 /var/www        (9 GB)  → destination 1
+                                 /var/db         (9 GB)  → destination 3
+                              [no single dest has 18 GB; split at sub-component level]</code></pre>
+<pre><code class="lang-">[BACKUP RUN 2026-06-01_03-00_00_UTC]
+  layer: config-state
+    destination 1 (/mnt/backup-drive):  ✓ 847 MB  verified
+    destination 2 (b2:cell-backup):     ✗ FAILED — connection timeout after 30s
+    destination 3 (rclone:gdrive):      ✓ 847 MB  verified
+  result: PARTIAL — 2/3 destinations succeeded
+  WARNING: destination 2 has failed 3 consecutive runs — investigate B2 connectivity
+
+[BACKUP RUN 2026-06-02_03-00_00_UTC]
+  layer: config-state
+    ALL 3 DESTINATIONS FAILED — RED GAP LOGGED
+    Assessment engine will surface this at next run</code></pre>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="backup-naming-convention">Backup naming convention</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th>Prefix</th><th>What it backs up</th></tr></thead><tbody><tr><td><code>kdbx</code></td><td>KeePass database</td></tr><tr><td><code>cell-config</code></td><td>Cell-wide configuration state (bootstrap-state.json, assessment history)</td></tr><tr><td><code>node-{hostname}</code></td><td>Proxmox host (e.g., <code>node-pve01</code>)</td></tr><tr><td><code>vm-{name}-{vmid}</code></td><td>Virtual machine (e.g., <code>vm-forgejo-101</code>)</td></tr><tr><td><code>ct-{name}-{ctid}</code></td><td>LXC container (e.g., <code>ct-postgresql-200</code>)</td></tr><tr><td><code>vol-{vm_name}-{vol_name}</code></td><td>Data volume within a VM (e.g., <code>vol-nextcloud-data</code>)</td></tr><tr><td><code>svc-{service_name}</code></td><td>Application service (e.g., <code>svc-immich</code>)</td></tr></tbody></table>
+<pre><code class="lang-">kdbx_{cell_id}_{YYYY-MM-DD_HH-MM_SS_TZ}_{hash8}.kdbx
+
+Examples:
+  kdbx_proxmox-cell-a_2026-06-01_03-00_00_UTC_a3f2b891.kdbx</code></pre>
+<pre><code class="lang-">{destination_root}/{cell_id}/{layer}/{component}/
+
+Examples:
+  /mnt/backup/proxmox-cell-a/config/vm-forgejo-101/
+  b2:cell-backup/proxmox-cell-a/appdata/vol-nextcloud-data/
+  rclone:gdrive:broodforge/proxmox-cell-a/config/cell-config/</code></pre>
+<pre><code class="lang-">{cell_id}_{YYYY-MM-DD_HH-MM_SS_TZ}_{run_hash8}
+
+Examples:
+  proxmox-cell-a_2026-06-01_03-00_00_UTC_f7c1d3a2</code></pre>
+<pre><code class="lang-">cell:{cell_id}
+set:{snapshot_set_id}
+component:{component_prefix}
+layer:{config|appdata}
+run:{YYYY-MM-DD_HH-MM_SS_TZ}</code></pre>
+<pre><code class="lang-">Backup/{layer}/{component}/{YYYY-MM-DD_HH-MM_SS_TZ}/repo-password
+Backup/{layer}/{component}/current
+
+Examples:
+  Backup/config/vm-forgejo-101/2026-06-01_03-00_00_UTC/repo-password
+  Backup/config/vm-forgejo-101/current
+  Backup/appdata/vol-nextcloud-data/2026-06-01_03-00_00_UTC/repo-password</code></pre>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="backup-settings-as-readiness-metadata">Backup settings as readiness metadata</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li><strong>RED</strong> — no destination configured for secrets or configuration state</li><li><strong>RED</strong> — all destinations failed on two or more consecutive runs (chain is broken)</li><li><strong>RED</strong> — last successful backup older than 3× the declared schedule interval</li><li><strong>ORANGE</strong> — any destination in the chain has failed on the last 3 runs (partial coverage)</li><li><strong>ORANGE</strong> — last successful backup older than 2× schedule interval</li><li><strong>YELLOW</strong> — all destinations healthy but last backup older than 1× schedule interval</li><li><strong>YELLOW</strong> — no permanent checkpoint exists</li><li><strong>GREEN</strong> — all destinations reachable, last backup within schedule, checkpoint exists</li></ul>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="automated-recovery-via-secrets-broker">Automated recovery via secrets broker</h3></summary><div class="sec-body" style="margin-left:24px">
+<ol><li>Operator enters KeePass master password once at the unlock gate</li><li>Secrets broker retrieves all restic repo passwords from KeePass automatically</li><li><code>restore-from-backup.py</code> probes each destination for available snapshots</li><li>Operator selects snapshot (or accepts "latest" / most recent checkpoint)</li><li>Restore executes — integrity verified post-restore</li><li>Service credentials re-injected from KeePass automatically (no per-service password re-entry)</li><li>Restore report generated (what, from where, when, integrity result)</li></ol>
+<hr>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="documentation-timestamps-and-timezone">Documentation Timestamps and Timezone</h2></summary><div class="sec-body" style="margin-left:12px">
+<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">python3 doc-gen/engine.py --set-timezone "Australia/Melbourne"
+# or edit vm_defaults.timezone in bootstrap-state.json directly</code></pre></div>
+<hr>
+</div></details>
+<details class="section" open><summary><h2 id="phoenix-package-the-stargate-process">Phoenix Package — The Stargate Process</h2></summary><div class="sec-body" style="margin-left:12px">
+<blockquote><strong>Operator runbook:</strong> <a href="docs/PHOENIX.md"><code>docs/PHOENIX.md</code></a> walks the full stargate
+workflow end-to-end — generate the playbook from <code>bootstrap-state.json</code>
+(<code>phoenix-planner.py --state … --output phoenix-playbook.json</code>), assemble the
+package, copy + verify, and run the recovery waves.</blockquote>
+<details class="subsection" open><summary class="sub-summary"><h3 id="hatchery-process-vs-stargate-process-the-core-distinction">Hatchery Process vs Stargate Process — the core distinction</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th></th><th>Hatchery process → Spawn package</th><th>Stargate process → Phoenix package</th></tr></thead><tbody><tr><td><strong>Purpose</strong></td><td>New broodling joining the hatchery</td><td>Failed node rising from its ashes</td></tr><tr><td><strong>Identity</strong></td><td>New — VMIDs, IPs, hostnames allocated without conflict</td><td>Preserved — same VMIDs, IPs, hostnames, certs as original</td></tr><tr><td><strong>Hardware</strong></td><td>Adapts to new hardware; allocations computed fresh</td><td>Adapts to new hardware; identity is fixed, hardware fits around it</td></tr><tr><td><strong>k8s node names</strong></td><td>New names per naming convention</td><td>Exact original names — cluster membership is restored, not rebuilt</td></tr><tr><td><strong>Services</strong></td><td>Chosen by operator at spawn time (disposition)</td><td>Full or partial restoration scope chosen at recovery time</td></tr><tr><td><strong>Hardcoded reservations</strong></td><td>Avoided — new node gets non-conflicting allocations</td><td>Preserved — anything hardcoded in the original config comes back as-is</td></tr></tbody></table>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-the-phoenix-package-preserves">What the Phoenix Package Preserves</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li><strong>VM names and VMIDs</strong> — Proxmox inventory identity; other nodes reference these</li><li><strong>VM IP addresses</strong> — DNS registry entries, service URLs, any config that</li></ul>
+<ul><li><strong>Hostnames</strong> — k8s node names are derived from hostnames; changing them</li></ul>
+<ul><li><strong>k8s cluster certificates</strong> — tied to the node's hostname and IP; preserved</li></ul>
+<ul><li><strong>Cluster role</strong> — if the original was a k3s server node, the phoenix is too;</li></ul>
+<ul><li><strong>Service-level hardcoded values</strong> — Forgejo's external URL, any service whose</li></ul>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-the-phoenix-package-adapts">What the Phoenix Package Adapts</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li><strong>ZFS pool topology</strong> — different disk count → different raidz level; same pool</li></ul>
+<ul><li><strong>Network bridge configuration</strong> — different NIC layout → different bridge</li></ul>
+<ul><li><strong>Physical disk assignments</strong> — new disk IDs from the replacement hardware</li></ul>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="restoration-scope-full-or-partial">Restoration Scope — Full or Partial</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">What should be restored on this node?
+
+  1. Full restoration  — restore all services that were running (default)
+  2. Select by group  — restore infrastructure first; defer applications
+  3. Select individually — choose which services to bring back now vs. later
+
+&gt; _</code></pre>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="phoenix-package-contents">Phoenix Package Contents</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">phoenix-package-{cell_id}-{hostname}-{ts}.tar.gz
+  ├── phoenix-playbook.json      Machine-readable reconstruction plan:
+  │                               node identity snapshot (VMIDs, IPs, hostnames,
+  │                               cluster role, PBS backup locations), hardware-adapted
+  │                               rebuild plan, restoration scope, RESTORE vs RECREATE
+  ├── run-all.sh                 Orchestrated entry point — runs each wave in order
+  ├── phase-0-network-reconstruction.sh   Wave 0
+  ├── phase-1-*.sh               Wave 1 — ZFS pool restore/create
+  ├── phase-2-*.sh               Wave 2 — Proxmox host configuration
+  ├── [phase-2-5-*.sh]           Wave 2.5 — template rebuild (conditional)
+  ├── phase-3-*.sh               Wave 3 — VM restore from PBS (+ per-VM RECREATE)
+  ├── phase-4-*.sh               Wave 4 — k3s cluster membership restore
+  ├── phase-5-*.sh               Wave 5 — post-restore validation
+  │                               (one phase-{N}-{wave-name}.sh per wave, generated
+  │                                dynamically from the playbook)
+  ├── phoenix-manifest.html      Human-readable package manifest (AD-051)
+  ├── [phoenix-workbook.html]    Auditable execution record (optional)
+  ├── [kdbx/{cell_id}.kdbx]      Optional embedded KeePass database
+  └── lib/                       checkpoint.sh, phoenix-keepass-gate.sh</code></pre>
+<hr>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="source-of-truth-hierarchy">Source of Truth Hierarchy</h2></summary><div class="sec-body" style="margin-left:12px">
+<pre><code class="lang-">TIER 1 — AUTHORITATIVE INTENT
+  metadata/*.yaml  (operators only; changes trigger full regeneration cascade)
+
+TIER 2 — AUTHORITATIVE DECLARED STATE
+  OpenTofu state + Kubernetes manifests (in Forgejo)
+
+TIER 3 — AUTHORITATIVE OBSERVED STATE
+  Proxmox API + Kubernetes API (reality — cannot be edited, only observed)
+
+TIER 4 — DERIVED ARTIFACTS
+  Generated docs, forge packages, spawn packages, phoenix packages, assessment reports
+
+TIER 5 — DISPOSABLE
+  Rendered diagrams, cached API responses, intermediate artifacts</code></pre>
+<hr>
+</div></details>
+<details class="section" open><summary><h2 id="deployment-gating">Deployment Gating</h2></summary><div class="sec-body" style="margin-left:12px">
+<pre><code class="lang-">Phase A   Bootstrap Intelligence (pre-k3s, operator machine)
+          ↓
+Phase 2   Proxmox host + Forgejo VM operational
+          ↓
+Phase 3   k3s cluster operational (single-node initially)
+          ↓
+Phase 4   Documentation Engine ─────── GATE 1: platform is documented
+          ↓
+Phase 5   Assessment Engine ────────── GATE 2: platform is scored (PHS computed)
+          ↓
+Phase 6   Flux CD GitOps ─────────────GATE 3: platform is GitOps-managed
+          ↓
+Phase 7   Monitoring ────────────────  GATE 4: platform is observable
+          ↓
+          User Applications ──────────[PHS ≥ 80 required]</code></pre>
+<hr>
+</div></details>
+<details class="section" open><summary><h2 id="development-status">Development Status</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="completed">Completed</h3></summary><div class="sec-body" style="margin-left:24px">
+<table><thead><tr><th>Milestone</th><th>Description</th></tr></thead><tbody><tr><td>Legacy <code>pae</code> CLI</td><td>Assessment engine, SQLite history, OpenTofu ingestion, report generation</td></tr><tr><td>Architecture Reviews v4–v7</td><td>Progressive architecture formalization (v7: Assessment Engine as first-class subsystem, 5 scores, 12-phase roadmap)</td></tr><tr><td>Phase 0</td><td>Metadata model — 10 authoritative YAML schemas + validator</td></tr><tr><td>Phase 1</td><td>Bootstrap Intelligence — hardware/network/storage discovery + 4 planners + 2 validators</td></tr><tr><td>Milestones 5.1–5.6</td><td>Data model formalization, bootstrap/recovery doc generators, readiness scoring, drift detection</td></tr><tr><td>Milestones 6.0–6.8</td><td>Bootstrap State schema, Cloud-Init templates, Secret/DNS registries, provenance tracking, template registry, Tier 2 SSH state collector, Bootstrap Workbook registry wiring</td></tr><tr><td>Milestones 7.1–7.3</td><td>Service contract implementation, service state schema and collection, external dependency state (cert expiry monitoring, recovery runbook Appendix G)</td></tr></tbody></table>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="active">Active</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="upcoming">Upcoming</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li><strong>Real-hardware forge validation</strong> — exercise the full forge → spawn → phoenix</li></ul>
+<ul><li><strong>Autonomous remediation governance review</strong> — the post-Phase-12 safeguard review</li></ul>
+<hr>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="project-structure">Project Structure</h2></summary><div class="sec-body" style="margin-left:12px">
+<pre><code class="lang-">broodforge/
+├── .ai/                       Project context, current state, decisions
+├── config/
+│   └── user-registry.json     User registry — who has accounts in k8s services
+├── data-model/                JSON schemas + stdlib validator
+├── doc-gen/                   Documentation generation engine (stdlib only)
+│   ├── engine.py              CLI: --mode bootstrap | recovery
+│   ├── registries.py          SecretRegistry + DnsRegistry
+│   ├── template_registry.py   TemplateRegistry
+│   ├── provenance.py          ProvenanceRegistry
+│   ├── readiness.py           GREEN/YELLOW/ORANGE/RED scorer
+│   └── renderers/             HTML document generators (deprecated/ holds old ODS/ODT)
+├── engine/                    Legacy pae CLI (Phases 1–6 assessment history)
+├── collector/                 Legacy collector framework
+├── lib/
+│   ├── forge-lib.sh           Core shell library (KeePass gate, helpers)
+│   ├── forge-sync-lib.py      KeePass master→child DB sync (pykeepass)
+│   ├── forge-onboarding-pdf.py  HTML onboarding package generator (TOTP QR codes)
+│   └── forge-render-docs.sh   Architecture/doc → HTML renderer
+├── proxmox-bootstrap/         Bootstrap Intelligence toolchain
+│   ├── metadata/              AUTHORITATIVE infrastructure intent YAML
+│   ├── snippets/              Cloud-Init user-data, network-config, vendor-data
+│   ├── user_registry.py       User registry CLI + data model
+│   ├── collect_tier2.py       Tier 2 SSH state collector library
+│   ├── collect-tier2.py       CLI entry point for Tier 2 collection
+│   └── TIER2-COLLECTION.md    Operator runbook for Tier 2 collection
+├── scripts/
+│   ├── forge-onboard-user.sh       Onboard user → credentials + HTML package
+│   ├── forge-provision-users.sh    Re-provision all users into k8s services
+│   ├── forge-throw-away-key.sh     Delete admin copy of credentials (zero-knowledge)
+│   ├── forge-offboard-user.sh      Remove user from services + registry
+│   └── forge-sync-credentials.sh  Sync credentials master→child KeePass DBs
+├── tests/                     4000+ tests (unit + fixtures)
+├── docs/
+│   ├── USER-REGISTRY.md       User lifecycle, service adapter convention
+│   ├── ARCHITECTURE.html      Rendered architecture (auto-generated from ARCHITECTURE.md)
+│   └── ...                    Architecture reviews, session handoffs
+├── reports/                   Generated documentation output
+├── ARCHITECTURE.md            Current architecture summary (v7.2)
+└── ROADMAP.md                 Full development roadmap (25 phases)</code></pre>
+<hr>
+</div></details>
+<details class="section" open><summary><h2 id="design-constraints">Design Constraints</h2></summary><div class="sec-body" style="margin-left:12px">
+<ul><li><strong>stdlib only</strong> in all planners, generators, and validators — no pip dependencies</li><li><strong><code>cell_id</code> mandatory</strong> on all schema documents (federation-readiness gate)</li><li><strong>Metadata YAML files are never generated</strong> — they are the authoritative source</li><li><strong>Generated artifacts are never the source of truth</strong> — always regenerate from metadata</li><li><strong><code>POPULATE:</code> markers</strong> signal documentation gaps — never silently omit missing data</li><li><strong>Filenames:</strong> <code>YYYY-MM-DD_HH-MM_SS_TZ</code> (e.g. <code>2026-06-01_03-00_00_UTC</code>)</li><li><strong>Document timestamps:</strong> <code>YYYY-MM-DD HH:MM:SS UTC (HH:MM:SS TZ)</code></li></ul>
+<hr>
+</div></details>
+<details class="section" open><summary><h2 id="design-principles">Design Principles</h2></summary><div class="sec-body" style="margin-left:12px">
+<ol><li><strong>Reconstruction is the objective.</strong> Every state category, metadata field, and</li></ol>
+<ol><li><strong>Documentation captures intent, not just state.</strong> Not "3 control-plane nodes"</li></ol>
+<ol><li><strong>Missing information is surfaced, never silently omitted.</strong> UNRESOLVED and STALE</li></ol>
+<ol><li><strong>The Assessment Engine recommends; humans act.</strong> No autonomous infrastructure</li></ol>
+<ol><li><strong>Cell scope is universal.</strong> <code>cell_id</code> in all schemas. Recovery playbooks organized</li></ol>
+<ol><li><strong>Failure drives improvement.</strong> Every recovery script failure generates a structured</li></ol>
+<ol><li><strong>Forging, spawning, and resurrection are all first-class operations.</strong> Each</li></ol>
+<p><strong>Self-Documenting, Self-Assessing, Self-Recovering Infrastructure Platform</strong> Broodforge is a framework for operating a Proxmox-based homelab that continuously understands its own state, evaluates its own health, can reconstruct itself from complete failure, and can spawn additional nodes — entirely from repository state. Three packages, three processes: <strong>Forging</strong> is how the first node is built — raw hardware shaped into a self-describing, self-managing hatchery. The <strong>hatchery</strong> is what it becomes: the source from which <strong>broodlings</strong> are spawned. The <strong>stargate process</strong> is how any node — hatchery or broodling — rises from catastrophic failure with its identity intact. Every deployment package (forge, spawn, phoenix) supports four configuration modes. The mode can be selected at package-creation time on the hatchery, or at execution time on the target node. <strong>Autonomous</strong> (default) is the fastest path — broodforge picks everything from hardware discovery and declared metadata. Use this for standard deployments where you trust the automatic choices. <strong>IP-Selective</strong> is for operators who have a specific IP plan (a fixed CIDR range, reserved addresses, a naming convention for machine IPs). Everything else — ZFS topology, VM sizing, k3s config — is automatic. Only network addressing requires input. <strong>Group-Manual</strong> offers a group selector. You choose which settings *categories* to configure manually; the rest are automatic. Groups: Network, Storage, VM Sizing, Identity, Security, k3s, Backup. <strong>Full Manual</strong> walks through every setting. At each step the auto-suggestion is shown prominently. You may accept it (press Enter) or enter your own value. <strong>Suggestion revision:</strong> when you override a setting, all downstream suggestions are revised to remain logically consistent. Choose <code>192.168.50.0/24</code> as your CIDR and all subsequent VM IP suggestions come from that range. Choose a custom hostname and the FQDN suggestion updates to match. <strong>Conflict detection:</strong> if your choice conflicts with a prior selection (duplicate VMID, overlapping subnet, RAM exceeding host capacity), a warning is shown with the specific conflict. You may still proceed — broodforge will not block you. Running a homelab with real services (Git, photos, documents, monitoring) creates a quiet fragility: the more the environment matures, the harder it becomes to recreate from scratch. Configuration drift accumulates. Manual steps are forgotten. Recovery runbooks go stale. After a catastrophic failure, "just rebuild it" becomes a multi-day archaeology project. Broodforge answers five questions that homelab operators typically cannot: <strong>The platform's primary product is not virtual machines.</strong> Broodforge exists to produce: runs on bare hardware to stand up a complete self-managing hatchery from scratch the broodling runs after bare Proxmox install, not a checklist of manual steps Applications (Nextcloud, Immich, monitoring) run on the platform and benefit from its capabilities. They are not the reason the platform exists. This distinction has concrete architectural consequences: the documentation engine and assessment engine deploy before any user workload. A workload that cannot be documented or assessed is not fit for deployment on this platform. Runs on the operator's machine or Proxmox host shell before any cluster exists. No cluster, no dependencies, no network access required. <strong>Discovery</strong> interrogates the physical host to produce structured profiles: <strong>Planning</strong> produces a validated deployment plan from discovered hardware + declared metadata: <strong>Generation</strong> produces deployment-ready artifacts from the plan: <strong>Validation</strong> gates deployment on capacity, naming, and readiness checks. Any RED finding blocks deployment until resolved. <strong>Node Spawning</strong> — when a new physical host (a <strong>broodling</strong>) is being added to the same Proxmox datacenter, the <strong>hatchery process</strong> reads current cluster state and produces a <strong>spawn package</strong>: a self-contained archive of scripts and a reserved-resource data dump copied to the broodling after its bare Proxmox bootstrap. The spawn package knows everything the hatchery has reserved — VMIDs, IPs, hostnames, cluster topology, placement policy — and configures the broodling around those constraints so it joins cleanly without conflict. See <a href="#node-spawning">Node Spawning</a> below. Continuously collects state from Proxmox API, Kubernetes API, Flux CD, OpenTofu remote state, Forgejo, and metadata YAML files. Generates living documentation committed back to Forgejo: drove the decision. Example: "3 control-plane nodes [policy: k3s-cluster#ha-control-plane, reason: etcd quorum requires 3 servers at ≥ 3 physical hosts, current: 3 hosts]" Documentation regenerates within 15 minutes of any metadata commit or infrastructure change. Evaluates five categories and produces five scored dimensions (0–100 each): These aggregate into a <strong>Platform Health Score (PHS)</strong>. Thresholds: GREEN ≥ 80, YELLOW 60–79, ORANGE 40–59, RED &lt; 40. All findings produce human-reviewable recommendations with severity, component, description, and suggested remediation. The Assessment Engine never takes autonomous action on infrastructure. Autonomous remediation is explicitly deferred to a post-Phase 12 governance review with defined safeguards. Generates and executes recovery knowledge in the form of <strong>phoenix packages</strong> — self-contained archives that rebuild a failed node back to as close to its original state as possible, even if the underlying hardware has changed. <strong>Recovery wave ordering</strong> — the sequence the phoenix playbook reconstructs in (generated by <code>phoenix_playbook.py</code>; one <code>phase-{N}-{name}.sh</code> script per wave): Application and platform workloads are not separate waves: once the node rejoins in Wave 4, Flux CD reconciles its disposition-appropriate workloads automatically. <strong>RESTORE vs RECREATE</strong> decisions are made per component (data restore from PBS vs full recreation via IaC + Ansible). <strong>Executable phoenix scripts</strong> are checkpoint-based, resumable, and offline-capable. Phases 1–3 (through k3s) require only the phoenix package, the operator's machine, and PBS backup access — no internet, no Forgejo required. <strong>HTML recovery workbook</strong> — machine-generated execution audit trail (every step status, timestamp, operator notes, validation results). Opens in any browser; checkboxes save state in localStorage; print-friendly. <strong>Failure packages</strong> — structured, LLM-optimized analysis artifacts generated automatically on any script step failure. Contains: what was attempted, the error, system state at failure, all logs, and a pre-composed LLM prompt for root cause analysis. <strong>Forging</strong> is the process of turning bare hardware into a self-managing hatchery from scratch. It is what every broodforge deployment begins with — before there is a hatchery, before there are broodlings, before there is a stargate to rise through. The <strong>forge package</strong> is a self-contained archive that the operator downloads and runs on a freshly installed Proxmox host. It contains everything needed to go from "bare Proxmox" to a fully operational broodforge hatchery — no prior cluster, no prior state, no internet required after the package is copied to the host. During phase-01 (plan), the operator provides their domain: This becomes the root for all node names in the cluster: <code>hatchery.home.example.com</code>, <code>forgejo.home.example.com</code>, <code>pbs.home.example.com</code>, and so on. The hatchery's FQDN is the single stable address used everywhere — Headscale server URL, Forgejo remote, backup destinations, and spawn packages. Phase-03 (host config) deploys <strong>dnsmasq</strong> on the Proxmox host and configures it for split-horizon DNS: LAN clients that use the hatchery as their nameserver resolve <code>hatchery.home.example.com</code> to the LAN IP; WAN clients resolve the same name to the WAN IP via the operator's external DNS registrar. The dnsmasq config is generated directly from <code>dns-registry.yaml</code>, so every registered hostname is automatically served. For operators with dynamic WAN IPs, forge optionally configures a DDNS agent (Cloudflare, Duck DNS, No-IP) that keeps the external A record current. After <code>forge.sh</code> completes, the hatchery is operational: The hatchery can now: The forge package deploys the broodforge stack only — no user applications, no monitoring stack, no additional services. This is intentional: the hatchery must understand and assess itself before hosting anything else. The gates in the deployment order enforce this: Any phase failure generates a failure package with full logs and a pre-composed LLM analysis prompt. The forge is resumable from the last successful checkpoint. Once forged, the hatchery can spawn additional nodes. The <strong>hatchery process</strong> runs on the hatchery to produce a <strong>spawn package</strong> — the artifact a broodling uses to join without conflicting with anything already reserved. The hatchery process reads the hatchery's current cluster state and produces a <strong>spawn package</strong>: a self-contained archive copied to a broodling after bare Proxmox installation and executed there. It does not require the operator to know what is already allocated or to manually coordinate with the hatchery. The spawn manifest is a point-in-time snapshot of everything the hatchery has reserved. The spawn plan is the conflict-validated answer to: given those reservations and the broodling's declared disposition, what does this specific broodling get? Every broodling has a <strong>disposition</strong> chosen at package generation time on the hatchery. The disposition is a list of specific services to deploy on the broodling, selected interactively from what the hatchery actually runs. A broodling with less RAM, fewer disks, or slower CPUs can join the cluster and contribute meaningfully without being expected to run services it can't support. <strong>Minimum viable participation (always included, cannot be deselected):</strong> contributes hardware/state data to <code>bootstrap-state.json</code>) <strong>Because the hatchery runs split-horizon DNS, every spawn package uses the same Headscale URL regardless of the broodling's location:</strong> hatchery's dnsmasq — the connection stays on the local network through the operator's port forwarding to reach Headscale One spawn package, one URL, works from anywhere. <strong>The spawn planner asks network mode first to determine the SSH discovery path:</strong> <strong>LAN mode:</strong> hatchery SSHes directly to the broodling using the temporary root password generated by the planner. No Tailscale involved. <strong>WAN mode:</strong> the planner generates a one-time Headscale auth key and embeds it in the spawn package. On the broodling, <code>phase-00a</code> installs Tailscale and registers: The broodling appears on the hatchery's tailnet. All subsequent communication uses the WireGuard tunnel — no port forwarding beyond the Headscale port, no static WAN IP on the broodling side. After spawn, Tailscale remains installed and the broodling is a permanent tailnet member. <strong>Headscale</strong> auto-configures during hatchery forging. No Tailscale Inc. account needed. <strong>The spawn planner asks execution mode second:</strong> <strong>If Interactive:</strong> the planner is done. The package is assembled with all available service scripts included. Service selection happens entirely on the broodling at execution time — there are no further choices to make on the hatchery. <strong>If Autonomous:</strong> the planner continues with service selection: Autonomous mode is the default for speedy, hands-off deployment. The service list is finalised on the hatchery and the package runs end-to-end without further operator decisions. The only prompt on the broodling is the KeePass master password entry (see <a href="#keepass-and-secret-security">KeePass Security</a>). Interactive mode is for cases where the operator wants to make final decisions on-site, or where the broodling's hardware may differ from what was profiled on the hatchery. The package carries all service scripts; <code>spawn.sh</code> re-evaluates actual hardware at runtime and presents the selection menu there. For options 2 and 3, the planner shows each service with its hardware fit status derived from <code>metadata/service-catalog.yaml</code> and the new host's hardware profile: Services that don't fit are shown with a specific reason (RAM, disk, dependency) and excluded from the plan — they do not cause the spawn to fail. The operator can adjust the selection before the package is built. <strong>The disposition is recorded in <code>spawn-plan.json</code> and <code>bootstrap-state.json</code> as a service list, not abstract flags.</strong> The assessment engine reads it and only scores the broodling against services it was deployed to provide. A broodling without <code>prometheus</code> in its disposition is not penalized for a missing Prometheus replica. A mismatch between declared disposition and observed reality remains a RED finding — disposition does not excuse missing what was explicitly selected. The assessment engine reads current cluster state before generating any spawn package. It accounts for: non-overlapping block for the new host new IPs allocated from the declared subnet without collisions convention-compliant and globally unique in the spawn manifest; new host joins without operator intervention the hardware profile; flags that don't fit are dropped from the plan with a clear warning before the package is built, not as a failure after deployment <strong>What does not change:</strong> Naming convention, KeePass path structure, Proxmox cluster membership, the intelligence collection baseline, secret references. The operator's interaction is: install Proxmox → copy spawn package → run <code>spawn.sh</code>. Everything else is automated. <strong>Step 1 — Execution mode</strong> (asked first): <strong>Step 2 — Hardware discovery</strong> (autonomous only): The hatchery is a trusted node on the homelab LAN. Password-based SSH from the hatchery to a fresh broodling is acceptable — no pre-exchanged keys required. The spawn planner generates a suggested temporary root password before the operator touches the broodling: The hatchery already knows the password it suggested, so discovery proceeds automatically once the operator signals that Proxmox is installed: If the operator used a different password during installation, the planner prompts for it instead. The password is transmitted over the local trusted network and replaced by properly generated KeePass-managed credentials during spawn. It is valid only from Proxmox installation until <code>phase-03-cloudinit.sh</code> runs and sets the real password. <strong>Step 3 — Spawn planning</strong> (autonomous only): The planner presents a hardware fit assessment and service selection: The operator confirms or adjusts, locking the disposition into <code>spawn-plan.json</code>. The Assessment Engine then reads hatchery cluster state into <code>spawn-manifest.json</code> — all reserved VMIDs, IPs, hostnames, Proxmox cluster address, and k3s tokens. The conflict validator blocks package generation on any collision. The spawn package is then assembled and ready to copy to the broodling. In autonomous mode it is offline-capable — the broodling never queries the hatchery API. In interactive mode all service scripts are included and selection happens at runtime. <strong>phase-00a</strong> [WAN mode only] Tailscale join — runs before anything else. Installs Tailscale and registers with the hatchery's Headscale using the embedded auth key. The broodling appears on the tailnet so the hatchery can SSH in for coordination. Skipped entirely in LAN mode where direct SSH is already available. <strong>phase-00</strong> Host bootstrap — two sub-stages: <strong>phase-01</strong> <code>pvecm add</code> → joins Proxmox cluster. <strong>VM Provisioning</strong> (only VMs declared by disposition): <strong>Cluster join:</strong> After phase-06, everything is automatic: Flux CD schedules only workloads matching this node's disposition labels and taints; the Assessment Engine scores the broodling only against its declared disposition; the Doc Engine regenerates the topology showing the broodling's role in the cluster. Any phase failure generates a failure package automatically. All forge, spawn, and phoenix packages carry KeePass <strong>paths</strong> — references that locate secrets within the operator's database. The package scripts never store or emit secret values in plain text. Beyond paths, the KeePass database itself is <strong>optionally</strong> included in a package for convenience, but the security model ensures that inclusion alone is harmless without the master password. At package-generation time the operator chooses one of three options for the KeePass database: Options 2 and 3 are for environments where the operator prefers to keep the database entirely separate from the deployment archive. Regardless of how the database is sourced, <strong>it cannot be auto-unlocked</strong>. Before any secret is accessed, the installer pauses and prompts: The master password is entered once at the start of the bootstrap process. After that, the <strong>secrets broker</strong> handles all subsequent secret lookups automatically for the duration of that session — no further operator input is needed per-secret. The unlocked state lives only in process memory; nothing is written to disk. In <strong>autonomous spawn mode</strong>, this gate and the hardware pre-flight confirmation are the only human interactions before fully automated execution. In <strong>interactive spawn mode</strong>, the master password gate is followed immediately by the service selection prompt. *k3s join tokens are included in the spawn manifest but are valid only during the spawn window and are rotated after the broodling joins successfully. <strong>Security property:</strong> A package without the database is useless without both the database file and the master password. A package with the database embedded is useless without the master password. Either way, interception of the package alone yields no usable credentials — only the paths at which they are stored. Broodforge uses a two-tier password generation approach. The goal is passwords that are both human-usable and machine-safe — without forcing operators to copy random strings from screens, and without failing on services that reject common special characters. Whenever a password will be seen or entered by a human — KeePass master password suggestion, service admin credentials, initial VM passwords — broodforge generates a readable passphrase: Examples: These passphrases are human-memorable, typeable in a terminal without quoting or escaping, and satisfy most service password requirements (letters, digits, and periods are universally accepted in typical applications). Some services reject passwords containing periods, underscores, or any non-alphanumeric character. If broodforge detects a deployment failure with a pattern matching a credential rejection (authentication failure, invalid password format, bad character), it: digits only, same length range — the KeePass default format) <code>password_format: alphanumeric</code>, so the restriction is applied automatically in every future deployment — no manual detection needed after the first encounter During forging, the operator sets the KeePass master password for the first time. Broodforge presents two options: The generated passphrase option produces a password that the operator can write down legibly and recover from cold storage if needed — an important property for the database that protects everything else in the cluster. Broodforge uses <strong><a href="https://restic.net/">restic</a></strong> as its backup engine and <strong><a href="https://rclone.org/">rclone</a></strong> as its cloud storage transport layer. Restic provides encryption at rest, deduplication, versioned snapshots, retention policies, and permanent checkpoint tagging. Rclone provides a unified interface to dozens of cloud storage providers so broodforge does not need a separate integration per vendor. Together, restic + rclone cover: local disk, USB drives, Backblaze B2, AWS S3, Cloudflare R2, Google Drive, Dropbox, SFTP targets, self-hosted MinIO, and more — using the same backup commands regardless of where the data lands. Three independent backup layers, each with its own schedule and destination policy: <strong>Every node's configuration is visible to every other node.</strong> The assessment engine on each node holds the full cluster state — any node can construct a phoenix package for any other. Configuration backup is therefore cell-scoped, not node-scoped. The KeePass database backup is non-optional once a backup destination is configured. A database that goes stale after new services are deployed without being backed up makes recovery impossible; this is treated as a critical readiness gap. Destinations are configured as an <strong>ordered chain</strong> of unlimited depth. When a backup runs, each destination in the chain is attempted. Failures are logged and exposed — never swallowed. If a destination fails, the next one in the chain is tried automatically. If every destination fails for a layer, this is surfaced as a RED finding in the assessment report and the next scheduled run will retry. The chain can be as long as needed. Two destinations cover the common case (e.g., local disk + cloud). More destinations provide deeper redundancy without any limit. Cloud destinations require a long-lived API secret or OAuth token — username and password alone are not accepted. See <a href="docs/CLOUD-STORAGE-SETUP.md"><code>docs/CLOUD-STORAGE-SETUP.md</code></a> for step-by-step provider setup guides. <strong>Each upload is verified</strong> — after writing to a destination, broodforge runs a restic integrity check (snapshot count and size probe) to confirm the data actually landed. A destination that accepts data but fails verification is treated the same as one that rejected the write. <strong>All backups except the KeePass database</strong> are encrypted by restic before leaving the source machine. Encryption is mandatory for these layers and cannot be disabled. <strong>Every individual backup gets its own unique secret.</strong> A component does not carry the same restic password across all backups for all time. For each backup run, broodforge generates a new passphrase, adds it to the restic repository (<code>restic key add</code>), and removes the previous one (<code>restic key remove</code>). This rewraps the repository's internal master key without re-encrypting stored data — it is fast and does not break existing snapshots. The new password is stored in KeePass at a timestamped path: At restore time, the secrets broker reads the snapshot's timestamp from <code>backup_history</code>, constructs the correct KeePass path, and retrieves the exact key that was valid for that snapshot. After <code>restic forget</code> prunes a snapshot, the corresponding KeePass entry is cleaned up automatically. <strong>Operators never manually handle restic repo passwords — before or after initial setup.</strong> The encryption chain for a non-KeePass backed-up file: <strong>KeePass database backup — no restic layer:</strong> The KeePass database is already AES-256 encrypted by KeePass itself. Adding a restic encryption layer on top would create an irrecoverable circular dependency: to decrypt the backup you need the repo password; the repo password is stored in KeePass; but you are trying to restore KeePass. There is no way out of that loop. The KeePass database is therefore backed up as a plain file copy — the <code>.kdbx</code> file transported as-is to each configured destination via rclone. No restic layer. The file is already encrypted; anyone who obtains the backup still needs the KeePass master password (or other configured authentication method) to open it. <strong>KeePass backup destination credentials</strong> cannot be stored in KeePass for the same reason. They are stored in <code>forge-manifest.json</code> (embedded in the forge, spawn, and phoenix packages) so they are accessible on a bare machine before KeePass is available. This is the one exception to the rule that packages carry only KeePass references — the KeePass backup transport credentials must exist outside KeePass. Recovery flow for a lost KeePass database: KeePass supports multiple authentication methods (master password, key file, hardware token). Broodforge stores the auth method metadata in <code>bootstrap-state.json</code> but the actual credential is the operator's sole responsibility — it is never stored anywhere in the system. <strong>Simple mode</strong> — one ordered destination chain, uniform across all layers: <strong>Detailed mode</strong> — per-node, per-VM, per-container, per-volume heterogeneous policy. Each component defines its own ordered destination chain and retention count, or inherits from its parent. Children create sub-directories at inherited destinations. Sibling settings are auto-suggested to avoid re-entering credentials for related components. <strong>Space-aware component routing and chunked splitting:</strong> Before each backup run, broodforge probes available space at every destination in the chain. Each component is routed to whichever destination has room: All routing decisions are recorded in <code>backup_history</code> alongside the <code>snapshot_set_id</code> that links sub-component pieces belonging to the same logical backup point. Restore reads this metadata and automatically assembles chunked backups from their respective destinations without operator involvement. If a component cannot be split further (e.g., a single large VM disk image) and no destination has enough space, that specific component surfaces as a human-required decision. All other components in the run continue. <strong>Failure exposure — never silent:</strong> Every backup file, restic repo path, KeePass key entry, and snapshot set identifier follows a consistent naming convention so the purpose of any backup artifact is immediately readable from its name alone — no metadata lookup required. <strong>Component type prefixes:</strong> <strong>KeePass database file copies</strong> (rclone, no restic layer): <code>{hash8}</code> = first 8 hex characters of the SHA-256 of the <code>.kdbx</code> file at backup time. Changes whenever the database changes; confirms which version of the DB was captured. <strong>Restic repository paths</strong> (directory at each destination): The repo directory is the stable, human-readable identifier. The restic snapshot IDs inside it are the 40-character hex IDs restic assigns internally. <strong>Snapshot set identifiers</strong> (links all component snapshots from one backup run): <code>{run_hash8}</code> = first 8 characters of the snapshot_set UUID. Used as the <code>snapshot_set_id</code> in <code>backup_history</code> and as a restic snapshot tag. <strong>Restic snapshot tags</strong> (attached to every restic snapshot at creation): Tags make every snapshot queryable by <code>restic snapshots --tag component:vm-forgejo-101</code> without needing to open the backup_history JSON. <strong>KeePass key paths</strong> (per-backup restic repo passwords): <strong>Naming is enforced, not suggested.</strong> <code>setup-backup.py</code>, <code>run-backup.py</code>, and <code>restore-from-backup.py</code> construct all paths and names programmatically from <code>cell_id</code>, component metadata, and UTC timestamps. Operators do not name backup artifacts manually. Backup configuration is stored in <code>bootstrap-state.json</code> as a first-class readiness input. The assessment engine scores: A cluster with a stale or fully-failed secrets backup is unrecoverable after a failure. This is surfaced prominently in every readiness report. The restore process is designed to minimise operator interaction: Steps 2, 5, and 6 require no operator input. The only manual decisions are the master password (step 1) and snapshot selection (step 4). During forging, the operator sets their preferred timezone for documentation timestamps. This preference is stored in <code>bootstrap-state.json</code> as <code>vm_defaults.timezone</code> and used by the documentation engine when generating all workbooks, runbooks, and readiness reports. The display format is: <code>YYYY-MM-DD HH:MM:SS UTC (HH:MM:SS {TZ})</code> — both UTC and local time are always shown, so documents are unambiguous regardless of reader timezone. To update the timezone preference after forging: The <strong>stargate process</strong> is what produces a phoenix package when a node has failed. Where the hatchery process creates something new that must not conflict with what exists, the stargate process recreates something that *already existed* — sending its identity through the gate and reconstituting it on new hardware. A <strong>phoenix package</strong> preserves the failed node's identity exactly, even if the physical hardware underneath has changed. When a node is lost to catastrophic hardware failure and replaced with different physical hardware, the phoenix package ensures that everything at the logical layer comes back identically: hardcodes an IP stays valid breaks cluster membership and certificate validity so the node rejoins its existing cluster rather than creating a new one etcd membership is restored, not re-bootstrapped config bakes in a specific IP or hostname The new physical hardware may differ from what failed. The phoenix package scans the new hardware before applying anything and recalculates only the physical layer: *name* is preserved so Proxmox datastores and VM disk paths remain valid definitions; same bridge *names* are preserved so VM network assignments remain valid The hardware scan happens as the first phase of the phoenix package on the new machine, before any identity is applied. If the new hardware cannot meet the original node's minimum requirements (insufficient RAM for its VM set, insufficient disks for the original ZFS topology), the phoenix package reports a specific shortfall and offers a reduced restoration scope rather than failing silently. The phoenix package offers a restoration scope selection at recovery time, analogous to the spawn package's disposition selection: The primary difference from spawn disposition is the default: full restoration is the expected case for a phoenix. Partial restoration is available for situations where the replacement hardware is temporarily smaller, or where restoring certain services should wait until the node is verified stable. Services deferred at phoenix time are recorded in <code>bootstrap-state.json</code> with <code>restoration_status: deferred</code> so the assessment engine knows they are expected but not yet running, and does not generate spurious RED findings during the recovery window. Conflicts between tiers surface as Assessment Engine findings. Tier 1 (intent) always wins. Tier 3 (observed reality) never overrides declared intent — it creates a drift finding instead. Intelligence-layer workloads deploy before any user application. Flux CD dependency declarations enforce this ordering. Broodforge is under active development. See <a href="ROADMAP.md">ROADMAP.md</a> for full milestone detail and <a href="pap/state/SESSION_HANDOFF.md">pap/state/SESSION_HANDOFF.md</a> for the latest session context (this pointer moved from the now-retired <code>docs/SESSION-HANDOFF.md</code> — preserved at <a href="docs/deprecated/SESSION-HANDOFF.md">docs/deprecated/SESSION-HANDOFF.md</a> — when broodforge's session-continuity practice transitioned to PAP; see <a href="pap/revisions/2026-06-07_session-continuity-transition-to-pap.md">pap/revisions/2026-06-07_session-continuity-transition-to-pap.md</a>). <strong>Test suite: 4000 passing, 1 skipped (Windows-only).</strong> All roadmap milestones complete through Phase 26 (Autonomous Remediation) + 9.T (Talos alternative), including node spawn automation (Phase 12.E) and the phoenix recovery/stargate process. The planning, assessment, spawn, phoenix, recovery, and remediation tiers are implemented and tested. <strong>One known gap:</strong> the <strong>forge</strong> VM-provisioning IaC — the OpenTofu modules for the initial Forgejo + operations VMs, and the generated Ansible inventory — is the active deploy-to-hardware work. <code>forge.sh</code> runs end-to-end but phases 04–05 self-skip with a clear message until that layer lands (see <code>proxmox-bootstrap/FORGING.md</code> → "Forge provisioning status"). The spawn flow generates its IaC fully and does not share this gap. <strong>Deploy to hardware</strong> — All implementation milestones complete. Next step: run <code>python3 proxmox-bootstrap/forge-planner.py</code> on your workstation to plan the first cell, then <code>assemble-forge-package.py</code> and <code>bash forge.sh</code> on a real Proxmox host. See <code>proxmox-bootstrap/FORGING.md</code> for the full operator runbook. lifecycle on physical Proxmox nodes and fold any failure packages back into fixes. before enabling autonomous infrastructure action by default (see Phase 26 / AD on remediation policy in <a href="ROADMAP.md">ROADMAP.md</a>). documentation artifact must answer: "Does this enable reconstruction from repository state after complete infrastructure loss?" but "3 control-plane nodes because HA policy requires etcd quorum at ≥ 3 hosts." fields always appear with reason, impact, and remediation guidance. action. Findings produce human-reviewable recommendations with severity and suggested remediation. Automation requires explicit governance review. by cell. The federation layer is added above, not retrofitted below. failure package. Every failure package should produce a bootstrap repository commit that prevents that failure mode from recurring. produces a self-contained, auditable, checkpoint-resumable package. Forging builds the first hatchery from scratch. Spawning extends it with broodlings. Resurrection reconstitutes any node through the stargate. The result is the same class of auditable, checkpoint-based deployment artifact as the initial bootstrap.                                                                                                                                                                                                                                                                                                                                                                                                                                                       </p>
 </div></details>
 </div></details>
     </div>

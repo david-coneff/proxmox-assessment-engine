@@ -17,24 +17,32 @@ behavior, not its development process, and is out of scope for this artifact
   for home-lab Proxmox + k3s environments (hardware assessment, cell forging,
   node spawning, phoenix recovery, continuous health monitoring, autonomous
   remediation). Six-layer lifecycle, seventeen-state model, three assessment
-  tiers, five dependency-graph types. Architecture v7.1+. (Source:
+  tiers, five dependency-graph types. Architecture stamp: 2026-06-13_20-05-27_UTC_c0831145. (Source:
   `.ai/context.md`, `.ai/CURRENT_STATE.md`.)
 
-- **active_objective**: Audit Cycle R8 (PAP 39-pattern scan of Phase 2.A–2.I k8s service management
-  modules) **complete** (2026-06-10). Phase 2.A–2.I committed after Google Drive sync recovery (8 modules:
-  Authentik, cert-manager, kube-prometheus-stack, Loki+Promtail, Longhorn, Flux CD, Velero, Linkerd).
-  R8 findings: R8-001 IMPROVEMENT (linkerd shell=True, accepted — hardcoded constants, no user input);
-  R8-002–005 DEFECT (4 stale HTML companions — fixed); R8-006 RISK (no Phase 2 ADs — fixed, AD-065–072
-  added); R8-007 OBSERVATION (state docs predate Phase 2 — fixed). 0 BLOCKERs. 0 DEFECTs outstanding.
-  1 IMPROVEMENT accepted. Next operational action: **deploy to hardware**.
+- **active_objective**: Phase 3 documentation + tooling hardening complete (2026-06-13). Stamp format upgraded to `YYYY-MM-DD_HH-MM-SS_<tz>_shorthash` (timezone-explicit). ARCHITECTURE.md truncation repaired; AD-073–AD-084 fully written. Portal Phase 3.K updated with federation/cluster context indicator (AD-084). All HTML companions regenerated with collapsible sections (ARCHITECTURE.html now collapsible). version-hash-schema.yaml updated with stamp_format section. 0 open issues. Next action: implement Phase 2.K (ESO) or Phase 3.A (Event Platform) per operator direction.
 
-- **active_milestone**: (Updated — eighteenth milestone, 2026-06-13 Phase 2.J + state cleanup.)
+- **active_milestone**: (Updated — nineteenth milestone, 2026-06-13 Phase 3 scoping.)
+  Phase 3 (Intelligence, Governance & Experience Layer) scoped and documented.
+  Eleven phases added to ROADMAP.md: 3.A Event Platform, 3.B Capability & Policy Engine,
+  3.C Execution Broker, 3.D Operational Intelligence, 3.E Countdown/ETA Display,
+  3.F Incident System & Ticketing, 3.G Advisories & Correlation, 3.H Secrets & Trust Brokerage,
+  3.I Governance Integrity Chain (integrity/ top-level dir; hash-linked checkpoints with
+  migration approval proof schema — prior schema must approve migration; adopted schema hash
+  must match approved hash; unapproved migrations are detectable by chain inspection),
+  3.J Control Nexus (Node/Cluster/Federation tiers), 3.K Portal (user self-service hub).
+  AD-074 through AD-081 added to ARCHITECTURE.md.
+  Draft corpus directories (chatgpt architecture/, new/) removed from repo.
+  CURRENT_STATE.md, RESUME_BLOCK.md, HTML companions updated.
+  0 open issues.
+
+  (Previous — eighteenth milestone, 2026-06-13 Phase 2.J + state cleanup.)
   Phase 2.J (Kyverno) committed: kyverno_manager.py, forge-init-kyverno.sh, forge-kyverno-policy.sh,
   tests/unit/test_kyverno_manager.py (25 tests). AD-073 added to ARCHITECTURE.md.
   State cleanup: ROADMAP.md corrected (Phase 2.K incorrectly marked complete in WIP commit 70f5ed7 —
   no ESO files were committed; reverted to proposed/not-started). FEATURE-HISTORY.md Phase 2.J cycle
   added. CURRENT_STATE.md, RESUME_BLOCK.md, HTML companions updated.
-  0 open issues. Next action: deploy to hardware.
+  0 open issues.
 
   (Previous — seventeenth milestone, 2026-06-10 Phase 2.A–2.I + Audit Cycle R8.)
   Phase 2.A–2.I committed (Google Drive sync recovery): 8 k8s service management modules, 8 forge-init
@@ -265,26 +273,4 @@ behavior, not its development process, and is out of scope for this artifact
   recent PAP-AUDIT of broodforge; broodforge's own `docs/AUDIT-FINDINGS.md`
   cycles likewise show no open blocking item as of the last entry.)
 
-- **next_action**: **(Updated — eighteenth milestone closed, 2026-06-13.)**
-  Phase 2.J (Kyverno) committed. State cleanup complete: ROADMAP Phase 2.K false-complete claim
-  corrected; AD-073 added; FEATURE-HISTORY, CURRENT_STATE, RESUME_BLOCK, HTML companions updated.
-  0 open issues. 0 open DEFECTs.
-  **Next operational action**: deploy to hardware — run `python3
-  proxmox-bootstrap/forge-planner.py` on a real Proxmox host to forge the
-  first cell. See `FORGING.md`.
-
-  If the operator gives new direction on any future work, pick it up, scope it
-  precisely to what was asked, write the cycle into `docs/FEATURE-HISTORY.md`,
-  and update this corpus again.
-
----
-
-## Provenance
-
-Created as part of
-[`pap/revisions/2026-06-07_session-continuity-transition-to-pap.md`](../revisions/2026-06-07_session-continuity-transition-to-pap.md) —
-the transition that moved broodforge's own session-continuity practice from
-its pre-PAP prototype mechanisms (`.ai/AI_AGENT_BOOTSTRAP.md`,
-`docs/SESSION-HANDOFF.md`) onto PAP-State's formally-specified Resume Block
-and Session Handoff Protocol. Update this block at minimum at every session
-boundary and at every major milestone, per the schema's `update_trigger`.
+- **next_action**: **(Updated — nineteenth milestone closed, 2026-06-13.)*

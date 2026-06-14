@@ -3,17 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Talos Linux — Alternative OS for k3s VMs</title>
+<title>Talos Alternative</title>
 <style>
   :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
-    --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a}
+    --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a;--bg2-rgb:34,38,46}
   body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#d0d7de;--text:#1f2328;--muted:#57606a;
     --accent:#0969da;--green:#1a7f37;--yellow:#9a6700;--orange:#bc4c00;--red:#cf222e;
-    --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2}
+    --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2;--bg2-rgb:244,245,247}
   *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
-    font-size:14px;line-height:1.6;padding:24px 24px 80px;max-width:1100px;margin:0 auto;
+    font-size:14px;line-height:1.6;
     transition:background .15s,color .15s}
   h1{color:var(--accent);font-size:1.7em;margin:18px 0 4px}
   h2{color:var(--accent);font-size:1.05em;margin:24px 0 8px;text-transform:uppercase;letter-spacing:.05em;
@@ -41,20 +42,76 @@
   tr:last-child td{border-bottom:none}
   .doc-meta{color:var(--muted);font-size:.8em;margin:4px 0 20px}
   /* theme toggle */
-  #bf-toolbar{position:fixed;top:14px;right:16px;z-index:50;display:flex;gap:8px}
+  #bf-toolbar{position:sticky;top:0;z-index:50;display:flex;flex-direction:column;
+    background:var(--bg)}
+  .bf-toolbar-main{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:6px 0}
+  .bf-toolbar-end{margin-left:auto;display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap}
+  .bf-attach-bar{display:flex;align-items:center;gap:10px;
+    padding:4px 0 6px;border-top:1px solid var(--border)}
+  .bf-attach-hint{color:var(--muted);font-size:.76em}
+  #bf-collapse-all,#bf-expand-all{background:var(--btn-bg);color:var(--text);
+    border:1px solid var(--border);border-radius:var(--radius);padding:5px 12px;
+    cursor:pointer;font-size:.8em;font-family:inherit}
+  #bf-collapse-all:hover,#bf-expand-all:hover{border-color:var(--accent);color:var(--accent)}
+  #bf-section-count{color:var(--muted);font-size:.75em;white-space:nowrap}
   #bf-toolbar button{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
     border-radius:var(--radius);padding:5px 12px;cursor:pointer;font-size:.8em;font-family:inherit}
   #bf-toolbar button:hover{border-color:var(--accent);color:var(--accent)}
-  /* attachments */
-  .attachments{margin-top:30px;border-top:1px solid var(--border);padding-top:14px}
-  .attachments input[type=file]{color:var(--muted);font-size:.85em;margin-top:6px}
-  .attach-list{list-style:none;margin:10px 0 0;padding:0}
-  .attach-list li{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);
-    border-radius:var(--radius);padding:5px 10px;margin:4px 0;font-size:.85em}
+  .about-docs-link{background:var(--btn-bg);color:var(--muted);border:1px solid var(--border);
+    border-radius:var(--radius);padding:5px 10px;display:inline-flex;align-items:center;
+    font-size:.8em;text-decoration:none;cursor:pointer;flex-shrink:0;font-family:inherit}
+  .about-docs-link:hover{border-color:var(--accent);color:var(--accent)}
+  /* attachments - toolbar dropdown panel */
+  #bf-attach-count{font-size:.75em;opacity:.8}
+  #bf-attach-panel{position:absolute;top:100%;right:0;width:360px;
+    background:var(--bg2);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 var(--radius) var(--radius);
+    box-shadow:0 6px 18px rgba(0,0,0,.38);z-index:51;
+    display:none;padding:12px 14px}
+  #bf-attach-panel.open{display:block}
+  #bf-attach-zone{border:1.5px dashed var(--border);border-radius:var(--radius);
+    background:var(--bg);padding:12px 14px;display:flex;align-items:center;
+    gap:10px;cursor:default;transition:border-color .15s,background .15s;margin-bottom:6px}
+  #bf-attach-zone.drag-over{border-color:var(--accent);background:rgba(137,180,250,.06)}
+  .bf-attach-prompt{color:var(--muted);font-size:.82em;flex:1}
+  .bf-attach-btn{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 10px;font-size:.78em;cursor:pointer;
+    font-family:inherit;flex-shrink:0;white-space:nowrap}
+  .bf-attach-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .attach-list{list-style:none;margin:4px 0 0;padding:0}
+  .attach-list li{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 8px;margin:3px 0;font-size:.82em}
   .attach-list .sz{color:var(--muted);font-size:.9em}
   .attach-list button{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);
-    border-radius:4px;cursor:pointer;padding:1px 8px;font-size:.85em}
+    border-radius:4px;cursor:pointer;padding:1px 6px;font-size:.82em}
   .attach-list button:hover{border-color:var(--red);color:var(--red)}
+  /* doc navigation panel */
+  #bf-nav-panel{position:absolute;top:100%;left:0;width:300px;
+    background:var(--bg2);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 var(--radius) var(--radius);
+    box-shadow:0 6px 18px rgba(0,0,0,.38);z-index:51;
+    display:none;padding:8px 0;max-height:70vh;overflow-y:auto}
+  #bf-nav-panel.open{display:block}
+  .bf-nav-group{padding:4px 0}
+  .bf-nav-group-label{font-size:.68em;color:var(--muted);font-weight:700;
+    text-transform:uppercase;letter-spacing:.08em;padding:6px 14px 3px}
+  .bf-nav-item{display:block;padding:5px 14px;font-size:.82em;color:var(--text);
+    text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bf-nav-item:hover{background:var(--bg3);color:var(--accent)}
+  .bf-nav-item.current{color:var(--accent);font-weight:600;
+    border-left:2px solid var(--accent);padding-left:12px}
+  .bf-nav-sep{height:1px;background:var(--border);margin:4px 0}
+  /* collapsible sections (--collapsible) */
+  details.section{margin:8px 0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  details.section>summary{background:var(--bg2);color:var(--accent);cursor:pointer;user-select:none;
+    padding:9px 14px;font-weight:600;font-size:1.0em;list-style:none;text-transform:uppercase;
+    letter-spacing:.04em;display:flex;align-items:center;gap:6px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'▶';font-size:.7em;color:var(--muted);margin-right:4px;flex-shrink:0;transition:transform .15s}
+  details.section[open]>summary::before{transform:rotate(90deg)}
+  details.section>summary>*:not(.bf-sub-controls){flex:1;margin:0;padding:0}
+  details.section>summary h2{display:inline;border:none;margin:0;padding:0;font-size:inherit;color:inherit;letter-spacing:inherit}
+  details.section .sec-body{padding:6px 16px 14px}
   /* code block + copy */
   .codewrap{position:relative;margin:10px 0}
   .copy-btn{position:absolute;top:6px;right:6px;background:var(--btn-bg);color:var(--muted);
@@ -79,95 +136,349 @@
   .notefield{margin:10px 0}
   .notefield label{display:block;font-size:.82em;color:var(--muted);margin-bottom:3px;font-weight:600}
   .note-area,#bf-session-notes{width:100%;min-height:70px;resize:vertical;flex:none}
-  .session-notes{margin-top:36px;border-top:1px solid var(--border);padding-top:14px}
-  @media print{body{padding:12px;max-width:none}#bf-theme-btn,.copy-btn{display:none}
+  /* collapsible subsections — all heading levels h2-h6 */
+  details.subsection{margin:4px 0;border-top:1px solid var(--border)}
+  details.subsection>summary.sub-summary{list-style:none;cursor:pointer;user-select:none;
+    display:flex;align-items:center;padding:5px 0;gap:6px}
+  details.subsection>summary.sub-summary::-webkit-details-marker{display:none}
+  details.subsection>summary.sub-summary::before{content:'▶';font-size:.65em;color:var(--muted);
+    flex-shrink:0;transition:transform .12s}
+  details.subsection[open]>summary.sub-summary::before{transform:rotate(90deg)}
+  details.subsection>summary.sub-summary>*:not(.bf-sub-controls){flex:1;display:inline;
+    margin:0;padding:0;font-size:inherit;color:inherit}
+  details.subsection .sub-body{padding-left:14px;padding-bottom:6px}
+  /* +/- controls and clear button appear right-aligned in the summary row */
+  .bf-sub-controls{display:flex;gap:3px;flex-shrink:0;margin-left:auto;margin-right:10px;align-items:center}
+  .bf-sub-expand,.bf-sub-collapse{background:var(--bg3);border:1px solid var(--border);
+    color:var(--muted);border-radius:3px;padding:0 6px;cursor:pointer;font-size:.78em;
+    line-height:1.6;font-family:inherit;font-weight:700}
+  .bf-sub-expand:hover,.bf-sub-collapse:hover{border-color:var(--accent);color:var(--accent)}
+  .bf-ctrl-sep{width:10px;flex-shrink:0}
+  /* ghost = always-present placeholder when button not applicable */
+  .bf-ctrl-ghost{color:transparent !important;pointer-events:none;cursor:default;opacity:0.25}
+  /* ── split-pane layout ─────────────────────────────────────────────────── */
+  #bf-app{display:flex;height:100vh;overflow:hidden}
+  #bf-doc-pane{flex:1 1 auto;overflow-y:auto;padding:24px 28px 80px;min-width:0}
+  #bf-drag{flex:0 0 5px;cursor:col-resize;background:var(--border);
+    transition:background .1s;z-index:20}
+  #bf-drag:hover,#bf-drag.dragging{background:var(--accent)}
+  #bf-notes-pane{flex:0 0 320px;min-width:180px;max-width:60vw;
+    display:flex;flex-direction:column;
+    border-left:1px solid var(--border);background:var(--bg2);overflow:hidden}
+  #bf-notes-header{padding:8px 10px 6px;border-bottom:1px solid var(--border);
+    flex:0 0 auto;display:flex;align-items:center;gap:6px}
+  #bf-notes-header span{color:var(--accent);font-size:.82em;font-weight:700;
+    text-transform:uppercase;letter-spacing:.06em;flex:1}
+  .nts-export-btn{background:var(--btn-bg);color:var(--muted);border:1px solid var(--border);
+    border-radius:var(--radius);padding:2px 8px;cursor:pointer;font-size:.72em;
+    font-family:inherit;flex-shrink:0}
+  .nts-export-btn:hover{border-color:var(--accent);color:var(--accent)}
+  #bf-notes-body{flex:1;overflow-y:auto;padding:8px 10px 20px}
+  #bf-session-notes{width:100%;min-height:80px;resize:vertical}
+  /* ── notes tree (recursive collapsible sections) ──────────────────────── */
+  .nts-divider{border:none;border-top:1px solid var(--border);margin:10px 0 6px}
+  .nts-label{color:var(--muted);font-size:.72em;font-weight:600;text-transform:uppercase;
+    letter-spacing:.07em;margin:0 0 4px}
+  .nts-section{margin:4px 0;border:1px solid var(--border);border-radius:var(--radius);
+    overflow:hidden}
+  .nts-section>summary.nts-hdr{list-style:none;cursor:pointer;user-select:none;
+    display:flex;align-items:center;gap:4px;background:var(--bg3);
+    padding:5px 8px;font-size:.79em}
+  .nts-section>summary.nts-hdr::-webkit-details-marker{display:none}
+  .nts-section>summary.nts-hdr::before{content:'B6';font-size:.6em;color:var(--muted);
+    flex-shrink:0;transition:transform .1s;margin-right:2px}
+  .nts-section[open]>summary.nts-hdr::before{transform:rotate(90deg)}
+  .nts-hdr-title{flex:1;background:none;border:none;
+    border-bottom:1px solid transparent;color:var(--text);font-size:inherit;
+    font-family:inherit;cursor:text;padding:0 2px;min-width:0}
+  .nts-hdr-title:focus{outline:none;border-bottom-color:var(--accent)}
+  .nts-hdr-btn{background:none;border:none;color:var(--muted);cursor:pointer;
+    padding:0 4px;font-size:.95em;line-height:1;border-radius:3px;flex-shrink:0}
+  .nts-hdr-btn:hover{color:var(--accent)}
+  .nts-hdr-btn.del{color:var(--red)}
+  .nts-hdr-btn.del:hover{opacity:.75}
+  .nts-body{padding:5px 8px 8px;background:var(--bg)}
+  .nts-body textarea{width:100%;min-height:50px;resize:vertical;margin-bottom:4px;
+    font-size:.81em}
+  .nts-add-btn{display:block;width:100%;background:none;
+    border:1px dashed var(--border);color:var(--muted);border-radius:var(--radius);
+    padding:3px;cursor:pointer;font-size:.72em;margin-top:4px;font-family:inherit}
+  .nts-add-btn:hover{border-color:var(--accent);color:var(--accent)}
+  #bf-notes-add-root{width:100%;background:var(--btn-bg);color:var(--text);
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:4px 10px;cursor:pointer;font-size:.78em;font-family:inherit;margin-top:8px}
+  #bf-notes-add-root:hover{border-color:var(--accent);color:var(--accent)}
+  /* notes panel icon buttons */
+  #bf-notes-toggle,#bf-notes-float-btn{background:none;border:none;color:var(--muted);cursor:pointer;
+    padding:2px 6px;font-size:.85em;line-height:1;border-radius:3px;flex-shrink:0}
+  #bf-notes-toggle:hover,#bf-notes-float-btn:hover{color:var(--accent)}
+  .nts-clear-btn{background:none;border:none;color:var(--muted);cursor:pointer;
+    padding:2px 6px;font-size:.85em;line-height:1;border-radius:3px;flex-shrink:0}
+  .nts-clear-btn:hover{color:var(--red)}
+  /* ── notes collapsed ── */
+  #bf-notes-pane.collapsed{flex:0 0 30px !important;min-width:30px;overflow:hidden}
+  #bf-notes-pane.collapsed #bf-notes-body,
+  #bf-notes-pane.collapsed .nts-export-btn,
+  #bf-notes-pane.collapsed .nts-clear-btn,
+  #bf-notes-pane.collapsed #bf-notes-float-btn{display:none}
+  #bf-notes-pane.collapsed #bf-notes-header{
+    writing-mode:vertical-rl;flex-direction:row;
+    padding:14px 4px;gap:10px;justify-content:flex-start}
+  #bf-notes-pane.collapsed #bf-notes-header>span{
+    writing-mode:vertical-rl;text-orientation:mixed}
+  #bf-drag.notes-hidden{display:none}
+  /* ── notes floating / pop-out ── */
+  #bf-notes-pane.floating{
+    position:fixed !important;
+    width:400px;height:70vh;
+    flex:none !important;min-width:400px !important;max-width:unset !important;
+    border-radius:8px;border:2px solid var(--accent) !important;
+    box-shadow:0 8px 32px rgba(0,0,0,.55);
+    z-index:300;resize:both;overflow:hidden;
+    /* background driven by JS via --notes-bg-alpha; border stays at full opacity */
+    background:rgba(var(--bg2-rgb),var(--notes-bg-alpha,1)) !important;
+    backdrop-filter:blur(var(--notes-blur,0px));
+    -webkit-backdrop-filter:blur(var(--notes-blur,0px));
+    transition:background .15s,backdrop-filter .15s}
+  #bf-notes-pane.floating #bf-notes-header{cursor:move;user-select:none}
+  #bf-notes-pane.floating~#bf-drag,#bf-drag.notes-floating{display:none}
+  /* opacity + blur controls (only visible when floating) */
+  #bf-notes-opacity-ctrl{display:none;flex-direction:column;gap:2px;
+    font-size:.63em;color:var(--muted);flex-shrink:0;white-space:nowrap}
+  #bf-notes-pane.floating #bf-notes-opacity-ctrl{display:flex}
+  .bf-ctrl-row{display:flex;align-items:center;gap:3px}
+  .bf-ctrl-label{min-width:34px;text-align:right}
+  #bf-notes-opacity-val,#bf-notes-blur-val{min-width:30px;text-align:center;font-variant-numeric:tabular-nums}
+  .bf-op-btn{background:var(--btn-bg);color:var(--muted);border:1px solid var(--border);
+    border-radius:3px;width:16px;height:16px;padding:0;cursor:pointer;font-size:.75em;
+    line-height:1;display:flex;align-items:center;justify-content:center;font-family:inherit}
+  .bf-op-btn:hover{border-color:var(--accent);color:var(--accent)}
+  /* ── walkthrough hint (compact) ── */
+  #bf-walkthrough-hint{font-size:.8em;color:var(--muted);
+    border-left:2px solid var(--border);padding:3px 10px;margin:0 0 10px;line-height:1.5}
+  #bf-walkthrough-hint a{color:var(--accent);text-decoration:none}
+  #bf-walkthrough-hint a:hover{text-decoration:underline}
+  /* ── params panel ── */
+  #params,#params.params{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 16px;margin:0 0 18px}
+  #params h3{margin:0 0 8px;color:var(--accent);font-size:.9em}
+  .params-hint{color:var(--muted);font-size:.8em;margin-bottom:10px}
+
+  /* ── credential fields ──────────────────────────────────────────────────── */
+  .cred-field{background:rgba(243,139,168,.05);border:1px solid rgba(243,139,168,.3);
+    border-radius:var(--radius);padding:10px 12px;margin:10px 0}
+  .cred-badge{color:var(--red);font-size:.72em;font-weight:400;margin-left:6px}
+  .cred-row{display:flex;align-items:center;gap:6px;margin:4px 0}
+  .cred-input{flex:1}
+  .cred-toggle{background:var(--btn-bg);border:1px solid var(--border);border-radius:4px;
+    cursor:pointer;padding:4px 8px;font-size:.85em;color:var(--muted);flex-shrink:0}
+  .cred-toggle:hover{color:var(--accent);border-color:var(--accent)}
+  .cred-hint{color:var(--orange);font-size:.75em;display:block;margin-top:3px}
+  .cred-methods{display:flex;gap:12px;margin:5px 0 6px;flex-wrap:wrap}
+  .cred-method-opt{display:flex;align-items:center;gap:5px;font-size:.82em;color:var(--muted);cursor:pointer;user-select:none}
+  .cred-method-opt input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:13px;height:13px}
+  .cred-method-section{margin-top:4px}
+  .cred-section-label{font-size:.72em;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+  .cred-confirm-row{margin-top:4px}
+  .cred-confirm-input{flex:1;border-color:var(--border)}
+  .cred-match-indicator{font-size:.8em;padding:0 6px;flex-shrink:0;font-weight:600}
+  .cred-match-ok{color:var(--green)}.cred-match-fail{color:var(--red)}
+  /* ── suggest controls (schema select + suggest button) ──────────────────── */
+  .bf-suggest-select{background:var(--bg3);color:var(--muted);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 6px;font-size:.78em;font-family:inherit;
+    cursor:pointer;flex-shrink:0}
+  .bf-suggest-select:hover,.bf-suggest-select:focus{border-color:var(--accent);outline:none}
+  .bf-suggest-btn{background:var(--bg3);color:var(--muted);border:1px solid var(--border);
+    border-radius:var(--radius);padding:4px 10px;font-size:.78em;font-family:inherit;
+    cursor:pointer;flex-shrink:0;white-space:nowrap}
+  .bf-suggest-btn:hover{border-color:var(--accent);color:var(--accent)}
+  /* ── masked credential spans in code blocks ─────────────────────────────── */
+  .cred-tpl{background:rgba(243,139,168,.15);color:var(--red);border-radius:3px;
+    padding:0 4px;letter-spacing:.12em;cursor:default;font-style:normal;
+    border-bottom:1px dashed var(--red)}
+  /* ── export encryption modal ─────────────────────────────────────────────── */
+  #bf-enc-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);
+    z-index:9000;align-items:center;justify-content:center}
+  #bf-enc-modal.active{display:flex}
+  #bf-enc-box{background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+    padding:24px 28px;max-width:520px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+  #bf-enc-box h3{color:var(--red);margin:0 0 12px;font-size:1em;display:flex;align-items:center;gap:8px}
+  #bf-enc-box p{color:var(--muted);font-size:.85em;margin:6px 0}
+  .enc-phrase-row{display:flex;align-items:center;gap:8px;margin:14px 0 6px}
+  .enc-phrase-row input{flex:1;font-family:'Cascadia Code',Consolas,monospace;font-size:.92em;
+    background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+    padding:7px 10px;color:var(--text)}
+  .enc-phrase-row button{background:var(--btn-bg);border:1px solid var(--border);
+    border-radius:var(--radius);padding:7px 10px;cursor:pointer;color:var(--muted);
+    font-size:.8em;white-space:nowrap}
+  .enc-phrase-row button:hover{border-color:var(--accent);color:var(--accent)}
+  .enc-hint{color:var(--orange);font-size:.75em;margin:0 0 16px}
+  .enc-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .enc-actions button{flex:1;padding:9px 14px;border-radius:var(--radius);cursor:pointer;
+    font-size:.88em;font-family:inherit;border:1px solid var(--border)}
+  #bf-enc-confirm{background:var(--accent);color:#1a1d23;border-color:var(--accent);font-weight:600}
+  #bf-enc-confirm:hover{opacity:.88}
+  #bf-enc-plain{background:var(--btn-bg);color:var(--muted)}
+  #bf-enc-plain:hover{border-color:var(--muted);color:var(--text)}
+  #bf-enc-cancel{background:transparent;color:var(--muted);flex:0 0 auto}
+  #bf-enc-cancel:hover{color:var(--red)}
+  /* ── radio/checkbox choice fields ───────────────────────────────────────── */
+  .choice-field{margin:10px 0}
+  .choice-rows{display:grid;grid-template-columns:18px max-content 1fr;
+    align-items:center;column-gap:8px;row-gap:5px;margin:4px 0}
+  .choice-row{display:contents}
+  .choice-label{font-size:.88em;cursor:pointer;user-select:none;white-space:nowrap}
+  .choice-note{min-width:120px}
+  /* ── tabular input fields ────────────────────────────────────────────────── */
+  .table-field{margin:10px 0}
+  .input-table-wrap{overflow-x:auto;margin:4px 0 6px}
+  .input-table{width:100%;border-collapse:collapse;font-size:.85em}
+  .input-table th{background:var(--bg2);color:var(--muted);padding:5px 8px;
+    text-align:left;border:1px solid var(--border);font-size:.78em;
+    text-transform:uppercase;letter-spacing:.05em}
+  .input-table td{padding:3px 4px;border:1px solid var(--bg3);vertical-align:top}
+  .input-table td input{width:100%;background:var(--code-bg);color:var(--text);
+    border:1px solid transparent;border-radius:3px;padding:4px 6px;
+    font-family:inherit;font-size:inherit}
+  .input-table td input:focus{outline:none;border-color:var(--accent)}
+  .input-table td textarea{width:100%;background:var(--code-bg);color:var(--text);
+    border:1px solid transparent;border-radius:3px;padding:4px 6px;
+    font-family:inherit;font-size:.85em;resize:vertical;min-height:36px}
+  .input-table td textarea:focus{outline:none;border-color:var(--accent)}
+  .row-del-btn{background:none;border:none;color:var(--muted);cursor:pointer;
+    font-size:1em;padding:2px 4px;border-radius:3px}
+  .row-del-btn:hover{color:var(--red)}
+  .add-row-btn{background:var(--btn-bg);color:var(--muted);border:1px dashed var(--border);
+    border-radius:var(--radius);padding:4px 14px;cursor:pointer;font-size:.78em;
+    font-family:inherit;margin-top:2px}
+  .add-row-btn:hover{border-color:var(--accent);color:var(--accent)}
+  /* ── terminal parse fields ───────────────────────────────────────────────── */
+  .parse-field{margin:10px 0;background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:10px 12px}
+  .parse-row{display:flex;gap:8px;margin:4px 0;align-items:flex-start}
+  .parse-input{flex:1;background:var(--code-bg);color:var(--code-text);
+    border:1px solid var(--border);border-radius:4px;padding:6px 8px;
+    font-family:'Cascadia Code',Consolas,monospace;font-size:.82em;resize:vertical;min-height:60px}
+  .parse-input:focus{outline:none;border-color:var(--accent)}
+  .parse-btn{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
+    border-radius:var(--radius);padding:6px 12px;cursor:pointer;font-size:.8em;
+    font-family:inherit;flex-shrink:0;white-space:nowrap}
+  .parse-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .parse-result{background:var(--bg3);border-radius:4px;padding:6px 10px;
+    margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.82em}
+  .parse-found{color:var(--muted)}
+  .parse-value{font-family:'Cascadia Code',Consolas,monospace;color:var(--green)}
+  .parse-apply{background:var(--btn-bg);color:var(--accent);border:1px solid var(--accent);
+    border-radius:4px;padding:2px 10px;cursor:pointer;font-size:.78em;font-family:inherit}
+  .parse-apply:hover{background:var(--accent);color:var(--bg)}
+  /* ── filename auto-suggest fields ───────────────────────────────────────── */
+  .filename-field{margin:10px 0}
+  .filename-row{display:flex;gap:6px;align-items:center}
+  .filename-input{flex:1;font-family:'Cascadia Code',Consolas,monospace;font-size:.85em}
+  .filename-suggest-btn{background:var(--btn-bg);color:var(--muted);
+    border:1px solid var(--border);border-radius:4px;padding:4px 10px;
+    cursor:pointer;font-size:.78em;font-family:inherit;flex-shrink:0}
+  .filename-suggest-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .filename-dep-warn{background:rgba(249,226,175,.08);border:1px solid rgba(249,226,175,.4);
+    border-radius:4px;padding:5px 10px;margin-top:4px;font-size:.78em;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dep-warn-text{color:var(--yellow);flex:1}
+  .dep-highlight-btn{background:none;border:1px solid var(--yellow);color:var(--yellow);
+    border-radius:4px;padding:2px 8px;cursor:pointer;font-size:.75em;font-family:inherit;flex-shrink:0}
+  .dep-highlight-btn:hover{background:var(--yellow);color:var(--bg)}
+  /* ── directory path fields ───────────────────────────────────────────────── */
+  .dir-field{margin:10px 0}
+  .dir-input{font-family:'Cascadia Code',Consolas,monospace;font-size:.85em}
+  .dir-hint{color:var(--muted);font-size:.75em;display:block;margin-top:3px}
+  /* ── clear buttons ───────────────────────────────────────────────────────── */
+  #bf-clear-fields-btn{background:var(--btn-bg);color:var(--muted);
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:5px 12px;cursor:pointer;font-size:.8em;font-family:inherit}
+  #bf-clear-fields-btn:hover{border-color:var(--red);color:var(--red)}
+  .sec-clear-btn{background:none;border:1px solid var(--border);color:var(--muted);
+    border-radius:3px;padding:0 6px;cursor:pointer;font-size:.72em;
+    line-height:1.6;font-family:inherit}
+  .sec-clear-btn:hover{border-color:var(--red);color:var(--red)}
+  /* ── inline editor ─────────────────────────────────────────────────────────── */
+  .bf-editable-block{position:relative}
+  .bf-edit-btn{position:absolute;top:2px;right:2px;opacity:0;background:var(--btn-bg);
+    color:var(--muted);border:1px solid var(--border);border-radius:3px;
+    padding:1px 6px;font-size:.68em;cursor:pointer;transition:opacity .15s;z-index:10;
+    font-family:inherit}
+  .bf-editable-block:hover .bf-edit-btn{opacity:1}
+  .bf-edit-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .bf-edit-area{width:100%;min-height:60px;resize:vertical;background:var(--code-bg);
+    color:var(--text);border:1px solid var(--accent);border-radius:var(--radius);
+    padding:6px 8px;font-family:inherit;font-size:.9em;line-height:1.6;
+    box-sizing:border-box;margin:4px 0}
+  .bf-edit-controls{display:flex;gap:6px;margin-bottom:6px}
+  .bf-edit-save{background:var(--accent);color:var(--bg);border:none;border-radius:3px;
+    padding:3px 10px;cursor:pointer;font-size:.78em;font-family:inherit}
+  .bf-edit-cancel{background:none;color:var(--muted);border:1px solid var(--border);
+    border-radius:3px;padding:3px 10px;cursor:pointer;font-size:.78em;font-family:inherit}
+  .bf-edited-mark{font-size:.65em;color:var(--muted);margin-left:6px;opacity:.7}
+  @media print{#bf-doc-pane{padding:12px}#bf-notes-pane,#bf-drag{display:none}
+    #bf-theme-btn,.copy-btn{display:none}
+    .bf-sub-controls,.bf-edit-btn,.bf-edit-controls{display:none}
     .param-input,.note-input,.note-area,#bf-session-notes{border:1px solid #999}}
 </style>
 </head>
-<body data-doc="talos-linux-alternative-os-for-k3s-vms">
-<div id="bf-toolbar"><button id="bf-theme-btn" type="button">☀ Light</button></div>
-<div class="doc-meta">Generated from <code>TALOS-ALTERNATIVE.md</code> — self-contained · print-friendly · values saved in your browser</div>
-
-<h1>Talos Linux — Alternative OS for k3s VMs</h1>
-<p>Status: <strong>Optional — not the default.</strong> Ubuntu 22.04 is the current and default OS for all k3s node VMs. Talos is declared as a supported alternative in the data model and will be fully wired into reconstruction playbooks in Milestone 9.T.</p>
+<body data-doc="talos-alternative">
+<div id="bf-app">
+  <div id="bf-doc-pane">
+    <div id="bf-toolbar"><div class="bf-toolbar-main"><button id="bf-collapse-all" type="button">⊟ Collapse All</button><button id="bf-expand-all" type="button">⊞ Expand All</button><span id="bf-section-count"></span><div class="bf-toolbar-end"><button id="bf-nav-toggle" type="button">☰ Docs</button><div id="bf-nav-panel"><div class="bf-nav-group"><div class="bf-nav-group-label">Runbooks</div><a class="bf-nav-item" href="PHOENIX.html" title="PHOENIX — Stargate Process">PHOENIX — Stargate Process</a><a class="bf-nav-item" href="FORGING.html" title="FORGING — Hatchery Build">FORGING — Hatchery Build</a><a class="bf-nav-item" href="NODE-SPAWNING.html" title="NODE-SPAWNING — Hatchery Process">NODE-SPAWNING — Hatchery Process</a><a class="bf-nav-item" href="RECONSTRUCTION-DRILL.html" title="Reconstruction Drill">Reconstruction Drill</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Guides</div><a class="bf-nav-item" href="CLOUD-STORAGE-SETUP.html" title="Cloud Storage Setup">Cloud Storage Setup</a><a class="bf-nav-item" href="CLOUDFLARE-SETUP.html" title="Cloudflare Setup">Cloudflare Setup</a><a class="bf-nav-item" href="DUCKDNS-SETUP.html" title="DuckDNS Setup">DuckDNS Setup</a><a class="bf-nav-item" href="SNIPPET-UPLOAD.html" title="Snippet Upload">Snippet Upload</a><a class="bf-nav-item" href="TIER2-COLLECTION.html" title="Tier 2 State Collection">Tier 2 State Collection</a><a class="bf-nav-item" href="ABOUT-DOCS.html" title="About This Documentation">About This Documentation</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Reference</div><a class="bf-nav-item" href="README.html" title="Broodforge README">Broodforge README</a><a class="bf-nav-item" href="ARCHITECTURE.html" title="Broodforge Architecture">Broodforge Architecture</a><a class="bf-nav-item" href="ROADMAP.html" title="Broodforge Roadmap">Broodforge Roadmap</a><a class="bf-nav-item" href="USER-REGISTRY.html" title="User Registry">User Registry</a><a class="bf-nav-item current" href="TALOS-ALTERNATIVE.html" title="Talos Alternative">Talos Alternative</a><a class="bf-nav-item" href="FEATURE-HISTORY.html" title="Feature History">Feature History</a><a class="bf-nav-item" href="DESIGN-HISTORY.html" title="Design History">Design History</a><a class="bf-nav-item" href="AUDIT-FINDINGS.html" title="Audit Findings">Audit Findings</a></div><div class="bf-nav-sep"></div><div class="bf-nav-group"><div class="bf-nav-group-label">Index</div><a class="bf-nav-item" href="DOCS-INDEX.html" title="Documentation Index">Documentation Index</a></div></div><a class="about-docs-link" href="ABOUT-DOCS.html" target="_blank" title="About this documentation — how fields, notes, and export work">ⓘ About</a><button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">⬇ Download with Edits</button><button id="bf-theme-btn" type="button">☀ Light</button></div></div></div>
+    
+    
+    <div id="bf-doc-body">
+<details class="section" open><summary><h1 id="talos-linux-alternative-os-for-k3s-vms">Talos Linux — Alternative OS for k3s VMs</h1></summary><div class="sec-body" style="margin-left:0px">
 <hr>
-<h2>What Talos Is</h2>
-<p>Talos Linux is an immutable, minimal OS designed exclusively for running Kubernetes. It has no SSH, no shell, no package manager, and no user accounts. The entire OS is read-only. All configuration is applied via a declarative machine config over a secure gRPC API (<code>talosctl</code>). Upgrades are atomic: swap the OS image, roll back if bad.</p>
-<h2>Why It Is an Option Here</h2>
-<ul>
-<li>For multi-node HA (Phase 11 onward), Talos's immutability and atomic upgrades</li>
-</ul>
-<p>reduce operational drift across nodes.</p>
-<ul>
-<li>It eliminates the Ansible provisioning layer for k3s nodes (replaced by <code>talosctl apply-config</code>).</li>
-<li>Machine configs are fully declarative YAML — fits the GitOps model already in use.</li>
-</ul>
-<h2>Why Ubuntu Is the Default</h2>
-<ul>
-<li>The existing Cloud-Init template library, Ansible roles (<code>common</code>, <code>k3s-server</code>),</li>
-</ul>
-<p>and snippet system are all Ubuntu-specific. Switching before those are mature would require replacing significant completed work.</p>
-<ul>
-<li>Talos's no-SSH constraint means Ansible does not apply — a different operational model,</li>
-</ul>
-<p>not a superset.</p>
-<ul>
-<li>On a single-node homelab, the drift problem Talos solves is minimal. One node rebuilt</li>
-</ul>
-<p>from scratch via OpenTofu + Ansible in minutes achieves the same outcome.</p>
-<h2>How to Activate Talos (When Ready)</h2>
-<p>Set <code>os_variant: talos</code> on the relevant node entry in <a href="../proxmox-bootstrap/metadata/k3s-cluster.yaml"><code>proxmox-bootstrap/metadata/k3s-cluster.yaml</code></a>:</p>
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>server_nodes:
+<details class="section" open><summary><h2 id="what-talos-is">What Talos Is</h2></summary><div class="sec-body" style="margin-left:12px">
+</div></details>
+<details class="section" open><summary><h2 id="why-it-is-an-option-here">Why It Is an Option Here</h2></summary><div class="sec-body" style="margin-left:12px">
+<ul><li>For multi-node HA (Phase 11 onward), Talos's immutability and atomic upgrades</li></ul>
+<ul><li>It eliminates the Ansible provisioning layer for k3s nodes (replaced by <code>talosctl apply-config</code>).</li><li>Machine configs are fully declarative YAML — fits the GitOps model already in use.</li></ul>
+</div></details>
+<details class="section" open><summary><h2 id="why-ubuntu-is-the-default">Why Ubuntu Is the Default</h2></summary><div class="sec-body" style="margin-left:12px">
+<ul><li>The existing Cloud-Init template library, Ansible roles (<code>common</code>, <code>k3s-server</code>),</li></ul>
+<ul><li>Talos's no-SSH constraint means Ansible does not apply — a different operational model,</li></ul>
+<ul><li>On a single-node homelab, the drift problem Talos solves is minimal. One node rebuilt</li></ul>
+</div></details>
+<details class="section" open><summary><h2 id="how-to-activate-talos-when-ready">How to Activate Talos (When Ready)</h2></summary><div class="sec-body" style="margin-left:12px">
+<pre><code class="lang-yaml">server_nodes:
   - vm_name: k3s-server-01
-    os_variant: talos   # changed from: ubuntu</code></pre></div>
-<p>This is the single flag that drives all downstream tooling (once 9.T milestones are complete):</p>
-<ul>
-<li>Playbook generator emits <code>talosctl apply-config</code> steps instead of Ansible plays.</li>
-<li>Recovery runbook renders Talos-specific reconstruction instructions.</li>
-<li>Readiness scorer checks for machine configs in <code>talos-configs/</code> directory.</li>
-</ul>
+    os_variant: talos   # changed from: ubuntu</code></pre>
+<ul><li>Playbook generator emits <code>talosctl apply-config</code> steps instead of Ansible plays.</li><li>Recovery runbook renders Talos-specific reconstruction instructions.</li><li>Readiness scorer checks for machine configs in <code>talos-configs/</code> directory.</li></ul>
 <hr>
-<h2>Prerequisites Before Switching</h2>
-<p>These must be completed before <code>os_variant: talos</code> is production-ready:</p>
-<h3>Infrastructure</h3>
-<ul>
-<li>[ ] Talos ISO downloaded and verified (check https://github.com/siderolabs/talos/releases)</li>
-<li>[ ] <code>talos-1x-base</code> Proxmox template built (VMID 9001) — see <code>build-talos-template.sh</code> (9.T.2)</li>
-<li>[ ] <code>talosctl</code> installed on the operations VM</li>
-<li>[ ] Machine configs generated via <code>generate-talos-config.py</code> (9.T.3) and committed to repo</li>
-</ul>
-<h3>Data Model</h3>
-<ul>
-<li>[ ] <code>talos-1x-base</code> entry in <code>bootstrap-state.json</code> template registry</li>
-<li>[ ] <code>talos-1x-base</code> base_image entry (Talos ISO name + SHA512 checksum)</li>
-<li>[ ] <code>os_variant</code> field added to bootstrap-state-schema.json (9.T.5)</li>
-</ul>
-<h3>Tooling</h3>
-<ul>
-<li>[ ] Milestone 9.T fully implemented (reconstruction playbook OS-variant awareness)</li>
-</ul>
-<h3>What You Give Up</h3>
-<ul>
-<li>Ansible roles (<code>common</code>, <code>k3s-server</code>) do not apply — Talos manages the OS.</li>
-</ul>
-<p>Any configuration currently done via Ansible (sysctl, chrony, package installs) must be moved into Talos machine config patches or Kubernetes DaemonSets.</p>
-<ul>
-<li>Cloud-Init snippets are not used — Talos ignores them.</li>
-<li>SSH-based emergency access is unavailable — use <code>talosctl</code> console access instead.</li>
-</ul>
+</div></details>
+<details class="section" open><summary><h2 id="prerequisites-before-switching">Prerequisites Before Switching</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="infrastructure">Infrastructure</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li>[ ] Talos ISO downloaded and verified (check https://github.com/siderolabs/talos/releases)</li><li>[ ] <code>talos-1x-base</code> Proxmox template built (VMID 9001) — see <code>build-talos-template.sh</code> (9.T.2)</li><li>[ ] <code>talosctl</code> installed on the operations VM</li><li>[ ] Machine configs generated via <code>generate-talos-config.py</code> (9.T.3) and committed to repo</li></ul>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="data-model">Data Model</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li>[ ] <code>talos-1x-base</code> entry in <code>bootstrap-state.json</code> template registry</li><li>[ ] <code>talos-1x-base</code> base_image entry (Talos ISO name + SHA512 checksum)</li><li>[ ] <code>os_variant</code> field added to bootstrap-state-schema.json (9.T.5)</li></ul>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="tooling">Tooling</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li>[ ] Milestone 9.T fully implemented (reconstruction playbook OS-variant awareness)</li></ul>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="what-you-give-up">What You Give Up</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li>Ansible roles (<code>common</code>, <code>k3s-server</code>) do not apply — Talos manages the OS.</li></ul>
+<ul><li>Cloud-Init snippets are not used — Talos ignores them.</li><li>SSH-based emergency access is unavailable — use <code>talosctl</code> console access instead.</li></ul>
 <hr>
-<h2>Data Model Fields</h2>
-<h3><code>k3s-cluster.yaml</code> — <code>os_variant</code> per node</h3>
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>server_nodes:
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="data-model-fields">Data Model Fields</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="k3s-cluster-yaml-os-variant-per-node"><code>k3s-cluster.yaml</code> — <code>os_variant</code> per node</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-yaml">server_nodes:
   - vm_name: k3s-server-01
-    os_variant: ubuntu    # ubuntu (default) | talos</code></pre></div>
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>worker_nodes:
+    os_variant: ubuntu    # ubuntu (default) | talos</code></pre>
+<pre><code class="lang-yaml">worker_nodes:
   - vm_name: k3s-worker-01
-    os_variant: ubuntu    # must match server_nodes os_variant for consistent tooling</code></pre></div>
-<h3><code>vm-roles.yaml</code> — <code>template</code> field</h3>
-<p>Ubuntu: <code>template: ubuntu-2204-base</code> Talos:  <code>template: talos-1x-base</code></p>
-<h3><code>bootstrap-state.json</code> — template registry</h3>
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>"templates": [
+    os_variant: ubuntu    # must match server_nodes os_variant for consistent tooling</code></pre>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="vm-roles-yaml-template-field"><code>vm-roles.yaml</code> — <code>template</code> field</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="bootstrap-state-json-template-registry"><code>bootstrap-state.json</code> — template registry</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-json">"templates": [
   {
     "name": "ubuntu-2204-base",
     "base_image": "ubuntu-2204-base",
@@ -184,73 +495,49 @@
     "additional_packages": [],
     "build_notes": "Talos Linux — no cloud-init, no SSH, talosctl only"
   }
-]</code></pre></div>
+]</code></pre>
 <hr>
-<h2>OS Variant Migration (Automated)</h2>
-<p>Both migration directions are implemented as interactive wizard scripts in <code>proxmox-bootstrap/</code>.</p>
-<h3>Shared Library (<code>migrate_k3s_lib.py</code>)</h3>
-<p>Provides: <code>run_preflight_checks()</code>, <code>snapshot_state()</code>, <code>drain_node()</code>, <code>verify_cluster_health()</code>, <code>rollback()</code>, <code>append_migration_history()</code>, <code>update_os_variant()</code>, <code>make_migration_id()</code>.</p>
-<p>Used by both migration scripts. All runner operations accept a <code>runner_fn</code> for testing (same pattern as state collectors).</p>
-<h3>Ubuntu → Talos (<code>migrate-k3s-to-talos.py</code>)</h3>
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code># Dry-run: see what would happen without making changes
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="os-variant-migration-automated">OS Variant Migration (Automated)</h2></summary><div class="sec-body" style="margin-left:12px">
+<details class="subsection" open><summary class="sub-summary"><h3 id="shared-library-migrate-k3s-lib-py">Shared Library (<code>migrate_k3s_lib.py</code>)</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="ubuntu-talos-migrate-k3s-to-talos-py">Ubuntu → Talos (<code>migrate-k3s-to-talos.py</code>)</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-"># Dry-run: see what would happen without making changes
 python3 proxmox-bootstrap/migrate-k3s-to-talos.py --node k3s-server-01 --dry-run
 
 # Live migration
 python3 proxmox-bootstrap/migrate-k3s-to-talos.py --node k3s-server-01
 
 # Skip Proxmox snapshot (test environments)
-python3 proxmox-bootstrap/migrate-k3s-to-talos.py --node k3s-server-01 --skip-snapshot</code></pre></div>
-<p>Steps the script executes:</p>
-<ol>
-<li>Pre-migration checklist (cluster readiness not RED, talos template exists,</li>
-</ol>
-<p>machine config generated in <code>talos-configs/</code>, PBS reachable, node in VM registry)</p>
-<ol>
-<li>State snapshot (in-memory rollback point)</li>
-<li>Drain k3s node (<code>kubectl drain --ignore-daemonsets --delete-emptydir-data</code>)</li>
-<li>Snapshot the Ubuntu VM in Proxmox (rollback point; skipped with <code>--skip-snapshot</code>)</li>
-<li>Destroy the Ubuntu VM (<code>qm stop</code> + <code>qm destroy</code>)</li>
-<li>Provision new VM from <code>talos-1x-base</code> template (<code>qm clone</code>)</li>
-<li>Apply machine config via <code>talosctl apply-config</code></li>
-<li>Verify cluster health (<code>kubectl get nodes</code> — all Ready)</li>
-<li>Update <code>bootstrap-state.json</code>: <code>os_variant</code>, <code>migration_history</code></li>
-</ol>
-<p>If post-migration health check fails, the script automatically restores from the pre-migration snapshot, reverts <code>os_variant</code>, and records the failed attempt in <code>migration_history</code> (outcome: <code>"rolled_back"</code>).</p>
-<h3>Talos → Ubuntu (<code>migrate-k3s-to-ubuntu.py</code>)</h3>
-<div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code>python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01 --dry-run
-python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></pre></div>
-<p>Same step structure, reversed: resets Talos node via <code>talosctl reset</code>, destroys the Talos VM, provisions from <code>ubuntu-2204-base</code>, applies Cloud-Init + Ansible <code>k3s-server</code> role, verifies cluster health, updates <code>bootstrap-state.json</code>.</p>
-<h3>Shared Safeguards (both directions)</h3>
-<ul>
-<li>Refuses to start if current cluster readiness score is RED</li>
-<li><code>--skip-snapshot</code> flag available for test/dev environments</li>
-<li>PBS reachability checked; unreachable PBS blocks migration</li>
-<li>All migration attempts (success, failed, rolled_back, aborted) appended to</li>
-</ul>
-<p><code>bootstrap-state.json</code> <code>migration_history</code> array with timestamps, from/to variant, and snapshot VMID</p>
-<ul>
-<li>Each migration attempt gets a unique <code>migration_id</code> for cross-referencing</li>
-</ul>
+python3 proxmox-bootstrap/migrate-k3s-to-talos.py --node k3s-server-01 --skip-snapshot</code></pre>
+<ol><li>Pre-migration checklist (cluster readiness not RED, talos template exists,</li></ol>
+<ol><li>State snapshot (in-memory rollback point)</li><li>Drain k3s node (<code>kubectl drain --ignore-daemonsets --delete-emptydir-data</code>)</li><li>Snapshot the Ubuntu VM in Proxmox (rollback point; skipped with <code>--skip-snapshot</code>)</li><li>Destroy the Ubuntu VM (<code>qm stop</code> + <code>qm destroy</code>)</li><li>Provision new VM from <code>talos-1x-base</code> template (<code>qm clone</code>)</li><li>Apply machine config via <code>talosctl apply-config</code></li><li>Verify cluster health (<code>kubectl get nodes</code> — all Ready)</li><li>Update <code>bootstrap-state.json</code>: <code>os_variant</code>, <code>migration_history</code></li></ol>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="talos-ubuntu-migrate-k3s-to-ubuntu-py">Talos → Ubuntu (<code>migrate-k3s-to-ubuntu.py</code>)</h3></summary><div class="sec-body" style="margin-left:24px">
+<pre><code class="lang-">python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01 --dry-run
+python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></pre>
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="shared-safeguards-both-directions">Shared Safeguards (both directions)</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li>Refuses to start if current cluster readiness score is RED</li><li><code>--skip-snapshot</code> flag available for test/dev environments</li><li>PBS reachability checked; unreachable PBS blocks migration</li><li>All migration attempts (success, failed, rolled_back, aborted) appended to</li></ul>
+<ul><li>Each migration attempt gets a unique <code>migration_id</code> for cross-referencing</li></ul>
 <hr>
-<h2>Recommended Adoption Path</h2>
-<ol>
-<li><strong>Now (Phase 6–8):</strong> Keep Ubuntu. Complete bootstrap state, service state, and</li>
-</ol>
-<p>network topology milestones using the existing Ubuntu toolchain.</p>
-<ol>
-<li><strong>Phase 9 (Reconstruction Playbooks):</strong> Implement 9.T milestones. The playbook</li>
-</ol>
-<p>generator and recovery runbook become os_variant-aware without requiring an actual Talos deployment.</p>
-<ol>
-<li><strong>Phase 11 (HA expansion):</strong> If adding a second physical host, evaluate switching</li>
-</ol>
-<p>k3s nodes to Talos at that point. Multi-node drift management is where Talos's immutability provides measurable benefit.</p>
-<ol>
-<li><strong>Never mandatory:</strong> <code>os_variant: ubuntu</code> remains fully supported. Talos is an</li>
-</ol>
-<p>option, not a migration target.</p>
-
-<div class="session-notes"><h2>Session Notes</h2><p style="color:var(--muted);font-size:.85em">Anything unexpected, or that did not fit the steps above. Saved in your browser.</p><textarea id="bf-session-notes" placeholder="notes…"></textarea></div>
+</div></details>
+</div></details>
+<details class="section" open><summary><h2 id="recommended-adoption-path">Recommended Adoption Path</h2></summary><div class="sec-body" style="margin-left:12px">
+<ol><li><strong>Now (Phase 6–8):</strong> Keep Ubuntu. Complete bootstrap state, service state, and</li></ol>
+<ol><li><strong>Phase 9 (Reconstruction Playbooks):</strong> Implement 9.T milestones. The playbook</li></ol>
+<ol><li><strong>Phase 11 (HA expansion):</strong> If adding a second physical host, evaluate switching</li></ol>
+<ol><li><strong>Never mandatory:</strong> <code>os_variant: ubuntu</code> remains fully supported. Talos is an</li></ol>
+<p>Status: <strong>Optional — not the default.</strong> Ubuntu 22.04 is the current and default OS for all k3s node VMs. Talos is declared as a supported alternative in the data model and will be fully wired into reconstruction playbooks in Milestone 9.T. Talos Linux is an immutable, minimal OS designed exclusively for running Kubernetes. It has no SSH, no shell, no package manager, and no user accounts. The entire OS is read-only. All configuration is applied via a declarative machine config over a secure gRPC API (<code>talosctl</code>). Upgrades are atomic: swap the OS image, roll back if bad. reduce operational drift across nodes. and snippet system are all Ubuntu-specific. Switching before those are mature would require replacing significant completed work. not a superset. from scratch via OpenTofu + Ansible in minutes achieves the same outcome. Set <code>os_variant: talos</code> on the relevant node entry in <a href="../proxmox-bootstrap/metadata/k3s-cluster.yaml"><code>proxmox-bootstrap/metadata/k3s-cluster.yaml</code></a>: This is the single flag that drives all downstream tooling (once 9.T milestones are complete): These must be completed before <code>os_variant: talos</code> is production-ready: Any configuration currently done via Ansible (sysctl, chrony, package installs) must be moved into Talos machine config patches or Kubernetes DaemonSets. Ubuntu: <code>template: ubuntu-2204-base</code> Talos:  <code>template: talos-1x-base</code> Both migration directions are implemented as interactive wizard scripts in <code>proxmox-bootstrap/</code>. Provides: <code>run_preflight_checks()</code>, <code>snapshot_state()</code>, <code>drain_node()</code>, <code>verify_cluster_health()</code>, <code>rollback()</code>, <code>append_migration_history()</code>, <code>update_os_variant()</code>, <code>make_migration_id()</code>. Used by both migration scripts. All runner operations accept a <code>runner_fn</code> for testing (same pattern as state collectors). Steps the script executes: machine config generated in <code>talos-configs/</code>, PBS reachable, node in VM registry) If post-migration health check fails, the script automatically restores from the pre-migration snapshot, reverts <code>os_variant</code>, and records the failed attempt in <code>migration_history</code> (outcome: <code>"rolled_back"</code>). Same step structure, reversed: resets Talos node via <code>talosctl reset</code>, destroys the Talos VM, provisions from <code>ubuntu-2204-base</code>, applies Cloud-Init + Ansible <code>k3s-server</code> role, verifies cluster health, updates <code>bootstrap-state.json</code>. <code>bootstrap-state.json</code> <code>migration_history</code> array with timestamps, from/to variant, and snapshot VMID network topology milestones using the existing Ubuntu toolchain. generator and recovery runbook become os_variant-aware without requiring an actual Talos deployment. k3s nodes to Talos at that point. Multi-node drift management is where Talos's immutability provides measurable benefit. option, not a migration target.</p>
+</div></details>
+</div></details>
+    </div>
+  </div>
+  <div id="bf-drag"></div>
+  <div id="bf-notes-pane">
+<div id="bf-notes-header"><span>Session Notes</span><button type="button" class="nts-export-btn" id="bf-notes-export-md" title="Export notes as Markdown">↓ MD</button><button type="button" class="nts-export-btn" id="bf-notes-export-html" title="Export notes as HTML">↓ HTML</button><button type="button" class="nts-export-btn" id="bf-notes-import" title="Import notes from Markdown file">↑ Import</button><button type="button" class="nts-clear-btn" id="bf-notes-clear" title="Clear all notes for this document">🗑</button><div id="bf-notes-opacity-ctrl"><div class="bf-ctrl-row" title="Adjust panel transparency"><span class="bf-ctrl-label">opacity</span><button type="button" class="bf-op-btn" id="bf-notes-opacity-down" title="Less opaque">−</button><span id="bf-notes-opacity-val">95%</span><button type="button" class="bf-op-btn" id="bf-notes-opacity-up" title="More opaque">+</button></div><div class="bf-ctrl-row" title="Blur content behind panel"><span class="bf-ctrl-label">blur</span><button type="button" class="bf-op-btn" id="bf-notes-blur-down" title="Less blur">−</button><span id="bf-notes-blur-val">0px</span><button type="button" class="bf-op-btn" id="bf-notes-blur-up" title="More blur">+</button></div></div><button type="button" id="bf-notes-float-btn" title="Pop out notes panel">⊞</button><button type="button" id="bf-notes-toggle" title="Hide notes panel">◄</button></div><div id="bf-notes-body"><p style="color:var(--muted);font-size:.75em;margin:0 0 6px">Free-form notes — saved in your browser.</p><textarea id="bf-session-notes" placeholder="Quick notes…"></textarea><hr class="nts-divider"><p class="nts-label">Sections</p><div id="bf-notes-tree"></div><button type="button" id="bf-notes-add-root">+ Add section</button></div>  </div>
+</div>
 <script>
 (function(){
   var ns = 'bf:' + (document.body.dataset.doc || 'doc') + ':';
@@ -290,11 +577,24 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
     })(notes[j]);
   }
   // ---- copy buttons ----
+  // Resolve a code block's text, substituting {{cred:slug}} with real session values.
+  function resolveCopyText(pre){
+    // Clone so we can manipulate without touching the DOM
+    var clone = pre.cloneNode(true);
+    clone.querySelectorAll('.cred-tpl[data-cred-slug]').forEach(function(span){
+      var slug = span.dataset.credSlug;
+      var val = '';
+      try{ val = sessionStorage.getItem('bf:cred:'+slug) || ''; }catch(e){}
+      // Replace the span text with real value (or placeholder if empty)
+      span.replaceWith(document.createTextNode(val || '<'+slug+'>'));
+    });
+    return clone.innerText;
+  }
   var btns = document.querySelectorAll('.copy-btn');
   for(var b=0;b<btns.length;b++){
     btns[b].addEventListener('click', function(){
       var btn = this, pre = btn.parentElement.querySelector('pre');
-      var text = pre.innerText;
+      var text = resolveCopyText(pre);
       var done = function(){ var o=btn.textContent; btn.textContent='Copied!'; setTimeout(function(){btn.textContent=o;},1200); };
       if(navigator.clipboard && navigator.clipboard.writeText){
         navigator.clipboard.writeText(text).then(done, function(){ done(); });
@@ -321,18 +621,89 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
       li.appendChild(nm); li.appendChild(sz); li.appendChild(rm); attList.appendChild(li);
     });
   }
+  function readFileList(files){
+    var pending=files.length; if(!pending) return;
+    files.forEach(function(f){
+      var rd=new FileReader();
+      rd.onload=function(){ atts.push({name:f.name, type:f.type||'application/octet-stream', bytes:new Uint8Array(rd.result)});
+        if(--pending===0) renderAtts(); };
+      rd.readAsArrayBuffer(f);
+    });
+  }
+  var attachAdd=document.getElementById('bf-attach-add');
+  var attachZone=document.getElementById('bf-attach-zone');
+  // toggle nav panel
+  var navToggle=document.getElementById('bf-nav-toggle');
+  var navPanel=document.getElementById('bf-nav-panel');
+  if(navToggle&&navPanel){
+    navToggle.addEventListener('click',function(e){
+      e.stopPropagation();
+      navPanel.classList.toggle('open');
+    });
+    document.addEventListener('click',function(e){
+      if(navPanel.classList.contains('open')&&!navPanel.contains(e.target)&&e.target!==navToggle){
+        navPanel.classList.remove('open');
+      }
+    });
+  }
+  var attachPanel=document.getElementById('bf-attach-panel');
+  var attachToggle=document.getElementById('bf-attach-toggle');
+  var attachCount=document.getElementById('bf-attach-count');
+  function updateAttachCount(){
+    if(attachCount) attachCount.textContent=atts.length?'('+atts.length+')':''; }
+  var _origRenderAtts=renderAtts;
+  renderAtts=function(){ _origRenderAtts(); updateAttachCount(); };
+  // toggle button
+  if(attachToggle&&attachPanel){
+    attachToggle.addEventListener('click',function(e){
+      e.stopPropagation();
+      attachPanel.classList.toggle('open');
+    });
+  }
+  // click outside to close
+  document.addEventListener('click',function(e){
+    if(attachPanel&&attachPanel.classList.contains('open')){
+      if(!attachPanel.contains(e.target)&&e.target!==attachToggle){
+        attachPanel.classList.remove('open');}
+    }
+  });
   if(fileInput){
     fileInput.addEventListener('change', function(){
-      var files=Array.prototype.slice.call(fileInput.files||[]);
-      var pending=files.length; if(!pending) return;
-      files.forEach(function(f){
-        var rd=new FileReader();
-        rd.onload=function(){ atts.push({name:f.name, type:f.type||'application/octet-stream', bytes:new Uint8Array(rd.result)});
-          if(--pending===0) renderAtts(); };
-        rd.readAsArrayBuffer(f);
-      });
+      readFileList(Array.prototype.slice.call(fileInput.files||[]));
       fileInput.value='';
     });
+  }
+  if(attachAdd&&fileInput){ attachAdd.addEventListener('click', function(e){ e.stopPropagation(); fileInput.click(); }); }
+  if(attachZone){
+    attachZone.addEventListener('dragover', function(e){ e.preventDefault(); e.stopPropagation(); attachZone.classList.add('drag-over'); });
+    attachZone.addEventListener('dragleave', function(e){ e.stopPropagation(); attachZone.classList.remove('drag-over'); });
+    attachZone.addEventListener('drop', function(e){
+      e.preventDefault(); e.stopPropagation(); attachZone.classList.remove('drag-over');
+      if(e.dataTransfer&&e.dataTransfer.files) readFileList(Array.prototype.slice.call(e.dataTransfer.files));
+    });
+  }
+  // auto-open panel when user drags files anywhere over the document
+  if(attachPanel){
+    var _dragEnterCount=0;
+  // allow drop anywhere on page
+  document.addEventListener('dragover',function(e){e.preventDefault();});
+    document.addEventListener('dragenter',function(e){
+      if(e.dataTransfer&&e.dataTransfer.types&&Array.prototype.indexOf.call(e.dataTransfer.types,'Files')>=0){
+        _dragEnterCount++;
+        attachPanel.classList.add('open');
+      }
+    });
+    document.addEventListener('dragleave',function(){
+      _dragEnterCount=Math.max(0,_dragEnterCount-1);
+    });
+  document.addEventListener('drop',function(e){
+    e.preventDefault();
+    _dragEnterCount=0;
+    if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length>0){
+      readFileList(Array.prototype.slice.call(e.dataTransfer.files));
+      if(attachPanel) attachPanel.classList.add('open');
+    }
+  });
   }
   var crcTable=(function(){ var t=[],c,n,k; for(n=0;n<256;n++){ c=n; for(k=0;k<8;k++){ c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); } t[n]=c>>>0; } return t; })();
   function crc32(buf){ var c=0xFFFFFFFF; for(var i=0;i<buf.length;i++){ c=crcTable[(c^buf[i])&0xFF]^(c>>>8); } return (c^0xFFFFFFFF)>>>0; }
@@ -357,42 +728,1558 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
     return new Blob(parts.concat(central, [new Uint8Array(eocd)]), {type:'application/zip'});
   }
   function pad(n){ return (n<10?'0':'')+n; }
-  function stamp(){ var d=new Date(); return d.getFullYear()+'_'+pad(d.getMonth()+1)+'_'+pad(d.getDate())+'_'+pad(d.getHours())+'_'+pad(d.getMinutes())+'_'+pad(d.getSeconds()); }
-  function titleSlug(){ return (document.title||'Walkthrough').trim().replace(/\s+/g,'-').replace(/[^A-Za-z0-9_-]/g,'') || 'Walkthrough'; }
+  function stamp(){ var d=new Date(); var tz=(new Date()).toLocaleTimeString('en-US',{timeZoneName:'short'}).split(' ').pop()||'UTC'; return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+'-'+pad(d.getMinutes())+'_'+pad(d.getSeconds())+'_'+tz; }
+  function titleSlug(){ return (document.title||'Walkthrough').trim().replace(/\.md\b/gi,'').replace(/\s+/g,'-').replace(/[^A-Za-z0-9_-]/g,'').replace(/-+/g,'-').replace(/^-|-$/g,'') || 'Walkthrough'; }
   function collect(){
     var params={}, pin=document.querySelectorAll('.param-input');
     for(var i=0;i<pin.length;i++){ params[pin[i].dataset.var]=pin[i].value; }
     var notes=[], nf=document.querySelectorAll('.notefield');
-    for(var j=0;j<nf.length;j++){ var lab=nf[j].querySelector('label'), inp=nf[j].querySelector('.note-input,.note-area');
-      if(inp) notes.push({label:lab?lab.textContent:'', value:inp.value}); }
+    for(var j=0;j<nf.length;j++){
+      var div=nf[j];
+      var lab=div.querySelector('label');
+      var labText=lab?lab.childNodes[0].textContent.trim():'';
+      if(div.classList.contains('cred-field')){
+        var credInp=div.querySelector('.cred-input');
+        var credVal='';
+        var credSlug=credInp?credInp.dataset.cred:'';
+        try{credVal=sessionStorage.getItem('bf:cred:'+credSlug)||'';}catch(e){}
+        if(!credVal&&credInp) credVal=credInp.value||'';
+        var totpInp=div.querySelector('.cred-totp-input');
+        var totpVal='';
+        if(totpInp){
+          try{totpVal=sessionStorage.getItem('bf:totp:'+credSlug+'-totp')||'';}catch(e){}
+          if(!totpVal) totpVal=totpInp.value||'';
+        }
+        var methods=[];
+        div.querySelectorAll('.cred-method-cb').forEach(function(cb){if(cb.checked)methods.push(cb.value);});
+        var entry={label:labText, value:credVal||'(blank)', type:'credential', methods:methods};
+        if(totpInp&&totpVal) entry.totp_secret=totpVal;
+        notes.push(entry);
+      } else if(div.classList.contains('choice-field')){
+        var hid=div.querySelector('input[type=hidden][data-note]');
+        var optNotes=[];
+        div.querySelectorAll('.choice-note').forEach(function(cn){if(cn.value.trim())optNotes.push(cn.dataset.note+': '+cn.value);});
+        notes.push({label:labText, value:hid?hid.value:'', optionNotes:optNotes, type:'choice'});
+      } else if(div.classList.contains('table-field')){
+        var hid=div.querySelector('input[type=hidden][data-note]');
+        var raw=hid?hid.value:'';
+        try{notes.push({label:labText, value:JSON.parse(raw||'[]'), type:'table'});}
+        catch(e){notes.push({label:labText, value:raw, type:'table'});}
+      } else if(div.classList.contains('parse-field')){
+        /* parse fields feed into a target field — collected there */
+      } else {
+        var inp=div.querySelector('.note-input,.note-area');
+        if(inp) notes.push({label:labText, value:inp.value, type:'field'});
+      }
+    }
     var sn=document.getElementById('bf-session-notes');
     return {params:params, notes:notes, session_notes:sn?sn.value:''};
   }
   function notesMd(data){
     var L=['# '+(document.title||'Walkthrough')+' — Record','','Exported: '+new Date().toString(),''];
     var pk=Object.keys(data.params);
-    if(pk.length){ L.push('## Parameters'); pk.forEach(function(k){ L.push('- '+k+': '+data.params[k]); }); L.push(''); }
-    if(data.notes.length){ L.push('## Notes'); data.notes.forEach(function(n){ L.push('### '+n.label,(n.value||'(blank)'),''); }); }
-    L.push('## Session Notes', (data.session_notes||'(blank)'), '');
+    if(pk.length){ L.push('## Parameters'); pk.forEach(function(k){ L.push('- **'+k+'**: '+data.params[k]); }); L.push(''); }
+    if(data.notes.length){
+      L.push('## Notes','');
+      data.notes.forEach(function(n){
+        L.push('### '+n.label);
+        if(n.type==='table'&&Array.isArray(n.value)&&n.value.length){
+          var cols=Object.keys(n.value[0]);
+          L.push('| '+cols.join(' | ')+' |');
+          L.push('| '+cols.map(function(){return '---';}).join(' | ')+' |');
+          n.value.forEach(function(row){L.push('| '+cols.map(function(c){return(row[c]||'').replace(/\|/g,'\\|');}).join(' | ')+' |');});
+        } else if(n.type==='choice'){
+          L.push('**Selected:** '+(n.value||'(none)'));
+          if(n.optionNotes&&n.optionNotes.length) n.optionNotes.forEach(function(on){L.push('- '+on);});
+        } else {
+          L.push((n.value||'(blank)'));
+        }
+        L.push('');
+      });
+    }
+    L.push('## Session Notes','', (data.session_notes||'(blank)'), '');
     if(atts.length){ L.push('## Attachments'); atts.forEach(function(a){ L.push('- attachments/'+a.name+' ('+fmtSize(a.bytes.length)+')'); }); L.push(''); }
     return L.join('\n');
   }
+  // ---- collapse / expand all (collapsible docs only) ----
+  var collapseAll = document.getElementById('bf-collapse-all');
+  var expandAll   = document.getElementById('bf-expand-all');
+  var sectionCount = document.getElementById('bf-section-count');
+  function updateSectionCount(){
+    if(!sectionCount) return;
+    var all=document.querySelectorAll('details.section');
+    var open=document.querySelectorAll('details.section[open]');
+    sectionCount.textContent = open.length + ' / ' + all.length + ' open';
+  }
+  if(collapseAll){ collapseAll.addEventListener('click', function(){
+    document.querySelectorAll('details.section').forEach(function(d){ d.removeAttribute('open'); });
+    updateSectionCount();
+  }); }
+  if(expandAll){ expandAll.addEventListener('click', function(){
+    document.querySelectorAll('details.section').forEach(function(d){ d.setAttribute('open',''); });
+    updateSectionCount();
+  }); }
+  // update count when individual sections toggle
+  document.querySelectorAll('details.section').forEach(function(d){
+    d.addEventListener('toggle', updateSectionCount);
+  });
+  updateSectionCount();
+  // ---- subsection expand/collapse — works at every heading level ----
+  // Each +/- button expands/collapses direct-child <details> of the nearest parent body div.
+  document.querySelectorAll('.bf-sub-expand').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      var par=btn.closest('details');
+      if(!par) return;
+      var body=par.querySelector('.sec-body,.sub-body');
+      if(body) body.querySelectorAll(':scope>details').forEach(function(d){d.setAttribute('open','');});
+    });
+  });
+  document.querySelectorAll('.bf-sub-collapse').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      var par=btn.closest('details');
+      if(!par) return;
+      var body=par.querySelector('.sec-body,.sub-body');
+      if(body) body.querySelectorAll(':scope>details').forEach(function(d){d.removeAttribute('open');});
+    });
+  });
+  // ---- export passphrase generator ----
+  function genExportPhrase(){
+    var adj=['agile','blazing','bold','brave','bright','calm','clever','crouching',
+      'dark','electric','fierce','flying','frozen','gentle','golden','hidden',
+      'iron','jade','keen','lunar','nimble','noble','onyx','patient','quiet',
+      'rapid','rigid','roaming','scarlet','silent','silver','soaring','steady',
+      'stone','stormy','swift','tidal','twilight','wandering','wild','winter','wise'];
+    var an=['badger','bat','bear','cobra','condor','crane','crow','deer','eagle',
+      'falcon','fox','hawk','heron','jaguar','kite','leopard','lion','lynx',
+      'mongoose','moth','owl','panther','raven','salmon','shark','snake',
+      'sparrow','stag','swan','tiger','viper','vulture','wolf','wolverine'];
+    function r(a){return a[Math.floor(Math.random()*a.length)];}
+    var n=Math.floor(Math.random()*90)+10;
+    return r(adj)+'.'+r(an)+'.'+r(adj)+'.'+r(an)+'.'+n;
+  }
+  // Check whether any credential fields were filled this session
+  function hasFilledCreds(){
+    try{
+      for(var i=0;i<sessionStorage.length;i++){
+        var k=sessionStorage.key(i);
+        if(k&&k.startsWith('bf:cred:')&&sessionStorage.getItem(k)) return true;
+      }
+    }catch(e){}
+    // Also check visible cred-input elements directly
+    var filled=false;
+    document.querySelectorAll('.cred-input').forEach(function(inp){if(inp.value)filled=true;});
+    return filled;
+  }
+  // AES-256-GCM encrypt bytes with a passphrase via PBKDF2
+  // Build the outer encrypted ZIP:
+  //   {slug}_encrypted.zip/
+  //     payload.enc        — AES-256-GCM encrypted bytes of the inner (content) ZIP
+  //     meta.json          — {v, salt, iv} for decryption tools
+  //     decrypt.html       — in-browser decryptor; enter passphrase → downloads inner ZIP
+  //     decrypt.py         — Python 3 alternative (stdlib only)
+  //     README.txt         — instructions and passphrase reminder stub
+  async function buildEncryptedZip(innerZipBlob, innerZipName, passphrase, docTitle){
+    var pt=new Uint8Array(await innerZipBlob.arrayBuffer());
+    var salt=window.crypto.getRandomValues(new Uint8Array(16));
+    var iv=window.crypto.getRandomValues(new Uint8Array(12));
+    var keyMat=await window.crypto.subtle.importKey('raw',new TextEncoder().encode(passphrase),'PBKDF2',false,['deriveKey']);
+    var key=await window.crypto.subtle.deriveKey(
+      {name:'PBKDF2',salt:salt,iterations:210000,hash:'SHA-256'},
+      keyMat,{name:'AES-GCM',length:256},false,['encrypt']);
+    var ct=new Uint8Array(await window.crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,pt));
+    function b64(u8){var s='';for(var i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i]);return btoa(s);}
+    var metaObj={v:1,alg:'AES-256-GCM',kdf:'PBKDF2-SHA256',iter:210000,
+      salt:b64(salt),iv:b64(iv),inner_name:innerZipName};
+    var metaJson=JSON.stringify(metaObj,null,2);
+    var safeTitle=(docTitle||'Package').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var decryptHtml='<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'+
+      '<title>Decrypt: '+safeTitle+'</title>'+
+      '<style>*{box-sizing:border-box;margin:0;padding:0}'+
+      'body{font-family:system-ui,sans-serif;background:#1a1d23;color:#cdd6f4;'+
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px}'+
+      '.card{background:#22262e;border:1px solid #3a3f4d;border-radius:8px;padding:28px 32px;max-width:520px;width:100%}'+
+      'h1{color:#89b4fa;font-size:1.05em;margin-bottom:6px}'+
+      'p{color:#7f8498;font-size:.84em;margin:6px 0 14px}'+
+      'label{font-size:.8em;color:#7f8498;display:block;margin-bottom:4px}'+
+      '.row{display:flex;gap:8px;margin-bottom:10px}'+
+      'input{flex:1;background:#2a2f3a;border:1px solid #3a3f4d;border-radius:6px;'+
+        'padding:8px 10px;color:#cdd6f4;font-size:.9em}'+
+      '.eye{background:#2a2f3a;border:1px solid #3a3f4d;border-radius:6px;padding:0 10px;'+
+        'cursor:pointer;color:#7f8498;flex-shrink:0}'+
+      'button{width:100%;background:#89b4fa;color:#1a1d23;border:none;border-radius:6px;'+
+        'padding:10px;font-size:.9em;font-weight:600;cursor:pointer}'+
+      'button:hover{opacity:.88}'+
+      '.hint{font-size:.75em;color:#7f8498;margin-top:10px}'+
+      '.note{background:#2a2f3a;border-radius:6px;padding:10px 12px;font-size:.78em;'+
+        'color:#a6e3a1;font-family:monospace;margin:10px 0;word-break:break-all}'+
+      '.err{color:#f38ba8;font-size:.8em;margin-top:8px;display:none}'+
+      '.ok{color:#a6e3a1;font-size:.8em;margin-top:8px;display:none}</style></head><body>'+
+      '<div class="card">'+
+      '<h1>🔒 Decrypt Broodforge Package</h1>'+
+      '<p>Source document: <strong>'+safeTitle+'</strong><br>'+
+      'Open this file alongside <code>payload.enc</code> and <code>meta.json</code> from the same ZIP folder.<br>'+
+      'Enter the passphrase to decrypt and download the inner ZIP.</p>'+
+      '<label>Passphrase</label>'+
+      '<div class="row">'+
+      '<input type="password" id="pp" autocomplete="off" placeholder="adjective.animal.adjective.animal.NN">'+
+      '<button class="eye" id="eye" type="button">👁</button>'+
+      '</div>'+
+      '<button id="btn">🔓 Decrypt &amp; Download ZIP</button>'+
+      '<div class="err" id="err">❌ Incorrect passphrase or corrupted payload.</div>'+
+      '<div class="ok" id="ok">✓ Decrypted — downloading inner ZIP...</div>'+
+      '<p class="hint">Alternatively, use <code>decrypt.py</code> (Python 3, no extra packages required).</p>'+
+      '</div>'+
+      '<script>'+
+      'var M='+metaJson.replace(/<\/script>/gi,'<\\/script>')+';'+
+      'function b(s){var r=atob(s),u=new Uint8Array(r.length);for(var i=0;i<r.length;i++)u[i]=r.charCodeAt(i);return u;}'+
+      'document.getElementById("eye").addEventListener("click",function(){'+
+        'var p=document.getElementById("pp");'+
+        'p.type=p.type==="password"?"text":"password";'+
+        'this.textContent=p.type==="password"?"👁":"🙈";});'+
+      'document.getElementById("btn").addEventListener("click",async function(){'+
+        'var pp=document.getElementById("pp").value.trim();'+
+        'var errEl=document.getElementById("err"),okEl=document.getElementById("ok");'+
+        'errEl.style.display="none";okEl.style.display="none";'+
+        'if(!pp){errEl.style.display="block";errEl.textContent="Enter a passphrase.";return;}'+
+        'this.textContent="Decrypting…";this.disabled=true;'+
+        'try{'+
+          'var resp=await fetch("payload.enc");'+
+          'if(!resp.ok)throw new Error("payload.enc not found — open this file from the extracted ZIP folder");'+
+          'var ct=new Uint8Array(await resp.arrayBuffer());'+
+          'var km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pp),"PBKDF2",false,["deriveKey"]);'+
+          'var k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b(M.salt),iterations:M.iter,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);'+
+          'var pt=new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM",iv:b(M.iv)},k,ct));'+
+          'var blob=new Blob([pt],{type:"application/zip"});'+
+          'var url=URL.createObjectURL(blob);var a=document.createElement("a");'+
+          'a.href=url;a.download=M.inner_name;document.body.appendChild(a);a.click();'+
+          'document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},2000);'+
+          'okEl.style.display="block";'+
+        '}catch(e){errEl.style.display="block";errEl.textContent="❌ "+(e.message||"Decryption failed.");'+
+        '}finally{this.textContent="🔓 Decrypt & Download ZIP";this.disabled=false;}'+
+      '});'+
+      'document.getElementById("pp").addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("btn").click();});'+
+      '<\/script></body></html>';
+    var decryptPy=
+      '#!/usr/bin/env python3\n'+
+      '# Decrypt a Broodforge encrypted package.\n'+
+      '# Usage: python3 decrypt.py  (run from the folder containing payload.enc and meta.json)\n'+
+      '# Requires: pip install cryptography\n'+
+      'import json, base64, pathlib, sys\n'+
+      'try:\n'+
+      '    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC\n'+
+      '    from cryptography.hazmat.primitives.hashes import SHA256\n'+
+      '    from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n'+
+      'except ImportError:\n'+
+      '    sys.exit("Install the cryptography package: pip install cryptography")\n'+
+      'here = pathlib.Path(__file__).parent\n'+
+      'meta = json.loads((here / "meta.json").read_text())\n'+
+      'ct   = (here / "payload.enc").read_bytes()\n'+
+      'pp   = input("Passphrase: ").encode()\n'+
+      'salt = base64.b64decode(meta["salt"])\n'+
+      'iv   = base64.b64decode(meta["iv"])\n'+
+      'kdf  = PBKDF2HMAC(algorithm=SHA256(), length=32, salt=salt, iterations=meta["iter"])\n'+
+      'key  = kdf.derive(pp)\n'+
+      'try:\n'+
+      '    pt = AESGCM(key).decrypt(iv, ct, None)\n'+
+      'except Exception:\n'+
+      '    sys.exit("Decryption failed — wrong passphrase or corrupted payload.")\n'+
+      'out = here / meta["inner_name"]\n'+
+      'out.write_bytes(pt)\n'+
+      'print(f"Decrypted → {out}")\n';
+    var readme=
+      'Broodforge Encrypted Package\n'+
+      '============================\n'+
+      'Source: '+docTitle+'\n\n'+
+      'This ZIP contains an AES-256-GCM encrypted export package.\n'+
+      'Contents:\n'+
+      '  payload.enc   — encrypted inner ZIP\n'+
+      '  meta.json     — encryption parameters (salt, IV)\n'+
+      '  decrypt.html  — open in browser, enter passphrase → downloads inner ZIP\n'+
+      '  decrypt.py    — Python 3 alternative (pip install cryptography required)\n'+
+      '  README.txt    — this file\n\n'+
+      'PASSPHRASE:\n'+
+      '  [You recorded this in KeePass when you exported.]\n\n'+
+      'Algorithm: AES-256-GCM | KDF: PBKDF2-SHA256 | Iterations: 210,000\n';
+    return buildZip([
+      {name:'payload.enc', bytes:ct},
+      {name:'meta.json',   bytes:enc(metaJson)},
+      {name:'decrypt.html',bytes:enc(decryptHtml)},
+      {name:'decrypt.py',  bytes:enc(decryptPy)},
+      {name:'README.txt',  bytes:enc(readme)},
+    ]);
+  }
+  // ---- export modal wiring ----
+  (function(){
+    // Inject modal HTML once
+    var modal=document.createElement('div');
+    modal.id='bf-enc-modal';
+    modal.innerHTML=
+      '<div id="bf-enc-box">'+
+      '<h3>🔑 Credential fields detected</h3>'+
+      '<p>One or more <strong>🔑 credential fields</strong> were filled. Their values will be '+
+      'included in the export so you can re-import and resume this session later.</p>'+
+      '<p>A passphrase has been generated below. <strong>Save it in KeePass or your vault '+
+      'before clicking Export</strong> — you will need it to decrypt the package.</p>'+
+      '<div class="enc-phrase-row">'+
+      '<input type="text" id="bf-enc-phrase" spellcheck="false" autocomplete="off" placeholder="passphrase…">'+
+      '<button type="button" id="bf-enc-regen">↺ New</button>'+
+      '</div>'+
+      '<p class="enc-hint">⚠ Copy this passphrase to KeePass now — it will not be shown again.</p>'+
+      '<div class="enc-actions">'+
+      '<button type="button" id="bf-enc-confirm">🔒 Encrypt &amp; Export</button>'+
+      '<button type="button" id="bf-enc-plain">⚠ Export unencrypted (credentials in plaintext)</button>'+
+      '<button type="button" id="bf-enc-cancel">Cancel</button>'+
+      '</div></div>';
+    document.body.appendChild(modal);
+    var phraseInput=document.getElementById('bf-enc-phrase');
+    function freshPhrase(){ phraseInput.value=genExportPhrase(); }
+    document.getElementById('bf-enc-regen').addEventListener('click',freshPhrase);
+    document.getElementById('bf-enc-cancel').addEventListener('click',function(){
+      modal.classList.remove('active');
+    });
+    modal.addEventListener('click',function(e){if(e.target===modal)modal.classList.remove('active');});
+    // Store pending export entries/name for when user confirms
+    var _pending=null;
+    window._bfPendingExport=function(entries,name){_pending={entries:entries,name:name};};
+    document.getElementById('bf-enc-confirm').addEventListener('click',async function(){
+      if(!_pending)return;
+      modal.classList.remove('active');
+      var phrase=phraseInput.value.trim();
+      if(!phrase){alert('Enter a passphrase first.');return;}
+      var innerZipBlob=buildZip(_pending.entries);
+      var innerZipName=_pending.name;  // e.g. PHOENIX_2026-06-13_15-23_11_MST.zip
+      var outerZipBlob=await buildEncryptedZip(innerZipBlob,innerZipName,phrase,document.title);
+      var encName=innerZipName.replace(/\.zip$/,'')+'_encrypted.zip';
+      var saved=window.bfSave
+        ? await window.bfSave(outerZipBlob,encName,[{description:'Encrypted Package',accept:{'application/zip':['.zip']}}])
+        : (function(){var url=URL.createObjectURL(outerZipBlob);var a=document.createElement('a');
+            a.href=url;a.download=encName;document.body.appendChild(a);a.click();
+            document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);return true;})();
+      var exportBtn=document.getElementById('bf-export-btn');
+      if(saved!==false&&exportBtn){var o=exportBtn.textContent;exportBtn.textContent='Saved ✓';setTimeout(function(){exportBtn.textContent=o;},1400);}
+    });
+    document.getElementById('bf-enc-plain').addEventListener('click',async function(){
+      if(!_pending)return;
+      modal.classList.remove('active');
+      var zipBlob=buildZip(_pending.entries);
+      var name=_pending.name;
+      var saved=window.bfSave
+        ? await window.bfSave(zipBlob,name,[{description:'Package',accept:{'application/zip':['.zip']}}])
+        : (function(){var url=URL.createObjectURL(zipBlob);var a=document.createElement('a');
+            a.href=url;a.download=name;document.body.appendChild(a);a.click();
+            document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);return true;})();
+      var exportBtn=document.getElementById('bf-export-btn');
+      if(saved!==false&&exportBtn){var o=exportBtn.textContent;exportBtn.textContent='Saved ✓';setTimeout(function(){exportBtn.textContent=o;},1400);}
+    });
+  })();
   var exportBtn=document.getElementById('bf-export-btn');
   if(exportBtn){
-    exportBtn.addEventListener('click', function(){
+    exportBtn.addEventListener('click', async function(){
       var data=collect(), entries=[];
-      entries.push({name:'notes.md', bytes:enc(notesMd(data))});
+      // merge quick-notes + tree sections into the bundled notes file
+      var fullNotesMd = window.bfGetNotesMd ? window.bfGetNotesMd() : notesMd(data);
+      entries.push({name:'notes.md', bytes:enc(fullNotesMd)});
       entries.push({name:'record.json', bytes:enc(JSON.stringify({title:document.title, exported_at:new Date().toISOString(),
         parameters:data.params, notes:data.notes, session_notes:data.session_notes,
         attachments:atts.map(function(a){ return {name:a.name, size:a.bytes.length, type:a.type}; })}, null, 2))});
       atts.forEach(function(a){ entries.push({name:'attachments/'+a.name, bytes:a.bytes}); });
-      var url=URL.createObjectURL(buildZip(entries));
-      var a=document.createElement('a'); a.href=url; a.download=titleSlug()+'_'+stamp()+'.zip';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-      var o=exportBtn.textContent; exportBtn.textContent='Saved ✓'; setTimeout(function(){ exportBtn.textContent=o; }, 1400);
+      var name=titleSlug()+'_'+stamp()+'.zip';
+      if(hasFilledCreds()){
+        // Show encryption modal
+        var phraseEl=document.getElementById('bf-enc-phrase');
+        if(phraseEl) phraseEl.value=genExportPhrase();
+        window._bfPendingExport(entries,name);
+        document.getElementById('bf-enc-modal').classList.add('active');
+      } else {
+        var saved=window.bfSave
+          ? await window.bfSave(buildZip(entries),name,[{description:'Package',accept:{'application/zip':['.zip']}}])
+          : (function(){ var url=URL.createObjectURL(buildZip(entries)); var a=document.createElement('a');
+              a.href=url;a.download=name;document.body.appendChild(a);a.click();
+              document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);return true; })();
+        if(saved!==false){var o=exportBtn.textContent;exportBtn.textContent='Saved ✓';
+          setTimeout(function(){exportBtn.textContent=o;},1400);}
+      }
     });
   }
+
+  // ---- session import ----
+  (function(){
+    var importBtn=document.getElementById('bf-import-session-btn');
+    if(!importBtn) return;
+    // Minimal stored-only ZIP reader (compression=0; our exports are always stored)
+    function parseZip(ab){
+      var buf=new Uint8Array(ab), view=new DataView(ab), files={};
+      var pos=buf.length-22;
+      while(pos>=0){if(buf[pos]===0x50&&buf[pos+1]===0x4b&&buf[pos+2]===0x05&&buf[pos+3]===0x06)break;pos--;}
+      if(pos<0) return null;
+      var cdOff=view.getUint32(pos+16,true), cdSz=view.getUint32(pos+12,true), p=cdOff;
+      while(p<cdOff+cdSz){
+        if(view.getUint32(p,true)!==0x02014b50) break;
+        var fnLen=view.getUint16(p+28,true),exLen=view.getUint16(p+30,true),cmtLen=view.getUint16(p+32,true);
+        var lOff=view.getUint32(p+42,true), cmpSz=view.getUint32(p+20,true), method=view.getUint16(p+10,true);
+        var name=new TextDecoder().decode(buf.slice(p+46,p+46+fnLen));
+        if(method===0){var lFn=view.getUint16(lOff+26,true),lEx=view.getUint16(lOff+28,true);
+          files[name]=ab.slice(lOff+30+lFn+lEx,lOff+30+lFn+lEx+cmpSz);}
+        p+=46+fnLen+exLen+cmtLen;
+      }
+      return files;
+    }
+    // Apply a parsed record.json to the current form
+    function applyRecord(rec){
+      var dec=new TextDecoder();
+      // Parameters
+      if(rec.parameters){
+        Object.keys(rec.parameters).forEach(function(k){
+          var inp=document.querySelector('.param-input[data-var="'+k+'"]');
+          if(inp){inp.value=rec.parameters[k];inp.dispatchEvent(new Event('input'));}
+        });
+      }
+      // Notes fields — match by label text
+      if(rec.notes&&rec.notes.length){
+        rec.notes.forEach(function(n){
+          // find notefield whose label text matches
+          var matched=null;
+          document.querySelectorAll('.notefield').forEach(function(div){
+            var lab=div.querySelector('label');
+            if(lab&&lab.childNodes[0].textContent.trim()===n.label) matched=div;
+          });
+          if(!matched) return;
+          if(n.type==='credential'){
+            var ci=matched.querySelector('.cred-input');
+            if(ci&&n.value&&n.value!=='(blank)'){
+              ci.value=n.value;
+              try{sessionStorage.setItem('bf:cred:'+ci.dataset.cred,n.value);}catch(e){}
+              ci.dispatchEvent(new Event('input'));
+            }
+          } else if(n.type==='field'){
+            var fi=matched.querySelector('.note-input');
+            if(fi){fi.value=n.value||'';
+              try{localStorage.setItem('bf:note:'+fi.dataset.note,fi.value);}catch(e){}
+              fi.dispatchEvent(new Event('input'));}
+          } else if(n.type==='area'){
+            var ai=matched.querySelector('.note-area');
+            if(ai){ai.value=n.value||'';
+              try{localStorage.setItem('bf:note:'+ai.dataset.note,ai.value);}catch(e){}
+              ai.dispatchEvent(new Event('input'));}
+          }
+          // radio/check/table: UI state is complex — skip for now; values visible in notes panel
+        });
+      }
+      // Session notes
+      if(rec.session_notes!==undefined){
+        var sn=document.getElementById('bf-session-notes');
+        if(sn){
+          sn.value=rec.session_notes;
+          try{var docSlug=document.body.dataset.doc||'doc';
+            localStorage.setItem('bf:notes:'+docSlug, rec.session_notes);}catch(e){}
+        }
+      }
+      alert('Session imported. Check fields and session notes — tables and choice fields may need manual review.');
+    }
+    // Handle a ZIP ArrayBuffer (plain or encrypted outer)
+    async function processZipAb(ab){
+      var files=parseZip(ab);
+      if(!files) return alert('Could not parse ZIP file.');
+      // Encrypted outer zip?
+      if(files['payload.enc']&&files['meta.json']){
+        var metaStr=new TextDecoder().decode(files['meta.json']);
+        var meta=JSON.parse(metaStr);
+        var phrase=prompt('This package is encrypted. Enter the passphrase to decrypt and import:','');
+        if(!phrase) return;
+        try{
+          var saltB64=meta.salt, ivB64=meta.iv;
+          function b64ToU8(s){var b=atob(s),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
+          var salt=b64ToU8(saltB64), iv=b64ToU8(ivB64);
+          var keyMat=await crypto.subtle.importKey('raw',new TextEncoder().encode(phrase),'PBKDF2',false,['deriveKey']);
+          var key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:600000,hash:'SHA-256'},
+            keyMat,{name:'AES-GCM',length:256},false,['decrypt']);
+          var ct=new Uint8Array(files['payload.enc']);
+          var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,ct);
+          // pt is the inner ZIP
+          var innerFiles=parseZip(pt);
+          if(!innerFiles||!innerFiles['record.json']) return alert('Decrypted successfully but record.json not found in inner ZIP.');
+          var rec=JSON.parse(new TextDecoder().decode(innerFiles['record.json']));
+          applyRecord(rec);
+        }catch(e){alert('Decryption failed — wrong passphrase or corrupted file.\n'+e.message);}
+      } else if(files['record.json']){
+        var rec=JSON.parse(new TextDecoder().decode(files['record.json']));
+        applyRecord(rec);
+      } else {
+        alert('ZIP does not contain a record.json or encrypted payload. Cannot import.');
+      }
+    }
+    // Wire button → hidden file input
+    var hiddenPick=document.createElement('input');
+    hiddenPick.type='file'; hiddenPick.accept='.zip'; hiddenPick.style.display='none';
+    document.body.appendChild(hiddenPick);
+    importBtn.addEventListener('click',function(){hiddenPick.click();});
+    hiddenPick.addEventListener('change',function(){
+      var f=hiddenPick.files&&hiddenPick.files[0];
+      if(!f) return;
+      hiddenPick.value='';
+      var rd=new FileReader();
+      rd.onload=function(){processZipAb(rd.result);};
+      rd.readAsArrayBuffer(f);
+    });
+  })();
+
+  // ---- drag resizer ----
+  (function(){
+    var drag=document.getElementById('bf-drag');
+    var notesPane=document.getElementById('bf-notes-pane');
+    if(!drag||!notesPane) return;
+    var dragging=false,startX=0,startW=0;
+    function clamp(v){return Math.max(180,Math.min(window.innerWidth*0.6,v));}
+    drag.addEventListener('mousedown',function(e){
+      dragging=true;startX=e.clientX;startW=notesPane.offsetWidth;
+      drag.classList.add('dragging');
+      document.body.style.userSelect='none';e.preventDefault();
+    });
+    document.addEventListener('mousemove',function(e){
+      if(!dragging) return;
+      var w=clamp(startW+(startX-e.clientX));
+      notesPane.style.flex='0 0 '+w+'px';
+      try{localStorage.setItem('bf:notes-pane-w',w);}catch(err){}
+    });
+    document.addEventListener('mouseup',function(){
+      if(!dragging) return;
+      dragging=false;drag.classList.remove('dragging');
+      document.body.style.userSelect='';
+    });
+    try{var sw=localStorage.getItem('bf:notes-pane-w');
+      if(sw) notesPane.style.flex='0 0 '+sw+'px';}catch(err){}
+  })();
+  // ---- notes tree (recursive collapsible sections) ----
+  (function(){
+    var DOC=document.body.dataset.doc||'doc';
+    var NTS_KEY='bf:'+DOC+':nts';
+    function load(){try{var s=localStorage.getItem(NTS_KEY);return s?JSON.parse(s):[];}catch(e){return[];}}
+    function save(t){try{localStorage.setItem(NTS_KEY,JSON.stringify(t));}catch(e){}}
+    function uid(){return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,5);}
+    function find(tree,id){
+      for(var i=0;i<tree.length;i++){
+        if(tree[i].id===id) return tree[i];
+        var r=find(tree[i].ch||[],id);if(r) return r;
+      }
+      return null;
+    }
+    function remove(tree,id){
+      for(var i=0;i<tree.length;i++){
+        if(tree[i].id===id){tree.splice(i,1);return true;}
+        if(remove(tree[i].ch||[],id)) return true;
+      }
+      return false;
+    }
+    var tree=load();
+    var container=document.getElementById('bf-notes-tree');
+    if(!container) return;
+
+    function mkNode(node){
+      var det=document.createElement('details');
+      det.className='nts-section';
+      if(node.open) det.setAttribute('open','');
+      det.dataset.id=node.id;
+
+      var sum=document.createElement('summary');
+      sum.className='nts-hdr';
+
+      var ti=document.createElement('input');
+      ti.type='text';ti.className='nts-hdr-title';
+      ti.value=node.title||'';ti.placeholder='Section name…';
+      ti.addEventListener('click',function(e){e.stopPropagation();});
+      ti.addEventListener('input',function(){
+        var n=find(tree,node.id);if(n){n.title=ti.value;save(tree);}
+      });
+
+      var db=document.createElement('button');
+      db.type='button';db.className='nts-hdr-btn del';db.title='Remove';
+      db.textContent='×';
+      db.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(!confirm('Remove this section and all its subsections?')) return;
+        remove(tree,node.id);save(tree);render();
+      });
+
+      sum.appendChild(ti);sum.appendChild(db);
+      det.appendChild(sum);
+
+      var body=document.createElement('div');
+      body.className='nts-body';
+
+      var ta=document.createElement('textarea');
+      ta.className='note-area';ta.placeholder='Notes…';
+      ta.value=node.body||'';
+      ta.addEventListener('input',function(){
+        var n=find(tree,node.id);if(n){n.body=ta.value;save(tree);}
+      });
+      body.appendChild(ta);
+
+      var chCont=document.createElement('div');
+      (node.ch||[]).forEach(function(c){chCont.appendChild(mkNode(c));});
+      body.appendChild(chCont);
+
+      var addBtn=document.createElement('button');
+      addBtn.type='button';addBtn.className='nts-add-btn';
+      addBtn.textContent='+ Add subsection';
+      addBtn.addEventListener('click',function(){
+        var n=find(tree,node.id);if(!n) return;
+        if(!n.ch) n.ch=[];
+        n.ch.push({id:uid(),title:'',body:'',open:true,ch:[]});
+        save(tree);render();
+      });
+      body.appendChild(addBtn);
+
+      det.appendChild(body);
+      det.addEventListener('toggle',function(){
+        var n=find(tree,node.id);if(n){n.open=det.open;save(tree);}
+      });
+      return det;
+    }
+
+    function render(){
+      container.innerHTML='';
+      tree.forEach(function(n){container.appendChild(mkNode(n));});
+    }
+
+    var addRoot=document.getElementById('bf-notes-add-root');
+    if(addRoot){
+      addRoot.addEventListener('click',function(){
+        tree.push({id:uid(),title:'',body:'',open:true,ch:[]});
+        save(tree);render();
+      });
+    }
+    render();
+
+    // expose reset so clear/import can reload the tree externally
+    window.bfNotesReset = function(newTree){
+      tree = newTree||[];
+      save(tree);
+      render();
+    };
+  })();
+
+  // ---- notes export (MD + HTML) ----
+  (function(){
+    function docSlug(){
+      return (document.title||'Notes').trim()
+        .replace(/\.md\b/gi,'').replace(/[^\w\s-]/g,'')
+        .replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'')
+        || 'Notes';
+    }
+    function stamp(){
+      var d=new Date();
+      function p(n){return (n<10?'0':'')+n;}
+      var tz=(new Date()).toLocaleTimeString('en-US',{timeZoneName:'short'}).split(' ').pop()||'UTC';
+      return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())
+        +'_'+p(d.getHours())+'-'+p(d.getMinutes())
+        +'_'+p(d.getSeconds())+'_'+tz;
+    }
+    function suggestName(ext){ return docSlug()+'_notes_'+stamp()+'.'+ext; }
+
+    function getNotesTree(){
+      try{
+        var DOC=document.body.dataset.doc||'doc';
+        var s=localStorage.getItem('bf:'+DOC+':nts');
+        return s?JSON.parse(s):[];
+      }catch(e){return[];}
+    }
+    function sessionNotes(){
+      var el=document.getElementById('bf-session-notes');
+      return el?el.value:'';
+    }
+
+    function treeToMd(nodes, depth){
+      var out=[];
+      var prefix='#'.repeat(Math.min(depth+1,6))+' ';
+      nodes.forEach(function(n){
+        out.push(prefix+(n.title||'Untitled'));
+        if(n.body&&n.body.trim()) out.push('',n.body.trim(),'');
+        if(n.ch&&n.ch.length) out.push(treeToMd(n.ch,depth+1));
+      });
+      return out.join('\n');
+    }
+
+    function buildMd(){
+      var title=document.title||'Notes';
+      var lines=['# '+title+' — Session Notes','','*Exported: '+new Date().toString()+'*',''];
+      var sn=sessionNotes();
+      if(sn.trim()){lines.push('## Quick Notes','',sn.trim(),'');}
+      var tree=getNotesTree();
+      if(tree.length){lines.push('## Sections','',treeToMd(tree,2));}
+      return lines.join('\n');
+    }
+
+    function escHtml(s){
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+               .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+    }
+
+    function treeToHtmlSections(nodes, depth){
+      return nodes.map(function(n){
+        var tag='h'+(Math.min(depth,6));
+        var children=(n.ch&&n.ch.length)?treeToHtmlSections(n.ch,depth+1):'';
+        var body=n.body&&n.body.trim()?'<p style="white-space:pre-wrap;margin:6px 0 10px">'+escHtml(n.body.trim())+'</p>':'';
+        return '<details open><summary><'+tag+' style="display:inline;font-size:inherit">'
+          +escHtml(n.title||'Untitled')+'</'+tag+'></summary>'
+          +'<div style="padding-left:16px">'+body+children+'</div></details>';
+      }).join('\n');
+    }
+
+    function buildHtml(){
+      var title=escHtml(document.title||'Notes');
+      var sn=sessionNotes();
+      var snHtml=sn.trim()?'<section><h2>Quick Notes</h2><p style="white-space:pre-wrap">'+escHtml(sn.trim())+'</p></section>':'';
+      var tree=getNotesTree();
+      var treeHtml=tree.length?'<section><h2>Sections</h2>'+treeToHtmlSections(tree,3)+'</section>':'';
+      var dark='background:#1a1d23;color:#cdd6f4';
+      return '<!DOCTYPE html>\n<html lang="en"><head><meta charset="UTF-8">'
+        +'<title>'+title+' — Notes</title>'
+        +'<style>body{font-family:Segoe UI,system-ui,sans-serif;font-size:14px;line-height:1.6;'
+        +dark+';max-width:860px;margin:0 auto;padding:24px}'
+        +'h1,h2,h3,h4,h5,h6{color:#89b4fa}details{margin:4px 0}'
+        +'summary{cursor:pointer;user-select:none;list-style:none;padding:4px 0}'
+        +'summary::-webkit-details-marker{display:none}p{margin:6px 0}</style>'
+        +'</head><body>'
+        +'<h1>'+title+' — Session Notes</h1>'
+        +'<p style="color:#7f8498;font-size:.85em">Exported: '+new Date().toString()+'</p>'
+        +snHtml+treeHtml
+        +'</body></html>\n';
+    }
+
+    async function download(text, filename, mime, types){
+      var blob=new Blob([text],{type:mime});
+      if(window.bfSave) return window.bfSave(blob,filename,types||[]);
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url; a.download=filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(url);},1000);
+      return true;
+    }
+
+    // expose full notes as MD for zip export
+    window.bfGetNotesMd = buildMd;
+
+    var btnMd=document.getElementById('bf-notes-export-md');
+    var btnHtml=document.getElementById('bf-notes-export-html');
+    if(btnMd){
+      btnMd.addEventListener('click',async function(){
+        var name=suggestName('md');
+        var saved=await download(buildMd(),name,'text/markdown',
+          [{description:'Markdown file',accept:{'text/markdown':['.md']}}]);
+        if(saved!==false){var o=btnMd.textContent;btnMd.textContent='Saved ✓';
+          setTimeout(function(){btnMd.textContent=o;},1400);}
+      });
+    }
+    if(btnHtml){
+      btnHtml.addEventListener('click',async function(){
+        var name=suggestName('html');
+        var saved=await download(buildHtml(),name,'text/html',
+          [{description:'HTML file',accept:{'text/html':['.html']}}]);
+        if(saved!==false){var o=btnHtml.textContent;btnHtml.textContent='Saved ✓';
+          setTimeout(function(){btnHtml.textContent=o;},1400);}
+      });
+    }
+  })();
+
+
+  // ---- clear all notes for this document ----
+  (function(){
+    var btn=document.getElementById('bf-notes-clear');
+    if(!btn) return;
+    btn.addEventListener('click',function(){
+      if(!confirm('Clear all notes for this document? This cannot be undone.')) return;
+      var DOC=document.body.dataset.doc||'doc';
+      try{localStorage.removeItem('bf:'+DOC+':nts');}catch(e){}
+      try{localStorage.removeItem('bf:'+DOC+':sn');}catch(e){}
+      var sn=document.getElementById('bf-session-notes');
+      if(sn) sn.value='';
+      if(window.bfNotesReset) window.bfNotesReset([]);
+    });
+  })();
+
+  // ---- import notes from exported *.md file ----
+  (function(){
+    var btn=document.getElementById('bf-notes-import');
+    if(!btn) return;
+    function uid(){return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,5);}
+    function parseMdSections(text){
+      // parse ### depth headings back into tree nodes
+      var lines=text.split('\n'),stack=[],result=[],i=0;
+      while(i<lines.length){
+        var hm=lines[i].match(/^(#{1,6}) (.+)/);
+        if(hm){
+          var depth=hm[1].length,title=hm[2].trim();
+          var node={id:uid(),title:title,body:'',open:true,ch:[]};
+          while(stack.length&&stack[stack.length-1].depth>=depth) stack.pop();
+          if(!stack.length) result.push(node);
+          else { var par=stack[stack.length-1].node; if(!par.ch) par.ch=[]; par.ch.push(node); }
+          stack.push({node:node,depth:depth});
+          i++;
+          var bodyLines=[];
+          while(i<lines.length&&!lines[i].match(/^#{1,6} /)){bodyLines.push(lines[i]);i++;}
+          while(bodyLines.length&&!bodyLines[0].trim()) bodyLines.shift();
+          while(bodyLines.length&&!bodyLines[bodyLines.length-1].trim()) bodyLines.pop();
+          node.body=bodyLines.join('\n');
+        } else { i++; }
+      }
+      return result;
+    }
+    function applyImport(text){
+      // extract quick notes
+      var qnMatch=text.match(/^## Quick Notes\s*\n([\s\S]*?)(?=\n## |\n# |$)/m);
+      var qn=qnMatch?qnMatch[1].trim():'';
+      // extract sections block
+      var secMatch=text.match(/^## Sections\s*\n([\s\S]*)$/m);
+      var newTree=secMatch?parseMdSections(secMatch[1].trim()):[];
+      // confirm if there's existing content
+      var DOC=document.body.dataset.doc||'doc';
+      var existSn=document.getElementById('bf-session-notes');
+      var existTree=[];
+      try{var s=localStorage.getItem('bf:'+DOC+':nts');if(s) existTree=JSON.parse(s);}catch(e){}
+      var hasExisting=(existSn&&existSn.value.trim())||(existTree&&existTree.length);
+      if(hasExisting&&!confirm('Importing will replace your current notes for this document. Continue?')) return;
+      // restore quick notes
+      if(existSn) existSn.value=qn;
+      try{localStorage.setItem('bf:'+DOC+':sn',qn);}catch(e){}
+      // restore tree
+      if(window.bfNotesReset) window.bfNotesReset(newTree);
+      btn.textContent='Imported ✓';
+      setTimeout(function(){btn.textContent='↑ Import';},1600);
+    }
+    btn.addEventListener('click',function(){
+      var input=document.createElement('input');
+      input.type='file';input.accept='.md,text/markdown,text/plain';
+      input.addEventListener('change',function(){
+        var file=input.files[0];if(!file) return;
+        var reader=new FileReader();
+        reader.onload=function(e){applyImport(e.target.result);};
+        reader.readAsText(file,'utf-8');
+      });
+      input.click();
+    });
+  })();
+
+
+  // ---- credential fields (sessionStorage only) ----
+  (function(){
+    // Load saved values and wire persistence
+    document.querySelectorAll('.cred-input').forEach(function(inp){
+      var k='bf:cred:'+(inp.dataset.cred||inp.id||'');
+      try{var s=sessionStorage.getItem(k);if(s!==null)inp.value=s;}catch(e){}
+      inp.addEventListener('input',function(){
+        try{sessionStorage.setItem(k,inp.value);}catch(e){}
+        // Update confirm indicator whenever main input changes
+        var slug=inp.dataset.cred;
+        if(slug) _updateCredMatch(slug);
+      });
+    });
+    // Show/hide toggle — toggles BOTH the main input and the confirm input
+    document.querySelectorAll('.cred-toggle').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var slug=btn.dataset.for;
+        var inp=document.querySelector('.cred-input[data-cred="'+slug+'"]');
+        var conf=document.getElementById('cred-confirm-'+slug);
+        if(!inp)return;
+        var show=inp.type==='password';
+        inp.type=show?'text':'password';
+        if(conf) conf.type=show?'text':'password';
+        btn.textContent=show?'\u{1F648}':'\u{1F441}';
+        btn.title=show?'Hide':'Show / hide';
+      });
+    });
+    // Confirmation inputs — check match, update indicator
+    function _updateCredMatch(slug){
+      var main=document.getElementById('cred-'+slug);
+      var conf=document.getElementById('cred-confirm-'+slug);
+      var ind=document.getElementById('cred-match-'+slug);
+      if(!main||!conf||!ind)return;
+      var v=main.value, c=conf.value;
+      if(!v&&!c){ind.textContent='';ind.className='cred-match-indicator';return;}
+      if(!c){ind.textContent='';ind.className='cred-match-indicator';return;}
+      if(v===c){ind.textContent='✓ match';ind.className='cred-match-indicator cred-match-ok';}
+      else{ind.textContent='✗ mismatch';ind.className='cred-match-indicator cred-match-fail';}
+    }
+    window._updateCredMatch=_updateCredMatch;
+    document.querySelectorAll('.cred-confirm-input').forEach(function(conf){
+      conf.addEventListener('input',function(){
+        _updateCredMatch(conf.dataset.for||'');
+      });
+    });
+    // TOTP secret inputs — load saved value + persist on change
+    document.querySelectorAll('.cred-totp-input').forEach(function(inp){
+      var k='bf:totp:'+(inp.dataset.cred||inp.id||'');
+      try{var s=sessionStorage.getItem(k);if(s!==null)inp.value=s;}catch(e){}
+      inp.addEventListener('input',function(){
+        try{sessionStorage.setItem(k,inp.value);}catch(e){}
+      });
+    });
+    // Auth method checkboxes — show/hide sections, persist selection
+    document.querySelectorAll('.cred-method-cb').forEach(function(cb){
+      var cslug=cb.dataset.cred, method=cb.value;
+      var mk='bf:method:'+cslug+':'+method;
+      // Restore saved state (password defaults to checked, others to unchecked)
+      try{
+        var saved=sessionStorage.getItem(mk);
+        if(saved!==null) cb.checked=(saved==='1');
+      }catch(e){}
+      function applyVisibility(){
+        if(method==='password'){
+          var sec=document.getElementById('cred-pw-section-'+cslug);
+          if(sec) sec.style.display=cb.checked?'':'none';
+        } else if(method==='totp'){
+          var sec=document.getElementById('cred-totp-section-'+cslug);
+          if(sec) sec.style.display=cb.checked?'':'none';
+        }
+      }
+      applyVisibility();
+      cb.addEventListener('change',function(){
+        applyVisibility();
+        try{sessionStorage.setItem(mk,cb.checked?'1':'0');}catch(e){}
+      });
+    });
+    // Click-to-peek on {{cred:slug}} masked spans in code blocks
+    // Single click reveals for 4s, or click again to re-mask immediately
+    document.querySelectorAll('.cred-tpl[data-cred-slug]').forEach(function(span){
+      var peekTimer=null;
+      span.style.cursor='pointer';
+      span.title='Click to peek (auto-masks after 4s)';
+      span.addEventListener('click',function(){
+        if(peekTimer){clearTimeout(peekTimer);peekTimer=null;span.textContent='••••••••';span.title='Click to peek (auto-masks after 4s)';return;}
+        var slug=span.dataset.credSlug;
+        var val='';try{val=sessionStorage.getItem('bf:cred:'+slug)||'';}catch(e){}
+        span.textContent=val||'(empty)';
+        span.title='Click to re-mask';
+        peekTimer=setTimeout(function(){span.textContent='••••••••';span.title='Click to peek (auto-masks after 4s)';peekTimer=null;},4000);
+      });
+    });
+  })();
+  // ---- radio / checkbox choice fields ----
+  (function(){
+    document.querySelectorAll('.choice-field').forEach(function(div){
+      var slug=div.dataset.slug,type=div.dataset.choiceType;
+      if(!slug)return;
+      var hidden=div.querySelector('input[type=hidden][data-note="'+slug+'"]');
+      function updateHidden(){
+        var vals=[];
+        if(type==='radio'){var c=div.querySelector('input[type=radio]:checked');if(c)vals=[c.value];}
+        else{div.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb){vals.push(cb.value);});}
+        if(hidden){hidden.value=vals.join(',');hidden.dispatchEvent(new Event('input'));}
+      }
+      try{
+        var saved=localStorage.getItem(ns+'note:'+slug);
+        if(saved){
+          var sv=saved.split(',');
+          if(type==='radio'){div.querySelectorAll('input[type=radio]').forEach(function(r){r.checked=sv.indexOf(r.value)>=0;});}
+          else{div.querySelectorAll('input[type=checkbox]').forEach(function(cb){cb.checked=sv.indexOf(cb.value)>=0;});}
+          if(hidden)hidden.value=saved;
+        }
+      }catch(e){}
+      div.querySelectorAll('input[type=radio],input[type=checkbox]').forEach(function(inp){
+        inp.addEventListener('change',function(){updateHidden();try{localStorage.setItem(ns+'note:'+slug,hidden?hidden.value:'');}catch(e){}});
+      });
+    });
+  })();
+  // ---- input table fields ----
+  (function(){
+    function getTableCols(div){
+      var heads=div.querySelectorAll('.input-table thead th');
+      var cols=[];for(var i=0;i<heads.length-1;i++)cols.push(heads[i].textContent.trim());
+      return cols;
+    }
+    function serializeTable(tbody,cols){
+      var rows=[],trs=tbody.querySelectorAll('tr');
+      trs.forEach(function(tr){
+        var row={},inputs=tr.querySelectorAll('input:not([type=hidden]),textarea');
+        for(var i=0;i<Math.min(inputs.length,cols.length);i++)row[cols[i]]=inputs[i].value;
+        rows.push(row);
+      });
+      return rows;
+    }
+    function saveTable(slug,rows,hid){
+      var v=JSON.stringify(rows);
+      try{localStorage.setItem(ns+'note:'+slug,v);}catch(e){}
+      if(hid)hid.value=v;
+    }
+    function addRow(div,slug,cols,hid,rowData){
+      var tbody=document.getElementById('tbl-'+slug);
+      if(!tbody)return;
+      var tr=document.createElement('tr');
+      cols.forEach(function(col,idx){
+        var td=document.createElement('td');
+        var inp;
+        if(idx===cols.length-1&&cols.length>1){
+          inp=document.createElement('textarea');inp.rows=2;
+        } else {
+          inp=document.createElement('input');inp.type='text';
+        }
+        inp.value=rowData&&rowData[col]!=null?rowData[col]:'';
+        inp.addEventListener('input',function(){saveTable(slug,serializeTable(tbody,cols),hid);});
+        td.appendChild(inp);tr.appendChild(td);
+      });
+      var td=document.createElement('td');
+      var del=document.createElement('button');del.type='button';del.textContent='×';del.className='row-del-btn';del.title='Remove row';
+      del.addEventListener('click',function(){tr.parentNode.removeChild(tr);saveTable(slug,serializeTable(tbody,cols),hid);});
+      td.appendChild(del);tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+    document.querySelectorAll('.table-field').forEach(function(div){
+      var slug=div.dataset.slug;if(!slug)return;
+      var cols=getTableCols(div);
+      var tbody=document.getElementById('tbl-'+slug);if(!tbody)return;
+      var hid=div.querySelector('input[type=hidden][data-note="'+slug+'"]');
+      var saved=null;
+      try{var s=localStorage.getItem(ns+'note:'+slug);if(s)saved=JSON.parse(s);}catch(e){}
+      if(saved&&saved.length){
+        saved.forEach(function(row){addRow(div,slug,cols,hid,row);});
+      } else {
+        var preset=[];
+        if(hid&&hid.dataset.presetRows){
+          try{preset=JSON.parse(hid.dataset.presetRows);}catch(e){}
+        }
+        preset.forEach(function(rowLabel){
+          var row={};if(cols.length>0)row[cols[0]]=rowLabel;
+          addRow(div,slug,cols,hid,row);
+        });
+        if(preset.length&&tbody.rows.length)saveTable(slug,serializeTable(tbody,cols),hid);
+      }
+      var addBtn=div.querySelector('.add-row-btn');
+      if(addBtn){addBtn.addEventListener('click',function(){addRow(div,slug,cols,hid,null);});}
+    });
+  })();
+  // ---- terminal output parse fields ----
+  (function(){
+    document.querySelectorAll('.parse-field').forEach(function(div){
+      var target=div.dataset.parseTarget,rxStr=div.dataset.parseRegex;
+      var btn=div.querySelector('.parse-btn'),applyBtn=div.querySelector('.parse-apply');
+      var ta=div.querySelector('.parse-input'),resultDiv=div.querySelector('.parse-result');
+      var valueEl=div.querySelector('.parse-value');
+      if(!btn||!ta||!resultDiv||!valueEl)return;
+      var lastMatch=null;
+      btn.addEventListener('click',function(){
+        var matched=null;
+        try{var rx=new RegExp(rxStr,'m');var m=ta.value.match(rx);if(m)matched=m[1]!==undefined?m[1]:m[0];}catch(e){}
+        lastMatch=matched;
+        valueEl.textContent=matched||'(no match found)';
+        resultDiv.style.display='';
+        if(applyBtn)applyBtn.style.display=matched?'':'none';
+      });
+      if(applyBtn){
+        applyBtn.addEventListener('click',function(){
+          if(!lastMatch||!target)return;
+          var el=document.querySelector('[data-note="'+target+'"]');
+          if(el){el.value=lastMatch;el.dispatchEvent(new Event('input'));
+            applyBtn.textContent='Applied ✓';setTimeout(function(){applyBtn.textContent='Apply ↓';},1400);}
+        });
+      }
+    });
+  })();
+  // ---- auto-suggest (codename / passphrase) ----
+  (function(){
+    var _adj=['amber','bold','brisk','calm','chief','crisp','dark','deep','fast','firm','fleet','fresh','grand','grey','hard','high','keen','kind','lean','light','long','mild','neat','noble','pale','prime','pure','quiet','rare','rich','safe','sharp','slow','small','soft','still','swift','tall','thin','true','warm','wide','wild'];
+    var _ani=['bat','bear','bee','buck','bull','cat','cod','crane','crow','deer','doe','dog','dove','duck','elk','emu','falcon','finch','fox','frog','gnu','hawk','hen','hog','ibis','jay','kite','lark','lynx','mink','mole','moose','moth','mule','newt','owl','pike','ram','rat','raven','robin','stag','swan','toad','vole','wasp','wolf','wren','yak'];
+    var _wds=['alpine','bridge','castle','circuit','current','delta','ember','engine','flare','forest','forge','gleam','hammer','herald','island','lantern','mantle','needle','nexus','onyx','pillar','quartz','relay','ridge','shield','signal','silver','spiral','summit','thunder','timber','torque','tunnel','vector','vertex','warden','winter','zenith'];
+    function _rnd(arr){var b=new Uint16Array(1);crypto.getRandomValues(b);return arr[b[0]%arr.length];}
+    function _rndN(max){var b=new Uint16Array(1);crypto.getRandomValues(b);return b[0]%max;}
+    function genSuggestion(kind,schema){
+      if(kind==='codename'){
+        if(schema==='adj-animal-nn') return _rnd(_adj)+'-'+_rnd(_ani)+'-'+(String(_rndN(99)+1).padStart(2,'0'));
+        if(schema==='cell-n') return 'cell-'+(_rndN(20)+1);
+        return _rnd(_adj)+'-'+_rnd(_ani);
+      }
+      if(schema==='3word-n') return _rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds)+'-'+(_rndN(900)+100);
+      if(schema==='random'){
+        var chars='abcdefghjkmnpqrstuvwxyz23456789';
+        var rb=new Uint8Array(18);crypto.getRandomValues(rb);
+        var s=Array.from(rb).map(function(b){return chars[b%chars.length];}).join('');
+        return s.slice(0,6)+'-'+s.slice(6,12)+'-'+s.slice(12,18);
+      }
+      if(kind==='totp-secret'){
+        var nb=schema==='totp-32'?32:20;
+        var b32='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        var rb=new Uint8Array(nb);crypto.getRandomValues(rb);
+        // encode bytes as base32
+        var bits=0,acc=0,out='';
+        for(var i=0;i<rb.length;i++){acc=(acc<<8)|rb[i];bits+=8;
+          while(bits>=5){bits-=5;out+=b32[(acc>>bits)&31];}}
+        if(bits>0)out+=b32[(acc<<(5-bits))&31];
+        // group in chunks of 4 for readability
+        return out.match(/.{1,4}/g).join(' ');
+      }
+      return _rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds)+'-'+_rnd(_wds);
+    }
+    document.querySelectorAll('.bf-suggest-btn').forEach(function(btn){
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        var kind=btn.dataset.suggest, forId=btn.dataset.for;
+        var sel=document.querySelector('.bf-suggest-select[data-suggest-for="'+forId+'"]');
+        var val=genSuggestion(kind,sel?sel.value:'');
+        var inp=document.querySelector('[data-note="'+forId+'"]')||document.getElementById('cred-'+forId)||document.getElementById('cred-totp-'+forId);
+        if(!inp)return;
+        inp.value=val;
+        inp.dispatchEvent(new Event('input',{bubbles:true}));
+        inp.dispatchEvent(new Event('change',{bubbles:true}));
+        if(kind==='passphrase'){
+          var conf=document.getElementById('cred-confirm-'+forId);
+          if(conf){conf.value=val;conf.dispatchEvent(new Event('input',{bubbles:true}));}
+        }
+      });
+    });
+  })();
+  // ---- filename auto-suggest fields ----
+  (function(){
+    document.querySelectorAll('.filename-field').forEach(function(div){
+      var tpl=div.dataset.template,slug=div.dataset.slug;
+      var input=div.querySelector('.filename-input');
+      var warnDiv=div.querySelector('.filename-dep-warn');
+      var warnText=div.querySelector('.dep-warn-text');
+      var highlightBtn=div.querySelector('.dep-highlight-btn');
+      var suggestBtn=div.querySelector('.filename-suggest-btn');
+      if(!input||!tpl)return;
+      function fillTemplate(){
+        var result=tpl,missing=[];
+        result=result.replace(/\{\{STAMP\}\}/g,stamp());
+        result=result.replace(/\{\{note:([^}]+)\}\}/g,function(m,ref){
+          var el=document.querySelector('[data-note="'+ref.trim()+'"]');
+          var v=el?el.value.trim():'';
+          if(!v)missing.push(ref.trim());
+          return v||('<'+ref.trim()+'>');
+        });
+        result=result.replace(/\{\{param:([^}]+)\}\}/g,function(m,ref){
+          var el=document.querySelector('[data-var="'+ref.trim()+'"]');
+          var v=el?el.value.trim():'';
+          if(!v)missing.push(ref.trim());
+          return v||('<'+ref.trim()+'>');
+        });
+        result=result.replace(/\{\{([^}:]+)\}\}/g,function(m,ref){
+          var el=document.querySelector('[data-var="'+ref.trim()+'"]')||document.querySelector('[data-note="'+ref.trim()+'"]');
+          var v=el?el.value.trim():'';
+          if(!v)missing.push(ref.trim());
+          return v||('<'+ref.trim()+'>');
+        });
+        if(warnDiv){
+          if(missing.length){warnDiv.style.display='';if(warnText)warnText.textContent='⚠ Depends on unfilled fields: '+missing.join(', ');}
+          else{warnDiv.style.display='none';}
+        }
+        return result;
+      }
+      function suggest(){input.value=fillTemplate();input.dispatchEvent(new Event('input'));}
+      if(suggestBtn)suggestBtn.addEventListener('click',suggest);
+      if(!input.value)suggest();
+      document.addEventListener('input',function(e){
+        if(e.target===input)return;
+        if(warnDiv&&warnDiv.style.display!=='none')suggest();
+      });
+      if(highlightBtn){
+        highlightBtn.addEventListener('click',function(){
+          var refs=[];
+          tpl.replace(/\{\{(?:note:|param:)?([^}]+)\}\}/g,function(m,ref){if(ref!=='STAMP')refs.push(ref.trim());});
+          refs.forEach(function(ref){
+            var el=document.querySelector('[data-note="'+ref+'"],[data-var="'+ref+'"]');
+            if(el&&!el.value){el.style.outline='3px solid var(--yellow)';el.scrollIntoView({behavior:'smooth',block:'center'});
+              setTimeout(function(){el.style.outline='';},3000);}
+          });
+        });
+      }
+    });
+  })();
+  // ---- clear all walkthrough fields ----
+  (function(){
+    var btn=document.getElementById('bf-clear-fields-btn');
+    if(!btn)return;
+    btn.addEventListener('click',function(){
+      if(!confirm('Clear ALL fields on this page? This cannot be undone.'))return;
+      document.querySelectorAll('.note-input,.note-area').forEach(function(f){
+        f.value='';
+        try{localStorage.removeItem(ns+'note:'+(f.dataset.note||f.id));}catch(e){}
+        f.dispatchEvent(new Event('input'));
+      });
+      document.querySelectorAll('.param-input').forEach(function(f){
+        var def=f.getAttribute('value')||f.placeholder||'';
+        f.value=def;applyVar(f.dataset.var,f.value);
+        try{localStorage.removeItem(ns+'param:'+f.dataset.var);}catch(e){}
+      });
+      document.querySelectorAll('.cred-input').forEach(function(f){
+        var slug=f.dataset.cred||'';
+        f.value='';try{sessionStorage.removeItem('bf:cred:'+slug);}catch(e){}
+        var conf=document.getElementById('cred-confirm-'+slug);if(conf)conf.value='';
+        if(slug&&window._updateCredMatch)window._updateCredMatch(slug);
+      });
+      document.querySelectorAll('input[type=radio],input[type=checkbox]').forEach(function(cb){
+        cb.checked=false;cb.dispatchEvent(new Event('change'));
+      });
+      document.querySelectorAll('.input-table tbody').forEach(function(tb){tb.innerHTML='';});
+    });
+  })();
+  // ---- per-section / subsection clear + local collapse/expand buttons ----
+  // Always render all controls; non-applicable ones become ghost placeholders.
+  (function(){
+    function hasInputs(det){
+      return det.querySelector('.note-input,.note-area,.cred-input,input[type=radio],input[type=checkbox],.input-table')!==null;
+    }
+    function directChildSubs(det){
+      var body=det.querySelector(':scope>.sec-body,:scope>.sub-body');
+      if(!body)return[];
+      return Array.prototype.slice.call(body.querySelectorAll(':scope>details.subsection'));
+    }
+    function clearSection(det){
+      det.querySelectorAll('.note-input,.note-area').forEach(function(f){
+        f.value='';try{localStorage.removeItem(ns+'note:'+(f.dataset.note||f.id));}catch(e){}f.dispatchEvent(new Event('input'));
+      });
+      det.querySelectorAll('.cred-input').forEach(function(f){
+        var slug=f.dataset.cred||'';
+        f.value='';try{sessionStorage.removeItem('bf:cred:'+slug);}catch(e){}
+        var conf=document.getElementById('cred-confirm-'+slug);if(conf)conf.value='';
+        if(slug&&window._updateCredMatch)window._updateCredMatch(slug);
+      });
+      det.querySelectorAll('input[type=radio],input[type=checkbox]:not(.cred-method-cb)').forEach(function(cb){cb.checked=false;cb.dispatchEvent(new Event('change'));});
+      det.querySelectorAll('.input-table tbody').forEach(function(tb){tb.innerHTML='';});
+    }
+    document.querySelectorAll('details.section,details.subsection').forEach(function(det){
+      var sum=det.querySelector(':scope>summary');if(!sum)return;
+      var controls=sum.querySelector('.bf-sub-controls');
+      if(!controls){controls=document.createElement('div');controls.className='bf-sub-controls';sum.appendChild(controls);}
+      var children=directChildSubs(det);
+      var hasChildren=children.length>=1;
+      var canClear=hasInputs(det);
+      // clear button — leftmost; ghost placeholder when no inputs
+      var clr=document.createElement('button');
+      clr.type='button';clr.className='sec-clear-btn';clr.textContent='⊘ Clear';
+      if(canClear){
+        clr.title='Clear all fields in this section';
+        clr.addEventListener('click',function(e){
+          e.stopPropagation();
+          if(!confirm('Clear all fields in this section?'))return;
+          clearSection(det);
+        });
+      } else {
+        clr.classList.add('bf-ctrl-ghost');clr.title='';
+      }
+      // separator
+      var sep=document.createElement('div');sep.className='bf-ctrl-sep';
+      // collapse button — always active when section has any child subsections
+      var cBtn=document.createElement('button');
+      cBtn.type='button';cBtn.className='bf-sub-collapse';cBtn.textContent='⊟';
+      if(hasChildren){
+        cBtn.title='Collapse child sections';
+        cBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          directChildSubs(det).forEach(function(d){d.removeAttribute('open');});
+        });
+      } else {
+        cBtn.classList.add('bf-ctrl-ghost');cBtn.title='';
+      }
+      // expand button — always active when section has any child subsections
+      var eBtn=document.createElement('button');
+      eBtn.type='button';eBtn.className='bf-sub-expand';eBtn.textContent='⊞';
+      if(hasChildren){
+        eBtn.title='Expand child sections';
+        eBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          directChildSubs(det).forEach(function(d){d.setAttribute('open','');});
+        });
+      } else {
+        eBtn.classList.add('bf-ctrl-ghost');eBtn.title='';
+      }
+      // order: clear | sep | collapse | expand (rightmost)
+      controls.appendChild(clr);
+      controls.appendChild(sep);
+      controls.appendChild(cBtn);
+      controls.appendChild(eBtn);
+    });
+  })();
+
+  // ---- shared save-dialog helper (File System Access API + fallback) ----
+  window.bfSave = async function(blob, suggestedName, types) {
+    if (window.showSaveFilePicker) {
+      try {
+        var handle = await window.showSaveFilePicker({
+          suggestedName: suggestedName,
+          types: (types && types.length) ? types : undefined
+        });
+        var writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return true;
+      } catch(e) {
+        if (e.name === 'AbortError') return false; // user cancelled
+        // API error — fall through to auto-download
+      }
+    }
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = suggestedName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    return true;
+  };
+  // ---- notes panel collapse/expand ----
+  (function(){
+    var pane=document.getElementById('bf-notes-pane');
+    var drag=document.getElementById('bf-drag');
+    var btn=document.getElementById('bf-notes-toggle');
+    if(!pane||!btn) return;
+    var CKEY='bf:notes-collapsed';
+    function setCollapsed(v){
+      if(pane.classList.contains('floating')) return; // don't collapse while floating
+      if(v){
+        pane.classList.add('collapsed');
+        if(drag) drag.classList.add('notes-hidden');
+        btn.textContent='▶'; btn.title='Show notes panel';
+      }else{
+        pane.classList.remove('collapsed');
+        if(drag) drag.classList.remove('notes-hidden');
+        btn.textContent='◀'; btn.title='Hide notes panel';
+      }
+      try{localStorage.setItem(CKEY,v?'1':'0');}catch(e){}
+    }
+    try{var s=localStorage.getItem(CKEY);if(s==='1') setCollapsed(true);}catch(e){}
+    btn.addEventListener('click',function(){ setCollapsed(!pane.classList.contains('collapsed')); });
+  })();
+  // ---- notes panel float / pop-out ----
+  (function(){
+    var pane=document.getElementById('bf-notes-pane');
+    var drag=document.getElementById('bf-drag');
+    var fbtn=document.getElementById('bf-notes-float-btn');
+    var hdr=document.getElementById('bf-notes-header');
+    var opDown=document.getElementById('bf-notes-opacity-down');
+    var opUp=document.getElementById('bf-notes-opacity-up');
+    var opVal=document.getElementById('bf-notes-opacity-val');
+    var blurDown=document.getElementById('bf-notes-blur-down');
+    var blurUp=document.getElementById('bf-notes-blur-up');
+    var blurVal=document.getElementById('bf-notes-blur-val');
+    var notesBody=document.getElementById('bf-notes-body');
+    if(!pane||!fbtn) return;
+    var FKEY='bf:notes-floating';
+    var OPKEY='bf:notes-opacity';
+    var BLURKEY='bf:notes-blur';
+    var floating=false;
+    var opPct=95;
+    var blurPx=0;
+    /* The last-focused notes container (quick-notes textarea or a .nts-section) */
+    var activeNoteContainer=null;
+    function fieldOpacity(){
+      /* Non-active notes fields: panel opacity + 10%, capped at 100% */
+      return (Math.min(100,opPct+10)/100).toFixed(2);
+    }
+    function getNoteContainer(el){
+      /* Quick-notes textarea is its own box; section notes live inside .nts-section */
+      if(el.id==='bf-session-notes') return el;
+      return el.closest('.nts-section')||el;
+    }
+    function applyOpacity(){
+      if(floating){
+        var alpha=(opPct/100).toFixed(2);
+        /* Panel background fades via rgba — border unaffected */
+        pane.style.setProperty('--notes-bg-alpha',alpha);
+        /* Header toolbar always 100% — set nothing on hdr */
+        /* Apply per-container opacity: non-active containers fade, active stays 100% */
+        if(notesBody){
+          var fOp=fieldOpacity();
+          var qn=document.getElementById('bf-session-notes');
+          if(qn&&qn!==activeNoteContainer) qn.style.opacity=fOp;
+          notesBody.querySelectorAll('.nts-section').forEach(function(s){
+            if(s!==activeNoteContainer) s.style.opacity=fOp;
+          });
+          if(activeNoteContainer){
+            activeNoteContainer.style.opacity='1';
+            /* CSS opacity is multiplicative — un-fade all ancestor .nts-section elements
+               so a nested active subsection isn't dimmed by its parent's fOp */
+            var par=activeNoteContainer.parentElement;
+            while(par&&par!==notesBody){
+              if(par.classList&&par.classList.contains('nts-section')) par.style.opacity='1';
+              par=par.parentElement;
+            }
+          }
+        }
+      }
+      if(opVal) opVal.textContent=opPct+'%';
+    }
+    function adjustOpacity(delta){
+      /* Lower bound 20%: below that the panel becomes dangerously invisible */
+      opPct=Math.min(100,Math.max(20,opPct+delta));
+      applyOpacity();
+      try{localStorage.setItem(OPKEY,String(opPct));}catch(e){}
+    }
+    function applyBlur(){
+      if(floating) pane.style.setProperty('--notes-blur',blurPx+'px');
+      if(blurVal) blurVal.textContent=blurPx+'px';
+    }
+    function adjustBlur(delta){
+      blurPx=Math.min(20,Math.max(0,blurPx+delta));
+      applyBlur();
+      try{localStorage.setItem(BLURKEY,String(blurPx));}catch(e){}
+    }
+    /* Per-container focus: the clicked notes box goes to 100%; previous reverts.
+       No focusout handler — clicking outside the panel does NOT revert the active
+       box. Only selecting a different notes input triggers the swap. */
+    if(notesBody){
+      notesBody.addEventListener('focusin',function(e){
+        if(!floating) return;
+        if(e.target.tagName!=='TEXTAREA'&&e.target.tagName!=='INPUT') return;
+        var container=getNoteContainer(e.target);
+        if(container!==activeNoteContainer){
+          if(activeNoteContainer) activeNoteContainer.style.opacity=fieldOpacity();
+          container.style.opacity='1';
+          activeNoteContainer=container;
+        }
+      });
+    }
+    function setFloat(f){
+      floating=f;
+      if(f){
+        pane.classList.add('floating');
+        pane.classList.remove('collapsed');
+        if(drag) drag.classList.add('notes-floating');
+        fbtn.textContent='⊟'; fbtn.title='Dock notes panel';
+        // position top-right using left (not right) so resize:both works for width
+        if(!pane.style.left){
+          /* Position so full panel (min 400px) is within viewport with a 10px margin */
+          var initW=Math.max(pane.offsetWidth||400,400);
+          pane.style.left=Math.max(0,document.documentElement.clientWidth-initW-10)+'px';
+          pane.style.top='48px';
+        }
+        pane.style.right='auto';
+        applyOpacity();
+        applyBlur();
+      }else{
+        pane.classList.remove('floating');
+        pane.style.left=''; pane.style.top=''; pane.style.right='';
+        pane.style.removeProperty('--notes-bg-alpha');
+        pane.style.removeProperty('--notes-blur');
+        /* Reset per-container opacity state */
+        activeNoteContainer=null;
+        if(notesBody){
+          var qn2=document.getElementById('bf-session-notes');
+          if(qn2) qn2.style.opacity='';
+          notesBody.querySelectorAll('.nts-section').forEach(function(s){ s.style.opacity=''; });
+        }
+        if(drag) drag.classList.remove('notes-floating');
+        fbtn.textContent='⊞'; fbtn.title='Pop out notes panel';
+      }
+      try{localStorage.setItem(FKEY,f?'1':'0');}catch(e){}
+    }
+    try{var ops=localStorage.getItem(OPKEY);if(ops){opPct=Math.min(100,Math.max(20,parseInt(ops,10)||95));}}catch(e){}
+    if(opVal) opVal.textContent=opPct+'%';
+    try{var bls=localStorage.getItem(BLURKEY);if(bls){blurPx=Math.min(20,Math.max(0,parseInt(bls,10)||0));}}catch(e){}
+    if(blurVal) blurVal.textContent=blurPx+'px';
+    if(opDown) opDown.addEventListener('click',function(e){e.stopPropagation();adjustOpacity(-5);});
+    if(opUp) opUp.addEventListener('click',function(e){e.stopPropagation();adjustOpacity(5);});
+    if(blurDown) blurDown.addEventListener('click',function(e){e.stopPropagation();adjustBlur(-1);});
+    if(blurUp) blurUp.addEventListener('click',function(e){e.stopPropagation();adjustBlur(1);});
+    fbtn.addEventListener('click',function(){ setFloat(!floating); });
+    try{if(localStorage.getItem(FKEY)==='1') setFloat(true);}catch(e){}
+    // drag to reposition when floating — clamp to viewport so panel can't be lost
+    if(!hdr) return;
+    function clampPane(){
+      if(!floating) return;
+      var vw=document.documentElement.clientWidth;
+      var vh=document.documentElement.clientHeight;
+      var pw=pane.offsetWidth; var ph=pane.offsetHeight;
+      /* keep panel fully within viewport */
+      var left=Math.max(0,Math.min(parseFloat(pane.style.left)||0,vw-pw));
+      var top=Math.max(0,Math.min(parseFloat(pane.style.top)||0,vh-ph));
+      /* also shrink panel if it's now larger than the viewport */
+      if(pw>vw){ pane.style.width=vw+'px'; }
+      if(ph>vh){ pane.style.height=vh+'px'; }
+      pane.style.left=left+'px'; pane.style.top=top+'px'; pane.style.right='auto';
+    }
+    var _dx=0,_dy=0,_sx=0,_sy=0;
+    hdr.addEventListener('mousedown',function(e){
+      if(!floating) return;
+      if(e.target.tagName==='BUTTON') return;
+      e.preventDefault();
+      var r=pane.getBoundingClientRect();
+      _sx=e.clientX; _sy=e.clientY; _dx=r.left; _dy=r.top;
+      function mv(e){
+        var vw=document.documentElement.clientWidth;
+        var vh=document.documentElement.clientHeight;
+        var pw=pane.offsetWidth; var ph=pane.offsetHeight;
+        pane.style.left=Math.max(0,Math.min(_dx+(e.clientX-_sx),vw-pw))+'px';
+        pane.style.top=Math.max(0,Math.min(_dy+(e.clientY-_sy),vh-ph))+'px';
+        pane.style.right='auto';
+      }
+      function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); }
+      document.addEventListener('mousemove',mv);
+      document.addEventListener('mouseup',up);
+    });
+    /* Re-clamp position when window resizes so panel never ends up outside viewport */
+    window.addEventListener('resize',clampPane);
+  })();
+
+  // ---- inline section editor ----
+  (function(){
+    var docBody=document.getElementById('bf-doc-body');
+    if(!docBody) return;
+    var EKEY=ns+'edit:';
+    // Only wrap content blocks, not field widgets or section summary headings
+    var blocks=Array.from(docBody.querySelectorAll('p,h2,h3,h4')).filter(function(el){
+      return !el.closest('.note-field,.cred-field,.param-row,.input-table,.params-hint,summary,#bf-walkthrough-hint');
+    });
+    var originals={};
+    blocks.forEach(function(el,i){
+      originals[i]=el.innerHTML;
+      el.dataset.editIdx=String(i);
+      // Re-apply stored edit on load
+      try{
+        var stored=localStorage.getItem(EKEY+i);
+        if(stored!==null) el.innerHTML=stored+'<span class="bf-edited-mark">(edited)</span>';
+      }catch(e){}
+      // Wrap
+      var wrap=document.createElement('div');
+      wrap.className='bf-editable-block';
+      el.parentNode.insertBefore(wrap,el);
+      wrap.appendChild(el);
+      // Edit button
+      var btn=document.createElement('button');
+      btn.type='button';btn.className='bf-edit-btn';btn.title='Edit this block';btn.textContent='✎';
+      wrap.appendChild(btn);
+      btn.addEventListener('click',function(){
+        if(wrap.querySelector('.bf-edit-area')) return;
+        btn.style.display='none';el.style.display='none';
+        var cur=el.innerHTML.replace(/<span class="bf-edited-mark">[^<]*<\/span>$/,'').trim();
+        var ta=document.createElement('textarea');
+        ta.className='bf-edit-area';ta.value=cur;
+        wrap.insertBefore(ta,btn);
+        ta.style.height=Math.max(80,ta.scrollHeight+6)+'px';
+        var ctrls=document.createElement('div');ctrls.className='bf-edit-controls';
+        var sv=document.createElement('button');sv.type='button';sv.className='bf-edit-save';sv.textContent='✓ Save';
+        var cl=document.createElement('button');cl.type='button';cl.className='bf-edit-cancel';cl.textContent='✕ Cancel';
+        var rs=document.createElement('button');rs.type='button';rs.className='bf-edit-cancel';rs.textContent='↺ Reset';
+        ctrls.appendChild(sv);ctrls.appendChild(cl);ctrls.appendChild(rs);
+        wrap.insertBefore(ctrls,btn);ta.focus();
+        function closeEd(){wrap.removeChild(ta);wrap.removeChild(ctrls);el.style.display='';btn.style.display='';}
+        sv.addEventListener('click',function(){
+          var val=ta.value;
+          el.innerHTML=val+'<span class="bf-edited-mark">(edited)</span>';
+          try{localStorage.setItem(EKEY+i,val);}catch(e){}
+          closeEd();
+        });
+        cl.addEventListener('click',closeEd);
+        rs.addEventListener('click',function(){
+          if(!confirm('Reset to original content?'))return;
+          try{localStorage.removeItem(EKEY+i);}catch(e){}
+          el.innerHTML=originals[i];closeEd();
+        });
+      });
+    });
+    // Download with edits
+    var dlBtn=document.getElementById('bf-download-edits-btn');
+    if(dlBtn){
+      dlBtn.addEventListener('click',function(){
+        var clone=document.documentElement.cloneNode(true);
+        clone.querySelectorAll('.bf-edit-btn,.bf-edited-mark,.bf-edit-controls,.bf-edit-area').forEach(function(e){e.remove();});
+        clone.querySelectorAll('.bf-editable-block').forEach(function(w){
+          var p=w.parentNode;while(w.firstChild)p.insertBefore(w.firstChild,w);p.removeChild(w);
+        });
+        var h='<!DOCTYPE html>\n'+clone.outerHTML;
+        var blob=new Blob([h],{type:'text/html'});
+        window.bfSave(blob,(document.title||'doc').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-edited.html');
+      });
+    }
+  })();
 })();
 </script>
 </body>

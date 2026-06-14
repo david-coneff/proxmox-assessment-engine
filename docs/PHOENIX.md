@@ -1,34 +1,45 @@
-# PHOENIX.md — Stargate Process Operator Runbook
+# PHOENIX — Stargate Process Operator Runbook
 
 **The stargate process** rebuilds a failed node back to its original identity on new
-hardware. This runbook covers generating and executing a **phoenix package**
-end-to-end. It is the recovery counterpart to `FORGING.md` (first node) and
-`NODE-SPAWNING.md` (additional nodes).
+hardware. This runbook generates and executes a **phoenix package** end-to-end.
+It is the recovery counterpart to `FORGING.md` (first node) and `NODE-SPAWNING.md`
+(additional nodes).
 
-Set the paths once in the **Parameters** panel at the top — every command on this
-page then uses your values, and each command's **Copy** button copies the resolved
-text.
-
----
-
-## When to use this
-
-A node — the hatchery or any broodling — has suffered catastrophic hardware failure
-and you are rebuilding it on replacement hardware. The phoenix package **preserves
-identity** (same VMIDs, IPs, hostnames, k8s node name, cluster role) while **adapting
-the physical layer** (ZFS topology, bridges) to the new hardware.
-
-For a *new* node that should not conflict with existing identity, use the hatchery
-process (`NODE-SPAWNING.md`) instead.
+Fill in the **Parameters** panel — every command on this page updates live, and each
+**Copy** button copies the resolved command including your actual paths and values.
 
 ---
 
-## Prerequisites
+## Before you begin — collect identity information
 
-- A current `bootstrap-state.json` for the cell (any node holds the full cell state).
-- PBS backups of the failed node's VMs reachable from the recovery environment.
-- The KeePass database (embedded in the package or on a known path) + master password.
-- Replacement hardware with bare Proxmox installed.
+Start here. These values are used throughout the runbook and auto-populate file names
+and commands below. The node identity being restored must be known before generating
+the phoenix package.
+
+@field[Cell identifier or codename (e.g. cell-1 or flying-bat)]
+@field[Node codename being restored (e.g. stargate-01)]
+@credential[Node master password / KeePass database passphrase]
+
+> **Codename convention:** Cells may use numeric IDs (`cell-1`) or
+> adjective-animal codenames (`flying-bat`, `crouching-tiger`). Either form
+> is valid — use whatever matches your `bootstrap-state.json`.
+
+> **KeePass note:** The credential field above is stored in your browser session
+> only — it is erased when you close this tab and is never included in the exported
+> package. Use it as a scratch reference while you work, then ensure it is
+> saved in your KeePass database.
+
+---
+
+## Working directory
+
+All commands assume you are in the broodforge repo root. Set this once:
+
+@dir[Broodforge repo root path]
+
+```bash
+cd {{broodforge-repo-root-path}}
+```
 
 ---
 
@@ -38,6 +49,7 @@ The playbook is the machine-readable reconstruction plan. Generate the base play
 directly from `bootstrap-state.json`:
 
 ```bash
+cd {{broodforge-repo-root-path}}
 python3 proxmox-bootstrap/phoenix-planner.py \
   --state {{STATE=proxmox-bootstrap/bootstrap-state.json}} \
   --hardware {{HARDWARE=hardware-profile-replacement.json}} \
@@ -45,46 +57,63 @@ python3 proxmox-bootstrap/phoenix-planner.py \
 ```
 
 Omit `--hardware` if you do not yet have a replacement hardware profile — the planner
-will plan against the original topology and adapt at run time. If you already have a
-playbook to refine, pass it with `--playbook` instead of generating a new one.
+will plan against the original topology and adapt at run time.
 
 The planner prints the restoration scope and wave count. Record them:
 
-@field[Restoration scope (full / partial)]
+@radio[Restoration scope|Full — all waves executed|Partial — specific waves only|Dry-run — plan only, no changes]
 @field[Number of waves in the playbook]
-@field[Target node hostname (identity being restored)]
 
 ---
 
 ## Step 2 — Assemble the phoenix package
 
+To embed the KeePass database in the package for offline recovery, record the path here first:
+
+@filename[KeePass database path (optional — leave blank to skip embedding)]
+
 ```bash
+cd {{broodforge-repo-root-path}}
 python3 proxmox-bootstrap/assemble-phoenix-package.py \
   --playbook {{PLAYBOOK=phoenix-playbook.json}} \
+  --state {{STATE=proxmox-bootstrap/bootstrap-state.json}} \
+  --kdbx {{KDBX=}} \
   --output-dir .
 ```
 
-To embed the KeePass database for offline recovery, add `--kdbx /path/to/cell.kdbx`.
+Omit `--kdbx {{KDBX=}}` if you left the KeePass path blank above.
 
-The assembler prints the package path and its **SHA-256**. Record the hash so you can
-verify the copy on the replacement host:
+The assembler prints the package path and its SHA-256. **Paste the full assembler
+output into the field below** — the filename and hash will be extracted automatically.
 
-@field[Phoenix package filename]
-@field[Package SHA-256 (from the assembler output)]
+@parse[Paste assembler output here — extracts package filename|Package written:\s*(\S+\.tar\.gz)|phoenix-package-filename]
+@parse[Paste assembler output here — extracts SHA-256|SHA-256:\s*([0-9a-f]{64})|package-sha-256]
+
+Then record (or override) the extracted values:
+
+@filename[Phoenix package filename|PHOENIX_Cell-{{note:cell-identifier-or-codename}}_Node-{{note:node-codename-being-restored}}_{{STAMP}}]
+@field[Package SHA-256]
 
 ---
 
 ## Step 3 — Copy to the replacement hardware and verify
 
+@field[Replacement host hostname or label (for your records)]
+
 ```bash
-scp phoenix-package-*.tar.gz root@{{HATCHERY_IP=192.168.1.20}}:/root/
+cd {{broodforge-repo-root-path}}
+scp {{note:phoenix-package-filename}} root@{{HATCHERY_IP=192.168.1.20}}:/root/
 ```
 
 On the replacement host, verify integrity before extracting:
 
 ```bash
-sha256sum phoenix-package-*.tar.gz   # compare against the hash from Step 2
+sha256sum /root/{{note:phoenix-package-filename}}
 ```
+
+Compare the output against the SHA-256 recorded in Step 2.
+
+@radio[Integrity check result|✓ Hashes match — proceed|✗ Hashes differ — do not proceed, re-copy package]
 
 ---
 
@@ -94,7 +123,7 @@ On the **replacement host**:
 
 ```bash
 cd /root
-tar xzf phoenix-package-*.tar.gz
+tar xzf {{note:phoenix-package-filename}}
 bash run-all.sh
 ```
 
@@ -102,21 +131,14 @@ bash run-all.sh
 wave in order, checkpointing as it goes. If a wave fails, fix the cause and re-run
 `bash run-all.sh` — completed waves are skipped automatically.
 
-The waves (generated per node; see ARCHITECTURE.md for the model):
+### Per-wave timing and observations
 
-| Wave | What it restores |
-|---|---|
-| 0 | Network reconstruction (bridges from declared topology) |
-| 1 | ZFS pool restore/create (topology adapted to replacement disks) |
-| 2 | Proxmox host configuration (hostname, /etc/hosts, datastores) |
-| 2.5 | Template rebuild (conditional) |
-| 3 | VM restore from PBS (identity-preserving; RECREATE where flagged) |
-| 4 | k3s cluster membership (certs + node name preserved — rejoins) |
-| 5 | Post-restore validation |
+Record actual completion time and any deviations for each wave:
 
-Record per-wave timing and anything unexpected:
+@table[Per-wave actual times and notes|Wave|Actual completion time|Deviations / observations](Wave 0 — Network reconstruction,Wave 1 — ZFS pool restore/create,Wave 2 — Proxmox host configuration,Wave 2.5 — Template rebuild (conditional),Wave 3 — VM restore from PBS,Wave 4 — k3s cluster membership,Wave 5 — Post-restore validation)
 
-@area[Per-wave actual time + any deviations from the playbook]
+@radio[Overall wave execution result|✓ All waves completed on first run|↺ Some waves required retry — see table|✗ Execution halted — unresolved failure]
+@field[Total execution time (wall clock)]
 
 ---
 
@@ -128,10 +150,8 @@ kubectl get nodes                # restored node Ready under its ORIGINAL name
 flux get kustomizations          # workloads reconciling
 ```
 
-@field[Restored node shows Ready under original hostname? (y/n)]
-
-After Wave 4 the node rejoins under its original identity; Flux then reconciles its
-disposition-appropriate workloads automatically.
+@radio[Restored node shows Ready under original hostname|✓ Yes — identity preserved|✗ No — identity mismatch, check k3s certs and /etc/hosts]
+@field[Verified node name in kubectl output]
 
 ---
 
@@ -139,14 +159,4 @@ disposition-appropriate workloads automatically.
 
 Every wave step failure writes a **failure package** (structured logs + a pre-composed
 LLM analysis prompt). Attach it when asking for help, or feed it to an LLM to diagnose.
-Fix the root cause, then resume with `bash run-all.sh`.
-
----
-
-## Notes
-
-@area[Anything that did not fit the steps above — unexpected prompts, hardware quirks, manual interventions]
-
----
-
-*Broodforge PHOENIX.md — Stargate Process | Architecture v7.1*
+F

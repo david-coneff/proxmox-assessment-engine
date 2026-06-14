@@ -15,6 +15,26 @@ Timestamps are `YYYY-MM-DD_HH_MM_SS` UTC.
 
 ---
 
+**Cycle: 2026-06-13_12_00_00 UTC**
+
+## Phase 3 Scoping — Intelligence, Governance & Experience Layer (USER-REQUESTED)
+
+| Feature | Origin | Status | Verification |
+|---|---|---|---|
+| `ROADMAP.md` — Proposed Phase 3 section added (3.A–3.K, eleven phases) covering Event Platform, Capability & Policy Engine, Execution Broker, Operational Intelligence & Expectations Engine, Countdown/ETA Display, Incident System & Ticketing, Advisories & Correlation, Secrets & Trust Brokerage, Governance Integrity Chain, Control Nexus tiered dashboard, Portal user self-service hub | USER-REQUESTED | Documented | static |
+| `ARCHITECTURE.md` — AD-074 through AD-081 added covering all Phase 3 architectural decisions | GAP-FILL | Documented | static |
+| Governance Integrity Chain schema (`integrity/` top-level dir, peer to `proxmox-bootstrap/`): checkpoint records with `chain_hash = SHA-256(prev_chain_hash + state_merkle_root + timestamp)`; migration approval proof requiring prior schema to approve migration before execution, post-migration event capturing `adopted_schema_hash` for comparison against approved `to_schema_hash`; chain walk for corruption pinpointing; offline per-node verification | USER-REQUESTED | Documented | static |
+| Control Nexus three-tier operator dashboard (Node / Cluster / Federation) replacing single-tier sidecar GUI — Federation tier included as placeholder stub in Phase 3 | USER-REQUESTED | Documented | static |
+| Portal user self-service hub — Authentik OIDC SSO, service registry, account management, access-request flow creating IncidentRecords | USER-REQUESTED | Documented | static |
+| `chatgpt architecture/` corpus directory removed from repo (synthesis complete; drafts have no long-term value) | USER-REQUESTED | Removed | static |
+| `.ai/CURRENT_STATE.md`, `pap/state/RESUME_BLOCK.md` updated to nineteenth milestone | GAP-FILL | Documented | static |
+| HTML companions regenerated: `ROADMAP.html`, `docs/ARCHITECTURE.html`, `docs/FEATURE-HISTORY.html`, `docs/AUDIT-FINDINGS.html` | GAP-FILL | Implemented | static |
+
+**No new implementation files in this session** — all work is architectural scoping and documentation.
+Next implementation choices: Phase 2.K (ESO) or Phase 3.A (Event Platform), per operator direction.
+
+---
+
 **Cycle: 2026-06-13_00_00_00 UTC**
 
 ## Phase 2.J — Kyverno Policy Enforcement (USER-REQUESTED)
@@ -515,31 +535,4 @@ works offline by opening the file directly in a browser.
 | deal pre/postcondition contracts on `build_spawn_plan()` (`spawn_planner.py`), `build_derived_vault_plan()` (`_vault_hierarchy.py`), and `score_component()` (`readiness.py`); no-op graceful fallback when `deal` not installed | USER-REQUESTED | Implemented | unit (contracts verified by test suite) |
 | beartype runtime type checking wired in `conftest.py` — `pytest_collection_modifyitems` applies `@beartype` to all collected test functions; no-op when beartype not installed | USER-REQUESTED | Implemented | smoke |
 | `pyproject.toml` dev deps: hypothesis, mutmut, beartype, deal, schemathesis; atheris note (Linux-only); `[tool.mutmut]` config section | USER-REQUESTED | Implemented | static |
-| Hypothesis property tests: `tests/unit/test_spawn_planner.py` (4 property test classes: `generate_temp_password` determinism/format/length, `ServiceCatalog` fit/dependency resolution); `tests/unit/test_vault_hierarchy.py` (4 property tests: plan attributes, role matching, dict round-trip, passphrase not leaked); `tests/unit/test_readiness.py` (3 property tests: valid score always returned, dep_info=False, component_id echoed) | USER-REQUESTED | Implemented | unit |
-| `tests/bash/forge_phase_test.bats` — BATS tests for phase script exit codes (phase-08 exits 2 when pvesh absent, keepass-gate exits non-zero without keepassxc-cli, run-static-audit.sh structure checks) using PATH-based command mocking | USER-REQUESTED | Implemented | smoke (BATS skips gracefully when scripts not present) |
-| `tests/fuzz/fuzz_manifest.py` + `tests/fuzz/fuzz_spawn_planner.py` — atheris coverage-guided fuzz targets for `score_component()` and `assess_service_fit()`; import cleanly on all platforms, no-op without atheris installed | USER-REQUESTED | Implemented | static |
-| `proxmox-bootstrap/html_base.py` and `doc-gen/renderers/html_base.py` synced: added `import json`, `doc_key_js` variable, `window._broodDocKey` script tag for stable localStorage namespace, `_broodDocKey` fallback in JS | GAP-FILL (html_base_sync test caught divergence) | Implemented | unit (test_html_base_sync.py) |
-| PAP-AUDIT.md §6 Dynamic Analysis Pre-Flight already present in broodforge's local copy (7 tools, workflow steps) — no sync needed | GAP-FILL | Verified | static |
-
-> Full test suite: **4476 passed, 16 skipped**, 4 pre-existing `test_opentofu.py` failures unchanged. 51 new tests across dynamic health scoring, dashboard rendering, hypothesis property tests, and remediation candidates.
-
----
-
-**Cycle: 2026-06-09_12_00_00 UTC — Audit Cycle R5: PAP 37-Pattern Manual Scan + Deal Contract Fix (USER-REQUESTED)**
-
-## Audit cycle R5 — Static pre-flight + manual pattern scan
-
-| Feature | Origin | Status | Verification |
-|---|---|---|---|
-| `remediation_policy.py:check_execution_window()` — changed malformed-window and unparseable-timestamp returns from `True` (Fail Open) to `False` (Fail Safe); Pattern 15 (Fail Open) fix | GAP-FILL (audit R5) | Implemented | unit (test renamed `test_execution_window_malformed_denies`) |
-| `platform_state_collector.py:collect_platform_state()` — apt-upgrades exception now appended to `errors` list instead of silently swallowed; Pattern 8 (Silent Degradation) fix | GAP-FILL (audit R5) | Implemented | smoke |
-| `validate-metadata.py` — YAML parse failure now prints `[WARN]` instead of silent pass; Pattern 8 (Silent Degradation) fix | GAP-FILL (audit R5) | Implemented | smoke |
-| `hatchery_receiver.py` — JSON parse failure reading state for WAN-check now logs to stderr instead of silent pass; Pattern 8 (Silent Degradation) fix | GAP-FILL (audit R5) | Implemented | smoke |
-| Removed 5 unused imports: `asdict` (migrate_k3s_lib.py), `build_phoenix_guided_session` (phoenix-planner.py), `get_approved`+`execute_proposal` (remediation-cli.py), `Iterator` (security_analyzer.py); Pattern 21 (Orphaned Outputs) fix | GAP-FILL (audit R5 / vulture) | Implemented | unit |
-| `RemediationProposal` dataclass: added `rejected_by: Optional[str]` field; `reject_proposal()` now stores the value instead of accepting and discarding it; Pattern 21 (Orphaned Outputs) fix | GAP-FILL (audit R5 / vulture) | Implemented | unit |
-| `build_drill_summary_html()` in reconstruction_validation.py: now renders `post_comparison` data (readiness before→after with arrow indicator) when parameter is present; Pattern 21 (Orphaned Outputs) fix | GAP-FILL (audit R5 / vulture) | Implemented | unit |
-| deal postcondition on `build_derived_vault_plan()` fixed: `scope`/`commands` → `entries`/`db_path` (actual `DerivedVaultPlan` fields); deal postcondition on `build_spawn_plan()` fixed: `planned_at` → `generated_at` (actual plan key) | GAP-FILL (Phase 1.M regression) | Implemented | unit |
-| Hypothesis tests in `test_vault_hierarchy.py::TestBuildDerivedVaultPlanProperties` corrected: `hasattr(plan,"scope"/"commands")` → `hasattr(plan,"entries"/"db_path")`, `plan.role["tier"]` → `plan.tier`, `d["role"]` → `d["tier"]` | GAP-FILL (Phase 1.M regression) | Implemented | unit |
-| `test_code_health.py::test_overall_score_decreases_with_findings` threshold adjusted: `< 60` → `<= 70` (3 HIGH findings cap score at 70 regardless of coverage; prior assertion was sensitive to real `.audit/coverage.json` content) | GAP-FILL (test isolation) | Implemented | unit |
-
-> Full test suite: all tests pass (no new failures beyond pre-existing `test_opentofu.py`). 10 code fixes + 3 test corrections.
+| Hypothesis property tests: `tests/unit/test_spawn_planner.py` (4 property test classes: `generate_temp_password` determinism/format/length, `ServiceCatalog` fit/dependency resolution); `tests/unit/test_vault_hierarchy.py` (4 property tests: plan attributes, role matching, dict round-trip, passphrase not leaked); `t

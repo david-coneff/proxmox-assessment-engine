@@ -1,5 +1,13 @@
 # Current State
 
+Last updated: 2026-06-13 UTC — HTML companion layout redesign. `md_to_html.py` now generates a split-pane layout: left pane is the document (left-aligned, its own scroll, no max-width centering), right pane is a persistent Session Notes panel always visible regardless of scroll position. A draggable divider separates the two; width persists in localStorage. Notes panel has: (1) a free-form textarea, (2) a recursive collapsible/expandable section tree (`+ Add section` / `+ Add subsection` at any depth, editable titles, per-node textarea, collapse state persisted), (3) `↓ MD` and `↓ HTML` export buttons that download the notes as `<docname>_notes_YYYY-MM-DD_HH_MM_SS.{md,html}` — the HTML export itself uses collapsible `<details>` sections mirroring the tree structure. `@media print` hides the notes pane and drag handle. All four HTML companions regenerated: ROADMAP.html, docs/ARCHITECTURE.html, docs/FEATURE-HISTORY.html, docs/AUDIT-FINDINGS.html.
+
+Last updated: 2026-06-13 UTC — Timezone-aware stamp format (AD-083, AD-084 added). Stamp format updated from `YYYY-MM-DD_HH-MM-SS_shorthash` to `YYYY-MM-DD_HH-MM-SS_<tz>_shorthash` to eliminate timezone ambiguity; `version_stamp.py` updated (`_tz_label()` helper, `generate_stamp()` captures datetime once). `version-hash-schema.yaml` updated with `stamp_format:` section documenting the <tz> component. ARCHITECTURE.md truncation repaired: AD-072 completed, AD-073 through AD-084 appended (AD-073 Kyverno, AD-074–AD-082 Phase 3 decisions, AD-083 codebase-hash stamp, AD-084 portal context indicator). Portal Phase 3.K updated with context indicator spec (bottom-right federation/cluster chip, /api/v1/context endpoint). ROADMAP.md portal section updated with context indicator design. All HTML companions regenerated with --collapsible (ROADMAP.html, docs/ARCHITECTURE.html, docs/FEATURE-HISTORY.html, docs/AUDIT-FINDINGS.html). Codebase stamp: 2026-06-13_20-05-27_UTC_c0831145.
+
+Last updated: 2026-06-13 UTC — Versioning practice changed (AD-082) + ROADMAP.html collapse/expand all buttons. version_stamp.py added (proxmox-bootstrap/): computes YYYY-MM-DD_HH-MM-SS_shorthash where shorthash = SHA-256[:8] over all codebase files (Python/shell/YAML/TOML/tests), documentation excluded to avoid self-referential hashing. md_to_html.py updated: --collapsible docs now have Expand all / Collapse all buttons + live section counter in toolbar. ROADMAP.md and ARCHITECTURE.md version headers converted from "v7.x" to stamp format. AD-082 added to ARCHITECTURE.md. 25 unit tests for version_stamp.py (test_version_stamp.py). Codebase stamp: 2026-06-13_19-32-46_647cd813.
+
+Last updated: 2026-06-13 UTC — Phase 3 scoped and documented. ChatGPT architecture corpus (2026-06-11) synthesised into eleven proposed Phase 3 phases: 3.A Event Platform, 3.B Capability & Policy Engine, 3.C Execution Broker, 3.D Operational Intelligence & Expectations Engine, 3.E Countdown/ETA Display, 3.F Incident System & Ticketing, 3.G Advisories & Correlation, 3.H Secrets & Trust Brokerage, 3.I Governance Integrity Chain (integrity/ top-level dir, peer to proxmox-bootstrap/; hash-linked checkpoints with migration approval proof schema), 3.J Control Nexus tiered operator dashboard (Node/Cluster/Federation tiers), 3.K Portal user self-service hub. AD-074 through AD-081 added to ARCHITECTURE.md. ROADMAP.md Phase 3 section written. Draft corpus directories (chatgpt architecture/, new/) removed. No new implementation files in this session — all work is architectural scoping. Next action: implement Phase 2.K (ESO) or begin Phase 3.A (Event Platform).
+
 Last updated: 2026-06-13 UTC — Phase 2.J (Kyverno Policy Enforcement) implemented and committed. kyverno_manager.py (PolicyRecord/KyvernoDeployment/KyvernoState dataclasses, KyvernoManager with Helm install/upgrade, ClusterPolicy/Policy registry, health check), forge-init-kyverno.sh, forge-kyverno-policy.sh, 25 unit tests. AD-073 added to ARCHITECTURE.md. ROADMAP corrected: Phase 2.K (External Secrets Operator) was incorrectly marked complete in WIP commit — no implementation files exist; corrected to proposed/not-started. FEATURE-HISTORY.md, ARCHITECTURE.md, ROADMAP.md, and HTML companions updated. Next operational action: deploy to hardware.
 
 Last updated (previous): 2026-06-10 UTC — PAP Audit R8 complete. Phase 2.A–2.I k8s service management modules committed and audited. Modules: authentik_manager.py, cert_manager.py, monitoring_manager.py, log_aggregation_manager.py, storage_manager.py, flux_manager.py, velero_manager.py, linkerd_manager.py + corresponding forge-init-*.sh scripts and unit tests. R8 findings: 0 BLOCKERs, 0 DEFECTs, 1 IMPROVEMENT accepted (linkerd shell=True for piped install), 4 HTML companion DEFECTs fixed by regeneration. ARCHITECTURE.md updated with AD-065 through AD-072 (Phase 2 service technology decisions). FEATURE-HISTORY.md and AUDIT-FINDINGS.md updated. All HTML companions regenerated (ROADMAP.html, ARCHITECTURE.html, AUDIT-FINDINGS.html, FEATURE-HISTORY.html). Google Drive sync recovery complete: Phase 2.G/2.H/2.I commits recovered from sandbox overlay via commit_recovery.sh on Windows.
@@ -22,7 +30,7 @@ Last updated (previous): 2026-06-08 UTC — PAP audit R2 fixes (N-001 through N-
 
 Last updated (two sessions prior): 2026-06-08 UTC (operator directed full implementation of all four scoped phases in order — MILESTONE CLOSED, all five items done: datetime.now()/utcnow() clock-injection sweep DONE (commit c1aef50), Phase 1.H/AD-057 Pre-Install Forge Package and Image Builder DONE (commit 072112e, 62 new tests), Phase 1.I/AD-059 Recovery-Readiness Conformance Certificate DONE (commit 3b32137, `_recovery_readiness_certificate.py` + `generate-recovery-readiness-certificate.py` + `replay-snapshot.py`, 56 new tests — also closed an AD-059-premise gap: RRS/ACS/DCS/CRS/OSS scores don't actually exist in readiness.py, certificate composes the real `overall_score` signal instead), Phase 1.K/AD-061 Scoped Vault Hierarchy + User Provisioning DONE (commit c750ed6, `_vault_hierarchy.py` + `derive-scoped-vault.py` + `role-scope-registry.yaml`, 40 new tests — derived-vault plans + keepassxc-cli/pveum command sequences, no live KDBX manipulation, god-mode tier refused by design), and Phase 1.J/AD-060 Hypervisor Recovery: Constrained Accounts + Pre-Generated Spawn Media DONE (commit f883540, `_recovery_accounts.py` + `setup_recovery_account.py` + `authorize-spawn-media-join.py` + `_image_builder.py`/`phoenix_playbook.py` extensions, 96 new tests — forced-command recovery accounts structurally incapable of an arbitrary-shell escape, break-glass root as a passive YAML annotation never autonomously read, pre-generated spawn-media credentials gated by a human-operated authorization CLI, phoenix session credentials with rotation requirements recorded in generated output; constraint-honored confirmed by grep + structural guard tests — no code path reads a permanent hypervisor root credential). Image Builder GUI added (Phase 1.H addition): `proxmox-bootstrap/forge-image-builder.html` — self-contained offline-first cross-platform wizard for generate-bootstrap-image.py, live command preview + clipboard copy, dark/light theme, no server required. All ROADMAP.md phase headings updated to "implemented (commit X)". Full suite: 4388 passed/1 skipped/4 deselected (pre-existing unrelated test_opentofu.py failures, unchanged from clean main).)
 
-## Active Architecture: v7.1
+## Active Architecture: 2026-06-13_20-05-27_UTC_c0831145
 
 Self-Documenting, Self-Assessing, Self-Recovering Infrastructure Platform.
   k3s + Flux CD + Proxmox + four intelligence layers.
@@ -273,55 +281,4 @@ newest cycle (`2026-06-08_04_54_51 UTC`) and `pap/state/SESSION_HANDOFF.md`'s
 | HTML package manifests | html_package_manifest.py — build_forge/spawn/phoenix_manifest_html(); forge and spawn assemblers updated to embed *.html alongside *.json; ARCHITECTURE.md AD-047 documents as mandatory pattern; 38 tests | Complete |
 | 9.T foundation | Talos Linux alternative — build-talos-template.sh, generate_talos_config.py (library + CLI), os_variant enum in base_image/vm_template/provenance_record schemas, talos-1x-base fixture entries, _score_talos_config_completeness() in readiness.py, Talos Wave 2.5 rebuild + Wave 3 reconstruction steps in phoenix_playbook.py; 57 tests | Complete |
 | 9.T migration + 9.T.12 | migrate_k3s_lib.py, migrate-k3s-to-talos.py, migrate-k3s-to-ubuntu.py, migration_history schema; recovery runbook Appendix I (OS Variant Migration History) in ODT + HTML renderers; 48+25 tests | Complete |
-| Round 4 audit fixes | 13 findings: S1 (key→/dev/tty), S3 (auth key), D1/I4 (reconstruction-drill.py CLI), D2 (docstring), I1 (/api/spawn-complete endpoint + spawn verify POST), I2 (migration git commit), I3 (_score_migration_health), I5 (collector_utils), A2 (import aliases); 35 tests | Complete |
-
-**Tests: 3780 passed, 6 skipped — audit round 10 cycles 1–4: timeouts, schema, CLI bugs, drill scorer**
-
-## Next Milestones
-
-| Milestone | Description |
-|---|---|
-| **Deploy to hardware** | **Run forge-planner.py on a real Proxmox host — forge the first cell** |
-
-## New Codebase Layout (doc-gen architecture)
-
-```
-assessment/tier1/       Tier 1 bootstrap assessment package
-data-model/             7 JSON schemas + stdlib validator (90 tests passing)
-doc-gen/                Documentation generation engine
-  engine.py             CLI: --mode bootstrap | recovery (+ drift integration)
-  analyzers.py          10 DERIVED field analyzers
-  dependencies.py       Dependency graph + topological sort
-  drift.py              Field-level manifest diff and drift detector
-  readiness.py          GREEN/YELLOW/ORANGE/RED/BLOCKED scorer
-  readiness_report.py   Standalone Readiness-Report.md + .json
-  renderers/            HTML document generators (stdlib only)
-  renderers/deprecated/ ODS/ODT renderers — preserved but not used
-history/                Snapshot store
-  index.py              Snapshot index builder CLI
-  index.json            Snapshot index (auto-generated)
-  snapshots/            Historical manifest snapshots (2 entries)
-docs/                   Architecture docs and session handoff
-reports/                Generated documentation output
-tests/unit/             110 tests (schema, analyze, readiness, drift, reproducibility)
-tests/fixtures/         Sample manifests for tier1 and tier2
-```
-
-## Legacy Codebase Layout (pae CLI — do not delete)
-
-```
-engine/         Original assessment engine and CLI
-collector/      Original collector framework
-schemas/        Original JSON schemas (assessment.schema.json etc.)
-tests/          Original 286 tests for legacy codebase
-pyproject.toml  Package definition for pae CLI
-```
-
-## Key Design Constraints
-
-- analyze.py and validate.py: Python 3 stdlib only (no pip)
-- HTML renderers: stdlib html.escape + html_base.py (no external deps)
-- ODS/ODT renderers: deprecated — preserved in renderers/deprecated/ but not called by engine.py
-- doc-gen: runs without network access (all data from manifest)
-- UNRESOLVED fields: never silently omitted
-- Historical snapshots: reproducible (same manifest → same docs)
+| Round 4 audit fixes | 13 findings: S1 (key→/dev/tty), S3 (auth key), D1/I4 (reconstruction-drill.py CLI), D2 (docstring), I1 (/api/spawn-complete endpoint + spawn verify POST), I2 (migration git commit), I3 (_score_migration_health), I5 (collector_ut

@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>BFVault — Encrypted Secrets Vault</title>
+<style>
+:root{
+  --bg:#1e1e2e;--bg2:#181825;--bg3:#11111b;--border:#313244;
+  --text:#cdd6f4;--muted:#6c7086;--accent:#89b4fa;--green:#a6e3a1;
+  --red:#f38ba8;--yellow:#f9e2af;--mauve:#cba6f7;--teal:#94e2d5;
+  --btn-bg:#313244;--btn-hover:#45475a;
+}
+body.light{
+  --bg:#eff1f5;--bg2:#e6e9ef;--bg3:#dce0e8;--border:#bcc0cc;
+  --text:#4c4f69;--muted:#9ca0b0;--accent:#1e66f5;--green:#40a02b;
+  --red:#d20f39;--yellow:#df8e1d;--mauve:#8839ef;--teal:#179299;
+  --btn-bg:#ccd0da;--btn-hover:#bcc0cc;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column}
+button{cursor:pointer;border:1px solid var(--border);border-radius:5px;padding:6px 12px;background:var(--btn-bg);color:var(--text);font-size:13px;transition:background .15s}
+button:hover{background:var(--btn-hover)}
+button.primary{background:var(--accent);color:#1e1e2e;border-color:var(--accent);font-weight:600}
+button.primary:hover{opacity:.9}
+button.danger{background:var(--red);color:#1e1e2e;border-color:var(--red)}
+button.small{padding:3px 8px;font-size:12px}
+input,textarea,select{background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 8px;font-size:13px;width:100%}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;font-family:monospace;font-size:12px}
+h2{font-size:1.05em;color:var(--mauve);margin-bottom:8px}
+h3{font-size:.95em;color:var(--teal);margin-bottom:6px}
+label{font-size:.85em;color:var(--muted);display:block;margin-bottom:3px}
+.row{display:flex;gap:8px;align-items:center}
+.col{display:flex;flex-direction:column;gap:6px}
+.flex1{flex:1}
+.err{color:var(--red);font-size:.82em;display:none}
+.ok-text{color:var(--green);font-size:.82em}
+/* Layout */
+#app{display:flex;flex-direction:column;height:100vh}
+#header{padding:9px 14px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
+#header h1{font-size:1.15em;color:var(--accent);font-weight:700}
+#main{display:flex;flex:1;overflow:hidden}
+#sidebar{width:250px;flex-shrink:0;border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;overflow:hidden}
+#sidebar-top{padding:8px;border-bottom:1px solid var(--border)}
+#asset-list{flex:1;overflow-y:auto;padding:4px}
+#detail{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+/* Lock screen */
+#lock-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:24px}
+#lock-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:26px 30px;max-width:460px;width:100%;display:flex;flex-direction:column;gap:12px}
+#lock-box .title{text-align:center;font-size:1.2em;font-weight:700;color:var(--accent)}
+.lock-sub{text-align:center;color:var(--muted);font-size:.8em}
+/* Asset items */
+.asset-item{padding:7px 9px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:7px;border:1px solid transparent;margin-bottom:2px}
+.asset-item:hover{background:var(--bg3);border-color:var(--border)}
+.asset-item.active{background:var(--bg3);border-color:var(--accent)}
+.ai-icon{font-size:1.1em;flex-shrink:0}
+.ai-info{flex:1;min-width:0}
+.ai-label{font-weight:500;font-size:.9em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-sub{font-size:.73em;color:var(--muted)}
+/* Detail */
+.field-group{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:12px 13px;display:flex;flex-direction:column;gap:9px}
+.frow{display:flex;gap:8px;align-items:flex-start}
+.frow label{min-width:115px;flex-shrink:0;padding-top:7px;font-size:.82em;color:var(--muted)}
+.frow .fval{flex:1}
+.sw{display:flex;gap:6px;align-items:center}
+.sw input{font-family:monospace}
+.peek-btn,.copy-btn{flex-shrink:0;padding:3px 7px;font-size:12px}
+.att-row{display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--bg3);border-radius:5px;border:1px solid var(--border)}
+.att-name{flex:1;font-family:monospace;font-size:.8em;word-break:break-all}
+.att-meta{color:var(--muted);font-size:.72em}
+.tag-chip{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-size:.77em;display:inline-flex;align-items:center;gap:4px;margin:2px}
+.tag-chip button{border:none;background:none;color:var(--red);padding:0;cursor:pointer;font-size:.9em}
+.asset-tag{background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:.71em;color:var(--muted);margin-right:2px}
+/* Modals */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:22px 26px;max-width:520px;width:94%;display:flex;flex-direction:column;gap:13px;max-height:90vh;overflow-y:auto}
+.modal-box h2{color:var(--accent)}
+/* Toast */
+#toast{position:fixed;bottom:16px;right:16px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 15px;font-size:.84em;z-index:1000;display:none;max-width:320px}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+/* Strength meter */
+.str-weak{color:var(--red)}.str-ok{color:var(--yellow)}.str-good{color:var(--green)}
+/* MFA */
+.mfa-badge{font-size:.74em;background:var(--bg3);border:1px solid var(--teal);border-radius:4px;padding:2px 8px;color:var(--teal)}
+.mfa-badge.off{border-color:var(--border);color:var(--muted)}
+/* TOTP display */
+.totp-uri{font-family:monospace;font-size:.76em;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:10px;word-break:break-all;color:var(--yellow)}
+/* Code input */
+.code-input{font-family:monospace;font-size:1.4em;letter-spacing:.25em;text-align:center;max-width:180px}
+/* KeePass preview */
+#kp-pre{font-family:monospace;font-size:.74em;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:9px;max-height:240px;overflow-y:auto;white-space:pre;color:var(--muted)}
+/* Typed fields */
+.typed-field-section{border-top:1px solid var(--border);padding-top:9px;margin-top:4px}
+.typed-field-section h4{font-size:.83em;color:var(--muted);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em}
+.empty-state{color:var(--muted);text-align:center;padding:30px;font-size:.9em}
+/* Step indicator */
+.step-indicator{display:flex;gap:6px;align-items:center;justify-content:center;font-size:.8em;color:var(--muted)}
+.step-dot{width:8px;height:8px;border-radius:50%;background:var(--border)}
+.step-dot.active{background:var(--accent)}
+.step-dot.done{background:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lock-screen">
+  <div id="lock-box">
+    <div class="title">🔐 BFVault</div>
+    <div class="lock-sub">Browser-native encrypted secrets vault · Zero dependencies</div>
+    <!-- Step 1: passphrase + files -->
+    <div id="ls-step1">
+      <div class="col" style="gap:10px">
+        <div class="col">
+          <label>Passphrase</label>
+          <div class="sw">
+            <input type="password" id="ls-phrase" placeholder="vault passphrase…" autocomplete="off">
+            <button class="peek-btn" id="ls-peek">👁</button>
+          </div>
+          <div id="ls-strength" style="font-size:.78em;margin-top:2px"></div>
+        </div>
+        <div class="col">
+          <label>Vault files (drop here, or pick)</label>
+          <div id="drop-zone" style="border:2px dashed var(--border);border-radius:7px;padding:14px;text-align:center;color:var(--muted);font-size:.82em">
+            Drop <code>meta.json</code> + <code>payload.enc</code> or a <code>.zip</code> vault package<br>
+            <button id="btn-pick" style="margin-top:8px">📂 Pick files</button>
+            <input type="file" id="file-pick" multiple accept=".json,.enc,.zip" style="display:none">
+          </div>
+          <div id="ls-file-status" style="font-size:.78em;color:var(--muted)"></div>
+        </div>
+        <div class="row" style="gap:10px;margin-top:4px">
+          <button class="primary flex1" id="btn-unlock">🔓 Unlock</button>
+          <button id="btn-new" class="flex1">✨ New vault</button>
+        </div>
+        <div id="ls-err" class="err"></div>
+      </div>
+    </div>
+    <!-- Step 2: TOTP (shown after passphrase decryption if MFA enrolled) -->
+    <div id="ls-step2" style="display:none">
+      <div class="col" style="gap:10px">
+        <div style="text-align:center">
+          <div style="font-size:1.5em">📱</div>
+          <div style="font-weight:600;margin-top:4px">Two-factor authentication required</div>
+          <div style="font-size:.8em;color:var(--muted);margin-top:3px">Open your authenticator app and enter the 6-digit code</div>
+        </div>
+        <div class="col" style="align-items:center">
+          <label>TOTP code</label>
+          <input type="text" id="ls-totp" class="code-input" maxlength="8" placeholder="000000" autocomplete="one-time-code" inputmode="numeric">
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="primary flex1" id="btn-verify-totp">✓ Verify</button>
+          <button id="btn-back-to-phrase" class="flex1">← Back</button>
+        </div>
+        <div id="ls-totp-err" class="err" style="text-align:center"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none">
+  <div id="header">
+    <span style="font-size:1.15em;font-weight:700;color:var(--accent)">🔐 BFVault</span>
+    <span id="vault-label-hdr" style="color:var(--muted);font-size:.83em"></span>
+    <span id="mfa-hdr"></span>
+    <div style="flex:1"></div>
+    <button id="btn-import-cab" class="small">↑ Import CAB</button>
+    <button id="btn-add-asset">+ Asset</button>
+    <button id="btn-settings" class="small">⚙</button>
+    <button id="btn-keepass">📥 KeePass XML</button>
+    <button id="btn-export" class="primary">💾 Export</button>
+    <button id="btn-lock">🔒</button>
+    <button id="btn-theme">☀</button>
+  </div>
+  <div id="main">
+    <div id="sidebar">
+      <div id="sidebar-top">
+        <input type="text" id="search" placeholder="Search…" style="width:100%">
+        <div id="asset-count" style="font-size:.75em;color:var(--muted);margin-top:4px"></div>
+      </div>
+      <div id="asset-list"></div>
+    </div>
+    <div id="detail">
+      <div class="empty-state" id="detail-empty">← Select an asset, or add one</div>
+      <div id="detail-content" style="display:none;flex-direction:column;gap:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal" id="export-modal">
+  <div class="modal-box">
+    <h2>💾 Export encrypted vault</h2>
+    <div class="col"><label>Vault label</label><input type="text" id="exp-label"></div>
+    <div class="col">
+      <label>Passphrase</label>
+      <div class="sw"><input type="text" id="exp-phrase" autocomplete="off" style="font-family:monospace"><button id="btn-gen-phrase">⟳</button></div>
+      <div id="exp-strength" style="font-size:.78em;margin-top:2px"></div>
+    </div>
+    <p style="font-size:.79em;color:var(--muted)">Output: <code>.zip</code> containing <code>meta.json</code>, <code>payload.enc</code>, and <code>bfvault.html</code> (this tool). Extract and open <code>bfvault.html</code> in any browser to decrypt.</p>
+    <div class="row"><button class="primary" id="btn-do-export">Export ZIP</button><button id="btn-cancel-export">Cancel</button></div>
+    <div id="exp-err" class="err"></div>
+  </div>
+</div>
+
+<!-- ASSET MODAL (add / edit) -->
+<div class="modal" id="asset-modal">
+  <div class="modal-box" style="max-width:560px">
+    <h2 id="am-title">Add asset</h2>
+    <div class="row" style="gap:10px;align-items:flex-start">
+      <div class="col flex1">
+        <label>Label</label>
+        <input type="text" id="am-label" placeholder="e.g. node01-luks-rootfs">
+      </div>
+      <div class="col" style="width:160px">
+        <label>Type</label>
+        <select id="am-type">
+          <option value="credential">credential</option>
+          <option value="ssh-key">ssh-key</option>
+          <option value="luks-header">luks-header</option>
+          <option value="certificate">certificate</option>
+          <option value="totp">totp</option>
+          <option value="recovery-codes">recovery-codes</option>
+          <option value="keepass-database">keepass-database</option>
+          <option value="note">note</option>
+          <option value="generic-binary">generic-binary</option>
+        </select>
+      </div>
+    </div>
+    <!-- Type-specific fields -->
+    <div id="am-typed-fields"></div>
+    <!-- Shared metadata -->
+    <details>
+      <summary style="font-size:.83em;color:var(--muted);cursor:pointer">Metadata (CAM paths, tags)</summary>
+      <div class="col" style="margin-top:8px;gap:8px">
+        <div class="col"><label>secrets:// path (AD-086)</label><input type="text" id="am-secrets-path" placeholder="secrets://crypto/luks/node01/rootfs/passphrase"></div>
+        <div class="row" style="gap:8px">
+          <div class="col flex1"><label>Node / cell</label><input type="text" id="am-node" placeholder="flying-bat"></div>
+          <div class="col flex1"><label>KeePass group</label><input type="text" id="am-kp-group" placeholder="Crypto/LUKS/node01"></div>
+        </div>
+        <div class="col">
+          <label>Tags</label>
+          <div id="am-tags-row" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+            <input type="text" id="am-tag-input" placeholder="tag + Enter" style="width:110px;flex-shrink:0">
+          </div>
+        </div>
+      </div>
+    </details>
+    <div class="row"><button class="primary" id="btn-am-save">Save</button><button id="btn-am-cancel">Cancel</button></div>
+    <div id="am-err" class="err"></div>
+  </div>
+</div>
+
+<!-- MFA SETTINGS MODAL -->
+<div class="modal" id="mfa-modal">
+  <div class="modal-box">
+    <h2>🔐 Two-Factor Authentication (TOTP)</h2>
+    <!-- State: no MFA -->
+    <div id="mfa-enroll-panel">
+      <p style="font-size:.83em;color:var(--muted)">Add TOTP (Google Authenticator, Aegis, Bitwarden Authenticator) as a second factor. After enrollment, both your passphrase and a 6-digit code are required to open this vault.</p>
+      <div id="mfa-seed-display" style="display:none">
+        <div class="col" style="gap:8px">
+          <div style="font-size:.82em"><strong>1.</strong> Add this account to your authenticator app:</div>
+          <div class="totp-uri" id="mfa-uri-display"></div>
+          <div class="row"><button class="small" id="btn-copy-uri">⎘ Copy URI</button></div>
+          <div style="font-size:.82em"><strong>2.</strong> Then enter the 6-digit code to confirm enrollment:</div>
+          <div class="col" style="align-items:center"><input type="text" id="mfa-confirm-code" class="code-input" maxlength="8" placeholder="000000" inputmode="numeric"></div>
+          <div id="mfa-confirm-err" class="err"></div>
+          <div class="row"><button class="primary" id="btn-confirm-enroll">Confirm &amp; Enable MFA</button></div>
+        </div>
+      </div>
+      <div id="mfa-gen-row">
+        <button class="primary" id="btn-gen-seed">Generate TOTP seed</button>
+      </div>
+    </div>
+    <!-- State: MFA enabled -->
+    <div id="mfa-active-panel" style="display:none">
+      <div style="font-size:.9em;color:var(--green)">✓ TOTP MFA is active on this vault</div>
+      <p style="font-size:.82em;color:var(--muted)">Every unlock requires your passphrase + current TOTP code. The seed is stored inside the encrypted vault payload.</p>
+      <div class="col">
+        <label>Current TOTP code (verify device is in sync)</label>
+        <div class="row"><input type="text" id="mfa-verify-code" class="code-input" maxlength="8" placeholder="000000" inputmode="numeric" style="max-width:150px"><button id="btn-verify-mfa">Verify</button></div>
+        <div id="mfa-verify-result" style="font-size:.82em"></div>
+      </div>
+      <button class="danger small" id="btn-disable-mfa">Disable MFA (removes TOTP)</button>
+    </div>
+    <button id="btn-close-mfa">Close</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal" id="settings-modal">
+  <div class="modal-box">
+    <h2>⚙ Vault Settings</h2>
+    <div class="col"><label>Vault label</label><input type="text" id="settings-label"></div>
+    <div class="row"><button class="primary" id="btn-save-settings">Save</button><button id="btn-close-settings">Close</button></div>
+    <hr style="border-color:var(--border)">
+    <h3>Security</h3>
+    <div id="settings-mfa-status" style="font-size:.84em"></div>
+    <button id="btn-open-mfa">🔐 Manage TOTP MFA…</button>
+  </div>
+</div>
+
+<!-- IMPORT CAB MODAL -->
+<div class="modal" id="cab-modal">
+  <div class="modal-box">
+    <h2>↑ Import CAB — Cryptographic Asset Bundle</h2>
+    <p style="font-size:.82em;color:var(--muted)">Import a single-asset CAB into the current vault. The CAB may have its own passphrase different from this vault.</p>
+    <div id="cab-drop" style="border:2px dashed var(--border);border-radius:7px;padding:14px;text-align:center;color:var(--muted);font-size:.82em">
+      Drop CAB ZIP or <button id="btn-pick-cab">pick file</button>
+      <input type="file" id="cab-file-pick" accept=".zip,.enc" style="display:none">
+    </div>
+    <div id="cab-file-status" style="font-size:.78em;color:var(--muted)"></div>
+    <div class="col"><label>CAB passphrase</label><div class="sw"><input type="password" id="cab-phrase" placeholder="CAB passphrase…" autocomplete="off"><button class="peek-btn" id="cab-peek">👁</button></div></div>
+    <div class="row"><button class="primary" id="btn-do-import-cab">Import asset</button><button id="btn-cancel-cab">Cancel</button></div>
+    <div id="cab-err" class="err"></div>
+  </div>
+</div>
+
+<!-- KEEPASS MODAL -->
+<div class="modal" id="kp-modal">
+  <div class="modal-box" style="max-width:600px">
+    <h2>📥 KeePass XML Export</h2>
+    <p style="font-size:.81em;color:var(--muted)">Import into KeePassXC: <strong>Database → Import → KeePass XML</strong>. Assets go under group <code>BFVault</code>. <code>AssetID</code>/<code>SecretsPath</code> custom fields wire the secrets broker (AD-086/087).</p>
+    <pre id="kp-pre"></pre>
+    <div class="row"><button class="primary" id="btn-kp-dl">⬇ Download XML</button><button id="btn-kp-close">Close</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────
+var vault = null;
+var currentId = null;
+var editTags = [];
+var _pendingDecrypted = null; // holds vault after passphrase OK, before TOTP verify
+var _cabMeta = null, _cabPayload = null;
+var _pendingMfaSeed = null;
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+var enc = function(s){ return new TextEncoder().encode(s); };
+var dec = function(b){ return new TextDecoder().decode(b); };
+var $ = function(id){ return document.getElementById(id); };
+function pad(n){ return (n<10?'0':'')+n; }
+function isoNow(){ return new Date().toISOString(); }
+function stamp(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+'-'+pad(d.getMinutes()); }
+function slugify(s){ return (s||'').replace(/\s+/g,'-').replace(/[^A-Za-z0-9_-]/g,'').toLowerCase().replace(/-+/g,'-').replace(/^-|-$/g,''); }
+function fmtSize(n){ return n>1048576?(n/1048576).toFixed(1)+'MB':n>1024?(n/1024).toFixed(1)+'KB':n+'B'; }
+function assetId(label){ return slugify(label)+'-'+Math.floor(Date.now()/1000).toString(36); }
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+try{ if(localStorage.getItem('bf:theme')==='light') document.body.classList.add('light'); }catch(e){}
+$('btn-theme').addEventListener('click', function(){
+  document.body.classList.toggle('light');
+  try{ localStorage.setItem('bf:theme', document.body.classList.contains('light')?'light':'dark'); }catch(e){}
+  $('btn-theme').textContent = document.body.classList.contains('light') ? '☾' : '☀';
+});
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+var _tt;
+function toast(msg, type){ var t=$('toast'); t.textContent=msg; t.className=type||''; t.style.display='block'; clearTimeout(_tt); _tt=setTimeout(function(){t.style.display='none';},3200); }
+
+// ── Type icons / field defs ────────────────────────────────────────────────
+var TYPE_ICONS = {'credential':'🔑','ssh-key':'🗝️','luks-header':'💾','certificate':'📜','totp':'🔢','recovery-codes':'🛡️','keepass-database':'🗄️','note':'📝','generic-binary':'📦'};
+function typeIcon(t){ return TYPE_ICONS[t]||'📦'; }
+
+// Field definitions per type: [key, label, type, placeholder, secret?]
+var TYPE_FIELDS = {
+  'credential':     [['username','Username','text','',''],['password','Password','password','','secret'],['url','URL','text','https://',''],['totp_seed','TOTP seed','password','(optional)','secret'],['notes','Notes','textarea','','']],
+  'ssh-key':        [['private_key','Private key','textarea-secret','-----BEGIN...','secret'],['public_key','Public key','textarea','ssh-...',''],['key_comment','Comment','text','',''],['notes','Notes','textarea','','']],
+  'luks-header':    [['passphrase','Passphrase','password','','secret'],['notes','Notes','textarea','node, volume path, etc.','']],
+  'certificate':    [['cert_pem','Certificate PEM','textarea','-----BEGIN CERTIFICATE...',''],['key_pem','Private key PEM','textarea-secret','-----BEGIN...','secret'],['ca_pem','CA PEM','textarea','(optional)',''],['notes','Notes','textarea','','']],
+  'totp':           [['seed','TOTP seed','password','base32 seed','secret'],['issuer','Issuer','text','',''],['notes','Notes','textarea','','']],
+  'recovery-codes': [['codes','Codes (one per line)','textarea','code1\ncode2\n...',''],['notes','Notes','textarea','','']],
+  'keepass-database':[['master_password','Master password','password','','secret'],['key_file_notes','Key file notes','textarea','(attach .key file as attachment)',''],['notes','Notes','textarea','','']],
+  'note':           [['content','Content','textarea','','']],
+  'generic-binary': [['notes','Notes','textarea','','']],
+};
+var SECRET_FIELDS = {password:1,passphrase:1,private_key:1,key_pem:1,totp_seed:1,seed:1,master_password:1};
+
+// ── Crypto ─────────────────────────────────────────────────────────────────
+var ITER = 600000;
+function b64e(bytes){ return btoa(String.fromCharCode.apply(null, new Uint8Array(bytes))); }
+function b64d(s){ var b=atob(s); var u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+
+async function sha256hex(bytes){
+  var h = await crypto.subtle.digest('SHA-256', bytes instanceof Uint8Array?bytes:new Uint8Array(bytes));
+  return Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+async function deriveKey(passphrase, salt){
+  var m = await crypto.subtle.importKey('raw', enc(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:ITER,hash:'SHA-256'}, m, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
+}
+
+async function encryptVault(passphrase, vaultObj){
+  var salt = crypto.getRandomValues(new Uint8Array(16));
+  var iv   = crypto.getRandomValues(new Uint8Array(12));
+  var key  = await deriveKey(passphrase, salt);
+  var ct   = await crypto.subtle.encrypt({name:'AES-GCM',iv:iv}, key, enc(JSON.stringify(vaultObj)));
+  return {
+    meta: JSON.stringify({v:1,format:vaultObj.format||'bfvault',alg:'AES-256-GCM',kdf:'PBKDF2-SHA256',iter:ITER,salt:b64e(salt),iv:b64e(iv),label:vaultObj.label||'vault',created:vaultObj.created},null,2),
+    ct:   new Uint8Array(ct)
+  };
+}
+
+async function decryptPayload(passphrase, metaJson, ctBytes){
+  var m = JSON.parse(metaJson);
+  if(m.v!==1) throw new Error('Unsupported vault version: '+m.v);
+  var key = await deriveKey(passphrase, b64d(m.salt));
+  var pt  = await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(m.iv)}, key, ctBytes);
+  return JSON.parse(dec(pt));
+}
+
+// ── TOTP ───────────────────────────────────────────────────────────────────
+var B32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function base32decode(s){
+  s = s.toUpperCase().replace(/\s|=/g,'');
+  var bits=0, val=0, idx=0;
+  var out = new Uint8Array(Math.floor(s.length*5/8));
+  for(var i=0;i<s.length;i++){
+    val = (val<<5) | B32_CHARS.indexOf(s[i]);
+    bits+=5;
+    if(bits>=8){ bits-=8; out[idx++] = (val>>bits)&255; }
+  }
+  return out;
+}
+
+function genTotpSeed(){
+  var bytes = crypto.getRandomValues(new Uint8Array(20));
+  var bits=0, val=0, result='';
+  for(var i=0;i<bytes.length;i++){
+    val=(val<<8)|bytes[i]; bits+=8;
+    while(bits>=5){ bits-=5; result+=B32_CHARS[(val>>bits)&31]; }
+  }
+  return result;
+}
+
+async function computeTotp(base32Seed, ts){
+  var key = base32decode(base32Seed);
+  var t = Math.floor((ts||Date.now())/1000/30);
+  var buf = new ArrayBuffer(8);
+  new DataView(buf).setUint32(4, t, false);
+  var ck = await crypto.subtle.importKey('raw', key, {name:'HMAC',hash:'SHA-1'}, false, ['sign']);
+  var sig = new Uint8Array(await crypto.subtle.sign('HMAC', ck, buf));
+  var off = sig[19]&0xf;
+  var code = ((sig[off]&0x7f)<<24|(sig[off+1]&0xff)<<16|(sig[off+2]&0xff)<<8|(sig[off+3]&0xff)) % 1000000;
+  return code.toString().padStart(6,'0');
+}
+
+async function verifyTotp(seed, code){
+  var t = Date.now();
+  for(var delta=-1;delta<=1;delta++){
+    var expected = await computeTotp(seed, t + delta*30000);
+    if(expected === code.replace(/\s/g,'')) return true;
+  }
+  return false;
+}
+
+function totpUri(seed, label){
+  label = label || 'BFVault';
+  return 'otpauth://totp/'+encodeURIComponent(label)+'?secret='+seed+'&issuer=BFVault&algorithm=SHA1&digits=6&period=30';
+}
+
+// ── Passphrase gen ─────────────────────────────────────────────────────────
+var ADJ=['agile','ancient','blazing','bold','brave','bright','calm','clever','cosmic','crisp','dark','dim','drifting','dusty','eager','fierce','final','fixed','fleet','flying','frozen','grim','hidden','hollow','jagged','keen','last','light','long','lost','low','lucky','mild','misty','mobile','narrow','near','noble','pale','proud','quiet','rapid','remote','rising','rough','round','rusty','sharp','short','silent','sleek','slim','slow','smart','solid','steady','stern','still','stone','storm','swift','tall','thin','tight','true','vast','warm','wide','wild','wise','worn'];
+var ANI=['badger','bat','bear','beetle','boar','buck','bull','cat','cobra','crane','crow','deer','dog','dove','duck','eagle','elk','falcon','finch','fox','frog','hawk','heron','horse','hound','ibis','jay','kite','koi','lamb','lion','lynx','magpie','mink','mole','moose','moth','mouse','newt','orca','osprey','otter','owl','ox','panther','parrot','pike','rabbit','raven','robin','salmon','seal','shark','sheep','snake','sparrow','stag','stork','swift','tern','tiger','toad','vole','wasp','weasel','wolf','wolverine','wren'];
+function randFrom(a){ return a[Math.floor(Math.random()*a.length)]; }
+function genPhrase(){ return randFrom(ADJ)+'.'+randFrom(ANI)+'.'+randFrom(ADJ)+'.'+randFrom(ANI)+'.'+(Math.floor(Math.random()*90)+10); }
+function phraseStrength(p){
+  if(!p) return {cls:'',t:''};
+  if(p.length<12) return {cls:'str-weak',t:'Too short'};
+  if(p.length<20) return {cls:'str-ok',t:'Acceptable'};
+  return {cls:'str-good',t:'Strong ✓'};
+}
+function updateStrength(inId, outId){ var s=phraseStrength($(inId).value); var el=$(outId); el.textContent=s.t; el.className=s.cls; }
+
+// ── ZIP builder ────────────────────────────────────────────────────────────
+var _crcT=(function(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++){c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);}t[n]=c>>>0;}return t;})();
+function crc32(buf){var c=0xFFFFFFFF;for(var i=0;i<buf.length;i++){c=_crcT[(c^buf[i])&0xFF]^(c>>>8);}return(c^0xFFFFFFFF)>>>0;}
+function u16(v){return[v&0xFF,(v>>>8)&0xFF];}
+function u32(v){return[v&0xFF,(v>>>8)&0xFF,(v>>>16)&0xFF,(v>>>24)&0xFF];}
+function buildZip(entries){
+  var d=new Date();
+  var dt=((d.getHours()<<11)|(d.getMinutes()<<5)|Math.floor(d.getSeconds()/2))&0xFFFF;
+  var dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  var parts=[],central=[],offset=0;
+  entries.forEach(function(e){
+    var nb=enc(e.name),crc=crc32(e.bytes),sz=e.bytes.length;
+    var lh=[].concat(u32(0x04034b50),u16(20),u16(0),u16(0),u16(dt),u16(dd),u32(crc),u32(sz),u32(sz),u16(nb.length),u16(0));
+    parts.push(new Uint8Array(lh));parts.push(nb);parts.push(e.bytes);
+    var cd=[].concat(u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(dt),u16(dd),u32(crc),u32(sz),u32(sz),u16(nb.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset));
+    central.push(new Uint8Array(cd));central.push(nb);
+    offset+=lh.length+nb.length+sz;
+  });
+  var cdSz=0;central.forEach(function(c){cdSz+=c.length;});
+  var eocd=[].concat(u32(0x06054b50),u16(0),u16(0),u16(entries.length),u16(entries.length),u32(cdSz),u32(offset),u16(0));
+  return new Blob(parts.concat(central,[new Uint8Array(eocd)]),{type:'application/zip'});
+}
+
+// ── ZIP reader (local-file-header scan, stored entries only) ───────────────
+function readZip(bytes){
+  var found={};
+  var i=0;
+  while(i<bytes.length-30){
+    if(bytes[i]===0x50&&bytes[i+1]===0x4B&&bytes[i+2]===0x03&&bytes[i+3]===0x04){
+      var cm=bytes[i+8]|(bytes[i+9]<<8);
+      var csz=bytes[i+18]|(bytes[i+19]<<8)|(bytes[i+20]<<16)|(bytes[i+21]<<24);
+      var nl=bytes[i+26]|(bytes[i+27]<<8);
+      var el=bytes[i+28]|(bytes[i+29]<<8);
+      var name=dec(bytes.slice(i+30,i+30+nl));
+      var ds=i+30+nl+el;
+      if(cm===0) found[name]=bytes.slice(ds,ds+csz);
+      i=ds+csz;
+    } else { i++; }
+  }
+  return found;
+}
+
+// ── Save blob ──────────────────────────────────────────────────────────────
+function saveBlob(blob, name){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download=name;a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);},5000);
+}
+
+// ── XML escape ─────────────────────────────────────────────────────────────
+function xesc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── KeePass XML ────────────────────────────────────────────────────────────
+function generateKpXml(v){
+  var entries='', binaries='', bIdx=0;
+  Object.keys(v.assets||{}).forEach(function(aid){
+    var a=v.assets[aid], f=a.fields||{};
+    var attFields='';
+    Object.keys(a.attachments||{}).forEach(function(fname){
+      var att=a.attachments[fname];
+      binaries+='      <Binary ID="'+bIdx+'" Compressed="False">'+xesc(att.data)+'</Binary>\n';
+      attFields+='    <Binary><Key>'+xesc(fname)+'</Key><Value Ref="'+bIdx+'"/></Binary>\n';
+      entries+='    <String><Key>'+xesc(fname+'-sha256')+'</Key><Value>'+xesc(att.sha256||'')+'</Value></String>\n';
+      bIdx++;
+    });
+    var pw=f.password||f.passphrase||f.private_key||f.seed||f.content||f.master_password||'';
+    var codes=Array.isArray(f.codes)?f.codes.join('\n'):f.codes||'';
+    entries+='    <Entry>\n';
+    entries+='    <String><Key>Title</Key><Value>'+xesc(a.label||aid)+'</Value></String>\n';
+    entries+='    <String><Key>UserName</Key><Value>'+xesc(f.username||'')+'</Value></String>\n';
+    entries+='    <String><Key>Password</Key><Value Protected="False">'+xesc(pw)+'</Value></String>\n';
+    entries+='    <String><Key>URL</Key><Value>'+xesc(f.url||'')+'</Value></String>\n';
+    entries+='    <String><Key>Notes</Key><Value>'+xesc(f.notes||codes||'')+'</Value></String>\n';
+    if(a.secrets_path) entries+='    <String><Key>AssetID</Key><Value>'+xesc(a.secrets_path)+'</Value></String>\n';
+    if(a.secrets_path) entries+='    <String><Key>SecretsPath</Key><Value>'+xesc(a.secrets_path)+'</Value></String>\n';
+    if(a.node) entries+='    <String><Key>NodeRef</Key><Value>'+xesc(a.node)+'</Value></String>\n';
+    entries+='    <String><Key>BFVaultType</Key><Value>'+xesc(a.type||'')+'</Value></String>\n';
+    if((a.tags||[]).length) entries+='    <String><Key>Tags</Key><Value>'+xesc(a.tags.join(','))+'</Value></String>\n';
+    entries+=attFields;
+    entries+='    </Entry>\n';
+  });
+  return '<?xml version="1.0" encoding="utf-8"?>\n<KeePassFile>\n  <Meta>\n    <Generator>BFVault</Generator>\n'+
+    (binaries?'    <Binaries>\n'+binaries+'    </Binaries>\n':'')+
+    '  </Meta>\n  <Root>\n    <Group>\n      <Name>BFVault</Name>\n'+entries+'    </Group>\n  </Root>\n</KeePassFile>';
+}
+
+// ── Load vault files ───────────────────────────────────────────────────────
+var _lsMeta=null, _lsPayload=null;
+
+function handleVaultFiles(files){
+  Array.prototype.forEach.call(files, function(f){
+    var rd=new FileReader();
+    if((f.name.endsWith('.zip')||f.type==='application/zip')||f.name.endsWith('.bfvault')){
+      rd.onload=function(){ var z=readZip(new Uint8Array(rd.result)); if(z['meta.json']){_lsMeta=dec(z['meta.json']); } if(z['payload.enc']){_lsPayload=z['payload.enc'];} updateLsStatus(); if(!_lsMeta||!_lsPayload){showLsErr('ZIP found but missing meta.json or payload.enc — extract the ZIP first.');} };
+      rd.readAsArrayBuffer(f);
+    } else if(f.name==='meta.json'||f.name.endsWith('meta.json')){
+      rd.onload=function(){ _lsMeta=rd.result; updateLsStatus(); }; rd.readAsText(f);
+    } else {
+      rd.onload=function(){ _lsPayload=new Uint8Array(rd.result); updateLsStatus(); }; rd.readAsArrayBuffer(f);
+    }
+  });
+}
+function updateLsStatus(){
+  var parts=[]; if(_lsMeta) parts.push('meta.json ✓'); if(_lsPayload) parts.push('payload.enc ✓');
+  $('ls-file-status').textContent=parts.join('  ');
+  hideLsErr();
+}
+function showLsErr(msg){ var e=$('ls-err'); e.textContent=msg; e.style.display='block'; }
+function hideLsErr(){ $('ls-err').style.display='none'; }
+
+// Drop zone
+(function(){
+  var dz=$('drop-zone');
+  dz.addEventListener('dragover',function(e){e.preventDefault();dz.style.borderColor='var(--accent)';});
+  dz.addEventListener('dragleave',function(){dz.style.borderColor='var(--border)';});
+  dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='var(--border)';handleVaultFiles(e.dataTransfer.files);});
+  $('btn-pick').addEventListener('click',function(){$('file-pick').click();});
+  $('file-pick').addEventListener('change',function(){handleVaultFiles(this.files);this.value='';});
+})();
+
+// Passphrase peek
+$('ls-peek').addEventListener('click',function(){var i=$('ls-phrase');i.type=i.type==='password'?'text':'password';});
+$('ls-phrase').addEventListener('input',function(){updateStrength('ls-phrase','ls-strength');});
+
+// ── Unlock flow ────────────────────────────────────────────────────────────
+$('btn-unlock').addEventListener('click', async function(){
+  hideLsErr();
+  var phrase = $('ls-phrase').value;
+  if(!phrase){ showLsErr('Passphrase required'); return; }
+  if(!_lsMeta||!_lsPayload){ showLsErr('Load meta.json + payload.enc first (or drop the vault ZIP)'); return; }
+  this.disabled=true; this.textContent='Decrypting…';
+  try{
+    var decoded = await decryptPayload(phrase, _lsMeta, _lsPayload);
+    if(!decoded.assets) decoded.assets={};
+    // Check MFA
+    if(decoded._mfa && decoded._mfa.type==='totp'){
+      _pendingDecrypted = decoded;
+      $('ls-step1').style.display='none';
+      $('ls-step2').style.display='block';
+      $('ls-totp').focus();
+    } else {
+      vault = decoded;
+      showApp();
+    }
+  } catch(e){
+    showLsErr('Decryption failed — wrong passphrase or corrupted file.');
+  }
+  this.disabled=false; this.textContent='🔓 Unlock';
+});
+
+$('ls-phrase').addEventListener('keydown',function(e){if(e.key==='Enter') $('btn-unlock').click();});
+
+// TOTP step
+$('btn-back-to-phrase').addEventListener('click',function(){
+  $('ls-step2').style.display='none';
+  $('ls-step1').style.display='block';
+  _pendingDecrypted=null;
+  $('ls-totp-err').style.display='none';
+});
+
+$('btn-verify-totp').addEventListener('click', async function(){
+  var code = $('ls-totp').value.replace(/\s/g,'');
+  var te=$('ls-totp-err'); te.style.display='none';
+  if(!code||code.length<6){ te.textContent='Enter your 6-digit code'; te.style.display='block'; return; }
+  this.disabled=true; this.textContent='Verifying…';
+  try{
+    var ok = await verifyTotp(_pendingDecrypted._mfa.seed, code);
+    if(ok){
+      vault = _pendingDecrypted;
+      _pendingDecrypted = null;
+      showApp();
+    } else {
+      te.textContent='Incorrect code — check your authenticator and try again.';
+      te.style.display='block';
+      $('ls-totp').value='';
+      $('ls-totp').focus();
+    }
+  } catch(e){
+    te.textContent='Error: '+e.message; te.style.display='block';
+  }
+  this.disabled=false; this.textContent='✓ Verify';
+});
+$('ls-totp').addEventListener('keydown',function(e){if(e.key==='Enter') $('btn-verify-totp').click();});
+
+// New vault
+$('btn-new').addEventListener('click',function(){
+  vault={bfvault:'1',label:'',created:isoNow(),modified:isoNow(),assets:{}};
+  showApp();
+  setTimeout(function(){$('btn-export').dispatchEvent(new Event('click'));},300);
+});
+
+// ── Show / hide screens ────────────────────────────────────────────────────
+function showApp(){
+  $('lock-screen').style.display='none';
+  $('app').style.display='flex';
+  renderMfaHeader();
+  $('vault-label-hdr').textContent=vault.label?'— '+vault.label:'';
+  renderSidebar();
+  renderDetail();
+}
+function showLock(){
+  $('app').style.display='none';
+  $('lock-screen').style.display='flex';
+  $('ls-step1').style.display='block';
+  $('ls-step2').style.display='none';
+  vault=null; currentId=null; _pendingDecrypted=null;
+  _lsMeta=null; _lsPayload=null;
+  $('ls-file-status').textContent='';
+  $('ls-phrase').value=''; $('ls-strength').textContent='';
+  hideLsErr();
+}
+$('btn-lock').addEventListener('click',function(){ if(confirm('Lock vault? Unsaved changes will be lost.')) showLock(); });
+
+// ── Sidebar ────────────────────────────────────────────────────────────────
+function renderSidebar(){
+  var list=$('asset-list'); list.innerHTML='';
+  var q=($('search').value||'').toLowerCase();
+  var ids=Object.keys(vault.assets||{});
+  var shown=0;
+  ids.forEach(function(aid){
+    var a=vault.assets[aid];
+    if(q){var txt=((a.label||aid)+' '+(a.type||'')+' '+((a.tags||[]).join(' '))+' '+(a.node||'')).toLowerCase(); if(txt.indexOf(q)===-1) return;}
+    shown++;
+    var div=document.createElement('div');
+    div.className='asset-item'+(aid===currentId?' active':'');
+    div.innerHTML='<span class="ai-icon">'+typeIcon(a.type)+'</span><div class="ai-info"><div class="ai-label">'+xesc(a.label||aid)+'</div><div class="ai-sub">'+xesc(a.type||'')+(a.node?' · '+xesc(a.node):'')+'</div></div>';
+    div.addEventListener('click',function(){selectAsset(aid);});
+    list.appendChild(div);
+  });
+  $('asset-count').textContent=shown+' of '+ids.length+' assets';
+}
+$('search').addEventListener('input',function(){renderSidebar();});
+
+function selectAsset(aid){ currentId=aid; renderSidebar(); renderDetail(); }
+
+// ── Detail pane ────────────────────────────────────────────────────────────
+function renderDetail(){
+  var dc=$('detail-content'), de=$('detail-empty');
+  if(!currentId||!vault.assets[currentId]){ dc.style.display='none'; de.style.display='block'; return; }
+  de.style.display='none'; dc.style.display='flex';
+  var a=vault.assets[currentId];
+  var f=a.fields||{};
+  var html='';
+
+  // Header
+  html+='<div class="row" style="align-items:flex-start;gap:10px">';
+  html+='<div style="font-size:1.7em">'+typeIcon(a.type)+'</div>';
+  html+='<div class="col flex1"><div style="font-size:1.05em;font-weight:600">'+xesc(a.label||currentId)+'</div>';
+  html+='<div style="font-size:.79em;color:var(--muted)">'+xesc(a.type||'')+(a.node?' &nbsp;·&nbsp; '+xesc(a.node):'')+'</div>';
+  if(a.secrets_path) html+='<div style="font-size:.76em;font-family:monospace;color:var(--teal);margin-top:2px">'+xesc(a.secrets_path)+'</div>';
+  html+='</div>';
+  html+='<div class="col" style="align-items:flex-end;gap:5px"><button class="small" onclick="openEditAsset(\''+currentId+'\')">✏ Edit</button><button class="small danger" onclick="deleteAsset(\''+currentId+'\')">🗑</button></div></div>';
+
+  // Tags
+  if(a.tags&&a.tags.length){
+    html+='<div>';
+    a.tags.forEach(function(t){html+='<span class="asset-tag">'+xesc(t)+'</span>';});
+    html+='</div>';
+  }
+
+  // Fields
+  var fieldKeys=Object.keys(f);
+  if(fieldKeys.length){
+    html+='<div class="field-group"><h3>Fields</h3>';
+    fieldKeys.forEach(function(k){
+      var val=f[k]; if(Array.isArray(val)) val=val.join('\n');
+      var fid='fv-'+k;
+      var isSecret=SECRET_FIELDS[k];
+      html+='<div class="frow"><label>'+xesc(k)+'</label><div class="fval">';
+      if(isSecret){
+        html+='<div class="sw"><input type="password" id="'+fid+'" value="'+xesc(val||'')+'" readonly autocomplete="off" style="font-family:monospace">';
+        html+='<button class="peek-btn" onclick="peekFld(\''+fid+'\')">👁</button>';
+        html+='<button class="copy-btn" onclick="copyFld(\''+fid+'\')">⎘</button></div>';
+      } else if((val||'').length>60){
+        html+='<div class="sw" style="align-items:flex-start"><textarea rows="3" id="'+fid+'" readonly>'+xesc(val||'')+'</textarea>';
+        html+='<button class="copy-btn" onclick="copyFld(\''+fid+'\')">⎘</button></div>';
+      } else {
+        html+='<div class="sw"><input type="text" id="'+fid+'" value="'+xesc(val||'')+'" readonly>';
+        html+='<button class="copy-btn" onclick="copyFld(\''+fid+'\')">⎘</button></div>';
+      }
+      html+='</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // Attachments
+  var atts=a.attachments||{};
+  html+='<div class="field-group"><div class="row" style="justify-content:space-between"><h3>Attachments</h3><button class="small" onclick="addAtt(\''+currentId+'\')">+ Add file</button></div>';
+  var attKeys=Object.keys(atts);
+  if(!attKeys.length){ html+='<div style="font-size:.82em;color:var(--muted)">None</div>'; }
+  else {
+    attKeys.forEach(function(fname){
+      var att=atts[fname];
+      html+='<div class="att-row"><div class="col flex1"><div class="att-name">'+xesc(fname)+'</div>';
+      if(att.size_bytes) html+='<div class="att-meta">'+fmtSize(att.size_bytes)+(att.sha256?' · sha256: '+att.sha256.slice(0,16)+'…':'')+'</div>';
+      html+='</div><button class="small" onclick="dlAtt(\''+currentId+'\',\''+xesc(fname)+'\')">⬇</button>';
+      html+='<button class="small danger" onclick="rmAtt(\''+currentId+'\',\''+xesc(fname)+'\')">×</button></div>';
+    });
+  }
+  html+='</div>';
+
+  // CAB export
+  html+='<div style="text-align:right"><button class="small" onclick="exportCab(\''+currentId+'\')">📦 Export as CAB</button></div>';
+
+  dc.innerHTML=html;
+}
+
+// ── Field helpers ──────────────────────────────────────────────────────────
+var _pkTimers={};
+window.peekFld=function(id){
+  var el=document.getElementById(id); if(!el) return;
+  if(el.tagName==='TEXTAREA') return;
+  if(el.type==='password'){ el.type='text'; _pkTimers[id]=setTimeout(function(){el.type='password';},5000); }
+  else { el.type='password'; clearTimeout(_pkTimers[id]); }
+};
+window.copyFld=function(id){
+  var el=document.getElementById(id); if(!el) return;
+  navigator.clipboard.writeText(el.value||el.textContent||'').then(function(){toast('Copied ✓','ok');}).catch(function(){toast('Copy failed','err');});
+};
+
+// ── Attachments ────────────────────────────────────────────────────────────
+window.addAtt=function(aid){
+  var fi=document.createElement('input'); fi.type='file'; fi.multiple=true;
+  fi.addEventListener('change',function(){
+    var files=Array.prototype.slice.call(fi.files||[]); var p=files.length; if(!p) return;
+    files.forEach(function(file){
+      var rd=new FileReader();
+      rd.onload=async function(){
+        var bytes=new Uint8Array(rd.result);
+        var hash=await sha256hex(bytes);
+        if(!vault.assets[aid].attachments) vault.assets[aid].attachments={};
+        vault.assets[aid].attachments[file.name]={type:file.type||'application/octet-stream',data:b64e(bytes),sha256:hash,size_bytes:bytes.length};
+        vault.assets[aid].modified=isoNow();
+        if(!--p){toast('File(s) added','ok');renderDetail();}
+      };
+      rd.readAsArrayBuffer(file);
+    });
+  });
+  fi.click();
+};
+window.dlAtt=function(aid,fname){
+  var att=(vault.assets[aid].attachments||{})[fname]; if(!att){toast('Not found','err');return;}
+  saveBlob(new Blob([b64d(att.data)],{type:att.type||'application/octet-stream'}),fname);
+};
+window.rmAtt=function(aid,fname){
+  if(!confirm('Remove "'+fname+'"?')) return;
+  delete vault.assets[aid].attachments[fname];
+  vault.assets[aid].modified=isoNow();
+  renderDetail(); toast('Removed','ok');
+};
+
+// ── Asset CRUD ─────────────────────────────────────────────────────────────
+var _editingId=null;
+
+function openAddAsset(){ _editingId=null; openAssetModal(null); }
+function openEditAsset(aid){ _editingId=aid; openAssetModal(vault.assets[aid]); }
+window.openEditAsset=openEditAsset;
+
+function openAssetModal(a){
+  a=a||{};
+  $('am-title').textContent=_editingId?'Edit asset':'Add asset';
+  $('am-label').value=a.label||'';
+  $('am-type').value=a.type||'credential';
+  $('am-secrets-path').value=a.secrets_path||'';
+  $('am-node').value=a.node||'';
+  $('am-kp-group').value=a.keepass_group||'';
+  editTags=(a.tags||[]).slice();
+  renderTagChips();
+  renderTypedFields(a.type||'credential', a.fields||{});
+  $('am-err').style.display='none';
+  $('asset-modal').classList.add('active');
+  $('am-label').focus();
+}
+$('am-type').addEventListener('change',function(){
+  var existing=_editingId?vault.assets[_editingId]:{};
+  renderTypedFields(this.value, (existing&&existing.fields)||{});
+});
+$('btn-add-asset').addEventListener('click', openAddAsset);
+$('btn-am-cancel').addEventListener('click',function(){$('asset-modal').classList.remove('active');});
+
+function renderTypedFields(type, existingFields){
+  var defs=TYPE_FIELDS[type]||[];
+  var html='<div class="typed-field-section"><h4>Fields</h4><div class="col" style="gap:9px">';
+  defs.forEach(function(fd){
+    var k=fd[0],label=fd[1],inputType=fd[2],ph=fd[3];
+    var val=existingFields[k]!==undefined?(Array.isArray(existingFields[k])?existingFields[k].join('\n'):existingFields[k]):'';
+    html+='<div class="col"><label>'+xesc(label)+'</label>';
+    if(inputType==='textarea'||inputType==='textarea-secret'){
+      html+='<div class="sw" style="align-items:flex-start"><textarea id="tf-'+k+'" rows="3" placeholder="'+xesc(ph)+'">'+xesc(val)+'</textarea>';
+      if(inputType==='textarea-secret') html+='<button class="peek-btn" type="button" onclick="peekArea(\'tf-'+k+'\')">👁</button>';
+      html+='</div>';
+    } else if(inputType==='password'){
+      html+='<div class="sw"><input type="password" id="tf-'+k+'" value="'+xesc(val)+'" placeholder="'+xesc(ph)+'" autocomplete="off">';
+      html+='<button class="peek-btn" type="button" onclick="peekFld(\'tf-'+k+'\')">👁</button></div>';
+    } else {
+      html+='<input type="text" id="tf-'+k+'" value="'+xesc(val)+'" placeholder="'+xesc(ph)+'">';
+    }
+    html+='</div>';
+  });
+  html+='</div></div>';
+  $('am-typed-fields').innerHTML=html;
+}
+
+window.peekArea=function(id){
+  var el=document.getElementById(id); if(!el) return;
+  el.style.webkitTextSecurity=el.style.webkitTextSecurity==='disc'?'':'disc';
+  // Fallback: toggle class for non-webkit
+  el.classList.toggle('masked');
+};
+
+// Collect typed fields
+function collectTypedFields(type){
+  var defs=TYPE_FIELDS[type]||[];
+  var f={};
+  defs.forEach(function(fd){
+    var k=fd[0], el=document.getElementById('tf-'+k);
+    if(!el) return;
+    var v=el.value||el.textContent;
+    if(!v&&!v.trim()) return;
+    if(k==='codes') f[k]=v.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+    else if(v.trim()) f[k]=v;
+  });
+  return f;
+}
+
+$('btn-am-save').addEventListener('click',function(){
+  var label=$('am-label').value.trim();
+  if(!label){$('am-err').textContent='Label required';$('am-err').style.display='block';return;}
+  var type=$('am-type').value;
+  var aid=_editingId||assetId(label);
+  var existing=_editingId?(vault.assets[_editingId]||{}):{};
+  vault.assets[aid]={
+    type:type, label:label,
+    tags:editTags.slice(),
+    created:existing.created||isoNow(), modified:isoN

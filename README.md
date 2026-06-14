@@ -592,102 +592,81 @@ membership, the intelligence collection baseline, secret references.
 The operator's interaction is: install Proxmox → copy spawn package → run
 `spawn.sh`. Everything else is automated.
 
+#### On the Hatchery — before touching the broodling
+
+**Step 1 — Execution mode** (asked first):
+
+- **Interactive:** skip to package assembly — no hardware profile needed. Service selection happens on the broodling at runtime.
+- **Autonomous:** continue to Step 2.
+
+**Step 2 — Hardware discovery** (autonomous only):
+
+The hatchery is a trusted node on the homelab LAN. Password-based SSH from the hatchery to a fresh broodling is acceptable — no pre-exchanged keys required.
+
+The spawn planner generates a suggested temporary root password before the operator touches the broodling:
+
 ```
-ON THE HATCHERY (before touching the broodling)
-───────────────────────────────────────────────────────────────────────────────
-STEP 1 — Execution mode (asked first):
-  → Interactive: skip to package assembly — no hardware profile needed.
-                 Service selection happens on the broodling at runtime.
-  → Autonomous:  continue to Step 2.
-
-STEP 2 — Hardware discovery (autonomous only):
-  The hatchery is a trusted node on the homelab LAN. Password-based SSH from
-  the hatchery to a fresh broodling is acceptable — no pre-exchanged keys required.
-
-  The spawn planner generates a suggested temporary root password in the readable
-  passphrase format before the operator touches the broodling:
-
-    Suggested temporary root password for Proxmox installation:
-      Ready.to.spawn.7
-    Use this when setting the root password during Proxmox install.
-    Press Enter here when the installation is complete and the node is reachable.
-
-  The hatchery already knows the password it suggested, so discovery proceeds
-  automatically once the operator signals that Proxmox is installed:
-
-    Connecting to 192.168.1.100 as root... ✓
-    Running discover-hardware.py... ✓
-    Running discover-network.py...  ✓
-    Running discover-storage.py...  ✓
-    hardware-profile-pve-node-02.json saved.
-
-  If the operator used a different password during installation, the planner
-  prompts for it instead. Password is transmitted over the local trusted network
-  and is replaced by properly generated KeePass-managed credentials during spawn.
-
-  The temporary password is short-lived: it is valid only from Proxmox installation
-  until phase-03-cloudinit.sh of the spawn process runs and sets the real password.
-
-STEP 3 — Spawn planning (autonomous only):
-  spawn-planner.py --hostname pve-node-02 --profile hardware-profile-pve-node-02.json
-  Planner presents hardware fit assessment and service selection:
-    [✓] compute       — 12 GB RAM available, 6 GB required — fits
-    [✓] storage       — 4 dedicated disks detected — fits (raidz1)
-    [✗] control-plane — requires 4 GB RAM; only 2 GB available after other roles
-    [✗] monitoring    — requires 2 GB RAM; insufficient after compute allocation
-  Operator confirms or adjusts → disposition locked into spawn-plan.json
-
-Assessment Engine reads hatchery cluster state → spawn-manifest.json:
-  all reserved VMIDs, IPs, hostnames, Proxmox cluster address, k3s tokens
-  [conflict validator blocks package generation on any collision]
-
-Spawn package assembled and ready to copy to broodling.
-  Autonomous: offline-capable — broodling never queries the hatchery API.
-  Interactive: all service scripts included — selection happens at runtime.
-
-ON THE BROODLING (bare Proxmox just installed)
-───────────────────────────────────────────────────────────────────────────────
-HOST-LEVEL SETUP:
-
-  phase-00a [WAN mode only] Tailscale join — runs before anything else:
-    Install Tailscale, register with hatchery's Headscale using embedded auth key.
-    Broodling appears on tailnet → hatchery can now SSH in for any coordination.
-    (Skipped entirely in LAN mode — direct SSH is already available.)
-
-  phase-00  Host bootstrap — two sub-stages:
-
-    [A] Hardware pre-flight (read-only, no changes made)
-          Re-scans actual hardware, diffs against embedded hardware-profile.json:
-          disk IDs present + capacity, NIC names/MACs, RAM vs disposition minimums,
-          no conflicting pool or bridge names, conflict re-check vs manifest
-          → mismatch: failure package with diff, exits, nothing written to host
-          → pass: proceeds to [B]
-
-    [B] Host configuration
-          Set hostname + fix /etc/hosts, write bridge definitions, ifreload -a,
-          zpool create (topology from plan, disk IDs confirmed by pre-flight),
-          pvesm add, configure apt repos
-          → Host ready: bridges exist, storage registered, hostname correct
-
-  phase-01  pvecm add → joins Proxmox cluster
-
-VM PROVISIONING (only VMs declared by disposition are created):
-
-  phase-02  tofu apply — only disposition-selected VM roles provisioned
-  phase-03  Cloud-Init snippets installed → VMs started → first-boot runs
-
-CLUSTER JOIN:
-
-  phase-04  k3s join — worker role always; server role only if disposition includes
-              control-plane and hardware pre-flight confirmed it fits
-  phase-05  [conditional] etcd HA promotion if 3rd server node
-  phase-06  Verify: cluster health, all disposition VMs running, no IP conflicts
-
-AUTOMATIC AFTER PHASE-06:
-  Flux CD     schedules only workloads matching this node's disposition labels/taints
-  Assessment  scores broodling only against its declared disposition
-  Doc Engine  regenerates topology showing broodling's role in the cluster
+Suggested temporary root password for Proxmox installation:
+  Ready.to.spawn.7
+Use this when setting the root password during Proxmox install.
+Press Enter here when the installation is complete and the node is reachable.
 ```
+
+The hatchery already knows the password it suggested, so discovery proceeds automatically once the operator signals that Proxmox is installed:
+
+```
+Connecting to 192.168.1.100 as root... ✓
+Running discover-hardware.py... ✓
+Running discover-network.py...  ✓
+Running discover-storage.py...  ✓
+hardware-profile-pve-node-02.json saved.
+```
+
+If the operator used a different password during installation, the planner prompts for it instead. The password is transmitted over the local trusted network and replaced by properly generated KeePass-managed credentials during spawn. It is valid only from Proxmox installation until `phase-03-cloudinit.sh` runs and sets the real password.
+
+**Step 3 — Spawn planning** (autonomous only):
+
+```bash
+spawn-planner.py --hostname pve-node-02 --profile hardware-profile-pve-node-02.json
+```
+
+The planner presents a hardware fit assessment and service selection:
+
+```
+[✓] compute       — 12 GB RAM available, 6 GB required — fits
+[✓] storage       — 4 dedicated disks detected — fits (raidz1)
+[✗] control-plane — requires 4 GB RAM; only 2 GB available after other roles
+[✗] monitoring    — requires 2 GB RAM; insufficient after compute allocation
+```
+
+The operator confirms or adjusts, locking the disposition into `spawn-plan.json`. The Assessment Engine then reads hatchery cluster state into `spawn-manifest.json` — all reserved VMIDs, IPs, hostnames, Proxmox cluster address, and k3s tokens. The conflict validator blocks package generation on any collision.
+
+The spawn package is then assembled and ready to copy to the broodling. In autonomous mode it is offline-capable — the broodling never queries the hatchery API. In interactive mode all service scripts are included and selection happens at runtime.
+
+#### On the Broodling — bare Proxmox just installed
+
+**phase-00a** [WAN mode only] Tailscale join — runs before anything else. Installs Tailscale and registers with the hatchery's Headscale using the embedded auth key. The broodling appears on the tailnet so the hatchery can SSH in for coordination. Skipped entirely in LAN mode where direct SSH is already available.
+
+**phase-00** Host bootstrap — two sub-stages:
+
+- **[A] Hardware pre-flight** (read-only, no changes made): Re-scans actual hardware and diffs against the embedded `hardware-profile.json` — disk IDs, NIC names/MACs, RAM vs disposition minimums, no conflicting pool or bridge names, conflict re-check vs manifest. A mismatch generates a failure package with a diff and exits; nothing is written to the host. On pass, proceeds to [B].
+
+- **[B] Host configuration:** Sets hostname and `/etc/hosts`, writes bridge definitions, runs `ifreload -a`, creates the ZFS pool (topology from plan, disk IDs confirmed by pre-flight), registers the Proxmox datastore with `pvesm add`, and configures apt repos. After this phase: bridges exist, storage is registered, hostname is correct.
+
+**phase-01** `pvecm add` → joins Proxmox cluster.
+
+**VM Provisioning** (only VMs declared by disposition):
+
+- **phase-02** `tofu apply` — only disposition-selected VM roles provisioned
+- **phase-03** Cloud-Init snippets installed → VMs started → first-boot runs
+
+**Cluster join:**
+
+- **phase-04** k3s join — worker role always; server role only if disposition includes control-plane and hardware pre-flight confirmed it fits
+- **phase-05** [conditional] etcd HA promotion if this is the 3rd server node
+- **phase-06** Verify: cluster health, all disposition VMs running, no IP conflicts
+
+After phase-06, everything is automatic: Flux CD schedules only workloads matching this node's disposition labels and taints; the Assessment Engine scores the broodling only against its declared disposition; the Doc Engine regenerates the topology showing the broodling's role in the cluster.
 
 Any phase failure generates a failure package automatically.
 
@@ -1036,7 +1015,7 @@ human-required decision. All other components in the run continue.
 **Failure exposure — never silent:**
 
 ```
-[BACKUP RUN 2026-06-01 03:00 UTC]
+[BACKUP RUN 2026-06-01_03-00_00_UTC]
   layer: config-state
     destination 1 (/mnt/backup-drive):  ✓ 847 MB  verified
     destination 2 (b2:cell-backup):     ✗ FAILED — connection timeout after 30s
@@ -1044,7 +1023,7 @@ human-required decision. All other components in the run continue.
   result: PARTIAL — 2/3 destinations succeeded
   WARNING: destination 2 has failed 3 consecutive runs — investigate B2 connectivity
 
-[BACKUP RUN 2026-06-02 03:00 UTC]
+[BACKUP RUN 2026-06-02_03-00_00_UTC]
   layer: config-state
     ALL 3 DESTINATIONS FAILED — RED GAP LOGGED
     Assessment engine will surface this at next run
@@ -1070,10 +1049,10 @@ immediately readable from its name alone — no metadata lookup required.
 
 **KeePass database file copies** (rclone, no restic layer):
 ```
-kdbx_{cell_id}_{YYYY-MM-DD_HH_MM_SS}_{hash8}.kdbx
+kdbx_{cell_id}_{YYYY-MM-DD_HH-MM_SS_TZ}_{hash8}.kdbx
 
 Examples:
-  kdbx_proxmox-cell-a_2026-06-01_03_00_00_a3f2b891.kdbx
+  kdbx_proxmox-cell-a_2026-06-01_03-00_00_UTC_a3f2b891.kdbx
 ```
 `{hash8}` = first 8 hex characters of the SHA-256 of the `.kdbx` file at backup time.
 Changes whenever the database changes; confirms which version of the DB was captured.
@@ -1092,10 +1071,10 @@ IDs inside it are the 40-character hex IDs restic assigns internally.
 
 **Snapshot set identifiers** (links all component snapshots from one backup run):
 ```
-{cell_id}_{YYYY-MM-DD_HH_MM_SS}_{run_hash8}
+{cell_id}_{YYYY-MM-DD_HH-MM_SS_TZ}_{run_hash8}
 
 Examples:
-  proxmox-cell-a_2026-06-01_03_00_00_f7c1d3a2
+  proxmox-cell-a_2026-06-01_03-00_00_UTC_f7c1d3a2
 ```
 `{run_hash8}` = first 8 characters of the snapshot_set UUID. Used as the
 `snapshot_set_id` in `backup_history` and as a restic snapshot tag.
@@ -1106,20 +1085,20 @@ cell:{cell_id}
 set:{snapshot_set_id}
 component:{component_prefix}
 layer:{config|appdata}
-run:{YYYY-MM-DD_HH_MM_SS}
+run:{YYYY-MM-DD_HH-MM_SS_TZ}
 ```
 Tags make every snapshot queryable by `restic snapshots --tag component:vm-forgejo-101`
 without needing to open the backup_history JSON.
 
 **KeePass key paths** (per-backup restic repo passwords):
 ```
-Backup/{layer}/{component}/{YYYY-MM-DD_HH_MM_SS}/repo-password
+Backup/{layer}/{component}/{YYYY-MM-DD_HH-MM_SS_TZ}/repo-password
 Backup/{layer}/{component}/current
 
 Examples:
-  Backup/config/vm-forgejo-101/2026-06-01_03_00_00/repo-password
+  Backup/config/vm-forgejo-101/2026-06-01_03-00_00_UTC/repo-password
   Backup/config/vm-forgejo-101/current
-  Backup/appdata/vol-nextcloud-data/2026-06-01_03_00_00/repo-password
+  Backup/appdata/vol-nextcloud-data/2026-06-01_03-00_00_UTC/repo-password
 ```
 
 **Naming is enforced, not suggested.** `setup-backup.py`, `run-backup.py`, and
@@ -1448,8 +1427,8 @@ broodforge/
 - **Metadata YAML files are never generated** — they are the authoritative source
 - **Generated artifacts are never the source of truth** — always regenerate from metadata
 - **`POPULATE:` markers** signal documentation gaps — never silently omit missing data
-- **Filenames:** `YYYY-MM-DD_HH_MM_SS` (UTC, underscores)
-- **Document timestamps:** `YYYY-MM-DD HH:MM:SS UTC (HH:MM:SS MDT)`
+- **Filenames:** `YYYY-MM-DD_HH-MM_SS_TZ` (e.g. `2026-06-01_03-00_00_UTC`)
+- **Document timestamps:** `YYYY-MM-DD HH:MM:SS UTC (HH:MM:SS TZ)`
 
 ---
 
@@ -1482,3 +1461,4 @@ broodforge/
    Resurrection reconstitutes any node through the stargate. The result
    is the same class of auditable, checkpoint-based deployment artifact as the
    initial bootstrap.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                      

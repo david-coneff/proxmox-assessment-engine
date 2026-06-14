@@ -1,0 +1,168 @@
+# version-hash-schema.yaml
+#
+# Canonical specification for the broodforge codebase hash.
+# This file is the authoritative, human- and machine-readable definition of
+# which files are included in the shorthash component of version stamps.
+#
+# Stamp format:  YYYY-MM-DD_HH-MM-SS_<tz>_<shorthash>
+#   where <tz> is the timezone label of the timestamp (e.g. UTC, MST).
+#   This prevents ambiguity when stamps are generated in different timezones.
+#   The canonical generator always uses UTC, producing stamps like:
+#   2026-06-13_20-15-00_UTC_c309a5c8
+# Implementation: proxmox-bootstrap/version_stamp.py
+#
+# The schema itself is a .yaml file and therefore IS included in the hash.
+# Changing inclusion/exclusion rules here changes the hash — intentionally.
+#
+# Self-referential hashing problem and resolution
+# -----------------------------------------------
+# Documentation files (ROADMAP.md, ARCHITECTURE.md, etc.) embed the stamp.
+# If those files were included in the hash, the hash would need to be known
+# before the files could be written, which is circular.  The resolution is to
+# hash only "the codebase being documented" (Python, shell, config, tests)
+# and exclude all documentation files (.md, .html, .pdf, docs/, .ai/, pap/).
+# The hash therefore represents a stable fingerprint of the implementation,
+# independent of how that implementation is described in documentation.
+#
+# Reproducibility
+# ---------------
+# Any tool that implements the rules in this file will produce the same hash
+# for the same tree.  The algorithm is intentionally simple — no normalization
+# beyond sorting by POSIX path — so it can be reimplemented in any language.
+
+schema_version: 1
+
+stamp_format:
+  description: >
+    YYYY-MM-DD_HH-MM-SS_<tz>_<shorthash>
+    where <tz> is the timezone label (e.g. UTC, MST).  The canonical generator
+    uses UTC.  Including the timezone prevents ambiguity when stamps from
+    different timezone contexts are compared.
+  example: "2026-06-13_20-15-00_UTC_c309a5c8"
+  components:
+    date: "YYYY-MM-DD — calendar date in the named timezone"
+    time: "HH-MM-SS — 24-hour time in the named timezone"
+    tz: "timezone label as returned by datetime.tzname() (e.g. UTC, MST, EST)"
+    shorthash: "first 8 hex characters of the codebase SHA-256 (see hash section)"
+
+hash:
+  algorithm: sha256
+  truncate_chars: 8
+  description: >
+    SHA-256 of all included files, first 8 hex characters taken as shorthash.
+
+  entry_encoding:
+    description: >
+      For each included file, in sorted order, feed the following into the
+      running hash digest:
+        1.  The file's relative path from the repository root, encoded as
+            UTF-8, using forward slashes (POSIX) regardless of OS.
+        2.  A single null byte (0x00) as a separator.
+        3.  The raw bytes of the file's contents (no encoding assumed).
+        4.  A single null byte (0x00) as a separator.
+      Repeat for every included file in the sorted sequence, with no reset
+      between files.  The digest is finalized once after all files.
+    sort_order: lexicographic ascending by POSIX relative path
+    path_separator: "/"
+    path_encoding: utf-8
+    content_encoding: raw bytes
+    inter_field_separator: "0x00"
+
+include:
+  # A file must match at least one entry here to be considered for inclusion.
+  # It is then checked against exclude rules; an exclude match removes it.
+  extensions:
+    - ext: ".py"
+      reason: Python modules and scripts — primary implementation language
+    - ext: ".sh"
+      reason: Shell scripts — bootstrap, forge entrypoints, operator tooling
+    - ext: ".yaml"
+      reason: Kubernetes/Helm/Flux manifests, tool config, this schema file
+    - ext: ".yml"
+      reason: Alternative YAML extension (treated identically to .yaml)
+    - ext: ".toml"
+      reason: pyproject.toml and other tool configuration
+    - ext: ".bats"
+      reason: Bash Automated Testing System test scripts
+
+exclude:
+  # Files matching any exclude rule are removed even if they matched include.
+  # Extension checks are case-insensitive.  Directory checks match exact names
+  # of any ancestor directory component in the file's relative path.
+
+  extensions:
+    - ext: ".md"
+      reason: >
+        Markdown documentation — these files embed the stamp and must be
+        excluded to avoid the self-referential hashing problem.
+    - ext: ".html"
+      reason: Rendered HTML companions — derived from .md sources, not codebase.
+    - ext: ".pdf"
+      reason: PDF artifacts — documentation or binary output, not codebase.
+    - ext: ".txt"
+      reason: Plain text files — documentation or notes, not codebase.
+    - ext: ".png"
+      reason: Image assets
+    - ext: ".jpg"
+      reason: Image assets
+    - ext: ".jpeg"
+      reason: Image assets
+    - ext: ".gif"
+      reason: Image assets
+    - ext: ".svg"
+      reason: Vector image assets
+    - ext: ".ico"
+      reason: Icon files
+    - ext: ".zip"
+      reason: Archive artifacts
+    - ext: ".tar"
+      reason: Archive artifacts
+    - ext: ".gz"
+      reason: Compressed archive artifacts
+    - ext: ".bz2"
+      reason: Compressed archive artifacts
+
+  directories:
+    # A file is excluded if any ancestor directory component (from the repo
+    # root down to — but not including — the filename) matches one of these
+    # names exactly.  Matching is case-sensitive.
+    - name: ".git"
+      reason: Version control metadata — not codebase content
+    - name: ".ai"
+      reason: >
+        broodforge meta-docs, charter, project context — documentation files
+        that would cause self-referential hashing if included
+    - name: "pap"
+      reason: PAP framework audit state and documentation
+    - name: "docs"
+      reason: Rendered documentation output — derived, not source
+    - name: "__pycache__"
+      reason: Python bytecode cache — not source
+    - name: ".pytest_cache"
+      reason: pytest cache directory
+    - name: ".mypy_cache"
+      reason: mypy type-checker cache
+    - name: ".ruff_cache"
+      reason: ruff linter cache
+    - name: "node_modules"
+      reason: Node.js dependency tree (if ever present)
+    - name: "chatgpt architecture"
+      reason: Removed draft corpus directory (belt-and-suspenders)
+    - name: "new"
+      reason: Removed draft corpus directory (belt-and-suspenders)
+
+  hidden_directories:
+    description: >
+      Any directory component that begins with "." is also excluded, beyond
+      the explicit list above.  This catches tool caches that may be created
+      in the future without requiring a schema update.
+    rule: "name.startswith('.')"
+
+notes:
+  - >
+    Files with no extension are never included: they match no include.extension
+    entry.  This is intentional — non-extension files in the repo are
+    typically data, lock files, or generated artifacts.
+  - >
+    The exclude.directories check applies to all ancestor directory components,
+    not just the top-level directory.  A 
