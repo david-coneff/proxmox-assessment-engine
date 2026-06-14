@@ -162,13 +162,13 @@
   #bf-drag{flex:0 0 5px;cursor:col-resize;background:var(--border);
     transition:background .1s;z-index:20}
   #bf-drag:hover,#bf-drag.dragging{background:var(--accent)}
-  #bf-notes-pane{flex:0 0 320px;min-width:180px;max-width:60vw;
+  #bf-notes-pane{flex:0 0 320px;min-width:300px;max-width:60vw;
     display:flex;flex-direction:column;
     border-left:1px solid var(--border);background:var(--bg2);overflow:hidden}
   #bf-notes-header{padding:8px 10px 6px;border-bottom:1px solid var(--border);
-    flex:0 0 auto;display:flex;align-items:center;gap:6px}
+    flex:0 0 auto;display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}
   #bf-notes-header span{color:var(--accent);font-size:.82em;font-weight:700;
-    text-transform:uppercase;letter-spacing:.06em;flex:1}
+    text-transform:uppercase;letter-spacing:.06em;flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
   .nts-export-btn{background:var(--btn-bg);color:var(--muted);border:1px solid var(--border);
     border-radius:var(--radius);padding:2px 8px;cursor:pointer;font-size:.72em;
     font-family:inherit;flex-shrink:0}
