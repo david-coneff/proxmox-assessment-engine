@@ -18,3 +18,6 @@ venv/
 .coverage
 commit_recovery.sh
 commit_recovery.ps1
+
+# ChatGPT architecture corpus — synthesized into ARCHITECTURE.md/ROADMAP.md; files kept on disk but not tracked
+chatgpt architecture/
