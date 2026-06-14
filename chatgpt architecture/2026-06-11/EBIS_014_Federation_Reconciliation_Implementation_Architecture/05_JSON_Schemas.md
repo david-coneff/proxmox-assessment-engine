@@ -1,7 +1,0 @@
-Schemas:
-
-FederationMember
-FederationSnapshot
-FederationExchange
-ReconciliationDecision
-Conflict
