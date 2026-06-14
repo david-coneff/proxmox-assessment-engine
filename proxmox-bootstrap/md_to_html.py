@@ -47,7 +47,7 @@ _CSS = """
   :root{--bg:#1a1d23;--bg2:#22262e;--bg3:#2a2f3a;--border:#3a3f4d;--text:#cdd6f4;--muted:#7f8498;
     --accent:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;--orange:#fab387;--red:#f38ba8;
     --code-bg:#181b21;--code-text:#a6e3a1;--radius:6px;--btn-bg:#2a2f3a;--bg2-rgb:34,38,46}
-  body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#d0d7de;--text:#1f2328;--muted:#57606a;
+  body.light{--bg:#ffffff;--bg2:#f4f5f7;--bg3:#eceff2;--border:#b0bac5;--text:#1f2328;--muted:#57606a;
     --accent:#0969da;--green:#1a7f37;--yellow:#9a6700;--orange:#bc4c00;--red:#cf222e;
     --code-bg:#f6f8fa;--code-text:#0a3069;--btn-bg:#eaeef2;--bg2-rgb:244,245,247}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -93,7 +93,10 @@ _CSS = """
     border:1px solid var(--border);border-radius:var(--radius);padding:5px 12px;
     cursor:pointer;font-size:.8em;font-family:inherit}
   #bf-collapse-all:hover,#bf-expand-all:hover{border-color:var(--accent);color:var(--accent)}
-  #bf-section-count{color:var(--muted);font-size:.75em;white-space:nowrap}
+  #bf-section-count{color:var(--muted);font-size:.75em;white-space:nowrap;
+    display:inline-block;text-align:center;font-variant-numeric:tabular-nums;
+    font-family:'Consolas','Cascadia Code','SF Mono','Menlo',monospace;
+    border:1px solid var(--border);border-radius:var(--radius);padding:3px 8px;background:var(--bg2)}
   #bf-toolbar button{background:var(--btn-bg);color:var(--text);border:1px solid var(--border);
     border-radius:var(--radius);padding:5px 12px;cursor:pointer;font-size:.8em;font-family:inherit}
   #bf-toolbar button:hover{border-color:var(--accent);color:var(--accent)}
@@ -734,7 +737,10 @@ _JS = r"""
     if(!sectionCount) return;
     var all=document.querySelectorAll('details.section');
     var open=document.querySelectorAll('details.section[open]');
-    sectionCount.textContent = open.length + ' / ' + all.length + ' open';
+    var totalStr=String(all.length);
+    var openStr=String(open.length);
+    while(openStr.length<totalStr.length) openStr=' '+openStr;
+    sectionCount.textContent = openStr+' / '+totalStr+' open';
   }
   if(collapseAll){ collapseAll.addEventListener('click', function(){
     document.querySelectorAll('details.section').forEach(function(d){ d.removeAttribute('open'); });
@@ -2779,9 +2785,9 @@ def render_html(md: str, title: str, collapsible: bool = False, force_walkthroug
     toolbar += '<button id="bf-download-edits-btn" type="button" title="Download this page with any text edits baked in">\u2b07 Download with Edits</button>'
     toolbar += '<button id="bf-theme-btn" type="button">\u2600 Light</button>'
     if collapsible:
+        toolbar += '<span id="bf-section-count"></span>'
         toolbar += '<button id="bf-collapse-all" type="button">\u229f Collapse All</button>'
         toolbar += '<button id="bf-expand-all" type="button">\u229e Expand All</button>'
-        toolbar += '<span id="bf-section-count"></span>'
     toolbar += '</div></div>'  # close toolbar-end + toolbar-main
     # ── attachments row — always its own line, only in walkthrough docs ──
     if is_walkthrough:
