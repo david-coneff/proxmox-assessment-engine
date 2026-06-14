@@ -20,6 +20,14 @@ collection would require reading the ISO off the host, which is slow and unrelia
 
 ---
 
+## Parameters
+
+@field[Proxmox host IP or hostname|PROXMOX_HOST=192.168.1.10]
+@field[SSH user (default: root)|SSH_USER=root]
+@field[SSH key path (leave blank for default ~./ssh/id_ed25519)|SSH_KEY=]
+
+---
+
 ## Prerequisites
 
 - SSH access to the Proxmox host as `root` (or a user with `qm` and `pvesm` permissions)
@@ -33,30 +41,30 @@ collection would require reading the ISO off the host, which is slow and unrelia
 ### Basic run (auto-detect bootstrap-state.json)
 
 ```bash
-python3 proxmox-bootstrap/collect-tier2.py --host 192.168.1.10
+python3 proxmox-bootstrap/collect-tier2.py --host {{PROXMOX_HOST}}
 ```
 
 ### Dry run — see what would be written without modifying anything
 
 ```bash
-python3 proxmox-bootstrap/collect-tier2.py --host 192.168.1.10 --dry-run
+python3 proxmox-bootstrap/collect-tier2.py --host {{PROXMOX_HOST}} --dry-run
 ```
 
 ### Non-root SSH user
 
 ```bash
 python3 proxmox-bootstrap/collect-tier2.py \
-    --host 192.168.1.10 \
-    --user dave \
-    --key ~/.ssh/proxmox_key
+    --host {{PROXMOX_HOST}} \
+    --user {{SSH_USER}} \
+    --key {{SSH_KEY}}
 ```
 
 ### Explicit state file path
 
 ```bash
 python3 proxmox-bootstrap/collect-tier2.py \
-    --host 192.168.1.10 \
-    --state /path/to/bootstrap-state.json
+    --host {{PROXMOX_HOST}} \
+    --state proxmox-bootstrap/bootstrap-state.json
 ```
 
 ### Verbose (shows raw SSH command output)
@@ -92,8 +100,11 @@ via the provenance recorder in `proxmox-bootstrap/provenance/`.
 ### 1. Verify the output
 
 ```bash
-python3 proxmox-bootstrap/collect-tier2.py --host 192.168.1.10 --dry-run | python3 -m json.tool
+python3 proxmox-bootstrap/collect-tier2.py --host {{PROXMOX_HOST}} --dry-run | python3 -m json.tool
 ```
+
+@radio[Dry-run output looks correct|✓ Entries look right — proceed with live run|✗ Unexpected entries — review before committing]
+@area[Entries that need manual review or correction (from dry-run output)]
 
 ### 2. Fill in manual fields
 
@@ -107,12 +118,20 @@ Open `bootstrap-state.json` and complete:
 - `provenance_records[*].ansible_commit` — git commit of the Ansible run
 - `provenance_records[*].deployed_by` — who provisioned the VM
 
+@check[Manual fields completed|base_images[*].source_url filled in|base_images[*].checksum filled in (from verified ISO download)|base_images[*].included_packages filled in|provenance_records[*].tofu_workspace filled in|provenance_records[*].tofu_commit filled in|provenance_records[*].ansible_commit filled in|provenance_records[*].deployed_by filled in]
+
 ### 3. Commit the updated state
 
+Use `bf-commit` from Windows PowerShell, or commit from the hatchery:
+
 ```bash
-git add proxmox-bootstrap/bootstrap-state.json
-git commit -m "Tier 2 collection run $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+git -C {{broodforge-repo-root-path}} add proxmox-bootstrap/bootstrap-state.json
+git -C {{broodforge-repo-root-path}} commit -m "Tier 2 collection run $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+git -C {{broodforge-repo-root-path}} push
 ```
+
+@field[Number of new entries added (templates / base images / provenance records)]
+@area[Gaps found during collection — entries that required manual correction or could not be auto-populated]
 
 ---
 

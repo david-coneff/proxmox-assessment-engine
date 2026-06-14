@@ -1,13 +1,19 @@
 # Snippet Upload Procedure
 
-Cell: proxmox-cell-a
-
 This document describes how to prepare and upload Cloud-Init snippets to Proxmox
 snippet storage so they can be referenced by VMs via the `cicustom` parameter.
 
 **Network configuration values (gateway, subnet, nameservers, interface) are declared
 once in `bootstrap-state.json` under `network_topology`. Do not edit the
 `snippets/network-config/` files directly — regenerate them instead (Step 1 below).**
+
+---
+
+## Parameters
+
+@field[Proxmox host IP or hostname|PROXMOX_HOST=192.168.1.10]
+@field[Cell identifier|CELL_ID=cell-1]
+@dir[Broodforge repo root path]
 
 ---
 
@@ -28,11 +34,9 @@ If this is a new deployment or you have changed `network_topology` or any VM IP
 in `bootstrap-state.json`, regenerate the network-config snippets before uploading:
 
 ```bash
-# From the proxmox-bootstrap/ directory:
-python3 generate-network-configs.py --bootstrap bootstrap-state.json
-
-# Or from the repository root:
-python3 proxmox-bootstrap/generate-network-configs.py --bootstrap proxmox-bootstrap/bootstrap-state.json
+cd {{broodforge-repo-root-path}}
+python3 proxmox-bootstrap/generate-network-configs.py \
+    --bootstrap proxmox-bootstrap/bootstrap-state.json
 ```
 
 This reads `network_topology` (gateway, CIDR, nameservers, interface) and each VM's
@@ -84,25 +88,24 @@ snippet file. The SSH *private* key remains in KeePass and is never stored here.
 ### Option A — Direct SCP (simplest)
 
 ```bash
+cd {{broodforge-repo-root-path}}
 # Upload all user-data snippets
-scp snippets/user-data/*.yaml root@192.168.1.10:/var/lib/vz/snippets/
+scp snippets/user-data/*.yaml root@{{PROXMOX_HOST}}:/var/lib/vz/snippets/
 
-# Upload all network-config snippets
-scp snippets/network-config/*.yaml root@192.168.1.10:/var/lib/vz/snippets/
+# Upload all network-config snippets (with prefix to avoid name collisions)
+for f in snippets/network-config/*.yaml; do
+  scp "$f" root@{{PROXMOX_HOST}}:/var/lib/vz/snippets/network-config-$(basename "$f")
+done
 
 # Upload vendor-data (infra-bootstrap only)
-scp snippets/vendor-data/proxmox-hooks.yaml root@192.168.1.10:/var/lib/vz/snippets/
+scp snippets/vendor-data/proxmox-hooks.yaml root@{{PROXMOX_HOST}}:/var/lib/vz/snippets/
 ```
 
 ### Option B — Proxmox API (scriptable)
 
 ```bash
-# Authenticate and upload via pvesm
-# Run on the Proxmox host after SSH:
-pvesm path local:snippets
-
 # Or use the Proxmox API:
-curl -X POST https://192.168.1.10:8006/api2/json/nodes/pve01/storage/local/upload \
+curl -X POST https://{{PROXMOX_HOST}}:8006/api2/json/nodes/pve01/storage/local/upload \
   -H "Authorization: PVEAPIToken=root@pam!tofu=<token>" \
   -F "content=snippets" \
   -F "filename=@snippets/user-data/infra-bootstrap.yaml"
@@ -119,7 +122,7 @@ Datacenter → Storage → local → Content → Upload → select file → set 
 After uploading, verify all snippets are present on the Proxmox host:
 
 ```bash
-ssh root@192.168.1.10 ls -la /var/lib/vz/snippets/
+ssh root@{{PROXMOX_HOST}} ls -la /var/lib/vz/snippets/
 ```
 
 Expected output — the following files must be present:
@@ -188,12 +191,16 @@ After uploading, record the SHA-256 hash of each uploaded file in `bootstrap-sta
 under each VM's `cloudinit.user_data_hash` and `cloudinit.network_config_hash` fields.
 
 ```bash
+cd {{broodforge-repo-root-path}}
 sha256sum snippets/user-data/infra-bootstrap.yaml
 sha256sum snippets/network-config/infra-bootstrap.yaml
 ```
 
 These hashes allow the Tier 2 assessment to detect if deployed snippets have drifted
 from the repository versions.
+
+@area[SHA-256 hashes recorded (paste output from sha256sum — one hash per VM pair)]
+@check[Step completion checklist|network-config snippets regenerated (Step 1)|SSH public keys populated (Step 2)|All snippets uploaded to Proxmox (Step 3)|Upload verified on Proxmox host (Step 4)|cicustom references confirmed in VM config (Step 5)|Hashes recorded in bootstrap-state.json (Step 6)]
 
 ---
 

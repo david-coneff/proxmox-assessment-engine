@@ -7,6 +7,28 @@ A broodling is a new Proxmox node that joins the hatchery's cluster via the
 **hatchery process**. This runbook covers end-to-end spawning: from bare
 hardware → cluster member with declared services running.
 
+Fill in the **Parameters** panel — every command on this page updates live, and each
+**Copy** button copies the resolved command including your actual paths and values.
+
+---
+
+## Before you begin — record broodling identity
+
+@field[Hatchery hostname (where you run spawn-planner.py)|HATCHERY=pve01]
+@field[Broodling hostname (new node being added)|BROODLING=pve02]
+@field[Broodling LAN IP|BROODLING_IP=192.168.1.15]
+@field[Cell identifier|CELL_ID=cell-1]
+
+---
+
+## Working directory
+
+@dir[Broodforge repo / hatchery working directory]
+
+```bash
+cd {{broodforge-repo-root-path}}
+```
+
 ---
 
 ## Overview
@@ -118,21 +140,21 @@ of the following must be in place on the **hatchery**:
 Run from the hatchery. Produces `hardware-profile-{hostname}.json`.
 
 ```bash
-cd /opt/broodforge/proxmox-bootstrap
+cd {{broodforge-repo-root-path}}
 
 # LAN mode (password-based SSH)
-python3 spawn_hardware_discovery.py \
-    --host 192.168.1.15 \
+python3 proxmox-bootstrap/spawn_hardware_discovery.py \
+    --host {{BROODLING_IP}} \
     --user root \
     --password-prompt \
-    --output hardware-profile-pve02.json
+    --output hardware-profile-{{BROODLING}}.json
 
 # WAN mode (Headscale tailnet — after the broodling has joined via phase-00a)
-python3 spawn_hardware_discovery.py \
+python3 proxmox-bootstrap/spawn_hardware_discovery.py \
     --host 100.64.0.5 \   # tailnet IP
     --user root \
     --password-prompt \
-    --output hardware-profile-pve02.json
+    --output hardware-profile-{{BROODLING}}.json
 ```
 
 > **Note:** `--password-prompt` (and `--password`) use `sshpass` for non-interactive
@@ -173,14 +195,22 @@ python3 spawn_hardware_discovery.py \
 | 4–6   | raidz2 |
 | 7+    | raidz3 |
 
+Record discovery results:
+
+@radio[ZFS topology auto-selected|stripe (1 disk — no redundancy)|mirror (2 disks)|raidz1 (3 disks)|raidz2 (4–6 disks)]
+@field[Hardware profile filename written|hardware-profile-{{BROODLING}}.json]
+@field[Available RAM on broodling (from discovery output)]
+@area[Any hardware warnings printed by the discovery tool]
+
 ---
 
 ## Step 2 — Run Spawn Planner
 
 ```bash
-python3 spawn-planner.py \
-    --state bootstrap-state.json \
-    --hardware hardware-profile-pve02.json
+cd {{broodforge-repo-root-path}}
+python3 proxmox-bootstrap/spawn-planner.py \
+    --state proxmox-bootstrap/bootstrap-state.json \
+    --hardware hardware-profile-{{BROODLING}}.json
 ```
 
 The planner walks through three steps interactively:
@@ -297,27 +327,44 @@ Proxmox cluster membership, k3s worker node, assessment visibility.
 - `storage.disk_ids` — confirm these are the correct physical disks.
 - `k3s.role` — worker (default) or server (HA promotion if 3rd server node).
 
+Record the planner decisions:
+
+@radio[Network mode selected|LAN — direct SSH|WAN — Headscale tailnet]
+@radio[Execution mode selected|Autonomous (services locked in now)|Interactive (service menu at runtime)]
+@radio[k3s role assigned|worker|server (HA promotion — 3rd server node)]
+@field[Services included in disposition (from spawn-plan.json)]
+@area[Services excluded and reasons (from disposition.excluded)]
+@field[VMID block allocated (from spawn-plan.json vms[])]
+@field[IP addresses allocated]
+
 ---
 
 ## Step 3 — Generate Spawn Package
 
+To embed the KeePass database in the package for offline recovery, record the path here first:
+
+@filename[KeePass database path (optional — leave blank to skip embedding)]
+
 ```bash
-python3 assemble-spawn-package.py \
-    --plan spawn-plan-pve02.json \
-    --state bootstrap-state.json \
-    [--kdbx /path/to/vault.kdbx]  # optional — embed KeePass DB in package
+cd {{broodforge-repo-root-path}}
+python3 proxmox-bootstrap/assemble-spawn-package.py \
+    --plan spawn-plan-{{BROODLING}}.json \
+    --state proxmox-bootstrap/bootstrap-state.json \
+    --kdbx {{KDBX=}}
 ```
 
-Output: `spawn-package-cell-alpha-pve02-2026-06-01_12_00_00.tar.gz`
+Omit `--kdbx {{KDBX=}}` if you left the KeePass path blank above.
 
-Record this spawn for your records (use **Export**, top-right, to save these notes
-plus any attached logs/output as a timestamped package):
+The assembler prints the package path and its SHA-256. **Paste the full assembler
+output into the field below** — the filename and hash will be extracted automatically.
 
-@field[Broodling hostname]
-@field[Spawn package filename]
-@field[Package SHA-256 (printed by the assembler)]
-@field[Allocated VMIDs / IPs (from spawn-plan.json)]
-@area[Per-phase notes on the broodling: pre-flight result, any failures, deviations]
+@parse[Paste assembler output here — extracts spawn package filename|Package written:\s*(\S+\.tar\.gz)|spawn-package-filename]
+@parse[Paste assembler output here — extracts SHA-256|SHA-256:\s*([0-9a-f]{64})|spawn-package-sha256]
+
+Then record (or override) the extracted values:
+
+@filename[Spawn package filename|spawn-package-{{CELL_ID}}-{{BROODLING}}-{{STAMP}}]
+@field[Package SHA-256]
 
 **Package contents:**
 ```
@@ -353,17 +400,19 @@ password at the gate — it cannot auto-unlock.
 ## Step 4 — Copy Package to Broodling
 
 ```bash
-scp spawn-package-cell-alpha-pve02-2026-06-01_12_00_00.tar.gz \
-    root@192.168.1.15:/root/
+scp {{note:spawn-package-filename}} root@{{BROODLING_IP}}:/root/
 
-# SSH in to verify
-ssh root@192.168.1.15 "ls -lh /root/*.tar.gz"
+# Verify on the broodling
+ssh root@{{BROODLING_IP}} "sha256sum /root/{{note:spawn-package-filename}}"
 ```
 
-If the KeePass database is **not** embedded in the package, copy it separately
-to the broodling at an agreed path (e.g. `/root/vault.kdbx` or USB mount):
+Compare the SHA-256 above against the value recorded in Step 3.
+
+@radio[Integrity check result|✓ Hashes match — proceed|✗ Hashes differ — do not proceed, re-copy package]
+
+If the KeePass database is **not** embedded in the package, copy it separately:
 ```bash
-scp /path/to/vault.kdbx root@192.168.1.15:/root/vault.kdbx
+scp {{KDBX=}} root@{{BROODLING_IP}}:/root/vault.kdbx
 ```
 
 ---
@@ -373,11 +422,11 @@ scp /path/to/vault.kdbx root@192.168.1.15:/root/vault.kdbx
 SSH to the broodling and extract + run:
 
 ```bash
-ssh root@192.168.1.15
+ssh root@{{BROODLING_IP}}
 
 cd /root
-tar -xzf spawn-package-cell-alpha-pve02-2026-06-01_12_00_00.tar.gz
-cd spawn-package-cell-alpha-pve02-2026-06-01_12_00_00/
+tar -xzf {{note:spawn-package-filename}}
+cd $(basename {{note:spawn-package-filename}} .tar.gz)/
 bash spawn.sh
 ```
 
@@ -441,6 +490,15 @@ hatchery operator to regenerate the spawn package.
 | phase-05-ha (if present) | 5–10 min | etcd migration quiesces cluster briefly |
 | phase-06-verify | < 2 min | Health checks |
 
+### Per-phase outcome tracking
+
+Record actual completion time and any deviations for each phase:
+
+@table[Per-phase actual times and notes|Phase|Actual completion time|Deviations / observations](phase-00-preflight,phase-00-host,phase-01-proxmox,phase-02-vms,phase-03-cloudinit,phase-04-k3s,phase-05-ha (if present),phase-06-verify)
+
+@radio[Overall spawn execution result|✓ All phases completed on first run|↺ Some phases required retry — see table|✗ Spawn halted — unresolved failure]
+@field[Total spawn execution time (wall clock)]
+
 ### phase-06-verify Output (Success)
 
 ```
@@ -469,28 +527,24 @@ is running `hatchery_receiver.py`, it processes the event and updates
 **Manual fallback** (when the hatchery receiver is not reachable):
 
 ```bash
+cd {{broodforge-repo-root-path}}
 python3 proxmox-bootstrap/update_state_after_spawn.py \
     --state proxmox-bootstrap/bootstrap-state.json \
-    --plan spawn-plan-pve02.json \
-    --hardware hardware-profile-pve02.json \
+    --plan spawn-plan-{{BROODLING}}.json \
+    --hardware hardware-profile-{{BROODLING}}.json \
     --spawned-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
-This merges:
-- New VMs (VMIDs 200, 201) into `vms[]`
-- DNS entries for broodling and VMs into `dns_registry[]`
-- Provenance records for new VMs into `provenance_records[]`
-- Spawn event (hostname, services, timestamp) prepended to `spawn_history[]`
+This merges the new broodling VMs, DNS entries, provenance records, and spawn event
+into `bootstrap-state.json`. Then commit:
 
-Commit the updated state to Forgejo:
 ```bash
-git -C /opt/broodforge add proxmox-bootstrap/bootstrap-state.json
-git -C /opt/broodforge commit -m "spawn: pve02 joined — k3s-worker, longhorn"
-git -C /opt/broodforge push
+git -C {{broodforge-repo-root-path}} add proxmox-bootstrap/bootstrap-state.json
+git -C {{broodforge-repo-root-path}} commit -m "spawn: {{BROODLING}} joined"
+git -C {{broodforge-repo-root-path}} push
 ```
 
-The Forgejo webhook triggers the Assessment Engine to reassess the expanded
-cluster automatically.
+@radio[State update method used|Automatic — hatchery receiver handled it|Manual — ran update_state_after_spawn.py|Manual — committed state update via bf-commit]
 
 ---
 
@@ -502,18 +556,26 @@ kubectl get nodes -o wide
 
 # Expected:
 NAME           STATUS   ROLES    AGE
-pve01          Ready    master   30d
-pve02          Ready    worker   2m
+{{HATCHERY}}          Ready    master   30d
+{{BROODLING}}          Ready    worker   2m
 
 # Proxmox Datacenter:
 pvecm nodes
-# Should show both pve01 and pve02
+# Should show both {{HATCHERY}} and {{BROODLING}}
 
 # Assessment Engine:
 python3 doc-gen/engine.py --mode bootstrap \
-    --manifest bootstrap-state.json
+    --manifest proxmox-bootstrap/bootstrap-state.json
 # Readiness score should be GREEN or improve
 ```
+
+@radio[Broodling shows Ready in kubectl get nodes|✓ Yes — joined successfully|✗ No — check spawn phase-04 and k3s logs]
+@field[Broodling node name and STATUS from kubectl output]
+@radio[pvecm nodes shows both hosts|✓ Yes — Proxmox cluster intact|✗ No — check pvecm join logs from phase-01]
+@radio[Assessment Engine result after spawn|GREEN — improved or maintained|ORANGE — minor new findings|RED — new blocking findings]
+@area[Anything that didn't go as expected — unexpected prompts, failures, manual steps]
+
+Use **Export**, top-right, to save this record and any attached logs as a timestamped package.
 
 ---
 

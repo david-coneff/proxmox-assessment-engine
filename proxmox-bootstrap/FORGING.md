@@ -6,6 +6,32 @@ Forging is the process of taking bare Proxmox hardware to a fully operational
 broodforge hatchery using the forge package. This runbook covers the complete
 forge workflow end-to-end.
 
+Fill in the **Parameters** panel — every command on this page updates live, and each
+**Copy** button copies the resolved command including your actual paths and values.
+
+---
+
+## Before you begin — record hatchery identity
+
+Start here. These values are used throughout the runbook and auto-populate commands below.
+
+@field[Cell identifier or codename (e.g. cell-1 or flying-bat)|CELL_ID=cell-1]
+@field[Hatchery hostname (e.g. pve01)|HOSTNAME=pve01]
+@field[Domain (e.g. home.example.com)|DOMAIN=home.example.com]
+@field[Hatchery LAN IP|HATCHERY_IP=192.168.1.10]
+
+---
+
+## Working directory
+
+All commands assume you are in the broodforge repo root. Set this once:
+
+@dir[Broodforge repo root path]
+
+```bash
+cd {{broodforge-repo-root-path}}
+```
+
 ---
 
 ## Prerequisites
@@ -110,6 +136,7 @@ where every forge starts either way.
 On your **workstation**, generate the forge manifest using the interactive planner:
 
 ```bash
+cd {{broodforge-repo-root-path}}
 python3 proxmox-bootstrap/forge-planner.py
 ```
 
@@ -127,48 +154,69 @@ The planner writes `forge-manifest.json` in the current directory.
 cat forge-manifest.json
 ```
 
+Record the key values the planner confirmed:
+
+@radio[Network profile selected|LAN only (no Headscale)|WAN-capable (Headscale + DDNS)|LAN with future WAN upgrade planned]
+@field[Timezone configured]
+@field[Backup destination(s) configured]
+
 ---
 
 ## Step 2 — Assemble the forge package
 
 On your **workstation**, generate the self-contained forge package:
 
+To embed the KeePass database in the package for offline use, record the path here first:
+
+@filename[KeePass database path (optional — leave blank to skip embedding)]
+
 ```bash
-python3 proxmox-bootstrap/assemble-forge-package.py --manifest forge-manifest.json
+cd {{broodforge-repo-root-path}}
+python3 proxmox-bootstrap/assemble-forge-package.py \
+    --manifest forge-manifest.json \
+    --kdbx {{KDBX=}}
 ```
+
+Omit `--kdbx {{KDBX=}}` if you left the KeePass path blank above.
 
 This produces a package in the current directory:
 ```
 forge-package-{cell_id}-{timestamp}.tar.gz
 ```
 
-To embed the KeePass database in the package (convenient for offline use):
-```bash
-python3 proxmox-bootstrap/assemble-forge-package.py \
-    --manifest forge-manifest.json \
-    --kdbx /path/to/keepass.kdbx
-```
-
 **Security note:** The forge package never contains secret values — only KeePass paths
 (references). If you embed the KeePass database, it requires the master password to
 unlock. Without the database, the KeePass gate will prompt for the path at runtime.
+
+The assembler prints the package path and its SHA-256. **Paste the full assembler
+output into the field below** — the filename and hash will be extracted automatically.
+
+@parse[Paste assembler output here — extracts package filename|Package written:\s*(\S+\.tar\.gz)|forge-package-filename]
+@parse[Paste assembler output here — extracts SHA-256|SHA-256:\s*([0-9a-f]{64})|forge-package-sha256]
+
+Then record (or override) the extracted values:
+
+@filename[Forge package filename|forge-package-{{CELL_ID}}-{{STAMP}}]
+@field[Package SHA-256]
 
 ---
 
 ## Step 3 — Copy the forge package to the target host
 
 ```bash
-scp forge-package-*.tar.gz root@<hatchery-ip>:/root/
+cd {{broodforge-repo-root-path}}
+scp {{note:forge-package-filename}} root@{{HATCHERY_IP}}:/root/
 ```
 
-**Verify integrity after transfer.** The assembler prints the package SHA-256
-(`SHA-256: …`) when it finishes Step 2. Confirm the copy on the target host
-matches before extracting:
+**Verify integrity after transfer.** Compare the SHA-256 on the target host against
+the value recorded in Step 2:
 
 ```bash
 # On the target host:
-sha256sum forge-package-*.tar.gz   # compare against the value printed in Step 2
+sha256sum /root/{{note:forge-package-filename}}
 ```
+
+@radio[Integrity check result|✓ Hashes match — proceed|✗ Hashes differ — do not proceed, re-copy package]
 
 ---
 
@@ -178,7 +226,7 @@ On the **target host** (SSH in or use the Proxmox console):
 
 ```bash
 cd /root
-tar xzf forge-package-*.tar.gz
+tar xzf {{note:forge-package-filename}}
 bash forge.sh
 ```
 
@@ -198,6 +246,16 @@ if forge.sh fails or is interrupted, re-run it to resume from where it left off:
 | 06 | `phase-06-gitops.sh` | Flux CD bootstrap → Forgejo |
 | 07 | `phase-07-intelligence.sh` | Assessment + documentation engine init |
 | 08 | `phase-08-verify.sh` | Cluster health check + state commit |
+
+### Per-phase outcome tracking
+
+Record the result of each phase as it completes:
+
+@table[Per-phase completion status|Phase|Started at|Completed at|Result / notes](Phase 00 — Discover,Phase 01 — Plan,Phase 02 — Validate,Phase 03 — Host config,Phase 04 — VMs,Phase 05 — k3s,Phase 06 — Flux CD,Phase 07 — Intelligence,Phase 08 — Verify)
+
+@radio[Overall forge execution result|✓ All phases completed on first run|↺ Some phases required --from resume — see table|✗ Forge halted — unresolved failure]
+@field[Total forge execution time (wall clock)]
+@field[KeePass master password hint / entry path (do not record the password itself)]
 
 ### Resuming after failure
 
@@ -342,22 +400,23 @@ flux get kustomizations
 python3 doc-gen/engine.py --mode bootstrap --manifest proxmox-bootstrap/bootstrap-state.json
 
 # Access Forgejo web UI
-open https://forgejo.{your-domain}
+open https://forgejo.{{DOMAIN}}
 ```
 
 Expected output from `kubectl get nodes`:
 ```
 NAME         STATUS   ROLES                  AGE   VERSION
-pve01-k3s    Ready    control-plane,master   5m    v1.28.x
+{{HOSTNAME}}-k3s    Ready    control-plane,master   5m    v1.28.x
 ```
 
-Record the outcome of this forge for your records (use **Export**, top-right, to save
-these notes + any attached logs as a timestamped package):
+Record the outcome of this forge (use **Export**, top-right, to save these notes and
+any attached logs as a timestamped package):
 
 @field[Hatchery FQDN]
-@field[k3s node status (from kubectl get nodes)]
-@field[Flux reconciliation status (flux get kustomizations)]
-@area[Any phase that needed --from resume, manual steps, or deviations]
+@field[k3s node name and STATUS from kubectl get nodes]
+@field[Flux reconciliation status (from flux get kustomizations)]
+@radio[Assessment engine result|GREEN — all findings resolved|ORANGE — minor findings remain|RED — blocking findings require action]
+@area[Any phase that needed --from resume, manual steps, or deviations from this runbook]
 
 ---
 
