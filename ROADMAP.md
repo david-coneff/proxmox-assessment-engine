@@ -2,7 +2,7 @@
 
 Codebase stamp: `2026-06-13_20-05-27_UTC_c0831145`
 Last updated: 2026-06-13 (phases 1.L–2.J implemented since 2026-06-08;
-Phase 3.A–3.K proposed 2026-06-13.
+Phase 3.A–3.K proposed 2026-06-13; Phase 3.L–3.P proposed 2026-06-15.
 **Phase 1.L** — Static Analysis Self-Audit Integration (AD-062, commit f7446be);
 **Phase 1.M** — Dynamic Analysis Self-Audit Integration (2026-06-09);
 **Phase 1.N** — Migration Infrastructure (AD-065, 2026-06-09);
@@ -557,6 +557,350 @@ Operators use Control Nexus (3.J).  Portal does not expose raw k8s or Proxmox AP
 
 ---
 
+### Phase 3.L — OpenBao Secrets Broker *(proposed)*
+
+**Purpose:** Introduce OpenBao as a machine-facing secrets API layer sitting between
+runtime components and the KeePass credential store.  KeePass remains the
+operator-facing encrypted vault (root of trust, AD-061); OpenBao becomes the
+programmatic API that enforces RBAC, TTL leases, and produces an audit log — all
+the things a CLI call to `keepassxc-cli` cannot provide.  The `child://` reference
+scheme continues to work; only the implementation behind `kdbx_get_child()` changes.
+
+**Topology (AD-074):** OpenBao runs as a systemd service on the Proxmox host (not
+inside k3s).  Rationale: it must be reachable during bootstrap before k3s is up,
+and it governs hypervisor-level secrets that must not depend on a cluster that may
+be down during a recovery.  A single-node OpenBao instance is sufficient; HA is
+deferred until Phase 3.P+ multi-node federation.  Listen address: loopback only
+(`127.0.0.1:8200`); external access proxied through the governance VM's nginx.
+
+**Bootstrap ceremony:** `lib/forge-lib.sh` `forge_openbao_seed()` — a one-time
+seeding function called at the end of the Forging runbook (Phase 1.F).  It reads
+each credential from the KeePass child DBs using the existing `kdbx_get_child()`
+path, then writes each secret into the appropriate OpenBao path using `bao kv put`.
+After seeding, `kdbx_get_child()` is switched to call the OpenBao API; the KeePass
+side becomes read-only backup.  The seeding ceremony must be run under operator
+presence (KeePass gate, AD-065 pattern).
+
+**Auto-unseal (AD-075):** OpenBao sealed state blocks all secret reads.  On
+Proxmox-host restart, a systemd `ExecStartPost` script calls
+`lib/forge-lib.sh` `forge_openbao_unseal()`, which reads the unseal key shard from
+a hardware-bound file (`/etc/broodforge/unseal-shard.enc`) decrypted by the
+Proxmox-host's own SSH host key (using `openssl rsautl`).  The unseal shard itself
+is generated at bootstrap and recorded in the forge-autonomous KeePass DB.
+Threat model: physical access to the host already grants full compromise; the
+unseal-at-boot mechanism adds no new attack surface over the current keepassxc-cli
+approach.  TOTP-based manual unseal remains available as a fallback.
+
+**Policy mapping:**
+- `forge-autonomous` KeePass DB → OpenBao path `secret/autonomous/`; policy
+  `autonomous-policy` allows `read` on `secret/autonomous/*`, `deny` on `write`.
+- `forge-spawn` → `secret/spawn/`; policy `spawn-policy` allows `read/write`
+  for session-scoped spawn credentials only; `deny` on `secret/autonomous/*`.
+- `forge-migrate` → `secret/migrate/`; policy `migrate-policy` allows `read`
+  on `secret/migrate/*` during a migration session; denies everything else.
+  Each policy enforces TTL ≤ 24 h; spawn/migrate leases expire at session end.
+
+**`lib/forge-lib.sh` change:** `kdbx_get_child()` gains a `--via-openbao` flag
+(default once seeded).  Internally it calls `curl -s -H "X-Vault-Token: $BFVAULT_TOKEN"
+http://127.0.0.1:8200/v1/secret/data/<path>` and extracts `.data.data.value`.
+The token is read from `/run/broodforge/openbao-token` (tmpfs, mode 0600),
+written by `forge_openbao_login()` at session start using the AppRole credentials
+stored in `/etc/broodforge/approle-<role>.env`.  Fallback: if OpenBao is
+unreachable, `kdbx_get_child()` falls through to the original `keepassxc-cli` path
+and logs a `WARN_OPENBAO_FALLBACK` event.
+
+**TOTP:** OpenBao's TOTP secrets engine (`totp/`) can replace `kdbx_totp()` for
+services whose TOTP secret is already seeded into OpenBao.  The `kdbx_totp()`
+function in `forge-lib.sh` gains a parallel `forge_openbao_totp()` path.  This is
+a non-breaking change; operators may migrate TOTP secrets to OpenBao incrementally.
+
+**Key rotation:** `forge_rotate_secret()` in `lib/forge-lib.sh` writes a new value
+to the OpenBao KV path, increments the KV version, and records the rotation as a
+`SecretRotationRecord` published to the EventBus (Phase 3.A) and covered by the
+Governance Integrity Chain (Phase 3.I).  The old KeePass DB entry is updated
+simultaneously using `keepassxc-cli edit` to keep both stores in sync.
+
+**Files to create/modify:**
+- `lib/forge-lib.sh` — `kdbx_get_child()` + `forge_openbao_seed()` + `forge_openbao_unseal()` + `forge_openbao_login()` + `forge_openbao_totp()`
+- `proxmox-bootstrap/openbao/install-openbao.sh` — download, verify, install systemd unit
+- `proxmox-bootstrap/openbao/openbao-policies/` — `autonomous-policy.hcl`, `spawn-policy.hcl`, `migrate-policy.hcl`
+- `proxmox-bootstrap/openbao/openbao-unseal.sh` — boot-time unseal helper
+- `docs/OPENBAO-SETUP.md` + `docs/OPENBAO-SETUP.html` — operator walkthrough (add to doc-manifest.json)
+- Tests: `tests/test_openbao_broker.py` (~20 unit tests covering seed, login, get, rotate, fallback)
+
+**Dependencies:** Phase 3.H (Secrets & Trust Brokerage) — 3.L is the concrete
+OpenBao backend for the abstract `SecretsBroker` defined in 3.H.  Integrates with
+Phase 3.I (Governance Integrity Chain) for rotation audit records.
+
+**Operator decisions required:**
+- Confirm that loopback-only OpenBao on the Proxmox host is the right topology
+  (alternative: run in a dedicated governance LXC).
+- Choose unseal-shard encryption: SSH host key (current plan) vs. a TPM-backed
+  sealing (more secure but requires TPM 2.0 hardware confirmation).
+- Confirm whether forge-autonomous credentials should be seeded into OpenBao at all,
+  or whether autonomous-mode scripts should continue to call KeePass directly.
+
+---
+
+### Phase 3.M — In-Page Markdown Source Editor *(proposed)*
+
+**Purpose:** Allow operators reading a generated HTML doc to edit the markdown
+source without leaving the browser or opening a separate tool.  The editor is
+embedded in every generated HTML page.  Clicking "✎ Edit Source" in the toolbar
+exposes the raw markdown in a full-width textarea; "Save & Regenerate" POSTs the
+edited source to `broodforge_dashboard.py`, which writes the `.md` file and
+re-runs `regenerate_docs.py --id=<id>`.  This is distinct from the existing
+per-paragraph inline HTML editor (✎ per paragraph) which edits rendered HTML
+in-place but does not touch the source file.
+
+**Tier A (no dashboard dependency):**
+- `md_to_html.py` `render_html()`: embed the raw markdown source as a JS constant
+  `const MD_SOURCE = \`...\`` in the generated `<script>` block.  The backticks in
+  the markdown must be escaped (`\\\`` for literal backtick in the template string).
+- Toolbar (already rendered as a fixed `<div id="bf-toolbar">` in `md_to_html.py`):
+  add an "✎ Edit Source" `<button id="bf-edit-source-toggle">` after the existing
+  collapse/expand buttons.
+- Editor pane: a `<div id="bf-source-editor" hidden>` containing a `<textarea
+  id="bf-source-ta" spellcheck="false">` pre-filled from `MD_SOURCE`.  Full-width,
+  monospace, `min-height: 60vh`.  A "⬇ Download .md" `<a>` link created via
+  `URL.createObjectURL(new Blob([MD_SOURCE]))` is always available.
+- Lint pass: on `input` event, scan the textarea line-by-line for unknown `@`
+  directives (anything not in the known set: `field`, `area`, `credential`, `radio`,
+  `check`, `select`, `dir`, `table`, `parse`, `filename`, `totp-qr`) and for
+  malformed `@credential[...]` refs missing the `|VAR` portion.  Highlight
+  offending lines by wrapping the textarea with an `<ol class="bf-lint-gutter">`.
+  Linting is pure JS, no external dependency.
+- No CDN dependency: all JS is inline in the generated HTML (anti-pattern rule).
+
+**Tier B (dashboard integration):**
+- `broodforge_dashboard.py`: add Flask route `POST /api/docs/edit` accepting JSON
+  `{"id": "<doc-id>", "source": "<raw-markdown>"}`  .  The handler looks up the doc
+  entry in `proxmox-bootstrap/doc-manifest.json` by `id`, resolves the `source`
+  path relative to the repo root, writes the markdown, then spawns
+  `python3 proxmox-bootstrap/regenerate_docs.py --id=<id>` as a subprocess.
+  Returns `{"status": "ok"}` on success, `{"status": "error", "message": "..."}` on
+  failure.  Requires the dashboard to be running locally (the page already relies on
+  the dashboard for session-notes, so this is not a new dependency).
+- "Save & Regenerate" `<button id="bf-source-save">` in the editor pane: POST to
+  `http://localhost:<DASHBOARD_PORT>/api/docs/edit`, show a spinner, then
+  `location.reload()` on success or display the error message in a `<div
+  class="bf-source-error">`.
+- `regenerate_docs.py`: add `--id=<id>` flag that regenerates only the single
+  doc with that manifest id (faster than full rebuild).
+- The dashboard port is embedded as `const DASHBOARD_PORT = <port>;` in the
+  generated HTML (already done for session-notes endpoint).
+
+**Files to create/modify:**
+- `proxmox-bootstrap/md_to_html.py` — `render_html()`: embed `MD_SOURCE`, add
+  toolbar button, editor pane HTML, lint JS, Tier B save logic (~150 lines added to
+  the inline JS block).
+- `proxmox-bootstrap/regenerate_docs.py` — add `--id=<id>` argument.
+- `proxmox-bootstrap/broodforge_dashboard.py` — add `/api/docs/edit` route.
+- `docs/ABOUT-DOCS.md` — add section documenting the source editor.
+
+**Operator decisions required:**
+- Confirm Tier A is useful standalone (download-only, no auto-regen) before
+  implementing Tier B.
+- Decide whether "Save & Regenerate" should also run `git add` + `git commit`
+  automatically (convenient but risky if the operator makes a syntax error; safer
+  to leave committing manual).
+
+---
+
+### Phase 3.N — TOTP QR Code in HTML Pages *(proposed)*
+
+**Purpose:** Walkthrough docs that set up TOTP-protected services need a scannable
+QR code so the operator can scan-to-add in an authenticator app without typing a
+base32 secret manually.  The TOTP secret must not be hardcoded in the HTML (which
+lands in git); instead it is drawn from the `@credential` field the operator has
+already filled in for that secret.
+
+**New directive:** `@totp-qr[Service Name|TOTP_VAR|account@example.com]`
+- Renders a `<div class="bf-totp-qr-block">` containing:
+  - A `<canvas id="bf-totp-qr-{slug}" width="200" height="200">` (QR render target)
+  - A `<p class="bf-totp-qr-hint">Scan with your authenticator app</p>`
+  - A `<button class="bf-totp-peek-btn" data-for="{slug}">Show secret</button>` that
+    toggles a `<span class="bf-totp-peek-text">` with the base32 value (for copy-paste)
+  - The canvas starts blank; it is rendered when the referenced credential field is
+    non-empty.
+- Parser addition in `md_to_html.py` `_render_blocks()`: add `@totp-qr` to the
+  directive-matching block (alongside `@credential`, `@field`, etc.) at line ~2640.
+  The three arguments are: display name (issuer), the credential variable name
+  (must match an `@credential[...|VAR]` in the same doc), and the account name for
+  the `otpauth://` URI.
+
+**QR generation (AD-077):** Inline a compact pure-JS QR encoder.  The chosen
+library is a minimised port of Kazuhiko Arase's `qrcode-generator` (~6 KB
+minified).  It is pasted verbatim into the generated HTML's `<script>` block
+(inside the existing large inline script in `md_to_html.py`).  No CDN fetch.
+The `otpauth://` URI is constructed as:
+`otpauth://totp/<issuer>%3A<account>?secret=<BASE32>&issuer=<issuer>&algorithm=SHA1&digits=6&period=30`.
+
+**Credential field integration:** The existing `@credential` directive fires a
+`credential-changed` custom event (dispatched by the `cred-input` handler in the
+inline JS).  The `@totp-qr` block listens for this event on the matching variable
+name, rebuilds the `otpauth://` URI, and re-renders the canvas via the QR library's
+`qrcode()` function.  If the field is cleared, the canvas is blanked.
+
+**Print safety:** The QR `<canvas>` block has CSS `background:#fff; padding:8px;`
+applied unconditionally (not via CSS custom property) so it remains white even in
+dark mode.  Minimum canvas size: 200×200 px (enforced in the directive renderer).
+The `<div class="bf-totp-qr-block">` has `page-break-inside: avoid` for print.
+
+**Files to create/modify:**
+- `proxmox-bootstrap/md_to_html.py` — add `@totp-qr` directive parser in
+  `_render_blocks()`, render the HTML block, add QR library JS (~6 KB) and
+  event-listener wiring to the inline `<script>`.
+- Any existing `.md` doc that has a TOTP credential setup step can adopt the new
+  directive; no forced migration required.
+- Tests: add `test_totp_qr_directive` in `tests/test_md_to_html.py` — verify the
+  canvas element is rendered, the credential slug is wired correctly, and that the
+  `otpauth://` URI template is well-formed for known inputs.
+
+**Operator decisions required:**
+- Confirm the `qrcode-generator` JS library is acceptable (MIT licensed, ~6 KB).
+  Alternative: write a minimal QR encoder from scratch (~15 KB but zero dependency).
+- Confirm the `account` field in `@totp-qr[Service|VAR|account]` is the right
+  third argument (vs. auto-deriving it from the `@field[Username|...]` field in the
+  same doc).
+
+---
+
+### Phase 3.O — TOC Tiered Numbering *(proposed)*
+
+**Purpose:** Replace the current flat h2-only Table of Contents with a
+full-hierarchy numbered TOC that mirrors the collapsible section tree, highlights
+the currently-visible section, and optionally prefixes section headings with their
+numeric badge.
+
+**Current state (from `md_to_html.py` lines 2869–2982):**
+- `_render_blocks()` parses `#{1,4}` headings; only `level == 2` entries are
+  appended to the `toc` list (line 2879).
+- `render_html()` builds a flat `<ol>` from the h2-only entries (lines 2973–2981).
+- CSS: `#bf-toc ol { list-style: decimal }` — single-level decimal numbering.
+- No IntersectionObserver; no active-link highlighting.
+
+**New TOC structure (AD-078):**
+- `_render_blocks()`: capture h2, h3, and h4 into the `toc` list (remove the
+  `if level == 2:` guard; pass all levels ≤ 4).  The `toc` list entry becomes
+  `(hid, raw_title, level)` — already the existing schema, no format change.
+- `render_html()`: build nested `<ul>` instead of flat `<ol>`.  Walk the
+  `toc_entries` list, maintaining a stack of open `<ul>` elements.  On each entry:
+  - If `level > current_depth`: open a new `<ul class="bf-toc-L{level}">`.
+  - If `level < current_depth`: close `</ul>` until depths match.
+  - Emit `<li data-hid="{hid}"><a href="#{hid}">{title}</a></li>`.
+  A JS function `bf_assign_toc_numbers()` post-processes the rendered `<ul>` tree:
+  it walks each `<li>` in DFS order, maintains a counter per depth, and prepends a
+  `<span class="bf-toc-num">1.2.3</span>` to each `<a>` element.  This keeps the
+  numbering logic in JS (one place) rather than duplicating it in Python.
+
+**IntersectionObserver:** An inline JS block (added to the existing large `<script>`
+in `md_to_html.py`) instantiates a single `IntersectionObserver` with
+`rootMargin: "-10% 0px -80% 0px"` (fires when a section's `<summary>` enters the
+top 10–20% viewport band).  On intersection, the observer:
+1. Removes `bf-toc-active` from all TOC `<li>` elements.
+2. Reads the `data-hid` attribute of the intersecting `<summary>`'s parent
+   `<details>` and adds `bf-toc-active` to the matching `<li data-hid="...">`.
+CSS: `#bf-toc li.bf-toc-active > a { font-weight: 600; color: var(--accent-strong); }`.
+
+**Heading number badge:** A CSS-only approach using `counter-reset` / `counter-increment`
+on `details.section > summary` and `details.subsection > summary` can produce
+`::before` content like `1.2 `.  Because the counters must reset on `<details>`
+open/close, a hybrid JS approach is preferred: `bf_assign_toc_numbers()` also writes
+`data-sec-num="1.2.3"` attributes on each `<details>` element; CSS
+`details[data-sec-num] > summary::before { content: attr(data-sec-num) " "; }`
+renders the badge inline.  The badge is styled with `opacity: 0.45; font-size: .8em`
+so it doesn't compete visually with the heading text.
+
+**Collapsible TOC tiers:** The `<details id="bf-toc">` wrapper already makes the
+whole TOC collapsible.  Sub-tiers (h3/h4 groups) can be wrapped in `<details
+class="bf-toc-sub">` elements inside the TOC `<ul>`, but this adds complexity.
+Simpler: use CSS `#bf-toc .bf-toc-L3, #bf-toc .bf-toc-L4 { padding-left: 1.2em; }`
+for visual nesting without DOM-level collapsibility on sub-tiers.  Defer
+sub-tier `<details>` until a future revision if operator feedback requests it.
+
+**Files to create/modify:**
+- `proxmox-bootstrap/md_to_html.py`:
+  - `_render_blocks()` line 2879: remove `if level == 2:` guard; capture all levels.
+  - `render_html()` lines 2972–2982: replace flat `<ol>` builder with nested `<ul>`
+    builder (stack-based, ~20 lines of Python).
+  - Inline `<script>`: add `bf_assign_toc_numbers()` (~30 lines JS) and
+    IntersectionObserver block (~25 lines JS).
+  - CSS block (line 448–458): update `#bf-toc` styles; add `.bf-toc-L3`,
+    `.bf-toc-L4`, `.bf-toc-active`, `details[data-sec-num] > summary::before`.
+- Tests: `tests/test_md_to_html.py` — verify h3/h4 entries appear in the rendered
+  TOC HTML, verify nested `<ul>` structure for a 3-level heading doc.
+
+**Operator decisions required:**
+- Confirm numeric-only (1.2.3) vs. allowing the operator to choose a numbering
+  style per doc (e.g., suppress numbering on index or short reference docs).
+- Confirm whether the heading number badge on section headers is wanted by default,
+  or opt-in via a `--numbered-headings` CLI flag to `md_to_html.py`.
+
+---
+
+### Phase 3.P — Setup Guide Markdown Migration *(proposed)*
+
+**Purpose:** Migrate `docs/SETUP-GUIDE.html` from hand-authored HTML to a markdown
+source generated by `md_to_html.py`.  Currently `doc-manifest.json` marks this doc
+`"handAuthored": true` with no `source` field.  After migration it will be authored
+as `docs/SETUP-GUIDE.md` and generated like every other doc.
+
+**Why this matters:** The hand-authored HTML cannot use `@field`, `@credential`,
+`@select`, `@check`, or any other schema directives.  It has no inline block editor,
+no session notes, no export-to-markdown, and no automatic TOC.  Migrating it
+unlocks all of those features and ensures it stays consistent with the
+md_to_html.py style standard.
+
+**Migration steps:**
+1. **Audit SETUP-GUIDE.html for schema element opportunities.**  Read the full HTML
+   and identify: (a) command-line values the operator must supply → `@field`;
+   (b) credentials (passwords, API keys, tokens) → `@credential`;
+   (c) step-by-step checklist items → `@check`; (d) choices between alternatives
+   (e.g., DNS provider) → `@select` or `@radio`; (e) directory paths → `@dir`;
+   (f) expected terminal output → `@parse`.  Document each candidate in a migration
+   notes file before writing the `.md`.
+2. **Author `docs/SETUP-GUIDE.md`.**  Structure: each major setup section becomes
+   an `##` heading (→ `<details class="section">`); sub-steps become `###` headings.
+   Every identified schema candidate is replaced with the appropriate directive.
+   Prose is copied verbatim where it needs no transformation.
+3. **Update `proxmox-bootstrap/doc-manifest.json`:**
+   - Add `"source": "docs/SETUP-GUIDE.md"`.
+   - Remove `"handAuthored": true`.
+   - Add `"flags": ["--collapsible"]` (same as all other docs).
+   - Optionally add `"flags": ["--playbook", "--collapsible"]` if the guide is
+     operator-action-sequence rather than reference material.
+4. **Regenerate:** run `python3 proxmox-bootstrap/regenerate_docs.py` (or
+   `--id=setup-guide` once Phase 3.M's `--id` flag is implemented).
+5. **Visual equivalence check:** load both the old and new HTML side-by-side;
+   confirm all sections, commands, and prose are present.  Delete or archive the
+   old hand-authored HTML.
+
+**Schema element migration notes (to be filled during step 1):**
+- Any IP address, hostname, or port the operator must supply → `@field`.
+- SSH private-key path or passphrase → `@credential`.
+- OS choice (Ubuntu vs. Debian vs. Rocky) → `@select` or `@radio`.
+- "Run this command after confirming..." style steps → `@check`.
+- Expected `apt install` output → `@parse` with a success pattern.
+
+**Files to create/modify:**
+- `docs/SETUP-GUIDE.md` — new source file (authored in this phase).
+- `docs/SETUP-GUIDE.html` — regenerated output (replaces hand-authored version).
+- `proxmox-bootstrap/doc-manifest.json` — update entry as described above.
+
+**Dependencies:** Phase 3.M is not required but is strongly recommended first:
+once the source editor is in place, iterating on SETUP-GUIDE.md is much faster
+because the operator can edit in-browser and regenerate without leaving the page.
+
+**Operator decisions required:**
+- Confirm whether the old hand-authored `SETUP-GUIDE.html` should be preserved in
+  `docs/archive/` or simply overwritten by the generated version.
+- Confirm the doc type: `"type": "guide"` (step-by-step reference, no strict
+  sequence) or `"type": "runbook"` (operator-action sequence with `--playbook` flag
+  to enable walkthrough step numbers and progress tracking).
+
+
+
 ## Phases from `new/` corpus analysis *(all proposed phases implemented; deferred items remain out of scope)*
 
 The `new/` directory holds a large proposed-revision corpus (~25 chapters, ~115
@@ -698,7 +1042,7 @@ own "how to analyze me" document) — both still present, untouched.
 
 ### Phase 1.I — Recovery-Readiness Conformance *(implemented — commit 3b32137)*
 
-**Status: implemented — commit 3b32137.** Proposed from the
+**Status: implemented — commit 3b32137.** Promoted from the
 draft sketch below by direct operator decision: *"Recovery-Readiness
 Conformance → Scope as Phase 1.I... Build as additive extensions to existing
 `readiness.py`, `drift.py`, `dependencies.py`, snapshot/provenance store, and
@@ -853,2611 +1197,3 @@ exactly the kind of "implement the spec corpus verbatim" outcome the
 deferral above correctly avoided. The translation table above is deliberately
 phrased as *extensions to existing modules* (`readiness.py`, `drift.py`,
 `dependencies.py`, the snapshot/provenance store, Phase 12 drills) — additive
-scoring fields, one new generated artifact, and a documentation pass — not a
-rewrite.
-
-**This scope was confirmed by direct operator decision on 2026-06-08** — see
-the status block at the top of this section and AD-059.
-
-### Phase 1.J — Hypervisor Recovery: Constrained Accounts and Pre-Generated Spawn Media *(implemented — commit f883540)*
-
-**Status: implemented — commit f883540.** Promoted from the
-draft recommendation below by direct operator decision, which also recorded a
-**firm architectural constraint** ruling out any autonomous pathway that can
-read and wield full root credentials against live hypervisors — see **AD-060**
-in `ARCHITECTURE.md`, which records that constraint and its two narrow,
-explicitly-bounded exceptions (temporary credentials for node spawning and for
-phoenix recovery sessions, both already-established patterns extended, never
-the permanent keystore). The three-part middle path below is **accepted as
-stated** and forms this phase's implementation targets.
-
-**Proposed scope (additive — no autonomous full-root pathway, per AD-060):**
-
-- [x] **Constrained recovery account per hypervisor** — a dedicated,
-      narrowly-scoped account provisioned during forge phase-03 (host config),
-      gated by a forced command (`ForceCommand`/`command=` in
-      `authorized_keys`) limited to a fixed menu of read-only diagnostics and
-      safe operations (status, logs, VM start/stop) — never an arbitrary
-      shell. Because its blast radius is bounded *by construction*, this is
-      the one piece of the recovery surface safe to query autonomously.
-- [x] **Break-glass root — storage annotation, not a new mechanism.**
-      `secret-registry.yaml` already tracks `pve0X-root-password` entries per
-      `host:X`; this item documents/annotates those entries as
-      human-unlock-gated break-glass root, behind the *same* gate that already
-      protects every other secret (AD-042), with **no new autonomous
-      pathway** — functionally "the recovery runbook tells the operator where
-      to find it and they type it themselves."
-- [x] **Pre-generated spawn-media credentials.** Run the existing AD-043
-      passphrase-generation pattern earlier — at image-build time (Phase 1.H)
-      — and embed the result on install media instead of generating it at
-      install time. Requires human authorization before a node installed from
-      such pre-made media is allowed to join the cell — the operator's own
-      proposed safeguard, which slots into the same place the existing
-      autonomous-mode service-selection confirmation already lives (AD-041).
-- [x] **Phoenix package temporary-credential extension.** Per the operator's
-      explicit direction, extend the node-spawning temporary-credential
-      pattern (Cloud-Init: a generated pre-install root passphrase, used only
-      for discovery, discarded the instant the KeePass-managed replacement is
-      installed — already in place) to phoenix recovery packages: a temporary
-      root credential scoped to the phoenix setup session only, with a hard
-      requirement — recorded directly in the generated phoenix runbook — that
-      the operator rotates the credential once the recovery session completes.
-      Scoped as part of the Phase 9 phoenix-package design.
-
-The analysis that produced this scope follows below for reference.
-
-**Source of this analysis:** operator follow-up, 2026-06-07. The operator
-asked for a thorough evaluation of whether broodforge should start
-*permanently* storing each Proxmox host's root password in KeePass —
-reasoning that the hatchery already handles a *temporary* root passphrase
-during spawn discovery (`ARCHITECTURE.md` lines ~159–169: generated
-pre-install, used for SSH-based hardware discovery, discarded the moment
-Cloud-Init installs a KeePass-managed credential), and a permanent version
-would (a) close the gap where a node that boots to Proxmox but fails to bring
-up its VM/k3s layer is currently a dead end requiring physical console access,
-and (b) give broodforge "a genuinely complete keystore of all node root
-passwords," including the ability to autonomously pre-generate credentials for
-future spawns and embed them in install media (gated by human authorization
-before the resulting node is allowed to join — the operator's own proposed
-safeguard).
-
-**The benefit is real; so is the risk, and the risk dominates.** Today, even a
-total compromise of the hatchery or KeePass yields, at worst, operational
-credentials for nodes mid-spawn — a narrow, time-boxed set, because the
-temporary passphrase dies the instant Cloud-Init replaces it. A permanent
-"complete keystore of all node root passwords" converts that same compromise
-into root on *every hypervisor in the cell — the substrate everything else
-runs on*. That is not a difference of degree; it is the difference between
-"compromise the secrets layer" and "own the entire infrastructure,
-permanently, with no expiry to bound the damage." The sharpest form of the
-danger is the one the operator named directly: an *autonomous* execution-
-broker pathway that can read and wield a permanent root password turns any
-bug, misconfiguration, or compromise of *that one pathway* into root on every
-hypervisor at once — a far larger escalation surface than anything that exists
-in broodforge today, and exactly the kind of unbounded autonomous action the
-newly-amended AD-034/AD-040 ("autonomous action is acceptable when bounded by
-safeguards and recoverability," per the F2 resolution recorded earlier today)
-was never meant to license, because root has no boundary by definition.
-
-**Recommended middle path — gets the recovery benefit without the liability:**
-
-1. **Constrained recovery accounts, not root, for the "diagnose a
-   partially-failed node" case.** Provision a dedicated, narrowly-scoped
-   account per hypervisor with a forced command (`ForceCommand` /
-   `command=` in `authorized_keys`) limited to a fixed menu of read-only
-   diagnostics and safe operations (status, logs, VM start/stop) — never an
-   arbitrary shell. Even total compromise of that credential store yields
-   only the fixed command surface, never root. Because its blast radius is
-   bounded *by construction*, this is the one piece that could safely be
-   queried autonomously.
-2. **Full root as break-glass, governed by the gate that already exists.**
-   Where genuine root is unavoidable (e.g., filesystem repair), store it —
-   but behind the *same human-unlock gate* that already protects every other
-   secret in the system (AD-042), with **no new autonomous pathway**. This is
-   functionally "the recovery runbook tells the operator where to find it and
-   they type it themselves" — a storage change, not a privilege change. It
-   delivers the "complete keystore, nothing orphaned" property on a trust
-   boundary that is already trusted, at zero new attack-surface cost.
-3. **Pre-generated spawn-media credentials — adopt as described.** This part
-   of the proposal is sound as stated and cheap to build: it is the existing
-   `AD-043` passphrase-generation pattern, just run earlier and shipped on
-   media instead of typed by an operator at install time. The operator's own
-   proposed safeguard — human authorization required before a node installed
-   from such pre-made media is allowed to join — costs nothing architecturally;
-   it slots into the same place the existing autonomous-mode service-selection
-   confirmation already lives (AD-041).
-
-**The line this sketch recommended broodforge not cross — and which the
-operator has now confirmed as a firm architectural constraint (AD-060):** an
-autonomous pathway that can read and wield full root credentials against live
-hypervisors. Everything else the operator described — the complete keystore,
-pre-generated spawn media, human-gated joining — is reachable through the
-human-unlock gate (for break-glass root) and a constrained-command account
-(for routine diagnostics) without ever building that pathway. **This direction
-was confirmed by direct operator decision on 2026-06-08** — see the status
-block at the top of this section, AD-060, and Phase 1.J's scope, which scopes
-items 1 and 3 above as implementation targets and item 2 as the
-`secret-registry.yaml` / `SecretRegistry` annotation described.
-
-**Enforcement points (AD-060):**
-- `lib/forge-lib.sh`, `forge_keepass_gate()` (line 46): operator-presence gate
-  that must be called in every process/subprocess chain before any `kdbx_get`
-  invocation; persists the session to a 0600 tmpfs file so later sub-phases
-  resume without re-prompting while still requiring the initial human unlock
-- `lib/forge-lib.sh`, `kdbx_get()` (line 94): the only function that reads a
-  secret from KeePass; defined exclusively in operator-initiated package scripts
-  (forge, spawn, phoenix phases) — not present in any autonomous or scheduled path
-- `proxmox-bootstrap/forge_scripts.py`, generated phase-05 and phase-06 scripts:
-  `forge_keepass_gate` called before any `kdbx_get` invocation; k3s join tokens
-  and service passwords only — no hypervisor root credentials are read via
-  `kdbx_get` in any generated script
-- `proxmox-bootstrap/assemble_spawn_package.py` and `proxmox-bootstrap/phoenix_scripts.py`:
-  `forge_keepass_gate` embedded in generated package scripts; credentials accessed
-  are scoped to the spawn/phoenix session (temporary, per AD-060 exceptions)
-- `tests/unit/test_forge_assembler.py`, `test_phase_05_calls_keepass_gate_before_kdbx_get`
-  and `test_phase_06_calls_keepass_gate_before_kdbx_get`: assert gate precedes
-  any `kdbx_get` call in generated phase scripts (text-position enforcement)
-- No `kdbx_get`, `keepassxc-cli`, or KeePass credential access appears in
-  `proxmox-bootstrap/continuous_assessment.py`, `proxmox-bootstrap/run-continuous-assessment.sh`,
-  or `proxmox-bootstrap/setup-continuous-assessment-schedule.sh` — the
-  autonomous/scheduled paths are structurally isolated from credential reads
-
-### Phase 1.K — Granular Secret Access Silos: Vault Hierarchy and User Provisioning *(implemented — commit c750ed6)*
-
-**Status: implemented — commit c750ed6.** Promoted from the
-draft sketch below by direct operator decision, which expanded its scope in
-two ways: (1) higher-tier vaults must include records of the access
-credentials for lower-tier scopes, so a god-mode operator can always recover
-a scoped vault's passphrase from their own vault; and (2) the design must
-include a mechanism for creating users at the VM level and the Proxmox level,
-with default templates corresponding to the proposed scope divisions, each
-provisioned with access to its scoped vault. See **AD-061** in
-`ARCHITECTURE.md` for the architecture-level decision record (vault hierarchy
-+ user provisioning design).
-
-**Proposed scope (additive — no new dependency, no change to the trust-model
-foundations; "god mode" remains the homelab default):**
-
-- [x] **`Role`/`Scope` registry** — a new authoritative YAML (following the
-      existing 10-metadata-file pattern in `data-model/`): each entry names a
-      role, a hierarchical scope expressed as glob patterns over the
-      *existing* `owning_cell`/`required_by` vocabulary in
-      `secret-registry.yaml` (`cell-1/*`, `cell-1/node-1/*`,
-      `cell-1/node-1/vm-3/*`, or by `secret_type`/`required_for` facet), and
-      which humans currently hold that role.
-- [x] **`derive-scoped-vault` generator** — reads the canonical KeePass DB
-      plus the Role/Scope registry and produces a derivative `.kdbx`
-      containing only the entries matching the declared scope, with its own
-      freshly-generated passphrase (reusing `generate_master_password_suggestion()`
-      / EFF passphrase generators, AD-043/AD-052). The canonical "god mode"
-      database remains exactly what it is today.
-- [x] **Vault-of-vaults recordkeeping (operator-directed expansion).** Each
-      derived vault's generated passphrase is itself written as an entry in
-      the *next tier up* (ultimately the canonical god-mode vault), so a
-      higher-tier operator can always recover any lower-tier scoped vault's
-      passphrase from their own vault — generalizing the per-backup
-      unique-secret bookkeeping pattern already established in AD-044.
-- [x] **User-provisioning templates at the VM and Proxmox levels
-      (operator-directed expansion).** Default account templates corresponding
-      to each declared scope tier (e.g., service operator / node sysadmin /
-      god mode), created at forge/spawn time, each provisioned with access to
-      exactly its corresponding scoped vault and nothing beyond it.
-- [x] **Authorization model** — only holders of the canonical vault can mint
-      scoped vaults or scope-tier user templates; true by construction ("you
-      can only derive a scope you can already see the contents of"), matching
-      who is trusted to run `forge-planner.py`/`spawn-planner.py` today.
-- [x] **Revocation = rotate + reissue**, documented up front as an honest
-      non-guarantee (a property of the offline-first model — a derived vault
-      cannot leak ciphertext it never received, arguably a *stronger*
-      guarantee than a layered ACL).
-
-The analysis that produced this scope follows below for reference.
-
-**Source of this analysis:** operator follow-up, 2026-06-07. The operator
-asked whether broodforge could support tiered, hierarchically-scoped secret
-access for *human* operators — e.g., a service operator who can manage their
-service but cannot reach the Proxmox root password, versus a sysadmin with
-"god-mode" access to everything, or to everything within a declared scope (a
-cell, a node, a VM). For the operator's own homelab, single-operator "god
-mode" is and remains the right default — this is explicitly framed as a "for
-a larger org" consideration, not an immediate need.
-
-**The constraint that shapes the design: KeePass/KDBX databases are
-single-master-password — there is no native per-user role layer inside one
-`.kdbx` file.** Building real per-user ACLs would require either (a) an
-external identity-aware secrets broker (Vault-style) — which contradicts
-broodforge's offline-first, stdlib-only, "runs without network access"
-design constraints (`.ai/CURRENT_STATE.md` "Key Design Constraints"; AD-042's
-entire premise is that the KeePass file can be embedded in offline packages
-with no server dependency), or (b) **multiple derived vaults**, each scoped to
-a declared subset of secrets, each with its own independently-generated
-master password, distributed only to the humans who need that scope. (b) is
-the one that fits broodforge's existing architecture with no new dependency
-and no change to its trust-model foundations — it is "more vaults derived
-from the one vault," not "one vault with roles bolted on."
-
-**broodforge already has the data model this needs — it just isn't used for
-this yet.** `proxmox-bootstrap/secret-registry.yaml` (`SecretRegistry`)
-already records, per secret: a stable `id`, a `keepass_path`, an `owning_cell`,
-and a `required_by` list using exactly the hierarchical vocabulary the
-operator described — `host:pve01`, `vm:infra-bootstrap`, etc. — plus
-`secret_type` and `rotation_schedule`. That is, in effect, an undeclared scope
-hierarchy (cell → host/node → vm → service) sitting in the registry today.
-Sketch of what an additive extension could look like:
-
-- **A `Role`/`Scope` registry** (a new authoritative YAML, following the
-  existing 10-metadata-file pattern in `data-model/`): each entry names a
-  role, a hierarchical scope expressed as glob patterns over the *existing*
-  `owning_cell`/`required_by` vocabulary (`cell-1/*`, `cell-1/node-1/*`,
-  `cell-1/node-1/vm-3/*`, or by `secret_type`/`required_for` facet — e.g.,
-  "all `service-credential` entries, no `password`-type host-root entries"),
-  and which humans currently hold that role.
-- **A `derive-scoped-vault` generator**: reads the canonical KeePass DB plus
-  the Role/Scope registry, and produces a derivative `.kdbx` containing
-  *only* the entries whose `secret-registry.yaml` record matches the
-  declared scope — with its own freshly-generated passphrase (reusing the
-  existing `generate_master_password_suggestion()` / EFF passphrase
-  generators, AD-043/AD-052). The canonical "god mode" database remains
-  exactly what it is today — broodforge's default, and the homelab's
-  permanent answer.
-- **Authorization model: only holders of the canonical vault can mint scoped
-  vaults.** This needs no new permission system — "you can only derive a
-  scope you can already see the contents of" is true by construction, and
-  matches who is trusted to run `forge-planner.py`/`spawn-planner.py` today.
-- **Revocation = rotate + reissue**, not real-time access removal — this is
-  an honest *non-guarantee* worth documenting up front (an explicit
-  "boundary," in the vocabulary the formal-proof-series sketch above
-  borrowed): a lost or outdated scoped vault is neutralized by rotating the
-  secrets it contained (generalizing the existing per-backup unique-secret
-  rotation in AD-044) and reissuing a fresh derivative, not by some
-  in-database access-list edit. Static derived vaults cannot support instant
-  kick-out; that is a property of the offline-first model, not a flaw in this
-  design specifically — and arguably a *feature* from a security-properties
-  standpoint: a derived vault literally cannot leak what ciphertext it never
-  received, which is a stronger guarantee than an ACL layered on top of a
-  database the holder already possesses in full.
-
-**What this draft is *not* proposing:** real-time per-user audit logs of
-"who opened which secret when" (would require a broker/network dependency
-broodforge deliberately avoids — though correlating "scoped vault X was used"
-is possible for free, since each derived vault is a distinguishable
-credential), or cryptographic enforcement of scope beyond "the derived vault
-simply does not contain out-of-scope ciphertext" (which, as noted above, is
-arguably the more robust property anyway). Both are named here as explicit
-boundaries, not gaps to be closed later.
-
-**This direction was confirmed by direct operator decision on 2026-06-08** —
-"useful enough to keep on the roadmap for when this stops being a
-single-operator homelab" turned out to be exactly the operator's call, with
-the two expansions (vault-of-vaults recordkeeping, user-provisioning
-templates) folded in. See the status block at the top of this section,
-AD-061, and Phase 1.K's scope above.
-
-### Phase 1.L — Static Analysis Self-Audit Integration *(implemented — commit f7446be)*
-
-**Status: implemented (commit f7446be).** Phase 1.L complete.
-See **AD-062** in `ARCHITECTURE.md` for the architecture-level decision record.
-
-**The gap this names:** Broodforge has extensive runtime assessment (readiness scoring,
-drift detection, remediation pipeline) but no systematic assessment of the *code itself*
-— shell scripts, Python modules, and generated script samples are never automatically
-checked for correctness, security issues, dead code, or test coverage gaps. This phase
-adds a three-tier static analysis pipeline that feeds into the existing remediation
-system rather than creating a separate track.
-
-**Three-tier architecture:**
-
-| Tier | Artifact | Tools | Trigger |
-|---|---|---|---|
-| 1 | `tools/run-static-audit.sh` | shellcheck, ruff, bandit, vulture, detect-secrets, pytest-cov | Manual / CI |
-| 2 | pytest integration | shellcheck via `tests/static/test_shellcheck.py`, ruff + bandit via pyproject.toml | Every `pytest` run |
-| 3 | Dashboard Code Health card | `assess_code_health()` in `continuous_assessment.py`, card in `broodforge_dashboard.py` | Continuous assessment cycle |
-
-**Proposed scope:**
-
-- [x] `tools/run-static-audit.sh` — standalone audit script (Tier 1):
-      shellcheck on all `.sh` files + generated script samples; ruff, bandit, vulture,
-      detect-secrets; pytest with coverage; produces `.audit/static-audit-report.md`;
-      exits non-zero on any HIGH finding.
-- [x] `.audit/` directory with `.gitkeep`; `*.json` and `*-report.md` added to `.gitignore`;
-      `.secrets.baseline` committed (detect-secrets baseline).
-- [x] pytest integration (Tier 2):
-      `pyproject.toml` updated with ruff, bandit, detect-secrets, vulture dev deps and
-      `--cov` default options; `tests/static/test_shellcheck.py` — finds all `.sh` files
-      and runs shellcheck on each (generated scripts tested with minimal test manifests).
-- [x] `assess_code_health()` in `continuous_assessment.py` (Tier 3):
-      returns `CodeHealthScore` dataclass (shellcheck_findings, bandit_high_count,
-      bandit_medium_count, vulture_dead_code_pct, coverage_pct, overall 0-100).
-- [x] `code_health_to_remediation_candidates()` in `continuous_assessment.py`:
-      authoritative conversion from `CodeHealthScore` → remediation candidate dicts;
-      HIGH bandit findings → HIGH candidate, ≥5 shellcheck warnings → MEDIUM candidate.
-      `broodforge_dashboard.py`'s `_code_health_to_remediation_candidates()` delegates
-      here rather than duplicating the logic.
-- [x] "Code Health" card in `broodforge_dashboard.py` alongside existing readiness/drift/
-      dependency cards; HIGH bandit/shellcheck findings surface in remediation pipeline.
-- [x] Tests: `assess_code_health()` unit tests (subprocess mocked), shellcheck test file,
-      dashboard Code Health card rendering test.
-
-**Constraint:** static analysis findings feed into the existing remediation pipeline
-(not a separate system). The `RemediationCandidate` pattern from Phase 26 is reused.
-
-**Out of scope:** cloud-based SAST services, paid tools, SonarQube, Snyk, Veracode,
-GitHub Advanced Security, or any tool requiring a commercial license.
-
-See AD-062 in `ARCHITECTURE.md` for the architecture-level decision record.
-
-### Phase 1.M — Dynamic Analysis Self-Audit Integration *(implemented — 2026-06-09)*
-
-**Status: implemented (2026-06-09).** Extends Phase 1.L with a dynamic analysis tier.
-See **AD-063** in `ARCHITECTURE.md` for the architecture-level decision record.
-
-**What this adds:** Runtime and behavioral verification tools that discover failures
-static analysis cannot — property-based tests (hypothesis), mutation testing (mutmut),
-bash script testing (bats), and coverage-guided fuzzing (atheris fuzz targets).
-
-**Scope implemented:**
-
-- [x] `DynamicHealthScore` dataclass in `continuous_assessment.py`:
-      `hypothesis_failures`, `mutation_score_pct`, `bats_total/passed/failed`,
-      `overall` (0–100, -1 = NOT_IMPLEMENTED), `not_implemented` flag.
-- [x] `assess_dynamic_health()` in `continuous_assessment.py`:
-      detects @given decorators (hypothesis), runs mutmut results parser,
-      runs bats TAP output parser; returns `not_implemented=True` when no
-      dynamic infrastructure exists yet.
-- [x] `_build_dynamic_health_subcard()` in `broodforge_dashboard.py`:
-      renders hypothesis failures, mutation score, bats pass/total in the
-      Code Health dashboard card; handles `not_implemented` state gracefully.
-- [x] `dynamic_health_to_remediation_candidates()` in `continuous_assessment.py`:
-      authoritative conversion from `DynamicHealthScore` → candidate dicts;
-      hypothesis failures → HIGH, low mutation score → HIGH/MEDIUM, bats failures → HIGH.
-      `broodforge_dashboard.py`'s `_code_health_to_remediation_candidates()` merges
-      static + dynamic by delegating to both shared functions. `collect_health_
-      remediation_candidates()` convenience function in `continuous_assessment.py`
-      runs both assessments and returns the merged list in one call.
-- [x] `run_continuous_assessment()` in `continuous_assessment.py` (R7-003):
-      first-class production caller for `collect_health_remediation_candidates()`.
-      Converts findings to `RemediationProposal`s, deduplicates by `{issue_id}:{action_type}`
-      against active (non-terminal) queue entries, and submits new proposals via
-      `add_proposal()`. Returns `{candidates_found, submitted, duplicates_skipped,
-      assessed_at}`. CLI entry point (`__main__`) accepts `--manifest` / `--repo-root`
-      for operator and cron invocation.
-- [x] `proxmox-bootstrap/run-continuous-assessment.sh` — shell wrapper for direct / cron
-      invocation of the assessment loop (cron example in file header).
-- [x] `proxmox-bootstrap/setup-continuous-assessment-schedule.sh` — installs
-      `broodforge-continuous-assessment.service` + `.timer` (every 6 hours, follows the
-      same pattern as `setup-operational-schedule.sh`).
-- [x] deal pre/postcondition contracts on `build_spawn_plan()`,
-      `build_derived_vault_plan()`, and `score_component()`.
-- [x] beartype plugin wired in `conftest.py` (zero new test code needed).
-- [x] `pyproject.toml` dev deps: hypothesis, mutmut, beartype, deal, schemathesis,
-      atheris (Linux-only note); `[tool.mutmut]` config section.
-- [x] Hypothesis property tests in `tests/unit/test_spawn_planner.py`,
-      `tests/unit/test_vault_hierarchy.py`, `tests/unit/test_readiness.py`.
-- [x] `tests/bash/forge_phase_test.bats` — phase script exit code tests with
-      mocked pvesh/kubectl/ssh commands via PATH manipulation.
-- [x] `tests/fuzz/fuzz_manifest.py` and `tests/fuzz/fuzz_spawn_planner.py` —
-      atheris fuzz targets (no-op on non-Linux; importable everywhere).
-- [x] Tests: 51 new tests across dynamic health scoring, dashboard rendering,
-      remediation candidates, hypothesis property tests.
-
-**PAP-AUDIT §6 alignment:** all seven integration steps implemented:
-beartype (conftest.py), deal contracts, hypothesis property tests, mutmut config,
-bats scripts, schemathesis config (openapi.yaml path), atheris fuzz targets.
-
-See AD-063 in `ARCHITECTURE.md` for the full decision record.
-
-### Phase 1.N — Migration Infrastructure *(implemented — 2026-06-09, revised 2026-06-09)*
-
-**Status: implemented (2026-06-09); schema version format revised and phoenix
-gate added (2026-06-09).** Provides the schema versioning and safe state
-migration pathway for broodforge. See **AD-065** in `ARCHITECTURE.md` for the
-architecture-level decision record.
-
-**The gap this names:** As broodforge evolves its `bootstrap-state.json` schema,
-operators need a safe, operator-gated way to apply schema migrations without
-risking data loss or running assessments against partially-migrated state.
-
-**Scope implemented:**
-
-- [x] `proxmox-bootstrap/version.py` — Single source of truth for the package's
-      current schema version. Contains one constant:
-      `SCHEMA_VERSION: str = "2026-06-09_00-00-00_0000000"`. This file is **not
-      edited by hand** — update it by running `bash scripts/forge-stamp-version.sh`.
-- [x] `lib/forge-lib.sh` — Shared operator utility library: `forge_keepass_gate`,
-      `forge_keepass_find_db`, `kdbx_get`. Extracted from the forge package's
-      embedded script pattern so that standalone migration scripts can source it
-      directly from the repo.
-- [x] `scripts/forge-quiesce.sh` — Stops `broodforge-continuous-assessment.timer`
-      and `broodforge-operational-schedule.timer` (via `systemctl stop`), waits up
-      to 30 seconds for any running `.service` instances to complete, and creates
-      `/var/lib/broodforge/migration.lock` with a JSON payload recording
-      `locked_at`, `pid`, and `reason`. Calls `forge_keepass_gate` (AD-065) before
-      any action to enforce operator presence. Exits 1 on failure.
-- [x] `scripts/forge-resume.sh` — Validates that `migration.lock` exists (exits 1
-      if not — prevents accidental out-of-context use), removes it, restarts both
-      timers, and runs a brief health check (`continuous_assessment.py`). Prints
-      "broodforge resumed" on clean exit or "broodforge resumed with health
-      warnings — check dashboard" if the health check exits non-zero.
-- [x] `scripts/forge-migrate.sh` — High-level orchestrator the operator runs.
-      Ceremony order: (0) pre-flight package hash verify (warn, non-fatal);
-      (1) `forge-quiesce.sh`; (2) phoenix recovery package via
-      `forge-phoenix-pack.sh` with operator export prompt; (3) timestamped backup
-      of all `.json` state files and `manifest.toml` in
-      `/var/lib/broodforge/backups/pre-migration-<timestamp>/`; (4)
-      `migration_manager.py`; (5) `forge-resume.sh` on success or backup restore
-      + resume on failure. Supports `--state-dir`, `--migrations-dir`, `--dry-run`,
-      and `--skip-phoenix`.
-- [x] `scripts/forge-phoenix-pack.sh` — Stub wrapper that calls
-      `assemble_phoenix_package.py` to generate a full disaster-recovery export
-      before migration. Currently exits 2 (`FORGE_INCOMPLETE`) until the phoenix
-      assembler gains a standalone "pack current state" CLI. `forge-migrate.sh`
-      handles exit 2 gracefully and continues without a package.
-- [x] `scripts/forge-stamp-version.sh` — Version-stamping ceremony. Accepts an
-      optional `YYYY-MM-DD_HH-MM-SS_<7-char-hash>` argument; if omitted, derives
-      one from the current UTC time and `git rev-parse --short=7 HEAD`. Updates
-      `version.py` and calls `package_verifier.py --stamp` to recompute the
-      descriptor. Run this after **any** package change.
-- [x] `scripts/forge-verify-package.sh` — Thin wrapper around
-      `package_verifier.py --verify`. Prints a human-readable PASS / FAIL / WARN
-      line. Used as a pre-flight step in `forge-migrate.sh`.
-- [x] `proxmox-bootstrap/package_verifier.py` — Deterministic SHA-256 content
-      hash verifier. Hashes all `.py` files under `proxmox-bootstrap/`, `engine/`,
-      and `migrations/`; all `.sh` files under `scripts/` and `lib/`; and
-      `manifest.toml` if present. File list sorted lexicographically for
-      reproducibility. Writes `package-descriptor.json` (`--stamp`) or compares
-      against it (`--verify`). **`package-descriptor.json` is explicitly excluded
-      from the hash** to avoid a circular dependency (the descriptor records the
-      hash of everything else).
-- [x] `proxmox-bootstrap/migration_manager.py` — Schema versioning and migration
-      runner. Reads `CURRENT_SCHEMA_VERSION` from `version.py`. Reads
-      `schema_version` from `bootstrap-state.json` (defaults to `"initial"` if
-      absent). Discovers `migrate_<from>__to__<to>.py` scripts (double-underscore
-      separator) in `migrations/` or `--migrations-dir`, runs them in timestamp
-      order via `importlib`, and appends each result to
-      `/var/lib/broodforge/migration-history.jsonl`. Supports `--state-dir`,
-      `--migrations-dir`, and `--dry-run`.
-- [x] `proxmox-bootstrap/bootstrap_state.py` — Bootstrap-state.json loader with
-      `schema_version` handling. `load_bootstrap_state()` reads the file, validates
-      `schema_version` (format `YYYY-MM-DD_HH-MM-SS_<hash>` or sentinel
-      `"initial"`), and emits a `warnings.warn(UserWarning)` + `logger.warning`
-      if the file is from a newer schema version than `CURRENT_SCHEMA_VERSION`
-      (loaded from `version.py`). Returns a `BootstrapState` dataclass.
-- [x] `migrations/` directory — `README.md` (naming convention, `run(state_dir)`
-      contract, versioning ceremony, phoenix gate docs) and
-      `migrations/migrate_initial__to__2026-06-09_00-00-00_0000000.py` (first
-      real migration: stamps `schema_version: "2026-06-09_00-00-00_0000000"` into
-      `bootstrap-state.json`; idempotent).
-- [x] Tests: `tests/unit/test_migration_manager.py` — full test suite covering
-      `SchemaVersion` parsing and ordering (new timestamp+hash format, `"initial"`
-      sentinel), `discover_migrations()` (double-underscore filenames),
-      `load_migration()`, `read_schema_version()`, `run_migrations()` (nothing-to-do,
-      single migration, multi-migration, failure/halt, dry-run),
-      `append_migration_log()`, the `migrate_initial__to__2026-06-09_00-00-00_0000000`
-      migration script, and `bootstrap_state.py` (schema_version warning, missing
-      file, allow_missing).
-
-**Schema version format:** `YYYY-MM-DD_HH-MM-SS_<7-char-hash>` (e.g.
-`"2026-06-09_14-30-22_a3b4c5d"`).  The special sentinel `"initial"` represents
-state that pre-dates the versioning system and sorts before all real versions.
-Migration filenames use `__to__` (double underscore) as the from/to separator
-to disambiguate the boundary since version strings contain underscores.
-
-**Versioning ceremony:** after any package change, run
-`bash scripts/forge-stamp-version.sh` to update `version.py` and recompute
-`package-descriptor.json`.  Run `bash scripts/forge-verify-package.sh` at any
-time to sanity-check the descriptor.
-
-**AD-065: Migration requires operator presence (KeePass gate in forge-quiesce.sh).
-No autonomous pathway may initiate migration.**
-
-See AD-065 in `ARCHITECTURE.md` for the full decision record.
-
-**Enforcement points (AD-065):**
-- `scripts/forge-quiesce.sh`, line 47: `forge_keepass_gate` call — operator
-  presence required before any timer stop, service drain, or lock-file creation;
-  this is the human-authorization boundary for the migration path
-- `proxmox-bootstrap/migration_manager.py`, `main()` function: lock-file check —
-  refuses to run (exit 1) if `<state_dir>/migration.lock` does not exist; the
-  check fires before migration discovery and before any state file is read or
-  written; `--dry-run` does not bypass this check; error output cites AD-065 and
-  names `forge-quiesce.sh` so operators know what to run
-- `scripts/forge-migrate.sh`, step 1 (line 95): calls `forge-quiesce.sh`
-  unconditionally as the first action; the only documented operator entry point
-  for applying schema migrations
-- `proxmox-bootstrap/continuous_assessment.py` and
-  `proxmox-bootstrap/run-continuous-assessment.sh`: contain no call to
-  `migration_manager.py`, `forge-migrate.sh`, or `forge-quiesce.sh` — the
-  autonomous assessment loop cannot escalate to migration
-- `proxmox-bootstrap/setup-continuous-assessment-schedule.sh`: installs a
-  systemd service that runs only `continuous_assessment.py`; the unit has no
-  path to any migration script
-- `tests/unit/test_ad065_migration_lock.py`: confirms that direct invocation of
-  `migration_manager.main()` exits non-zero when `migration.lock` is absent;
-  covers plain invocation, `--dry-run`, error message content, and the ordering
-  guarantee that the lock check fires before any migration script executes
-
-### Phase 1.O — Coordinated Quiesce + Backup (CQB) *(implemented — 2026-06-09)*
-
-**Status: implemented (2026-06-09).** Provides the operator-triggered and
-scheduled backup/restore ceremony for broodforge. Designed for the reality of
-k8s cattle VMs: etcd snapshot + restic PVC backup is the primary k8s workload
-backup (not vzdump). Full VM disk backup is an explicit opt-in for
-pre-migration use. See ARCHITECTURE.md for the governing decision records.
-
-**The gap this names:** broodforge accumulates significant state in
-`bootstrap-state.json`, etcd, and PVC volumes. Before any risky operation a
-snapshot of this state must be taken, coordinated with service quiescence.
-There was no unified ceremony for this.
-
-**Architecture decisions (Phase 1.O):**
-- k8s workload backup = etcd snapshot (`etcdctl snapshot save`) + restic PVC
-  backup. Talos/Ubuntu k8s VMs are cattle OS (Cloud-Init). Full VM disk
-  snapshots (vzdump) are NOT the default.
-- Governance VM: phoenix pack covers `BROODFORGE_STATE_DIR`. No vzdump by
-  default.
-- `full_vm_disk_snapshot=True` is an explicit operator opt-in (e.g. `--scope
-  full` for pre-migration). Default scopes do not trigger vzdump.
-- Dashboard backup forms are restricted to level ≤ 1 scopes; level-2+ scopes
-  require `forge-backup.sh` (KeePass gate enforced in the shell layer).
-
-**Scope implemented:**
-
-- [x] `proxmox-bootstrap/backup_manager.py` — Complete CQB implementation:
-  - `BackupScope` dataclass: `include_broodforge`, `quiesce_level` (0–3),
-    `vm_ids`, `include_proxmox_host_config`, `k8s_etcd_snapshot`,
-    `k8s_pvc_backup`, `full_vm_disk_snapshot`. `include_broodforge` is
-    non-optional (forced True with `UserWarning`). `quiesce_level >= 2`
-    auto-enables `include_proxmox_host_config`.
-  - `BackupManifest` dataclass: all scope fields + `k8s_snapshots`,
-    `vm_snapshots`, `broodforge`, `proxmox_host_config`. JSON
-    serialize/deserialize via `to_dict()` / `from_dict()`. `save()` / `load()`
-    write and read `<backup_dir>/manifest.json`.
-  - `BackupScopeInferrer.infer()`: maps blast-radius strings to `BackupScope`:
-    `"broodforge-config"` → level 0 (no k8s/VM); `"pod:*"` / `"service:*"`
-    → level 1 (k8s etcd+PVC, no vzdump); `"vm:*"` / `"node:*"` → level 2
-    (host config + k8s); `"full"` / `"unknown"` / unrecognised → level 3
-    (everything, vzdump enabled).
-  - `BackupManager.backup()`: orchestrates phoenix pack → host config restic →
-    k8s etcd snapshot → k8s PVC restic → vzdump (if `full_vm_disk_snapshot`).
-    Clock injected via `now_fn` parameter (no bare `datetime.now()`).
-  - `BackupManager.restore()`: prints restore procedure for etcd, vzdump, and
-    phoenix package. Does not auto-overwrite live state.
-  - `BackupManager.list_backups()`: returns manifests newest-first.
-  - `BackupManager._pack_broodforge()`: calls `assemble_phoenix_package.py`.
-  - `BackupManager._snapshot_proxmox_host_config()`: restic backup `/etc/pve`.
-  - `BackupManager._snapshot_k8s()`: `etcdctl snapshot save` + restic PVC.
-  - `BackupManager._snapshot_vms_full()`: vzdump (explicit opt-in only).
-  - All subprocess calls have `timeout=_SUBPROCESS_TIMEOUT` (300 s).
-  - Exit codes: 0=success, 1=fatal, 2=NOT_IMPLEMENTED (FORGE_INCOMPLETE).
-  - CLI: `--backup`, `--restore <id>`, `--list`, `--infer-scope --affects <str>`,
-    `--dry-run`, `--json`, `--scope`, `--trigger`, `--state-dir`.
-
-- [x] `scripts/forge-backup.sh` — Operator backup entry point. Sources
-  `lib/forge-lib.sh`. KeePass gate enforced for `--scope full`, `vm:*`,
-  `node:*` (level ≥ 2). Calls `backup_manager.py --backup`. Exit 2 (partial
-  backup) treated as warning, not fatal.
-
-- [x] `scripts/forge-restore.sh` — Always KeePass-gated. Operator must type
-  `restore` to confirm before proceeding. Calls `backup_manager.py --restore`.
-  Validates manifest exists before prompting.
-
-- [x] `scripts/forge-list-backups.sh` — No gate (read-only). Calls
-  `backup_manager.py --list [--json]`.
-
-- [x] `scripts/forge-backup-scheduled.sh` — Cron/systemd-timer safe. Reads
-  `${BROODFORGE_STATE_DIR}/backup-schedule.json` (time window, scope,
-  max_age_hours). Exits 0 silently if outside window or recent backup exists.
-  Refuses level-≥2 scopes (no unattended VM-level operations). Falls back to
-  sensible defaults if `backup-schedule.json` is absent.
-
-- [x] `proxmox-bootstrap/broodforge_dashboard.py` — CQB Backup & Restore panel
-  added (between Backup Status and Security Posture sections):
-  - Backup list table: backup_id, scope, trigger, quiesce_level, k8s status
-    (etcd/pvc badges), timestamp, per-row Restore… button.
-  - Trigger backup form: scope dropdown (level 0/1 only — level-2+ require
-    CLI), dry-run checkbox, Run Backup button.
-  - Restore form: backup ID input, dry-run default, Restore button (prints
-    procedure; does not overwrite state).
-  - Scheduled backup note: points to `backup-schedule.json`.
-  - New API endpoints: `GET /api/cqb-backups`, `POST /api/cqb-backup`,
-    `POST /api/cqb-restore`. All POST endpoints require `X-Broodforge-Token`.
-    Level-≥2 scopes rejected from the dashboard (CLI required).
-  - Nav bar: 💾 CQB Backups JSON link.
-
-- [x] `tests/unit/test_backup_manager.py` — 14 tests covering:
-  `test_infer_scope_broodforge_only`, `test_infer_scope_pod`,
-  `test_infer_scope_service`, `test_infer_scope_vm`, `test_infer_scope_node`,
-  `test_infer_scope_unknown_defaults_to_full`,
-  `test_infer_scope_unrecognised_defaults_to_full`,
-  `test_infer_scope_full_string`,
-  `test_backup_manifest_roundtrip`, `test_manifest_roundtrip_json_file`,
-  `test_backup_creates_manifest_file`, `test_backup_dry_run_writes_no_files`,
-  `test_list_backups_sorted_newest_first`, `test_list_backups_empty`,
-  `test_restore_aborts_if_manifest_missing`,
-  `test_restore_dry_run_aborts_if_manifest_missing`,
-  `test_backup_id_uses_now_fn`, `test_backup_id_format`,
-  `test_include_broodforge_forced_true`,
-  `test_quiesce_level_2_auto_enables_host_config`,
-  `test_scope_roundtrip`.
-
-**Deployment notes:**
-- etcdctl path requires `etcdctl` in PATH. Set `ETCDCTL_ENDPOINTS`,
-  `ETCDCTL_CACERT`, `ETCDCTL_CERT`, `ETCDCTL_KEY` for TLS.
-- restic requires `RESTIC_REPOSITORY` + `RESTIC_PASSWORD` env vars.
-- PVC candidate paths: `/var/lib/rancher/k3s/storage`, `/var/openebs/local`,
-  `/mnt/pvc`, `/data/pvc` — adjust in `_snapshot_k8s()` per deployment.
-- Scheduled backup: create `${BROODFORGE_STATE_DIR}/backup-schedule.json`
-  and add `forge-backup-scheduled.sh` to cron or a systemd timer.
-
-**Note: Credential hierarchy (KeeShare child DBs, key rotation ceremony) →
-Phase 1.P.** The backup system uses the KeePass gate but does not manage
-the credential lifecycle or rotation ceremony. That is explicitly deferred
-to Phase 1.P.
-
----
-
-## Phase 1.P — Credential Hierarchy and Key Rotation *(implemented — 2026-06-09)*
-
-**Status: implemented (2026-06-09).** Introduces a hierarchy of child KeePass
-databases scoped to service domains, a secrets broker that serves credentials
-by reference path, and a key rotation ceremony with strict propagation ordering.
-See the design decisions below for the security model.
-
-### Child DB domains
-
-| Database | Scope |
-|---|---|
-| `forge-autonomous.kdbx` | Autonomous operation credentials: restic repo password, k8s service account tokens, monitoring API keys, Headscale API key |
-| `forge-spawn.kdbx` | Spawn-phase credentials: Cloud-Init keypairs, spawn-phase node credentials, Headscale pre-auth keys |
-| `forge-migrate.kdbx` | Migration-phase credentials: temporary elevated access (populated only during migration ceremony) |
-
-Child DB passwords are stored as entries in the master KeePass under
-`Broodforge/child-dbs/<name>`. Child DB paths are declared in
-`$BROODFORGE_STATE_DIR/credential-hierarchy.json`.
-
-### KeeShare sync
-
-One-way authoritative (master always wins). GUI setup required once per child DB
-(KeePassXC → Database Settings → KeeShare; CLI does not support KeeShare
-configuration). After initial GUI setup, `forge-sync-credentials.sh` propagates
-per-entry credential changes — called automatically by `forge-rotate-credential.sh`
-as step 5 of the rotation ceremony, no operator GUI action needed for subsequent
-rotations. Full group mirroring of new entries still requires a GUI sync.
-
-### Secrets broker
-
-Consumer processes reference credentials by path — they never see the child DB
-password or the master DB password:
-
-```bash
-secret=$(kdbx_get_child "child://forge-autonomous/restic/repo-password")
-code=$(kdbx_totp "child://forge-autonomous/admin-ui/totp")
-```
-
-`kdbx_get_child` and `kdbx_totp` are defined in `lib/forge-lib.sh`. The child DB
-password is fetched from master once per session and held in `_CHILD_DB_PASSWORD_CACHE`
-(in-memory associative array — never written to disk, env vars, args, or logs).
-`forge_keepass_gate` must be called before any broker function.
-
-### Key rotation ceremony (strict order — never deviate)
-
-```
-1. Generate new credential
-2. Register NEW with service while OLD still active (dual-validity window)
-3. Verify NEW credential authenticates against service     ← EXIT 1 if fails
-4. Update master KeePass entry                            ← operator confirms
-5. forge-sync-credentials.sh                              ← runs automatically
-6. Child DBs updated → consumers get NEW on next broker call
-7. Remove OLD credential from service
-```
-
-Step 3 must succeed before step 4. Step 4 must complete before step 5.
-Enforced by `forge-rotate-credential.sh` script structure — not just policy.
-
-### Security properties
-
-- Child process cannot observe out-of-scope master contents
-- Child DB password never passed on CLI, written to env, logged, or persisted outside
-  the `_CHILD_DB_PASSWORD_CACHE` associative array (session memory only)
-- Sync is automatic within the rotation ceremony; standalone `forge-sync-credentials.sh`
-  available for ad-hoc re-sync
-- Rotation propagation enforced by ceremony structure — no step can be silently skipped
-
-### Delivered files
-
-| File | Purpose |
-|---|---|
-| `proxmox-bootstrap/credential_hierarchy.py` | `ChildDatabase`, `CredentialHierarchy` dataclasses; `HierarchyManager` (load/save/validate); CLI `--list` / `--validate-ref` / `--init` |
-| `lib/forge-lib.sh` | `kdbx_get_child()` broker, `kdbx_totp()`, `_broker_*` internal helpers |
-| `scripts/forge-init-credential-hierarchy.sh` | One-time child DB creation, master password storage, `credential-hierarchy.json` write, KeeShare GUI instructions |
-| `scripts/forge-sync-credentials.sh` | Per-entry credential propagation from master → child DBs; called automatically by rotation ceremony; standalone for ad-hoc sync |
-| `scripts/forge-rotate-credential.sh` | Full key rotation ceremony; service handlers for `restic`, `headscale`, `k8s-sa`, `generic` |
-| `tests/unit/test_credential_hierarchy.py` | 11 unit tests covering load, validate_reference, get_child_db, save roundtrip, --init skeleton |
-
-### keepassxc-cli KeeShare capability gap
-
-`keepassxc-cli` (KeePassXC ≤ 2.7) does not support KeeShare merge operations.
-`forge-sync-credentials.sh` detects this at runtime and falls back to per-entry
-propagation via `keepassxc-cli edit` / `keepassxc-cli add`. This covers the key
-rotation case. Full group mirroring (for new entries not yet in a child DB) still
-requires a GUI sync — the scripts print a reminder when this is the case.
-
-If a future KeePassXC version adds `keepassxc-cli share-export` / `keepassxc-cli merge`,
-`forge-sync-credentials.sh` will detect and use it automatically (the script checks
-`keepassxc-cli --help` for `share`/`merge` keywords before falling back).
-
----
-
-## Phase 1.U — Kubernetes User Registry *(implemented — 2026-06-10)*
-
-**Status: implemented (2026-06-10).** Introduces a user registry above the
-Kubernetes layer so that every broodforge service user is tracked centrally.
-On a full cluster rebuild or service state loss, `forge-provision-users.sh`
-re-registers all active users automatically — no manual re-registration, no
-waiting for users to sign up again.
-
-### Design motivation
-
-Without central tracking, a cluster rebuild means: service loses all data →
-admin posts a "please re-register" notice → users trickle back in over days
-→ some never return. With the user registry: admin runs `forge-provision-users.sh`
-→ every enrolled user's account is recreated in every service they use, with
-their stored credentials, before the cluster is considered ready.
-
-### User disposition model
-
-Each user has a `disposition` field that drives rebuild behaviour:
-
-| Disposition | Rebuild behaviour |
-|---|---|
-| `active` | Created/reset in every enrolled service by default |
-| `archived` | Skipped during provisioning; record retained for audit |
-| `pending-deletion` | Skipped during provisioning; awaiting manual account deletion |
-
-Operators manage dispositions via the sidecar GUI or CLI:
-
-```bash
-python3 proxmox-bootstrap/user_registry.py --disposition alice archived
-```
-
-### Per-service enrollment and roles
-
-Each user specifies which services they use and their role per service
-(e.g. `user`, `admin`, `developer`). New services can be added to a user's
-enrollment at any time; the next `forge-provision-users.sh` run picks them up.
-
-### Credential storage convention
-
-All per-user credentials live in the master KeePass under a predictable path:
-
-```
-Broodforge/users/<username>/<service>/password
-Broodforge/users/<username>/<service>/totp-secret
-```
-
-`forge-onboard-user.sh` generates strong random credentials (48-char password,
-20-byte TOTP secret) and writes them to KeePass at onboarding time. The
-onboarding package (printed or written to a file) contains the password and
-TOTP URI for every enrolled service so the user can configure their authenticator
-app in one step.
-
-### Zero-knowledge and key throw-away
-
-Services store password hashes (bcrypt/argon2) — not plaintext. Vaultwarden
-additionally encrypts all vault contents client-side; even with server access
-an admin cannot read a user's vault.
-
-After the user confirms receipt of their onboarding package, the admin may
-optionally discard their master copy:
-
-```bash
-python3 proxmox-bootstrap/user_registry.py \
-    --throw-away-key alice vaultwarden
-```
-
-This sets `key_thrown_away: true` in the registry. On future rebuilds:
-
-- `key_thrown_away = false` → **auto-provision**: stored password re-applied
-- `key_thrown_away = true`  → **reset flow**: service account created with
-  a temporary password; user is notified to set their own on first login
-
-### Sidecar GUI surface
-
-The user registry is the data source for the "Users" panel in the broodforge
-sidecar dashboard. The panel provides:
-
-- Active user list with per-service enrollment and disposition badges
-- "Onboard new user" form (calls `forge-onboard-user.sh`)
-- Per-user disposition controls (active / archive / mark-for-deletion)
-- "Key throw-away" action (requires onboarding acknowledged)
-- "Provision all" / "Provision user" rebuild triggers
-- Rebuild status: shows which users were auto-provisioned vs reset-flow
-
-### Provisioning flow (rebuild)
-
-```
-1. forge-provision-users.sh reads config/user-registry.json
-2. For each active user × enrolled service:
-   a. key_thrown_away=false → call service adapter → create/reset account
-      with stored KeePass password
-   b. key_thrown_away=true  → call service adapter → create account with
-      temp password + notify user to reset on first login
-3. Print rebuild report: N auto-provisioned, M reset-flow
-```
-
-Service adapters (Vaultwarden, Headscale, Gitea) call `kubectl exec` against
-the relevant pod. New adapters are added as `_provision_<service>()` functions.
-
-### Delivered files
-
-| File | Purpose |
-|---|---|
-| `proxmox-bootstrap/user_registry.py` | `UserRecord`, `ServiceEnrollment`, `UserRegistry` dataclasses; `UserRegistryManager` (load/save/add/disposition/throw-away-key/users-for-rebuild); CLI |
-| `scripts/forge-onboard-user.sh` | Add user to registry, generate password+TOTP, store in KeePass, render onboarding package |
-| `scripts/forge-provision-users.sh` | Re-provision all active users into k8s services; auto-provision or reset flow per key_thrown_away state; service adapters for Vaultwarden, Headscale, Gitea |
-
-### KeePass path convention
-
-```
-Broodforge/users/<username>/<service>/password      ← auto-provision source
-Broodforge/users/<username>/<service>/totp-secret   ← TOTP base32 + URI in Notes
-```
-
-Interacts with Phase 1.P: user credentials live in the master KeePass DB
-(same gate as the credential hierarchy) and are subject to the same
-`forge_keepass_gate` access control. Key rotation for service users can be
-incorporated into the Phase 1.P rotation ceremony.
-
----
-
-## Phase 1.Q — Zero-Touch Node Provisioning
-
-**Status: Implemented**
-
-Enables bare-metal Proxmox nodes (broodlings) to join the cluster with zero
-keyboard/monitor/KVM interaction after the initial ISO burn. The hatchery
-(governance VM) governs the entire join lifecycle. The operator approves
-joins from the sidecar dashboard.
-
-### Node lifecycle
-
-```
-planned → iso-built → joining → pending-approval → active
-                                                  ↘ blacklisted (any pre-active state)
-active → decommissioned
-```
-
-### Design decisions
-
-- **Headscale** is the single mechanism for both LAN and WAN node joining.
-  A single-use pre-auth key is embedded in the ISO; the Headscale server URL
-  is the only required network reachability.
-- **Codenames** (adjective-animal, e.g. `swift-falcon`) are operator-friendly
-  identifiers that persist through the node's lifecycle.
-- **Join PIN** (`###-###-###-###`) is generated at plan time using
-  `secrets.randbelow`, embedded in the ISO, and sent by the broodling with
-  its registration request. The dashboard surfaces both the codename and PIN
-  in the pending-approval queue so the operator can cross-verify the specific
-  ISO used — without exposing the node's private key. The 12-digit triplet
-  format (1 trillion combinations) is designed to be readable at a glance.
-- **Join deadline** (optional): the sysadmin can set a cutoff after which an
-  un-joined node is auto-blacklisted on its next registration attempt. Default
-  is `null` (permissive — no deadline). Sysadmins can always un-blacklist.
-- **Operator approval required**: no node reaches `active` without explicit
-  operator confirmation from the dashboard. Automatic join is intentionally
-  not supported.
-- **Atomic state writes**: all state mutations write to `.tmp` then `rename()`
-  and are protected by an `fcntl.flock` exclusive lock.
-
-### Delivered files
-
-| File | Purpose |
-|---|---|
-| `proxmox-bootstrap/node_planner.py` | Core lifecycle module — planning, registration, approval, decommission; CLI |
-| `scripts/forge-plan-nodes.sh` | KeePass-gated interactive batch node planner |
-| `scripts/forge-build-node-iso.sh` | Generates `answer.toml`, `broodling-bootstrap.sh`, and operator README for ISO build |
-| `tests/unit/test_node_planner.py` | 16 unit tests covering all lifecycle paths + PIN + deadline |
-| `proxmox-bootstrap/broodforge_dashboard.py` | Nodes panel added: pending-approval queue (with PIN), lifecycle table, active node detail panel, decommission, rename-headscale, reassign-address, join deadline; new endpoints: `POST /api/node-register`, `GET /api/provisioning-nodes`, `GET /api/provisioning-nodes/<codename>`, `POST .../approve`, `POST .../blacklist`, `POST .../unblacklist`, `POST .../decommission`, `POST .../rename-headscale`, `POST .../reassign-address`, `POST .../set-deadline`, `PATCH .../<codename>` |
-
-### Operator workflow
-
-1. `./scripts/forge-plan-nodes.sh --count N --role worker` — plans N nodes,
-   persists to `provisioning-state.json`, prints codenames + PINs.
-2. `./scripts/forge-build-node-iso.sh --codename <name>` — generates
-   `answer.toml` and `broodling-bootstrap.sh` in a staging directory.
-3. Operator copies artifacts to a Proxmox host and runs
-   `proxmox-auto-install-assistant prepare-iso` (must run on the PVE host,
-   not the hatchery VM) to assemble the bootable ISO.
-4. Burn ISO to USB, power on server — Proxmox installs automatically.
-5. On first boot the node generates its RSA key pair, POSTs to
-   `POST /api/node-register` (encrypted with hatchery public key), and joins
-   the Headscale network.
-6. Approve the join from the sidecar dashboard Nodes panel — verify codename
-   **and** PIN match the ISO manifest before approving.
-
-### PAP compliance
-
-- No bare `datetime.now()` — all clock access via injected `now_fn` parameter.
-- All `subprocess.run()` calls use `timeout=60`.
-- Exit codes: 0=success, 1=fatal, 2=NOT_IMPLEMENTED.
-- Atomic state writes via `.tmp` → `rename()` with `fcntl.flock`.
-
----
-
-## Phase 2.A — Identity & SSO (Authentik)
-
-### Summary
-Self-hosted identity provider and SSO for all cluster services. No cloud dependency.
-Local accounts remain the primary auth method. SSO is a convenience path, not a replacement.
-
-### Technology
-**Authentik** — Kubernetes-native OIDC/SAML identity provider.
-- Helm chart deployment to k8s cluster
-- Backend: PostgreSQL (shared cluster instance) + Redis
-- Protocols: OIDC, SAML 2.0, LDAP (read-only)
-
-### Key design properties
-
-**No cloud dependency:** All user accounts, TOTP seeds, and sessions live in Authentik on the cluster.
-Nothing contacts Google or Apple unless the operator explicitly configures upstream providers.
-
-**Chained upstream providers (optional):**
-User → Authentik (local IdP) → [optional: Google/GitHub/Apple upstream]
-Services only trust Authentik tokens — they never talk directly to upstream providers.
-If upstream is unreachable, local Authentik credentials work as fallback transparently.
-
-**SSO as secondary method (not primary replacement):**
-Services are configured to accept EITHER local service credentials OR SSO.
-Per-service primary auth (password, password + TOTP) remains available.
-MFA enforcement moves to Authentik — user enters credentials + TOTP once at Authentik,
-which issues a session token services trust. Services no longer need per-service MFA.
-
-**WAN-offline resilience:**
-Local Authentik accounts work without internet. Cloud upstream (if configured) is opportunistic.
-
-### Service integrations
-- Nextcloud — `user_oidc` app; local Nextcloud accounts and SSO accounts coexist, linkable to same user
-- Future self-hosted services — OIDC/SAML as available; LDAP read-only for services that support only LDAP
-- Proxmox — OIDC realm for sidecar/web UI login (optional, operator auth remains primary)
-
-### Deployment components
-- Authentik Helm chart (values.yaml managed in repo)
-- PostgreSQL database: `authentik` schema in cluster PostgreSQL instance
-- Redis: dedicated or shared cluster Redis
-- Ingress: `auth.<cluster-domain>` via Headscale/internal DNS
-- Initial admin account provisioned via forge-init-authentik.sh (KeePass-gated)
-
-### Credential integration (Phase 1.P)
-Authentik admin credentials stored in master KeePass.
-Service OIDC client secrets stored in forge-autonomous.kdbx child DB.
-Key rotation via forge-rotate-credential.sh with _rotate_oidc_secret() handler.
-
-### Authorization constraints
-- AD-060 applies: autonomous ops never wield Authentik admin credentials
-- Authentik admin access is operator-only (KeePass gate)
-- OIDC client secrets for services are service-level credentials (forge-autonomous child DB scope)
-
-### Dependencies
-- Phase 1.P (credential hierarchy) — for OIDC client secret storage and rotation
-- Phase 1.Q (node provisioning) — cluster nodes must exist before Helm deploy
-- k8s cluster operational with ingress controller
-
----
-
-## Roadmap Overview
-
-### Three Processes — Three Package Types
-
-| Process | Package | Phases | What it does |
-|---|---|---|---|
-| **Forging** | Forge package | Phase 0–3 + Phase 1.F | Bare hardware → first operational hatchery |
-| **Hatchery Process** | Spawn package | Phase 12.E | Hatchery → broodling joins without conflict |
-| **Stargate Process** | Phoenix package | Phase 9 + Phase C/D | Failed node → identity resurrected |
-
-### Four Tracks
-
-**Forging Foundation (Phases 0–3, Phase 1.F)**
-Establish the metadata model and all Phase A tooling. Culminates in the forge
-package — a self-contained archive that takes bare hardware to an operational
-broodforge hatchery via eight automated phases.
-
-**Track 1 — Cell-Scoped Foundation (Phases 6–12.E)**
-Complete the single-cell documentation, reconstruction, and spawn capability.
-Includes:
-- Phase 9 (Stargate Process) — phoenix playbooks that reconstitute a failed node's
-  identity on new hardware
-- Phase 12.E (Hatchery Process) — spawn package that a broodling runs after bare
-  Proxmox install to join the hatchery without VMID, IP, or hostname conflicts
-All schemas in this track carry `cell_id` (federation-readiness gate).
-
-**Track 2 — Expanded State Model (Phases 13–18)**
-Add the new state categories: Hardware, Platform, Cluster, Storage,
-External Dependencies, Data Protection, Observability, Capability, Federation State.
-
-**Track 3 — Digital Twin and Federation (Phases 19–25)**
-Build the Digital Twin platform, federation architecture, federated reconstruction,
-and continuous assessment capability.
-
-**Track 4 — Autonomous Operations (Phase 26)**
-Close the detect → propose → approve → execute → reassess loop. The assessment
-engine has always found and scored gaps; Track 4 adds the ability to act on them,
-always gated by explicit human approval. No autonomous action without a recorded
-operator decision.
-
-Track 2 begins after Phase 12.E completes the single-cell + expansion foundation.
-Track 3 begins after Phase 18 completes the expanded state model.
-Track 4 begins after Track 3 and requires Phase 24 (continuous assessment) running.
-
----
-
-## Forging Foundation — Phase 0 through Phase 3
-
-Phases 0–3 constitute the **forging process**: building the Phase A toolchain that
-can take bare hardware to an operational broodforge hatchery. These phases are
-complete. Phase 1.F (Forge Package Assembly) is the planned capstone.
-
-### Phase 1.F — Forge Package Assembly *(Forging Process capstone)*
-
-*Assembles all Phase A tooling into a single self-contained forge package — the
-artifact an operator downloads and runs on bare Proxmox to forge the first hatchery.*
-
-- [x] 1.F.1: `forge-pack.sh` — assembles forge package from current repo state:
-      discovery scripts, planners, generators, opentofu/, ansible/, forge.sh + phases,
-      forge-workbook.html template, lib/ (checkpoint, validation, failure-package)
-- [x] 1.F.2: `forge.sh` — orchestrated entry point with 8 phases:
-      phase-00 (discover) → phase-01 (plan) → phase-02 (validate, RED blocks) →
-      phase-03 (host config) → phase-04 (VMs) → phase-05 (k3s) →
-      phase-06 (Flux GitOps) → phase-07 (intelligence layer) → phase-08 (verify + commit)
-- [x] 1.F.3: Forge workbook (HTML) — tracks forge execution with same checkpoint/status
-      pattern as spawn and phoenix workbooks; committed to Forgejo on completion
-- [x] 1.F.4: `forge-manifest.json` — cell identity snapshot embedded in package:
-      declares cell_id, naming convention, hardware requirements, storage config,
-      secret registry paths, target VM set (minimum viable broodforge stack only)
-- [x] 1.F.5: Minimum viable forge validation — phase-02 checks that hardware meets
-      minimum requirements for the broodforge stack (doc engine + assessment engine);
-      user applications are not included in the forge package (added via GitOps after)
-- [x] 1.F.5a: **Proxmox subscription nag suppression** — `lib/pve-suppress-nag.sh`:
-      Patches the Proxmox web UI JavaScript to remove the non-enterprise subscription
-      popup. Applied during phase-03 (host config) as part of standard host hardening.
-
-      Implementation: patches `/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js`
-      to neutralise the `Ext.Msg.show` call that renders the subscription dialog.
-      Idempotent — detects if already applied and exits cleanly.
-
-      Persistence: installs a dpkg post-invoke hook at
-      `/etc/apt/apt.conf.d/85pve-nag-suppress` that re-applies the patch whenever
-      `proxmox-widget-toolkit` or `pve-manager` packages are updated, so the
-      suppression survives Proxmox upgrades without operator intervention.
-
-      Note: Proxmox Community Edition (VE without subscription) is fully functional
-      and free to use. The subscription nag is a commercial reminder, not a licence
-      restriction. This script removes the UI interruption for homelab operators who
-      do not hold an enterprise subscription.
-
-- [x] 1.F.6: **KeePass initialisation at forge time** — phase-03 (host config) prompts
-      the operator to set the KeePass master password before any secrets are generated:
-      - Broodforge offers a generated readable passphrase as the default suggestion
-        (format: `Capital.word.phrase.9` — 20-30 chars, leading capital, lowercase,
-        period separators, trailing digit; see AD-043)
-      - Operator may accept the suggestion, enter their own, or open the KeePass
-        built-in generator for an alternative format
-      - Password confirmed by re-entry; never stored by broodforge
-      - KeePass database initialised and populated with generated service credential
-        entries (paths only established here; values filled during service deployment)
-      - Operator selects whether to embed the database in subsequent spawn/phoenix
-        packages (embedded = convenient but requires master password at gate;
-        path-based = database stays off the package entirely)
-- [x] 1.F.7: **Readable passphrase generator** (`lib/passphrase.py`) — stdlib only:
-      Generates passwords in the `Capital.word.phrase.9` format from a curated word list.
-      Used for master password suggestion, initial service credentials, and any
-      operator-facing password output. Character set: A-Z (leading only), a-z, 0-9, `.`
-- [x] 1.F.8: **Service password compatibility detector** — if a service deployment phase
-      fails with an authentication or credential-related error, the detector:
-      - Matches the failure pattern against known incompatibility signatures
-        (common patterns: service rejects `.` or `_` in passwords)
-      - Offers to regenerate the affected credential as a plain alphanumeric password
-        (letters + digits only, same length range — KeePass default format)
-      - Retries the failed deployment phase with the new credential
-      - Records the service name and character restriction in service-catalog metadata
-        so the restriction is applied automatically in future deployments
-      - The service-specific format override is stored in service-catalog.yaml as
-        `password_format: alphanumeric` for any service known to require it
-- [x] 1.F.8a: **Headscale auto-configuration** — installed and configured during phase-03
-      (host config) so the hatchery is the tailnet coordinator from the moment it is forged:
-
-      **Installation:**
-        Download headscale binary (or apt install headscale if available in repos)
-        Generate headscale config: server_url, listen_addr, db_path, log_level
-        server_url derived from the hatchery's discovered WAN/LAN address + port 8080
-        TLS: configured with self-signed cert for initial operation; operator can
-        supply a proper cert or configure ACME after forging
-        systemd service created and enabled: `headscale serve`
-
-      **Initial setup:**
-        Create a broodforge user/namespace in Headscale:
-          `headscale users create broodforge`
-        Register the hatchery's own Tailscale client with its own Headscale:
-          `tailscale up --login-server https://{hatchery-address}:8080`
-          (the hatchery is the first node on its own tailnet)
-        Record the Headscale server URL in bootstrap-state.json as
-          `network_topology.headscale_url`
-        Store the Headscale API key in KeePass:
-          `headscale apikeys create` → stored at
-          `Infrastructure/headscale/api-key`
-        The hatchery's tailnet IP (100.64.0.1 or similar) is also recorded in
-          bootstrap-state.json alongside its LAN IP
-
-      **Auth key generation for spawn packages:**
-        When spawn-planner.py runs in WAN mode, it calls:
-          `headscale authkeys generate --expiration 1h --user broodforge`
-        The resulting key (a short string, typeable or pasteable) is embedded in
-        the spawn package. It is single-use and expires — not stored in KeePass.
-
-      **LAN vs WAN detection:**
-        spawn-planner.py tries a direct connection to the broodling's reported IP.
-        If unreachable within 5 seconds, prompts the operator:
-          "Broodling appears unreachable on LAN. Use WAN mode (Headscale)?"
-        Operator can also set --wan or --lan explicitly.
-
-- [x] 1.F.8b: **Split-horizon DNS server (dnsmasq)** — deployed in phase-03 (host config),
-      before any VMs exist, so DNS is available from the moment the hatchery can serve LAN:
-
-      **Installation and configuration:**
-        apt install dnsmasq
-        Generate /etc/dnsmasq.conf from dns-registry.yaml:
-          - One `address=/{fqdn}/{lan-ip}` line per dns-registry.yaml entry
-          - `server=8.8.8.8` and `server=1.1.1.1` for upstream forwarding
-          - `domain={operator-domain}` to make unqualified names resolvable
-          - `listen-address={hatchery-lan-ip}` to bind to the LAN interface
-        Generate via `proxmox-bootstrap/generate-dnsmasq-config.py`:
-          reads dns-registry.yaml → writes /etc/dnsmasq.d/broodforge.conf
-          Idempotent: re-run after any dns-registry.yaml update to reload config
-        systemctl enable --now dnsmasq
-        Update Proxmox host /etc/resolv.conf to point at itself (127.0.0.1)
-
-      **The operator provides their domain during phase-01 (plan):**
-        forge-planner.py asks:
-          "Your domain name (e.g. home.example.com): _"
-        Stored in bootstrap-state.json as `host_identity.domain`.
-        All node hostnames in the deployment use this domain suffix:
-          hatchery.home.example.com, forgejo.home.example.com, etc.
-        FQDN stored as `host_identity.fqdn` — the canonical address for all
-        inbound connections (Headscale, Forgejo, and any WAN-reachable service).
-
-      **Split-horizon behaviour:**
-        LAN clients with hatchery as DNS:   `hatchery.home.example.com` → LAN IP
-        WAN clients using public DNS:        `hatchery.home.example.com` → WAN IP
-        Same FQDN, same spawn package, same Headscale URL — works from everywhere.
-
-      **Router/firewall requirements (operator-configured, not automated):**
-        Port forwarding: 8080 (Headscale) → hatchery LAN IP
-        External DNS A record: `hatchery.{domain}` → operator's WAN IP
-        The forge wizard reminds the operator of these requirements but cannot
-        configure the upstream router automatically (out of scope for forge).
-
-- [x] 1.F.8c: **External DNS auto-update** — for operators with dynamic WAN IPs:
-
-      **Tool selection:**
-        Primary: **dns-lexicon** (pip install dns-lexicon) — 90+ providers, actively
-          maintained, unified CLI/API. Providers: Cloudflare, GoDaddy, Namecheap,
-          Route53, Porkbun, Gandi, OVH, DigitalOcean, Linode, Vultr, and 80+ more.
-        Special case: **DuckDNS** — handled via a single HTTPS GET (no lexicon needed),
-          suitable for operators who want a free subdomain rather than their own domain.
-        DO NOT USE: inadyn — archived Oct 2025, no longer maintained.
-
-      **Squarespace registrar note:**
-        Squarespace exposes no DNS API. Operators with Squarespace-registered domains
-        must delegate DNS management to Cloudflare (change nameservers in Squarespace
-        dashboard → "Use Custom Nameservers" → enter Cloudflare NS records). After
-        delegation, all DNS is managed via Cloudflare API — broodforge treats it as
-        a standard Cloudflare provider. See docs/CLOUDFLARE-SETUP.md.
-
-      **forge-planner.py asks:**
-        "Is your WAN IP static or dynamic?"
-        If dynamic: presents provider selection menu:
-          1. Cloudflare (recommended — works for any registrar, including Squarespace)
-          2. DuckDNS (free subdomain — no own domain needed)
-          3. Other provider (Namecheap, GoDaddy, Route53, Porkbun, etc.) via dns-lexicon
-          4. Skip — I will manage DNS records manually
-
-      **Implementation:**
-        `proxmox-bootstrap/setup_ddns.py` — interactive configuration wizard:
-          Walks operator through provider selection, credential entry, and
-          writes config to /etc/broodforge/ddns.conf.
-          Credentials stored in KeePass; references stored in bootstrap-state.json.
-          Tests the update before saving (makes a real DNS call to verify credentials).
-        `proxmox-bootstrap/update-dns.py` — update script (called by systemd timer):
-          Detects current WAN IP (curl ifconfig.me / ipinfo.io, with fallback)
-          Compares to cached last-known IP (/var/lib/broodforge/last-wan-ip)
-          If changed: calls dns-lexicon or DuckDNS GET to update A record
-          Logs outcome to systemd journal
-          On failure: logs and retries on next timer tick (does not crash)
-        systemd timer: broodforge-ddns.timer — runs every 5 minutes
-          OnBootSec=60 (initial delay to let network settle)
-          OnUnitActiveSec=5min
-
-      **Configuration stored in bootstrap-state.json:**
-        `network_topology.ddns_provider` — "cloudflare" | "duckdns" | "lexicon:{name}" | null
-        `network_topology.ddns_zone` — the DNS zone/domain being managed
-        `network_topology.ddns_record` — the specific A record being updated (e.g. "hatchery")
-        `network_topology.ddns_credential_reference` — KeePass path for API token/key
-
-      **Documentation:** docs/CLOUDFLARE-SETUP.md and docs/DUCKDNS-SETUP.md —
-        step-by-step guides for each provider including Squarespace → Cloudflare
-        delegation walkthrough.
-
-- [x] 1.F.8d: **Let's Encrypt TLS certificate automation** — runs after DNS is configured
-      (1.F.8b + 1.F.8c); tool and method depend on which DNS provider was selected:
-
-      **Cloudflare path:**
-        Install certbot + python3-certbot-dns-cloudflare (apt)
-        Write /etc/broodforge/cloudflare.ini using API token from KeePass
-          (chmod 600 — certbot refuses to read world-readable credentials files)
-        Issue wildcard cert:
-          certbot certonly --dns-cloudflare
-            --dns-cloudflare-credentials /etc/broodforge/cloudflare.ini
-            --dns-cloudflare-propagation-seconds 30
-            -d {fqdn} -d "*.{domain}"
-            --email {operator-email} --agree-tos --non-interactive
-        Certs land at /etc/letsencrypt/live/{fqdn}/fullchain.pem + privkey.pem
-        certbot.timer (installed by certbot) handles auto-renewal
-        Deploy hook written to /etc/letsencrypt/renewal-hooks/deploy/:
-          Reloads headscale and nginx after each successful renewal
-
-      **DuckDNS path:**
-        Install acme.sh (curl https://get.acme.sh | sh)
-        Issue wildcard cert:
-          DuckDNS_Token={token from KeePass}
-          acme.sh --issue --dns dns_duckdns
-            -d {subdomain}.duckdns.org -d "*.{subdomain}.duckdns.org"
-            --server letsencrypt --dnssleep 60
-        Install cert to stable path /etc/broodforge/ssl/ with --install-cert
-        acme.sh cron entry handles auto-renewal (added during install)
-        Reload command: systemctl reload headscale + sync-cert-to-k8s.sh
-
-      **Both paths — Headscale TLS config:**
-        forge.sh writes the cert paths into /etc/headscale/config.yaml after
-        cert issuance; Headscale is (re)started with TLS enabled
-
-      **k3s ClusterIssuer (deployed in phase-06 Flux bootstrap):**
-        Cloudflare: ClusterIssuer with dns01.cloudflare solver + k8s secret from
-          Cloudflare API token (written from KeePass during phase-06)
-        DuckDNS: No native cert-manager DNS-01 support; `setup_tls.py` generates
-          a site-specific `sync-cert-to-k8s.sh` (via `render_sync_cert_sh()`) with
-          cert paths embedded; a generic fallback version in proxmox-bootstrap/
-          reads cert paths from env vars / /etc/broodforge/ssl-config and exits 2
-          (FORGE_INCOMPLETE) when TLS is not yet configured, so the remediation
-          engine records the right status rather than claiming silent success;
-          script is wired into acme.sh --reloadcmd and also runs as a weekly
-          k8s CronJob to catch any drift
-
-      **SSL config stored in bootstrap-state.json:**
-        network_topology.ssl_provider: "certbot" | "acme.sh"
-        network_topology.ssl_method:   "dns-01-cloudflare" | "dns-01-duckdns"
-        network_topology.ssl_cert_path: path to fullchain.pem
-        network_topology.ssl_key_path:  path to privkey.pem
-
-      **Documentation:** docs/CLOUDFLARE-SETUP.md Part 3 and docs/DUCKDNS-SETUP.md Part 2
-
-- [x] 1.F.9: **Timezone preference at forge time** — phase-01 (plan) prompts the
-      operator to confirm or set their local timezone:
-      - Auto-detected from the host OS if available
-      - Stored in `bootstrap-state.json` as `vm_defaults.timezone`
-      - Used by all documentation engine output (all timestamps show both UTC and local)
-      - Updatable after forging via `engine.py --set-timezone` without requiring a rebuild
-- [x] 1.F.10: **Backup destination setup at forge time** — phase-01 (plan) walks the
-      operator through configuring restic + rclone backup destinations:
-      - At least one destination required before forge proceeds (secrets must be backed up)
-      - Local destinations (filesystem path, USB mount point) need no credentials
-      - Cloud destinations require an API key, Application Key, or OAuth token — not
-        username/password; operator directed to docs/CLOUD-STORAGE-SETUP.md for setup
-      - Destinations defined as an **ordered chain** per layer; no limit on chain depth
-      - Each destination attempted in sequence; each upload independently verified
-      - If a destination fails, the next in the chain is attempted automatically;
-        the failure is reported to the operator but does not halt the process
-      - If every destination in the chain fails for a layer: RED alarm surfaced
-        to operator via log, workbook, and next assessment run — never silent
-      - All backups encrypted by default with restic (encryption is mandatory, not optional);
-        encryption password per restic repo stored in KeePass and retrieved by secrets
-        broker at backup time — operator never manually handles backup decryption keys
-      - Separate choices for: (a) secrets / KeePass DB, (b) configuration state,
-        (c) application data volumes (opt-in; not configured by default)
-      - Retention policy: number of versions to keep (default: 5); permanent checkpoint option
-      - All backup config stored in bootstrap-state.json as first-class readiness metadata
-- [x] 1.F.11: Documentation: `FORGING.md` — operator runbook covering prerequisites,
-      running forge-pack.sh on the repo, copying forge package to target host,
-      executing forge.sh, verifying hatchery is operational
-
-### Phase 1.G — Guided Setup Framework *(cross-cutting: forge, spawn, phoenix)*
-
-*A shared configuration guidance engine used by all three deployment packages.
-At every manual prompt the auto-suggestion is displayed and revised as the operator
-makes choices. Conflicts are detected and surfaced before commitment.*
-
-**Four configuration modes:**
-
-| Mode | Operator interaction | When to use |
-|---|---|---|
-| **Autonomous** (default) | None — all settings calculated automatically | Standard deployment |
-| **IP-Selective** | Choose IP addressing only; everything else is automatic | Operator has a specific IP plan |
-| **Group-Manual** | Group selector → configure chosen groups manually, rest is automatic | Operator wants control over specific areas |
-| **Full Manual** | Walk through all settings with auto-suggestions | Complete control |
-
-**Setting groups (available in Group-Manual and Full Manual modes):**
-
-| Group | Settings covered |
-|---|---|
-| Network | Management CIDR, gateway, bridge names, VLAN IDs, DNS, Headscale URL |
-| Storage | ZFS pool topology, pool name, datastore names, disk assignment |
-| VM Sizing | VMID block, per-VM RAM/CPU/disk, placement constraints |
-| Identity | Hostname, domain, FQDN, cell_id, naming convention |
-| Security | KeePass location, password format, SSH key references |
-| k3s | Pod/service CIDR, CNI plugin, initial role (server/worker) |
-| Backup | Restic destinations, retention policy, DDNS provider |
-
-**Suggestion revision:** when the operator overrides a setting, all downstream
-auto-suggestions are revised to remain logically consistent. Example: choosing
-`192.168.50.0/24` as the management CIDR causes all subsequent VM IP suggestions
-to come from that range; choosing a custom pool name causes all datastore references
-to use that name.
-
-**Conflict detection:** before accepting each override, the engine checks:
-- VMID collisions with existing or other declared VMs
-- IP address collisions with DNS registry or other declared VMs
-- Subnet overlaps with k3s pod/service CIDR or other networks
-- RAM allocation exceeding host total RAM
-- ZFS pool or bridge names that already exist on the host
-Warnings are shown with specific conflict details. The operator may still proceed.
-
-- [x] 1.G.1: `proxmox-bootstrap/guided_setup.py` — core engine:
-      `SETTING_GROUPS` — dict defining the seven groups and their constituent field paths
-      `GuidedSetupSession` — session class that tracks:
-        mode (autonomous|ip-selective|group-manual|full-manual)
-        selected_groups (set of group names for group-manual mode)
-        choices (field_path → {value, source: 'auto'|'manual'})
-        warnings (accumulated conflict messages)
-      `suggest(field_path, session)` — returns auto-suggestion revised from current choices;
-        subnet changes cascade to IP suggestions; hostname changes cascade to FQDN; etc.
-      `set_value(field_path, value, session)` → list[str] conflict warnings;
-        records choice; triggers suggestion revision for dependent fields
-      `check_conflicts(field_path, value, session)` → list[str] warning messages
-
-- [x] 1.G.2: Group selector interface:
-      `select_groups(session)` — displays group table with current auto-suggestions for
-        a representative field in each group; operator toggles groups on/off;
-        returns the set of groups to configure manually
-      `prompt_field(field_path, label, session, choices=None)` → value;
-        shows auto-suggestion, optional discrete choices, accepts free-text or selection;
-        calls set_value() and surfaces any conflicts before returning
-
-- [x] 1.G.3: IP-Selective mode specialization:
-      Runs autonomously except for the Network group;
-      `run_ip_selective(session)` — prompts only for CIDR, gateway, and VM IP assignments;
-        all other settings auto-calculated; subsequent IP suggestions revised from choices
-
-- [x] 1.G.3b: Network profiles (setup_network.py):
-      LanNetworkConfig / WanNetworkConfig dataclasses; suggest_lan/wan() with field
-      revision (cidr→gateway, domain→fqdn, dns_provider→tls_provider);
-      validate_lan/wan_config() with errors/warnings; plan_migration_to_wan()
-      (7-step plan, router step non-autonomous); plan_migration_to_lan() with
-      preserve_headscale option; lan/wan_config_to_state() serialization;
-      apply_network_config_to_state(); generate_dnsmasq_config() for both profiles.
-      Schema: network_topology.profile + wan_config + lan_config + ssl_provider enum updated.
-- [x] 1.G.4: Wire into forge (Phase 1.F):
-      forge_planner.py (library) + forge-planner.py (CLI): ForgePlannerSession,
-      step0_set_setup_mode, step1_run_guided_setup (autonomous/ip-selective/
-      group-manual/full-manual), step2_set_identity, step3_set_network_profile,
-      record_manual_field, build_forge_manifest. Produces forge-manifest.json
-      with setup_overrides embedded for manual choices. (64 tests)
-
-- [x] 1.G.5: Wire into spawn (Phase 12.E):
-      SpawnPlannerSession extended with guided_session + setup_overrides fields.
-      step_guided_setup() helper (autonomous no-op; ip-selective pre-populates;
-      group-manual + full-manual record field_values). Step 0.5 in spawn-planner.py
-      CLI offers guided setup between network mode and execution mode.
-      build_spawn_plan() embeds setup_overrides in spawn-plan.json.
-
-- [x] 1.G.6: Wire into phoenix (Phase 9):
-      phoenix_guided_setup.py: PhoenixGuidedSetupSession, restoration_wave_options,
-      step0_set_restoration_scope (full/partial with wave selection),
-      step1_run_identity_overrides (hostname/domain/fqdn/cell_id overrides with
-      conflict detection), apply_overrides_to_playbook (scope filter + identity
-      update + setup_overrides audit trail), build_phoenix_guided_session factory.
-      phoenix-planner.py CLI. (63 tests)
-
----
-
-## Track 1 — Cell-Scoped Foundation
-
-### Phase 6 — Bootstrap State
-
-**6.0 — External Backup Setup and Recovery Runbook Integration**
-- [x] `external_backup` section in bootstrap-state-schema.json
-- [x] `backup.py` — archive naming, GPG encryption, transfer, listing, pruning
-- [x] `setup-external-backup.py` — GitHub or encrypted-archive interactive wizard
-- [x] `init-bootstrap-state.py` — prompts for external backup as part of init flow
-- [x] Recovery runbook Step 0 — pre-populated bootstrap state retrieval commands
-      derived from declared external_backup provider (git clone / rclone + gpg / UNRESOLVED)
-
-**6.1 — Bootstrap State Schema and Repository Structure**
-- [x] `data-model/bootstrap-state-schema.json` (Cloud-Init, image registry, templates,
-      provenance, secret registry, DNS registry, service contracts, hardware requirements)
-- [x] `data-model/service-state-schema.json`
-- [x] `cell_id` field in both schemas
-- [x] `proxmox-bootstrap/` repository structure
-- [x] Schema validation tests (90 tests in test_bootstrap_service_schemas.py)
-
-**6.2 — Cloud-Init Template Library**
-- [x] Cloud-Init user-data per VM role
-- [x] Cloud-Init network-config per VM
-- [x] Proxmox vendor-data snippet
-- [x] Snippet upload procedure documentation (SNIPPET-UPLOAD.md)
-
-**6.3 — Secret Registry**
-- [x] `secret-registry.yaml` schema with `owning_cell` field (federation-readiness)
-- [x] Initial registry entries for all known secrets
-- [x] Secret registry reader in doc-gen (`doc-gen/registries.py` — `SecretRegistry`)
-- [x] Wire into recovery documentation (pre-populated "Secrets Required for Recovery" section + Appendix D)
-- [x] Secret registry completeness in readiness scorer (ORANGE if missing)
-
-**6.4 — DNS Registry**
-- [x] `dns-registry.yaml` schema
-- [x] Initial registry entries for all VMs
-- [x] DNS registry reader in doc-gen (`doc-gen/registries.py` — `DnsRegistry`)
-- [x] Wire into recovery runbook (replace `[VM_IP]` placeholders with actual IPs + Appendix C)
-- [x] DNS registry completeness in readiness scorer (YELLOW if missing)
-
-**6.5 — Deployment Provenance**
-- [x] Provenance record schema (provenance_records in bootstrap-state-schema.json)
-- [x] Provenance recorder (bootstrap-state.json provenance_records array)
-- [x] Provenance collector in Tier 2 assessment
-- [x] Provenance completeness in readiness scorer (YELLOW if missing, per VM)
-- [x] Wire into recovery documentation (per-VM block + Appendix E)
-
-**6.6 — Template Registry and Base Image Tracking**
-- [x] Template registry schema (base_images + templates arrays in bootstrap-state-schema.json)
-- [x] Initial registry entries (ubuntu-2204-base ISO + template in bootstrap-state.json)
-- [x] Template registry reader in doc-gen (doc-gen/template_registry.py — TemplateRegistry)
-- [x] Template registry completeness in readiness scorer (ORANGE if missing)
-- [x] Appendix F — Template Registry in recovery runbook
-- [x] Template rebuild playbook format (Phase 9)
-
-**6.7 — Tier 2 Bootstrap State Collector**
-- [x] `proxmox-bootstrap/collect_tier2.py` — SSH collector library (parse_qm_list,
-      parse_qm_config, collect_templates, collect_provenance_records, merge_into_state)
-- [x] `proxmox-bootstrap/collect-tier2.py` — CLI entry point (--host, --user, --port,
-      --key, --state, --dry-run, --verbose)
-- [x] `proxmox-bootstrap/TIER2-COLLECTION.md` — runbook: prerequisites, usage, merge
-      behaviour, ISO name inference, post-collection steps, troubleshooting
-- [x] `--dry-run` flag; merge-only logic (never overwrites existing manual entries)
-- [x] Tests — 54 tests in test_tier2_collector.py
-- [x] Cloud-Init snippet comparison (deployed vs. repository) — deferred to 6.8
-- [x] Integration into Tier 2 manifest — deferred to 6.8
-
-**6.8 — Bootstrap Documentation Update**
-- [x] Bootstrap Workbook Stage 03: VM IP from DNS registry; ISO path from template registry
-- [x] Stage 03 validation checkpoint and qm create note pre-populated from registries
-- [x] End-to-end test (28 tests)
-
-**6.B — Backup Infrastructure** *(restic + rclone; KeePass, config state, app data)*
-
-- [x] 6.B.1: `proxmox-bootstrap/setup-backup.py` — interactive backup configuration wizard:
-      - Installs restic and rclone on the host if not present
-      - Configures one or more backup layers:
-          (a) Secrets / KeePass DB — always enabled when any destination configured
-          (b) Configuration state — enabled by default
-          (c) Application data volumes — opt-in per volume at service setup
-      - For each layer, builds an **ordered destination chain** (no limit on length):
-          → Enter destinations one at a time; add as many as desired
-          → Each destination attempted in sequence when the previous one fails
-          → All attempted; failures reported but chain continues; all-fail = RED
-      - Local destinations: filesystem path or USB mount point (no credentials)
-      - Cloud destinations: provider selection → API credential entry → rclone config
-          written to `~/.config/rclone/rclone.conf`; restic repo initialised at destination
-          Cloud destinations require API key / OAuth / Application Key — not user+password
-          (see `docs/CLOUD-STORAGE-SETUP.md`)
-      - **Per-backup unique secrets (non-KeePass layers)**:
-          Each individual backup run generates a new unique restic repo password via
-          `restic key add` + `restic key remove` (rewraps the master key; no data
-          re-encryption). Stored in KeePass at a timestamped path per component:
-            `Backup/{layer}/{component}/{YYYY-MM-DD_HH_MM_SS}/repo-password`
-          A `current` alias key is also maintained:
-            `Backup/{layer}/{component}/current` → latest timestamp subdirectory
-          Secrets broker uses the snapshot timestamp to look up the exact key for
-          any given snapshot at restore time. After `restic forget` prunes a snapshot,
-          the corresponding KeePass entry is removed automatically.
-          KeePass DB backup is exempt — its auth method (master password or configured
-          token/key file) is never subject to per-backup rotation.
-      - **KeePass DB backup — no restic layer**: the `.kdbx` file is already AES-256
-          encrypted by KeePass; backed up as a plain rclone file copy to each configured
-          destination; adding restic encryption would create a circular dependency (need
-          the repo password from KeePass to decrypt backup of KeePass — irrecoverable)
-      - **KeePass backup transport credentials** stored in `forge-manifest.json`, NOT in
-          KeePass — the one exception to the "packages carry only KeePass references" rule;
-          these credentials are embedded in forge/spawn/phoenix packages so a bare machine
-          can retrieve the KeePass DB before KeePass is available
-      - **Secrets broker configuration**: wizard records which KeePass path templates map
-          to which components/layers so that automated backup and restore require no manual
-          secret entry beyond the initial master password gate
-      - **Space-aware component routing**: wizard records the target snapshot retention
-          count and estimated component sizes; at runtime the backup engine probes
-          available space before each run and routes individual components to destinations
-          with sufficient room (see 6.B.3 for execution detail)
-      - Retention policy per layer: number of snapshots to keep (default 5);
-          permanent checkpoint: any snapshot can be tagged `checkpoint` and is
-          excluded from rotation regardless of retention count
-      - **Naming convention enforced by wizard**: all repo paths, KeePass key paths,
-          snapshot tags, and KeePass DB filenames are constructed programmatically
-          from cell_id, component metadata, and UTC timestamps — operators do not
-          name backup artifacts; see 6.B.2 naming convention for the full scheme
-      - All configuration serialised into `bootstrap-state.json` backup_config section
-
-- [x] 6.B.2: `backup_config` section in `bootstrap-state-schema.json` — schema for:
-
-      **Naming convention** (enforced programmatically; operators do not name artifacts manually):
-        Component prefixes: `kdbx` | `cell-config` | `node-{hostname}` | `vm-{name}-{vmid}`
-          | `ct-{name}-{ctid}` | `vol-{vm_name}-{vol_name}` | `svc-{service_name}`
-        Timestamp format: `YYYY-MM-DD_HH_MM_SS` (UTC; underscores; matches project convention)
-        Hash: 8 hex chars — SHA-256 of file content (KeePass files) or first 8 of UUID/snapshot ID
-        Restic repo paths: `{destination_root}/{cell_id}/{layer}/{component_prefix}/`
-        KeePass DB files: `kdbx_{cell_id}_{timestamp}_{hash8}.kdbx`
-        Snapshot set IDs: `{cell_id}_{timestamp}_{run_hash8}` (UUID first 8 chars)
-        Restic snapshot tags: `cell:{cell_id}`, `set:{snapshot_set_id}`,
-          `component:{prefix}`, `layer:{layer}`, `run:{timestamp}`
-        KeePass key paths: `Backup/{layer}/{component_prefix}/{timestamp}/repo-password`
-          and `Backup/{layer}/{component_prefix}/current` (alias to latest)
-
-      - Per-layer destination chain (ordered array; unlimited length):
-          For config/appdata layers — each entry:
-            `{type, rclone_remote, restic_repo_root, restic_repo_password_keepass_prefix,
-              retention_count}`
-            Restic repo path assembled as: `{restic_repo_root}/{cell_id}/{layer}/{component}/`
-          For secrets/KeePass layer — each entry:
-            `{type, rclone_remote, kdbx_destination_root}`
-            Destination file named: `kdbx_{cell_id}_{timestamp}_{hash8}.kdbx`
-            (no restic layer; transport credentials stored in forge-manifest.json)
-      - Permanent checkpoint tag name (default: `checkpoint`)
-      - Layer-level `all_failed_policy`: `alert` | `block_assessment` (default: both)
-      - Per-layer backup history (appended on each run; trimmed to last 100 entries):
-          `{run_at, snapshot_set_id, destinations_attempted, destinations_succeeded,
-            consecutive_all_fail_count, components: [{component_id, component_prefix,
-            destination, restic_snapshot_id, keepass_key_path, size_bytes, verified,
-            routed_reason}]}`
-          `snapshot_set_id`: `{cell_id}_{timestamp}_{run_hash8}` — human-readable;
-          links all component snapshots belonging to the same logical backup point
-      - Space routing metadata per component per run (embedded in components[]):
-          `routed_reason`: `primary` | `space_fallback` | `chunked_split`
-
-- [x] 6.B.3: `proxmox-bootstrap/run-backup.py` — backup execution engine:
-
-      **Naming — all names constructed programmatically, never entered manually:**
-      - Restic repo path: `{restic_repo_root}/{cell_id}/{layer}/{component_prefix}/`
-          e.g. `b2:cell-backup/proxmox-cell-a/config/vm-forgejo-101/`
-      - KeePass DB copy: `kdbx_{cell_id}_{timestamp}_{sha256_of_file[:8]}.kdbx`
-          e.g. `kdbx_proxmox-cell-a_2026-06-01_03_00_00_a3f2b891.kdbx`
-      - Snapshot set ID: `{cell_id}_{timestamp}_{snapshot_set_uuid[:8]}`
-          e.g. `proxmox-cell-a_2026-06-01_03_00_00_f7c1d3a2`
-      - Restic snapshot tags applied at creation: `cell:{cell_id}`, `set:{snapshot_set_id}`,
-          `component:{component_prefix}`, `layer:{layer}`, `run:{timestamp}`
-      - KeePass key path: `Backup/{layer}/{component_prefix}/{timestamp}/repo-password`
-
-      **Per-backup secret rotation:**
-      - For each component being backed up, generates a new unique passphrase
-      - Adds it to the restic repo: `restic key add` (new key now unlocks the repo)
-      - Stores it in KeePass at the timestamped path:
-          `Backup/{layer}/{component_prefix}/{YYYY-MM-DD_HH_MM_SS}/repo-password`
-      - Updates the `current` alias in KeePass to point to the new timestamp path
-      - Removes the previous key from the repo: `restic key remove` (old password
-          no longer works; only the newly generated key is valid going forward)
-      - On pruning (after `restic forget`): removes the corresponding KeePass entry
-          for each pruned snapshot's timestamp path; `current` always points to latest
-      - KeePass master password gate fires once per session; all subsequent secret
-          lookups and key rotations are automatic
-      - **KeePass database backup**: triggered whenever configuration state backup runs;
-          executed as a plain rclone copy of the `.kdbx` file — no restic layer, no key
-          rotation; transport credentials read from `forge-manifest.json` (not KeePass);
-          KeePass is already AES-256 encrypted and requires no additional encryption layer
-
-      **Space-aware component routing:**
-      - Before backing up each component, probes available space at each destination
-          in the chain using rclone's `about` command (or filesystem `statvfs` for local)
-      - Estimates required space: last snapshot size × 1.1 (10% growth headroom)
-      - Routing logic per component:
-          1. Primary destination has space → back up there (routed_reason: `primary`)
-          2. Primary is full or insufficient → try next destination in chain
-             (routed_reason: `space_fallback`)
-          3. No single destination has sufficient space, but multiple have partial space:
-             → Split by sub-components (e.g., each volume backed up independently to
-                whichever destination has room for that volume)
-             → Each sub-component gets its own restic repo, its own key rotation, its
-                own KeePass path, and its own backup_history entry
-             → The parent `snapshot_set_id` links all sub-component snapshots so restore
-                knows they belong to the same logical backup point
-             (routed_reason: `chunked_split`)
-          4. Even sub-component splitting cannot fit within available space across all
-             destinations → surfaces as a human-required decision; backup run records
-             a BLOCKED status for the affected component; other components continue
-      - All routing decisions (destination chosen, available space at run time,
-          routed_reason) recorded in the component entry in `backup_history`
-      - Restore reads routing from `backup_history` → secrets broker retrieves the
-          correct key per component+destination+timestamp → restores each piece
-          from its actual destination → assembles the full snapshot set automatically
-
-      **Ordered destination chain execution:**
-      - After space-aware routing determines where each component goes, backs up each
-          component to its assigned destination
-      - On completion runs `restic stats` to verify upload integrity (snapshot count
-          and size must be consistent with expectations)
-      - If verification fails or destination errors: logs with full error detail,
-          marks destination as failed in this run, moves to next destination in chain
-      - If all destinations fail for a layer:
-          → Writes RED entry to backup_history
-          → Increments `consecutive_all_fail_count`
-          → Emits a structured failure record visible in the next assessment run
-          → Never fails silently; surfaced in workbook, readiness report, and alerts
-
-      **Retention and checkpoints:**
-      - Applies `restic forget --prune --keep-last N` per destination after each
-          successful backup (only on destinations that succeeded this run)
-      - After pruning: removes corresponding per-snapshot KeePass entries; updates
-          `current` alias to remain valid
-      - Snapshots tagged `checkpoint` are excluded from forget regardless of N
-      - Prompts operator to create a checkpoint if none exists after > 7 days
-
-      **Run trigger:**
-      - Triggered by assessment engine on completion of a full cluster assessment
-      - Can also be run manually: `python3 proxmox-bootstrap/run-backup.py [--layer secrets|config|appdata]`
-      - Dry-run mode: `--dry-run` shows what would be backed up, to which destinations,
-          with current space probe results and routing decisions (no writes made)
-
-- [x] 6.B.4: **Simple mode** — one wizard, uniform policy across layers:
-      - Operator defines a single ordered destination chain that applies to all layers
-      - Per-layer overrides available but not required
-      - Recommended starting point; detailed mode layers on top as needed
-
-- [x] 6.B.5: **Detailed mode** — per-node, per-VM, per-container, per-volume heterogeneous policy:
-      - Each component defines its own ordered destination chain, retention count,
-          and restic repo password (or inherits from parent explicitly)
-      - Inheritance chain: cell → node → VM → container → volume; each level can
-          override any field while inheriting the rest from the parent
-      - Children create a sub-directory prefix at the inherited destination so backup
-          data is co-located but separately addressable (`/cell/node/vm/volume/`)
-      - Siblings' destination chains auto-suggested as defaults when configuring a new
-          sibling (enter once, reuse across all sibling components)
-      - Policy inheritance and credential reuse minimise repeated configuration entry
-          while maintaining independent restic repos per component (dedup is per-repo)
-
-- [x] 6.B.6: Backup readiness scoring in `readiness.py`:
-      - RED: no destination configured for secrets or configuration state layers
-      - RED: `consecutive_all_fail_count` ≥ 2 (two consecutive complete-chain failures)
-      - RED: last successful backup older than 3× schedule interval
-      - ORANGE: last successful backup older than 2× schedule interval
-      - ORANGE: any destination in chain has failed in last 3 runs (partial coverage)
-      - YELLOW: all destinations healthy but last backup older than 1× schedule interval
-      - YELLOW: no permanent checkpoint exists
-      - GREEN: all destinations reachable, last backup within schedule, checkpoint exists
-
-- [x] 6.B.7: Backup status in recovery runbook — Appendix H:
-      - Per-layer: destination chain with last-run status per destination (✓ / ✗ / skipped),
-          last successful backup timestamp, snapshot count, most recent permanent checkpoint
-      - All-fail history: if consecutive_all_fail_count > 0, shown prominently
-      - Restic repo password KeePass paths listed (for manual recovery reference)
-
-- [x] 6.B.8: `proxmox-bootstrap/restore-from-backup.py` — automated restore engine:
-
-      **Design principle:** maximise automation via secrets broker; operator enters
-      master password once at the gate; everything else is automatic.
-
-      **Snapshot discovery and selection:**
-      - Probes each configured destination (in chain order) for available restic snapshots
-      - Presents snapshot list: timestamp, tag, component, size
-      - Defaults to "latest" unless operator specifies a date or checkpoint tag
-      - `--latest`, `--checkpoint` (most recent tagged snapshot), `--date YYYY-MM-DD`,
-          `--tag NAME` selection flags
-
-      **Automated secret retrieval for per-backup keys:**
-      - For each component being restored, reads its `backup_history` entry to find:
-          `{destination, restic_snapshot_id, keepass_key_path, routed_reason}`
-      - Resolves `keepass_key_path` (the timestamped per-backup path) via secrets broker
-          — automatically retrieves the unique key that was current for that specific backup
-      - For chunked-split restores: reads all sub-component entries sharing the same
-          `snapshot_set_id`; resolves each sub-component's key independently; restores
-          each piece from its actual destination; assembles full snapshot set
-      - For service-level restores (post-restic): retrieves service credentials from
-          KeePass and re-injects into service config — no per-service password re-entry
-
-      **Restore execution:**
-      - Restores to target path; verifies file integrity post-restore via `restic check`
-      - For chunked-split snapshot sets: restores sub-components in dependency order
-          (volumes before containers, containers before VMs), assembles into target path
-      - Generates structured restore report: component, destination, snapshot ID,
-          timestamp, `routed_reason`, integrity verification result, KeePass path used
-      - If a destination is unreachable at restore time, tries other destinations that
-          hold the same component (if any — depends on whether backup ran to multiple)
-      - Supports `--dry-run` (lists what would be restored, from where, which keys used)
-      - Supports `--component` flag: restore a single VM, container, or volume
-      - Supports `--snapshot-set` flag: restore all components of a specific backup point
-          (identified by `snapshot_set_id` from `backup_history`)
-
-- [x] 6.B.9: Documentation: `docs/CLOUD-STORAGE-SETUP.md` — step-by-step provider guides:
-      - Google Drive (OAuth2 / Service Account — most complex; full walkthrough) ✓ written
-      - Backblaze B2 (Application Key — simplest cloud option) ✓ written
-      - AWS S3 (IAM user, access key/secret) ✓ written
-      - Cloudflare R2 (S3-compatible, no egress fees) ✓ written
-      - Self-hosted MinIO (S3-compatible, full privacy) ✓ written
-      - Each guide dated; review reminder in document header
-
-### Phase 7 — Service State
-
-**7.1 — Service Contract Implementation**
-- [x] Service Contract YAML spec format
-- [x] Initial contracts for all known VMs
-- [x] Service contract reader in Tier 2 collector
-- [x] Service contract validator (observed vs. declared)
-- [x] Dependency graph builder updated to use contracts as primary source
-
-**7.2 — Service State Schema and Collection**
-- [x] Finalise `service-state-schema.json` with `cell_id`
-- [x] Service state collector
-- [x] Service state in Tier 2 manifest
-- [x] Service contract completeness in readiness scorer
-
-**7.3 — External Dependency State (Phase 7 addition from v5.0)**
-- [x] `data-model/external-dependency-state-schema.json`
-- [x] External dependency declaration format (DNS provider, SMTP, cert authority) — `external_dependencies` in bootstrap-state.json; `doc-gen/external_dependencies.py` ExternalDependencyRegistry
-- [x] Certificate expiry monitoring (RED ≤ 7d, ORANGE ≤ 30d, YELLOW ≤ 60d) — `_score_external_dependency_state()` in readiness.py
-- [x] External dependency section in Recovery Runbook — Appendix G (endpoint, type, required_by, cert expiry with severity callouts)
-
-**7.4 — Recovery Documentation Update (Service Layer)**
-- [x] Service contract block per VM in restore sequence: provided interfaces,
-      required interfaces, startup_after note, restart commands, secret references,
-      per-interface health check checkboxes
-- [x] Health check commands derived from contract: curl for HTTP/HTTPS (uses
-      url_pattern when available, falls back to vm_ip:port), pg_isready for postgresql,
-      nc for smtp, empty for ssh (already in standard block)
-- [x] Service restart commands: ssh ubuntu@{ip} 'sudo systemctl restart {svc}'
-- [x] Appendix A: edge type legend (SERVICE★/DEPENDS_ON/STORAGE/NETWORK/BACKUP)
-      + ★ marker on SERVICE edges to distinguish contract-driven from heuristic
-
-### Phase 8 — Network Topology as Code
-
-- [x] 8.1: Network topology declaration format — `data-model/network-topology-schema.json`
-      (bridges, VLANs, firewall policy) + `network_topology_declared` section in
-      bootstrap-state-schema.json + canonical fixture in bootstrap-state.json
-- [x] 8.2: Network topology collector — `proxmox-bootstrap/network_topology_collector.py`:
-      parse_interfaces_file() parses /etc/network/interfaces format;
-      collect_observed_bridges() SSHes to host (injectable runner for tests);
-      compare_topology() diffs declared vs observed; merge_observed_topology()
-      writes drift results back into bootstrap-state.json
-- [x] 8.3: Network topology drift detection — compare_topology() returns
-      (drift_detected: bool, drift_details: str); merge_observed_topology()
-      persists both fields; readiness scorer surfaces as ORANGE/RED
-- [x] 8.4: Recovery documentation Wave 0 — build_recovery_runbook() now emits
-      a full "Wave 0 — Network Reconstruction" section before the restore sequence:
-      per-bridge IP, ports, vlan_aware; verify commands (ip link, ip addr);
-      reconstruct commands (ifreload -a from /etc/network/interfaces);
-      drift warning if drift_detected; "NOT DECLARED" UNRESOLVED field if absent
-- [x] 8.5: Network topology completeness in readiness scorer —
-      _score_network_topology_completeness(): YELLOW if not declared; ORANGE if
-      drift detected; RED if all declared bridges are missing in observed state
-
-### Phase 9 — Phoenix Playbooks *(Stargate Process — reconstruction scripts)*
-
-These are the playbooks that form the execution layer of the stargate process —
-per-wave, per-VM scripts that reconstitute a failed node's identity on new hardware.
-See Phase 12.E for the hatchery process playbooks (broodling spawn scripts).
-
-- [x] 9.1: Phoenix playbook format and schema — `data-model/phoenix-playbook-schema.json`:
-      schema_version, cell_id, target_node (hostname, role, k3s_role), identity
-      (lan_ip, tailnet_ip, vmids, bridge_names, zfs_pool_name), hardware_profile,
-      restoration_scope (full|partial|deferred), deferred_services, waves (playbook_wave
-      → playbook_step with id, action, commands, validation, method, on_failure, secret_refs),
-      estimated_total_minutes, validation_checklist
-- [x] 9.2: Playbook generator — `proxmox-bootstrap/phoenix_playbook.py`:
-      PhoenixPlaybookGenerator class + build_phoenix_playbook() factory;
-      reads manifest (host_identity, vms, dns_registry, network_topology_declared,
-      storage_config, provenance_registry); now_fn injectable for tests;
-      _zfs_topology_from_disk_count() adapts topology to replacement hardware
-- [x] 9.3: Wave 0 (network reconstruction) + Wave 1 (ZFS pool) + Wave 2 (host config) +
-      Wave 3 (VM PBS restore, identity-preserving — same VMIDs, IPs, provenance info) +
-      Wave 4 (k3s membership + Flux reconciliation) generated with pre-populated commands
-- [x] 9.4: Wave 0.5 (template rebuild) playbook — _wave_05_template_rebuild() in
-      PhoenixPlaybookGenerator; inserted at wave=2.5 between host config and VM restore;
-      _os_variant_for_vm() reads k3s-cluster.yaml server_nodes[].os_variant;
-      Ubuntu path: download ISO + qm create + qm template; Talos path scaffolded
-- [x] 9.5: Per-VM RECREATE vs RESTORE decision — _vm_is_stateless() checks
-      service_contract.backup_job==null AND provenance_registry.tofu_workspace present;
-      stateless VMs: RECREATE (tofu apply + Ansible playbook); stateful VMs: RESTORE (qmrestore)
-- [x] 9.6: Shell script generator — proxmox-bootstrap/phoenix_scripts.py:
-      generate_wave_script(wave) → bash script with checkpoint tracking per step;
-      generate_run_all_sh(playbook) → orchestrating entry point that calls each wave script
-      in wave-number order with failure detection
-- [x] 9.7: Playbook validator — proxmox-bootstrap/phoenix_validator.py:
-      validate_playbook() → list of {severity, field, message} findings;
-      ERROR: missing required fields, empty waves, duplicate wave/step IDs, invalid enum values,
-      empty step commands; WARNING: missing vmids/bridges/pool in identity, non-ascending waves;
-      is_valid() and summarise_findings() helper functions
-- [x] 9.8: Playbook existence in readiness scorer — _score_phoenix_playbook_existence():
-      YELLOW if neither phoenix_playbook nor phoenix_playbook_generated_at is present
-      in the manifest; wired into score_graph() alongside other registry gap scorers
-
-**9.T — Talos Alternative Support** *(optional; activate by setting os_variant: talos)*
-
-*Foundation — build and config tooling:*
-- [x] 9.T.1: `docs/TALOS-ALTERNATIVE.md` — prerequisites, build procedure for talos-1x-base
-        template, talosctl installation, machine config generation, migration checklist
-- [x] 9.T.2: `proxmox-bootstrap/build-talos-template.sh` — downloads Talos ISO,
-        creates Proxmox VM, converts to template (talos-1x-base, VMID 9001)
-- [x] 9.T.3: `proxmox-bootstrap/generate-talos-config.py` — generates talos machine
-        configs from k3s-cluster.yaml (control plane + worker patches); stdlib only
-- [x] 9.T.4: Talos template entry in bootstrap-state.json template registry
-        (talos-1x-base alongside ubuntu-2204-base; separate base_image entry)
-- [x] 9.T.5: bootstrap-state-schema.json — add `os_variant` enum (ubuntu | talos)
-        to template registry entries and provenance_records
-- [x] 9.T.6: doc-gen readiness scorer — YELLOW if os_variant=talos but no Talos
-        machine config found in repo (talos-configs/ directory absent)
-- [x] 9.T.7: Recovery runbook — emit Talos-specific reconstruction steps
-        (talosctl apply-config instead of Ansible) when os_variant=talos
-- [x] 9.T.8: Tests for Talos config generator and runbook rendering (57 tests)
-
-*OS transition automation — Ubuntu → Talos:*
-- [x] 9.T.9: `proxmox-bootstrap/migrate-k3s-to-talos.py` — automated migration script
-        Steps: drain k3s node → snapshot VM → destroy Ubuntu VM → provision Talos VM
-        from talos-1x-base template → apply machine config → verify cluster health →
-        update bootstrap-state.json os_variant + provenance_records → commit to repo
-        Flag: `--dry-run` prints plan without making changes
-        Flag: `--skip-snapshot` for test environments where snapshot overhead is unwanted
-        Guard: refuses to run if cluster health check fails pre-drain (RED readiness)
-- [x] 9.T.10: Pre-migration checklist validator — confirms all prerequisites before
-        migration begins: talos-1x-base template exists, machine config generated,
-        Velero PVC backup current (ORANGE if any check fails; migration blocked until GREEN)
-- [x] 9.T.11: Post-migration verifier — confirms k3s node rejoined cluster, all
-        namespaces healthy, Flux reconciliation complete, PVCs reattached;
-        writes migration completion record to bootstrap-state.json provenance_records
-- [x] 9.T.12: Recovery runbook — "OS Variant Migration" appendix (Appendix I) documents
-        all migration attempts from migration_history with per-record detail
-        (node, direction, outcome, snapshot_vmid, error) and manual rollback commands.
-        Both ODT and HTML renderers. 25 tests.
-
-*OS transition automation — Talos → Ubuntu:*
-- [x] 9.T.13: `proxmox-bootstrap/migrate-k3s-to-ubuntu.py` — automated reverse migration
-        Steps: drain k3s node → snapshot VM → destroy Talos VM → provision Ubuntu VM
-        from ubuntu-2204-base template → apply Cloud-Init + Ansible k3s-server role →
-        verify cluster health → update bootstrap-state.json → commit to repo
-        Same flags as 9.T.9 (--dry-run, --skip-snapshot)
-        Guard: refuses to run if cluster health check fails pre-drain
-- [x] 9.T.14: Shared migration library `proxmox-bootstrap/migrate_k3s_lib.py`
-        Extract common steps from 9.T.9 and 9.T.13: drain, snapshot, VM destroy,
-        health check, provenance record update. Both migration scripts import this.
-- [x] 9.T.15: Migration state file `bootstrap-state.json migration_history` array
-        Each completed migration appended: from_variant, to_variant, migrated_at,
-        migrated_by, snapshot_vmid (for rollback), outcome
-- [x] 9.T.16: Rollback procedure — if post-migration verifier fails, restore VM from
-        pre-migration snapshot, update os_variant back, re-run health check;
-        rollback outcome appended to migration_history (rollback() in migrate_k3s_lib.py)
-- [x] 9.T.17: Tests for both migration scripts (mock Proxmox API + mock talosctl/ansible)
-        48 tests in test_migration_k3s.py
-
-### Phase 10 — Operational Documentation
-
-- [x] 10.1: Operational documentation class design — `doc-gen/renderers/operational_report.py`;
-      seven sections: overall readiness, drift summary, capacity, service health,
-      secret completeness, external dependencies, time-sensitive actions
-- [x] 10.2: Drift summary renderer — Section 2 reads manifest["drift"] (from compute_drift());
-      shows from/to snapshot, severity, changed fields (capped at 30)
-- [x] 10.3: Capacity trend renderer — Section 3 reads cpu/memory/storage from manifest;
-      ORANGE/RED warnings on RAM ≥90% or storage ≥90% utilization
-- [x] 10.4: Service health summary renderer — Section 4 reads manifest["service_state"];
-      shows running/stopped/degraded counts and per-service status line
-- [x] 10.5: Secret registry completeness renderer — Section 5 reads manifest["secret_registry"];
-      shows total/with-path counts; lists secrets missing keepass_path
-- [x] 10.6: Wire into engine.py — run_operational() function + `--mode operational` choice;
-      loads all registries, computes drift + readiness, renders Operational-Report.html
-- [x] 10.7: Scheduled refresh — `proxmox-bootstrap/setup-operational-schedule.sh` installs
-      broodforge-operational.service + broodforge-operational.timer (every hour)
-
-### Phase 11 — Capacity Model
-
-- [x] 11.1: Capacity model schema — `capacity_model` section added to bootstrap-state-schema.json:
-      thresholds (cpu/ram/storage warn/crit pcts + restoration_headroom_pct),
-      observed (snapshot: ram/storage usage pcts + totals), trend (direction + days_to_full)
-- [x] 11.2: Capacity tracking — `proxmox-bootstrap/capacity_collector.py`:
-      collect_capacity_snapshot() reads cpu/memory/storage from manifest;
-      merge_capacity_model() updates bootstrap-state.json with observed + trend
-- [x] 11.3: Capacity validation in readiness scorer — _score_capacity_model():
-      YELLOW: no capacity_model; YELLOW/ORANGE: RAM/storage above warn/crit threshold
-- [x] 11.4: Trend analysis — compute_trend() derives direction (increasing/stable/decreasing)
-      and days_to_full projection from ordered historical snapshots; uses linear rate
-- [x] 11.5: ORANGE if target host cannot accommodate restored workload —
-      check_restoration_headroom() compares sum(VM RAM) vs host RAM × (1 - headroom_pct)
-
-### Phase 12 — Full Single-Cell Reconstruction Test
-
-- [x] 12.1: End-to-end drill framework — `proxmox-bootstrap/reconstruction_drill.py`:
-      DrillRecord (per-wave timing, gap tracking), start_drill() factory from phoenix playbook,
-      save_drill_record() / get_last_drill() for bootstrap-state persistence,
-      `reconstruction_drills[]` schema in bootstrap-state-schema.json;
-      `docs/RECONSTRUCTION-DRILL.md` operator guide (live + tabletop modes)
-- [x] 12.2: Reconstruction time measurement — DrillRecord.record_wave() tracks
-      estimated vs actual minutes per wave; generate_drill_report() produces Markdown
-      table with timing comparison and accuracy %; DrillRecord.accuracy_pct property
-- [x] 12.3: Gap identification — DrillRecord.gaps_found/gaps_remediated; readiness scorer
-      _score_reconstruction_drill(): YELLOW if no drill, YELLOW if > 90 days stale,
-      ORANGE if last drill was failed/aborted; wired into score_graph()
-- [x] 12.4: Scheduled drill activity — `proxmox-bootstrap/schedule-reconstruction-drill.sh`
-      installs broodforge-drill-reminder.timer (fires every 90 days, logs journal reminder)
-
-**Gate:** Phase 12 completion validates the single-cell foundation.
-Track 2 begins after Phase 12.
-
-### Phase 12.E — Node Spawn Bootstrap *(Hatchery Process)*
-
-*The existing cluster is the hatchery. Additional nodes — broodlings — are spawned
-from it via the **hatchery process**. Phase 12.E adds the ability to run the
-hatchery process: the assessment engine produces a **spawn package** — a
-self-contained archive of scripts and a reserved-resource data dump — that is
-copied to a broodling after bare Proxmox installation and executed there. The
-broodling joins the existing Proxmox cluster and k3s cluster without VMID, IP,
-or hostname conflicts.*
-
-**Hatchery process vs stargate process:**
-The hatchery process (this phase) assigns *new* identity — VMIDs, IPs, hostnames
-that don't conflict with anything already in the hatchery.
-The stargate process (Phase 9) preserves *existing* identity — the exact VMIDs,
-IPs, hostnames, and certs of a node that failed, reconstituted on new hardware.
-
-**Context:** Phase 12 answers "can I rebuild this?" Phase 12.E answers "can I
-spawn a broodling into this datacenter?" The assessment engine knows everything
-the hatchery has reserved — IPs, VMIDs, hostnames, k3s join tokens, cluster
-topology — and encodes that knowledge into the spawn package so the broodling
-never needs to ask the operator what is already taken.
-
-- [x] 12.E.1: **Hatchery state reader** — reads `bootstrap-state.json` and queries
-      the live Assessment Engine API to extract a point-in-time reservation snapshot:
-      all allocated VMIDs, all assigned IPs (from DNS registry + provenance records),
-      all hostnames, Proxmox cluster join address, k3s server/worker counts,
-      k3s join tokens (worker and server). Produces `spawn-manifest.json`.
-      This is the authoritative "what the hatchery has reserved" data dump embedded
-      in every spawn package.
-
-- [x] 12.E.2: **Conflict validator** (`proxmox-bootstrap/validate-spawn.py`) —
-      run before the spawn package is generated and again on the broodling before
-      any deployment action:
-      - No VMID collisions (proposed new VMIDs vs all VMIDs in spawn-manifest.json)
-      - No IP collisions (proposed new IPs vs all IPs in spawn-manifest.json)
-      - No hostname collisions (proposed hostnames vs all hostnames in spawn-manifest.json)
-      - Placement policy satisfied (proposed roles are declared for this host type)
-      - Capacity check: broodling RAM sufficient for its assigned VM roles
-      RED finding on any collision blocks spawn package generation until resolved.
-      The validator is designed to be re-run on the broodling from the spawn package
-      itself, using only the embedded manifest (no live API access required).
-
-- [x] 12.E.3: **Spawn planner with execution mode gate and service selection**
-      (`proxmox-bootstrap/spawn-planner.py`) —
-
-      The planner runs on the hatchery. **Execution mode is the first question**,
-      because the answer determines whether service selection happens at all.
-
-      **Step 0 — Network mode (asked before anything else):**
-
-      Because the hatchery runs split-horizon DNS, the Headscale server URL in every
-      spawn package is always the hatchery's FQDN (`host_identity.fqdn`):
-        `https://hatchery.home.example.com:8080`
-      LAN broodlings resolve this to the LAN IP via the hatchery's dnsmasq.
-      WAN broodlings resolve this to the WAN IP via public DNS.
-      The same spawn package works from both locations without modification.
-
-      The planner still asks which network mode the broodling is on, because
-      the SSH discovery path differs (direct IP vs tailnet IP):
-
-      ```
-      Is the broodling on the same LAN as the hatchery?
-      [auto-detecting — trying {broodling-ip} directly... timeout 5s]
-
-        1. Same LAN  — direct SSH using temporary root password
-        2. WAN       — Headscale tailnet (generates auth key; Headscale URL is
-                       hatchery.{domain} — already correct for both LAN and WAN)
-        3. Specify   — enter broodling IP / hostname manually
-
-      > _
-      ```
-
-      **LAN mode:** proceeds with the existing temporary root password flow.
-        Broodling is configured to use hatchery as its DNS server (via DHCP or
-        static config in spawn package), so `hatchery.{domain}` resolves to LAN IP.
-
-      **WAN mode:** the planner calls:
-        `headscale authkeys generate --expiration 1h --user broodforge`
-        The auth key and `https://hatchery.{domain}:8080` are embedded in the
-        spawn package. phase-00a on the broodling:
-          Installs Tailscale: `curl -fsSL https://tailscale.com/install.sh | sh`
-          Registers: `tailscale up --authkey {key}
-                                   --login-server https://hatchery.{domain}:8080`
-          (The FQDN resolves to WAN IP via public DNS, which routes to Headscale
-          via the operator's router port forwarding.)
-          Broodling appears on tailnet → hatchery SSHes to its tailnet IP for discovery.
-        After spawn completes, Tailscale remains installed — the broodling is a
-        permanent tailnet member. Its tailnet IP is recorded in bootstrap-state.json
-        alongside its LAN IP (if any).
-
-      **Step 1 — Execution mode (asked after network mode):**
-
-      ```
-      How should the spawn package run on the broodling?
-
-        1. Autonomous (default)  — finalise service selection now; spawn.sh runs
-                                   without prompting after the KeePass unlock gate
-        2. Interactive            — no selection needed now; spawn.sh evaluates the
-                                   broodling's hardware at runtime and presents the
-                                   service menu there
-
-      > _
-      ```
-
-      **If Interactive:** the planner records `execution_mode: interactive` and
-      proceeds directly to package assembly. No service selection on the hatchery.
-      The package includes all available service scripts. Service selection happens
-      entirely on the broodling at execution time against actual hardware.
-
-      **If Autonomous:** the planner continues to Step 2.
-
-      For autonomous mode, the planner also generates a **suggested temporary root
-      password** (readable passphrase format) at this point and displays it to the
-      operator with the instruction to use it when setting the Proxmox root password
-      during installation. The hatchery stores this password in memory for the
-      duration of the spawn-planning session so it can use it for password-based SSH
-      discovery without the operator re-entering it. The password is NOT stored in
-      KeePass — it is temporary, replaced by a proper KeePass-managed credential
-      during the spawn process.
-
-      **Step 2 — Service selection (autonomous only):**
-
-      The planner reads the service catalog (`metadata/service-catalog.yaml`) to
-      know what the hatchery runs and the broodling's hardware profile to know what fits.
-
-      **Mode 1 — Full mirror:**
-      Selects all services that fit the broodling's hardware.
-      Services that don't fit are listed with a reason (RAM, disk, dependency) and
-      excluded. The operator reviews the exclusion list and confirms or switches mode.
-
-      **Mode 2 — Select by group:**
-      Services grouped by category (Infrastructure, Platform, Intelligence,
-      Monitoring, Applications). Operator includes/excludes whole groups, then
-      fine-tunes individual services within groups.
-
-      **Mode 3 — Select individually:**
-      Every service listed with hardware fit status, resource requirements, and
-      dependencies. The planner enforces dependencies: selecting nextcloud
-      automatically selects longhorn if not already selected.
-
-      **Hardware fit display for each service:**
-        [✓] fits — RAM available vs required shown; disk requirements shown
-        [!] marginal — fits with reduced VM sizing; operator warned explicitly
-        [✗] does not fit — specific shortfall shown (RAM delta, missing disk, etc.)
-      Services marked [✗] are excluded regardless of selection.
-
-      **The intelligence baseline is always included and cannot be deselected:**
-      Proxmox cluster membership, k3s worker, assessment/doc engine visibility,
-      `bootstrap-state.json` contribution. This is the minimum viable participation.
-
-      **Produces `spawn-plan-{hostname}.json` containing:**
-      - `disposition.execution_mode` — `autonomous` | `interactive`
-      - `disposition.services` — selected service names (autonomous only; empty for interactive)
-      - `disposition.mode` — `full-mirror` | `group` | `individual` (autonomous only)
-      - `disposition.excluded` — services excluded with reason (autonomous only)
-      - Non-conflicting VMID block, IPs, hostnames
-      - ZFS pool topology from disk configuration
-      - For autonomous: only VM roles, Cloud-Init snippets, Ansible roles for selected services
-      - For interactive: full service catalog scripts included; selection deferred to broodling
-      - k3s node labels and taints (autonomous: derived from selection; interactive: set at runtime)
-      - Proxmox cluster join address (from manifest)
-      - k3s join token type: worker always; server only if k3s-server selected (or selectable)
-      - If 3rd server node possible: etcd migration plan included in interactive; locked in autonomous
-
-- [x] 12.E.4: **Spawn hardware discovery (autonomous mode only)** — produces
-      `hardware-profile-{hostname}.json` before the spawn package is generated.
-      This is the input to the spawn planner for hardware-specific adaptation:
-      disk topology → ZFS pool type, NIC inventory → bridge definitions, RAM → VM sizing.
-
-      Two discovery paths depending on network mode selected in Step 0 of 12.E.3:
-
-      **LAN mode — password-based SSH (same-network broodling):**
-        The spawn planner generates a suggested temporary root password (readable
-        passphrase format, e.g. `Ready.to.spawn.7`) at Step 0 selection time.
-        The operator uses this password during Proxmox installation.
-        The hatchery holds the password in session memory and SSHes directly:
-          `python3 spawn_hardware_discovery.py --host {broodling-lan-ip} --password-prompt`
-          (password retrieved from session, not re-entered by the operator)
-          → `hardware-profile-{hostname}.json`
-        If the operator used a different password, they enter it when prompted.
-        Password transmitted over the trusted LAN only.
-        Valid from: Proxmox installation complete.
-        Valid until: Cloud-Init sets the real KeePass-managed credential.
-        Not stored in KeePass; not persisted after the spawn session.
-
-      **WAN mode — Headscale tailnet (cross-network broodling):**
-        The spawn package contains the Headscale auth key and server URL.
-        The broodling's `phase-00a` (runs before hardware pre-flight) installs
-        Tailscale and registers with the hatchery's Headscale:
-          `curl -fsSL https://tailscale.com/install.sh | sh`
-          `tailscale up --authkey {key} --login-server {headscale_url}`
-        Broodling appears on the tailnet → hatchery SSHes to its tailnet IP exactly
-        as in LAN mode (temporary root password, same mechanism):
-          `python3 spawn_hardware_discovery.py --host {tailnet-ip} --password-prompt`
-        No port forwarding required. The WireGuard tunnel is the transport;
-        the temporary root password is still the authentication.
-        After spawn completes, Tailscale remains — the broodling is a permanent
-        tailnet member. Its tailnet IP is recorded in bootstrap-state.json.
-
-      **Interactive mode:** no hardware discovery on the hatchery is needed.
-        spawn.sh discovers hardware locally on the broodling at runtime.
-        In WAN mode, phase-00a (Tailscale join) still runs first so the hatchery
-        can reach the broodling for any follow-up coordination.
-
-      Discovery output is embedded in autonomous spawn packages so phase-00 can
-      reference disk IDs and NIC layout without re-running discovery on the broodling.
-
-- [x] 12.E.5: **Spawn IaC and config generator** — from `spawn-plan-{hostname}.json`:
-      - OpenTofu `.auto.tfvars` for this host's VM set
-      - Cloud-Init snippets with this host's allocated IPs (from spawn plan, not hatchery IPs)
-      - Ansible inventory additions (this host appended to existing groups)
-      - k3s join token embedded in Ansible role vars (from spawn manifest)
-
-- [x] 12.E.6: **Spawn scripts** — generated shell scripts using the same
-      checkpoint/failure-package/workbook-update library as recovery scripts.
-      All scripts read from spawn-plan.json; bridge names, pool names, and IPs
-      are consistent across phases because phase-00 creates what later phases reference.
-
-      - `spawn.sh` — orchestrated entry point; runs all phases in order
-
-      *Host-level phases (Proxmox host must be configured before VMs can exist):*
-
-      - `phase-00-host-bootstrap.sh` — two sub-stages, always in order:
-
-        **Sub-stage A: Hardware pre-flight (read-only, no changes made)**
-        Re-scans the broodling's actual hardware and compares against the embedded
-        `hardware-profile.json` and `spawn-plan.json`. This catches any divergence
-        between what was discovered on the hatchery and what is actually present now.
-        Checks (all must pass before sub-stage B runs):
-          - Disk IDs in spawn plan exist on this host and have the expected capacity
-          - NIC names/MACs match the embedded hardware profile
-            (Proxmox can renumber NICs after kernel updates or hardware changes)
-          - Available RAM ≥ sum of VM RAM in spawn plan + 10% host overhead
-          - No existing ZFS pool with a name that conflicts with the planned pool
-          - No existing network bridge with a name that conflicts with the plan
-          - Conflict re-validation: re-runs validate-spawn.py against spawn-manifest.json
-            (catches any hatchery reservations made between package generation and now)
-        On any mismatch: generates a failure package with a clear "hardware mismatch"
-        or "stale manifest" diagnosis, prints the diff, and exits without making
-        any changes to the broodling. The operator re-runs discovery on the hatchery
-        and regenerates the spawn package.
-        On pass: proceeds to sub-stage B.
-
-        **Sub-stage B: Host configuration (writes config, creates pool, activates network)**
-        Must run before any VM creation because VMs reference bridges and datastores
-        that only exist after this stage:
-          set hostname + fix /etc/hosts (pvecm add fails if hostname → 127.0.0.1)
-          write bridge definitions to /etc/network/interfaces (per NIC layout in plan)
-          ifreload -a to activate bridges without full reboot
-          zpool create per plan topology (disk IDs confirmed by pre-flight)
-          pvesm add zfspool to register pool as Proxmox datastore
-          configure apt repos (no-subscription or enterprise)
-        Output: Proxmox host ready to accept VM provisioning and cluster join.
-
-      - `phase-01-join-proxmox.sh` — `pvecm add <hatchery-address>` using Proxmox cluster
-        join address and fingerprint from spawn manifest; idempotent (detects if
-        already a member). New host now visible in Proxmox datacenter.
-
-      *VM provisioning phases (depend on phase-00 bridge/datastore names existing):*
-
-      - `phase-02-vms.sh` — `tofu apply` using tfvars from spawn plan; bridge
-        names and datastore names in tfvars match what phase-00 created exactly.
-
-      - `phase-03-cloudinit.sh` — install generated Cloud-Init snippets (user-data,
-        network-config, vendor-data) into Proxmox snippet store on this host;
-        start VMs; poll SSH readiness for each VM before proceeding.
-
-      *Cluster join phases (depend on VMs running):*
-
-      - `phase-04-join-k3s.sh` — run Ansible k3s-server or k3s-worker role against
-        the new VMs using join token from spawn manifest; selects correct token type
-        (worker or server) based on spawn plan role.
-
-      - `phase-05-promote-ha.sh` (conditional) — SQLite → embedded etcd migration;
-        only generated when this broodling creates the 3rd k3s server node. Existing
-        hatchery cluster is quiesced, etcd promoted, control plane distributed. If this phase
-        is not needed, it is omitted from the package entirely.
-
-      - `phase-06-verify.sh` — cluster health check (all nodes Ready, all VMs
-        running), re-runs conflict validator against live Proxmox and k3s state
-        as final confirmation. Failure here generates a failure package.
-
-      *[Automatic after phase-06 — no further operator action:]*
-      *Flux CD detects new k3s nodes, schedules workloads per anti-affinity rules.*
-      *Assessment Engine detects broodling in Proxmox API, updates scores.*
-      *Documentation Engine regenerates topology with broodling included.*
-
-- [x] 12.E.7: **Spawn package assembler** (`proxmox-bootstrap/assemble-spawn-package.py`) —
-      bundles spawn-manifest.json, spawn-plan-{hostname}.json, generated scripts,
-      OpenTofu tfvars, Cloud-Init snippets, Ansible additions, spawn workbook HTML,
-      and the shared script library into:
-      `spawn-package-{cell_id}-{hostname}-{YYYY-MM-DD_HH_MM_SS}.tar.gz`
-      The package is self-contained and offline-capable: the broodling does not need
-      to reach the hatchery's API during execution.
-      **The package never contains the KeePass database or any secret values.**
-      It contains only KeePass secret paths (references). See AD-042.
-
-- [x] 12.E.7a: **KeePass unlock gate in spawn.sh** — before any phase accesses secrets,
-      `spawn.sh` prompts the operator to enter the KeePass master password and verifies
-      it unlocks the operator's KeePass database (copied separately to the broodling or
-      accessed via a known path). Scripts retrieve individual secrets programmatically
-      from the unlocked database; no secret value is written to the broodling's disk in
-      plain text. The gate runs regardless of execution mode (autonomous or interactive).
-      In autonomous mode, this is the only prompt before fully automated execution.
-      In interactive mode, this gate is followed by the service selection prompt.
-
-- [x] 12.E.8: **Spawn workbook** (HTML) — embedded in the spawn package; tracks
-      each phase with the same checkpoint/status/timestamp/validation pattern as
-      the recovery workbook:
-      - Sheets: Overview, Discovery, Storage, Network, Proxmox-Join, VMs, k3s-Join, Validation
-      - Machine-updated by each spawn script phase
-      - Spawn failure package generated automatically if any phase fails
-
-- [x] 12.E.9: **Bootstrap-state.json updater** — runs on the hatchery after the
-      broodling reports successful spawn (phase-08-verify.sh exits 0); merges the broodling's
-      hardware profile, allocated VMIDs, IPs, hostnames, and cluster role into
-      `bootstrap-state.json`; adds provenance records for new VMs; commits to Forgejo.
-      Assessment Engine reassessment triggered automatically by Forgejo webhook.
-
-- [x] 12.E.10: **Disposition-aware assessment scoring** — the Assessment Engine
-      reads `disposition.services` from each host's entry in `bootstrap-state.json`
-      and adjusts placement compliance evaluation to match declared intent:
-      - Placement compliance is checked per service, per host: is this service
-        running on the hosts that declared it in their disposition?
-      - A node without `prometheus` in its service list is not penalized for
-        missing a Prometheus replica
-      - A node without `k3s-server` is not scored against HA control-plane
-        distribution requirements
-      - A node without `pbs-datastore` is not flagged for missing backup targets
-      - The assessment report shows each host's `disposition.services` list
-        alongside its scores — visible confirmation of what each node is expected
-        to contribute and whether it is delivering
-      - `disposition.excluded` (services that didn't fit at spawn time) is also
-        shown, so the operator knows what was intentionally left out vs. what
-        drifted away after deployment
-      - A mismatch between `disposition.services` and observed reality remains a
-        RED finding — disposition does not excuse services that were selected but
-        are not running
-
-- [x] 12.E.11: **Spawn scenarios tested:**
-      - Baseline only (small machine): joins cluster, visible to assessment, no workloads
-      - Compute disposition: k3s workers added, Flux schedules workloads
-      - Storage disposition: PBS datastore added, Longhorn replicas
-      - Control-plane disposition: HA promotion if 3rd server node
-      - Mixed disposition (compute + storage): combined deployment
-      - Hardware insufficient for selected flag: flag dropped with warning, rest proceeds
-      - Full peer disposition: matches hatchery capabilities
-      All scenarios use fixture hardware profiles. Conflict detection validated with
-      deliberate VMID/IP/hostname collision fixtures.
-
-- [x] 12.E.12: **Documentation:** `proxmox-bootstrap/NODE-SPAWNING.md` — operator
-       runbook covering: prerequisites (bare Proxmox installed, SSH access),
-       running hardware discovery on the broodling, selecting disposition interactively
-       on the hatchery, reviewing the spawn plan's hardware fit assessment and warnings,
-       copying and executing the spawn package on the broodling, verifying cluster
-       health, and confirming `bootstrap-state.json` is updated with the broodling's
-       disposition and state.
-
-**Note on hardware heterogeneity:** The spawn planner explicitly does NOT require
-identical hardware. A second host with 6 HDDs gets raidz1; the first host with
-2 SSDs has a mirror. Both run the same VM roles and software stack. Only the
-hardware adaptation layer (ZFS topology, NIC bridge config, VM sizing within
-available RAM) differs between them.
-
-**Note on Talos variant:** If `os_variant: talos` is declared for k3s-server nodes
-(see Milestone 9.T), the spawn planner emits Talos machine configs instead of
-Cloud-Init for server VMs on the broodling. The spawn plan records `os_variant`
-per VM, matching the existing cluster's declared variant.
-
----
-
-## Track 2 — Expanded State Model
-
-### Phase 13 — Hardware and Platform State
-
-- [x] 13.1: `data-model/hardware-state-schema.json` (BIOS, firmware, disks, NICs, UPS)
-- [x] 13.2: Hardware State Tier 1 collector (extend bootstrap assessment)
-- [x] 13.3: `data-model/platform-state-schema.json` (Proxmox config, certs, packages)
-- [x] 13.4: Platform State Tier 2 collector
-- [x] 13.5: Hardware requirements declaration in Bootstrap State
-- [x] 13.6: Pre-reconstruction hardware verification playbook
-- [x] 13.7: Hardware and Platform readiness scoring
-
-### Phase 14 — Cluster and Storage State
-
-- [x] 14.1: `data-model/cluster-state-schema.json` (identity, topology, membership, history)
-- [x] 14.2: Cluster State collector (Proxmox cluster API, Corosync, HA manager)
-- [x] 14.3: `data-model/storage-state-schema.json` (ZFS, Ceph, CephFS, RBD, datastores)
-- [x] 14.4: Storage State collector (ZFS CLI, Ceph status API)
-- [x] 14.5: Ceph FSID in readiness scorer (RED if missing)
-- [x] 14.6: Cluster and Storage waves in Reconstruction Playbook generator
-
-### Phase 15 — Data Protection State
-
-- [x] 15.1: `data-model/data-protection-state-schema.json` (PBS, jobs, retention, RTO/RPO)
-- [x] 15.2: Data Protection collector (PBS API, backup job inventory, verification status)
-- [x] 15.3: RTO/RPO declaration format and compliance scoring
-- [x] 15.4: Backup encryption key recoverability check (RED if not recoverable)
-- [x] 15.5: PBS self-recovery plan check (ORANGE if absent)
-- [x] 15.6: Data Protection readiness scoring additions
-
-### Phase 16 — Observability State
-
-- [x] 16.1: `data-model/observability-state-schema.json` (monitoring stack, alerts, dashboards)
-- [x] 16.2: Observability State collector
-- [x] 16.3: Observability reconstruction in playbook generator
-- [x] 16.4: Alert rule restoration in Recovery Runbook
-
-### Phase 17 — Digital Twin Foundation
-
-- [x] 17.1: Cell Identity schema and registry (`twin/federation/cells/`)
-- [x] 17.2: Twin storage layout (full `twin/` directory structure)
-- [x] 17.3: Twin state writer (all collectors write to twin, not only history/)
-- [x] 17.4: Staleness manifest (per-field confidence and last-updated tracking)
-- [x] 17.5: Twin consistency checker (stale, missing, conflicting state detection)
-- [x] **17.6: `cell_id` migration — all existing schemas updated (federation gate)**
-
-### Phase 18 — Capability and Secret Reference State
-
-- [x] 18.1: `data-model/capability-state-schema.json` (all capability categories)
-- [x] 18.2: Capability declaration format and initial declaration
-- [x] 18.3: Capability verification in Tier 2 assessment
-- [x] 18.4: Capability index builder (aggregation across all cells)
-- [x] 18.5: `data-model/secret-reference-state-schema.json` (standalone, with `owning_cell`)
-- [x] 18.6: Secret Reference State migration (extract from Bootstrap State)
-- [x] 18.7: Capability-based readiness scoring additions
-
-**Gate:** Phase 18 completion validates the expanded state model.
-Track 3 begins after Phase 18.
-
----
-
-## Track 3 — Digital Twin and Federation
-
-### Phase 19 — Federation State and Trust Model
-
-- [x] 19.1: `data-model/federation-state-schema.json` (cell registry, relationships, trust)
-- [x] 19.2: Cell identity and federation registry
-- [x] 19.3: Trust relationship schema and declaration format (all relationship types)
-- [x] 19.4: Trust relationship verification procedure (CLI + automated check)
-- [x] 19.5: Recovery relationship schema and declaration format
-- [x] 19.6: Recovery relationship verification (backup reachable, history readable)
-- [x] 19.7: Tier 3 assessment engine (cross-cell, federation-scope)
-- [x] 19.8: Federation State tests
-
-### Phase 20 — Federation Documentation Generation
-
-- [x] 20.1: Federation Workbook renderer (all cells, all relationships, federation readiness)
-- [x] 20.2: Federation Runbook renderer (coordination procedures)
-- [x] 20.3: Cell Workbook (full 17-state view per cell)
-- [x] 20.4: Cell Runbook (full cell reconstruction)
-- [x] 20.5: Cluster Workbook and Runbook
-- [x] 20.6: Node Workbook and Runbook
-- [x] 20.7: Dependency Workbook (all five graph types, multi-cell scope)
-- [x] 20.8: Command Reference Sheets (pre-populated for all known values)
-- [x] 20.9: Validation Sheets (post-recovery checklists)
-
-### Phase 21 — Failure Domain Modeling
-
-- [x] 21.1: Failure domain taxonomy schema
-- [x] 21.2: Failure propagation rules engine (storage → VMs → services propagation)
-- [x] 21.3: Blast radius calculator (given failure at level X, enumerate affected)
-- [x] 21.4: SPOF detection (components with no recovery alternative)
-- [x] 21.5: Circular recovery dependency detection
-- [x] 21.6: Failure domain analysis in readiness reports
-
-### Phase 22 — Multi-Level Readiness Assessment
-
-- [x] 22.1: Hardware-level readiness scoring (new inputs from Phase 13)
-- [x] 22.2: Cluster-level readiness scoring (new inputs from Phase 14)
-- [x] 22.3: Cell-level readiness (aggregation across all 17 state categories)
-- [x] 22.4: Federation-level readiness (aggregation across all cells)
-- [x] 22.5: Federation Readiness Report
-- [x] 22.6: Tier 3 assessment integration with multi-level readiness
-
-### Phase 23 — Federated Reconstruction Planning
-
-- [x] 23.1: Recovery coordinator model (coordinator selection from capability index)
-- [x] 23.2: Phoenix package assembly (history, docs, repos, secrets, backup locations)
-- [x] 23.3: Capability matching (find available cells for each recovery need)
-- [x] 23.4: Multi-phase reconstruction playbook generator (all 7 phases)
-- [x] 23.5: Cross-cell trust establishment automation
-- [x] 23.6: Temporary workload migration planning
-- [x] 23.7: Federated reconstruction tests
-
-### Phase 24 — Continuous Assessment and Twin Maintenance
-
-- [x] 24.1: Scheduled assessment framework (cron-driven, cell-scoped)
-- [x] 24.2: Repository ingestion hooks (git webhook → twin update on push)
-- [x] 24.3: Deployment event hooks (tofu apply / ansible run → twin update)
-- [x] 24.4: Staleness alerting (notify when state categories exceed threshold)
-- [x] 24.5: Twin diff reporting (what changed in the twin since last report)
-- [x] 24.6: PBS API integration for continuous Data Protection State updates
-- [x] 24.7: Certificate expiry monitoring (continuous External Dependency State)
-
-### Phase 25 — Reconstruction Validation
-
-- [x] 25.1: Reconstruction drill framework (scheduled full-destroy + reconstruct)
-- [x] 25.2: Reconstruction time measurement and RTO validation
-- [x] 25.3: Automated post-reconstruction assessment and comparison
-- [x] 25.4: Gap identification and remediation tracking
-- [x] 25.5: Federation reconstruction drill (multi-cell coordinated scenario)
-
----
-
-## Track 4 — Autonomous Operations
-
-*Prerequisite: Tracks 1–3 complete. The assessment engine must be operational,
-continuous assessment (Phase 24) running, and the digital twin current before
-autonomous remediation can propose meaningful actions.*
-
-### Design contract for autonomous remediation
-
-The assessment engine has always surfaced gaps and scored them. Track 4 closes
-the loop: from detection → proposal → human approval → execution → reassessment.
-
-**The core constraint is this: remediation is proposed, not imposed.**
-The system recommends; the operator approves; the system executes.
-No autonomous action changes infrastructure state without a recorded human
-approval. This constraint is not a configuration option — it is architectural.
-
-**Scope of autonomous action.** The executor handles reversible, observable,
-low-blast-radius operations. It explicitly does not handle:
-- Destruction of data, VMs, volumes, or snapshots
-- Changes to Proxmox cluster membership (those go through forge/spawn/phoenix flows)
-- Modifications to authoritative metadata YAML files
-- KeePass credential changes (those require the KeePass gate in an operator session)
-- Network topology declaration changes (operators must update the source of truth)
-- Any operation the operator has not explicitly approved in this session
-
-Anything not on the allowed-action list is blocked at the executor layer,
-regardless of what the planner proposes. An overly broad proposal is rejected
-before it runs, not after.
-
----
-
-### Phase 26 — Autonomous Remediation
-
-*Closes the assess → detect → propose → approve → execute → reassess loop.*
-
-**26.1 — Remediation Planner** (`proxmox-bootstrap/remediation_planner.py`)
-
-Reads the current readiness report and twin state to produce a structured
-`RemediationPlan`: an ordered list of `RemediationProposal` objects, each
-with enough context for the operator to make an informed approval decision.
-
-Each proposal records:
-- `proposal_id` — stable UUID; survives across assessment cycles until resolved
-- `issue_id` — references the specific gap or readiness finding that triggered it
-- `severity` — mirrors the assessment score (YELLOW/ORANGE/RED) of the underlying issue
-- `action_type` — enumerated type (see below); determines which executor handler runs
-- `action_description` — human-readable "what will happen if you approve this"
-- `target` — component, service name, or node hostname the action affects
-- `dry_run_output` — what the action would produce, captured without making changes
-- `reversibility` — `reversible` | `irreversible` | `manual-rollback`; RED is blocked unless reversible
-- `estimated_duration_seconds` — from historical execution data
-- `proposed_at` — UTC timestamp
-- `prerequisite_ids` — other proposals that must execute successfully first
-
-Allowed action types (exhaustive list — anything not here is rejected at the
-executor):
-
-| Action type | What it does | Reversibility |
-|---|---|---|
-| `restart-service` | `systemctl restart {svc}` on target VM | Reversible (stop again) |
-| `run-backup` | `python3 run-backup.py --layer {layer}` | Reversible (restore from prior) |
-| `renew-cert` | `certbot renew` or `acme.sh --renew` for near-expiry cert | Reversible (prior cert still valid) |
-| `regenerate-phoenix` | Re-run phoenix playbook generator for stale node package | Reversible (old package kept) |
-| `sync-cert-to-k8s` | Re-run `sync-cert-to-k8s.sh` to push renewed cert into cluster secrets | Reversible (old secret restored from cert) |
-| `rotate-join-token` | Generate new k3s join token; update bootstrap-state.json | Manual rollback |
-| `restart-assessment-timer` | `systemctl enable --now broodforge-operational.timer` | Reversible |
-| `schedule-drill` | Append a drill reminder entry to bootstrap-state.json | Reversible (delete entry) |
-| `flag-manual` | Mark a finding for manual operator attention; no system change | N/A |
-
-The planner never proposes an action outside this list. Unknown findings produce
-`flag-manual` proposals, never executable ones.
-
-- [x] 26.1.1: `RemediationProposal` dataclass and schema additions to `bootstrap-state-schema.json`
-- [x] 26.1.2: Planner logic — map each gap type to its allowed action type
-- [x] 26.1.3: Dry-run execution for each action type (produces `dry_run_output` without making changes)
-- [x] 26.1.4: Proposal deduplication — if an identical proposal already exists in the queue, update it rather than creating a duplicate
-- [x] 26.1.5: Integration with `engine.py --mode operational` — proposals generated automatically at the end of each operational assessment run
-- [x] 26.1.6: Tests (propose phase: 30+ cases covering all action types and edge cases)
-
-**26.2 — Approval Queue** (`proxmox-bootstrap/remediation_queue.py`)
-
-Manages the lifecycle of proposals from creation through execution.
-
-State machine per proposal:
-```
-proposed → approved → executing → resolved
-        ↘ rejected
-        ↘ superseded   (newer proposal for same issue replaces this one)
-        ↘ expired      (underlying issue resolved by other means before approval)
-```
-
-Queue storage: `remediations` array in `bootstrap-state.json`. Each entry persists
-until resolved, rejected, or superseded. Queue is committed to Forgejo on every
-state change so the record is version-controlled and auditable.
-
-Approval record per transition:
-- `approved_by` — operator identifier (hostname + Unix user, or dashboard session token)
-- `approved_at` — UTC timestamp
-- `approval_channel` — `cli` | `dashboard` | `auto-policy`
-- `approval_note` — optional free-text comment from operator
-
-Auto-approve policy (operator-configured, disabled by default):
-- `auto_approve_threshold`: `null` (disabled) | `YELLOW` | `ORANGE`
-- When set, proposals at or below the threshold are auto-approved on creation
-- RED proposals are **never** auto-approved regardless of policy
-- `irreversible` proposals are **never** auto-approved regardless of policy
-- Auto-approvals are recorded with `approval_channel: auto-policy`
-
-- [x] 26.2.1: Queue data model — `RemediationQueue`, state machine transitions, storage in bootstrap-state.json
-- [x] 26.2.2: CLI for queue management (`python3 proxmox-bootstrap/remediation-cli.py`):
-  - `list` — show pending proposals with dry-run summary
-  - `approve {id}` — approve a single proposal
-  - `approve-all --severity YELLOW` — batch approve by max severity
-  - `reject {id} [--reason text]` — reject a proposal
-  - `dry-run {id}` — re-run dry-run and display output
-  - `history` — show resolved/rejected proposals
-- [x] 26.2.3: Auto-approve policy configuration (stored in `bootstrap-state.json remediation_policy`)
-- [x] 26.2.4: Proposal expiry — if the underlying issue is no longer present in the assessment, mark proposal as `expired` rather than leaving it in the queue
-- [x] 26.2.5: Tests (queue lifecycle: 25+ cases)
-
-**26.3 — Executor** (`proxmox-bootstrap/remediation_executor.py`)
-
-Executes approved proposals with the same checkpoint and failure-package semantics
-as spawn/forge/phoenix scripts.
-
-Execution contract:
-1. **Re-validate** the proposal before running: confirm the underlying issue still
-   exists and the action type is still on the allowed list. Cancel if either check fails.
-2. **Record the start** in bootstrap-state.json (status → `executing`, `started_at`).
-3. **Dry-run first** — re-run dry-run and diff against the original. If significantly
-   different, pause and surface for re-approval rather than proceeding.
-4. **Execute** the action.
-5. **Checkpoint** at each meaningful step (mirrors spawn checkpoint pattern).
-6. On failure: generate a `RemediationFailurePackage` (same structure as spawn failure
-   packages) and set status to `failed`. Never silently swallow errors.
-7. On success: record `resolved_at`, `outcome`, and transition to `resolved`.
-8. **Trigger reassessment** — queue a fresh operational assessment run so the twin
-   reflects the post-remediation state.
-
-KeePass gate: any action that requires secrets (e.g. `rotate-join-token`,
-`run-backup`) requires the KeePass gate to be unlocked for that session. The
-executor checks for the gate before starting; if not unlocked, it suspends
-execution and prompts via `/dev/tty` — it never starts a secrets-accessing action
-unattended.
-
-- [x] 26.3.1: `RemediationExecutor` class — pre-validate, checkpoint, execute, post-record
-- [x] 26.3.2: Handler per action type (one function per allowed action type from 26.1)
-- [x] 26.3.3: KeePass gate integration — suspend if gate not unlocked for secrets-requiring actions
-- [x] 26.3.4: `RemediationFailurePackage` — extends failure package format from spawn
-- [x] 26.3.5: Post-execution reassessment trigger
-- [x] 26.3.6: Tests (executor: 35+ cases, all action types + failure paths)
-
-**26.4 — Dashboard Integration**
-
-Expose the remediation queue in the broodforge sidecar dashboard (`broodforge_dashboard.py`)
-so operators can review and approve proposals from the browser.
-
-New endpoints:
-- `GET /api/remediations` — list proposals (filterable by status and severity)
-- `GET /api/remediations/{id}` — full proposal detail including dry-run output
-- `POST /api/remediations/{id}/approve` — approve (requires `X-Broodforge-Token` header)
-- `POST /api/remediations/{id}/reject` — reject with optional reason
-- `POST /api/remediations/approve-batch` — approve multiple by severity threshold
-
-Dashboard HTML additions:
-- New **Remediations** section in the main dashboard
