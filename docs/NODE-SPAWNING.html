@@ -187,12 +187,11 @@
     overflow:hidden}
   /* dim only a section's OWN header + direct body content — nested sections unaffected */
   .nts-section.nts-dim{border-color:transparent!important}
-  .nts-section.nts-dim>summary.nts-hdr{opacity:0!important;pointer-events:none}
-  .nts-section.nts-dim>.nts-body>textarea.note-area{opacity:0!important;border-color:transparent!important;background:transparent!important}
+  .nts-section.nts-dim>summary.nts-hdr{pointer-events:none}
+  .nts-section.nts-dim>.nts-body>textarea.note-area{border-color:transparent!important;background:transparent!important}
   .nts-section.nts-dim>.nts-body>textarea.note-area::placeholder{opacity:0!important}
-  .nts-section.nts-dim>.nts-body>.nts-ch>button{opacity:0!important;pointer-events:none}
-  .nts-section.nts-dim>.nts-body{background:transparent!important;visibility:hidden}
-  .nts-section:not(.nts-dim){visibility:visible}
+  .nts-section.nts-dim>.nts-body>.nts-add-btn{opacity:0!important;pointer-events:none}
+  .nts-section.nts-dim>.nts-body{background:transparent!important}
   .nts-section>summary.nts-hdr{list-style:none;cursor:pointer;user-select:none;
     display:flex;align-items:center;gap:4px;background:var(--bg3);
     padding:5px 8px;font-size:.79em}
@@ -209,7 +208,7 @@
   .nts-hdr-btn:hover{color:var(--accent)}
   .nts-hdr-btn.del{color:var(--red)}
   .nts-hdr-btn.del:hover{opacity:.75}
-  .nts-body{padding:5px 8px 8px;background:var(--bg)}
+  .nts-body{padding:5px 8px 8px;background:transparent}
   .nts-body textarea{width:100%;min-height:50px;resize:vertical;margin-bottom:4px;
     font-size:.81em}
   .nts-add-btn{display:block;width:100%;background:none;
@@ -2373,20 +2372,26 @@ bash spawn.sh</code></pre></div>
         /* Header toolbar always 100% — set nothing on hdr */
         /* Apply per-container opacity: non-active containers fade, active stays 100% */
         if(notesBody){
-          var fOp='0';
+          var fOp=String(opPct/100);
           var qn=document.getElementById('bf-session-notes');
           /* quick-notes textarea: direct opacity fine (leaf element, no children) */
           if(qn) qn.style.opacity=(qn===activeNoteContainer)?'':fOp;
           /* sections: set attribute so CSS dims only own header+content, not nested sections */
           notesBody.querySelectorAll('.nts-section').forEach(function(s){
-            var dim=(s!==activeNoteContainer)&&!activeNoteContainer.contains(s)&&!s.contains(activeNoteContainer);
-            s.classList.toggle('nts-dim',dim);
-            s.style.background=dim?'transparent':'';
-            s.style.borderColor=dim?'transparent':'';
+            var actSec=activeNoteContainer&&activeNoteContainer.classList&&activeNoteContainer.classList.contains('nts-section');
+            var isActive=actSec&&(s===activeNoteContainer);
+            var isAnc=actSec&&!isActive&&s.contains(activeNoteContainer);
+            var hideOwn=actSec&&!isActive;
+            s.classList.toggle('nts-dim',actSec&&!isActive&&!isAnc);
+            s.style.background=hideOwn?'transparent':'';
+            s.style.borderColor=hideOwn?'transparent':'';
             var hdr=s.querySelector(':scope>summary');
-            if(hdr) hdr.style.opacity=dim?fOp:'';
+            if(hdr) hdr.style.opacity=hideOwn?fOp:'';
+            var bodyEl=s.querySelector(':scope>.nts-body');
+            if(bodyEl) bodyEl.style.background='transparent';
             var ta=s.querySelector(':scope>.nts-body>textarea');
-            if(ta){ta.style.opacity=dim?fOp:'';ta.style.borderColor=dim?'transparent':'';ta.style.background=dim?'transparent':'';}
+            if(ta){ta.style.opacity=hideOwn?fOp:'';ta.style.borderColor=hideOwn?'transparent':'';ta.style.background=hideOwn?'transparent':'';}
+            s.querySelectorAll(':scope>.nts-body>.nts-add-btn').forEach(function(b){b.style.opacity=hideOwn?'0':'';b.style.pointerEvents=hideOwn?'none':'';});
           });
         }
       }
@@ -2453,8 +2458,11 @@ bash spawn.sh</code></pre></div>
             s.style.background=''; s.style.borderColor='';
             var hdr=s.querySelector(':scope>summary');
             if(hdr) hdr.style.opacity='';
+            var bodyEl=s.querySelector(':scope>.nts-body');
+            if(bodyEl) bodyEl.style.background='';
             var ta=s.querySelector(':scope>.nts-body>textarea');
             if(ta){ta.style.opacity='';ta.style.borderColor='';ta.style.background='';}
+            s.querySelectorAll(':scope>.nts-body>.nts-add-btn').forEach(function(b){b.style.opacity='';b.style.pointerEvents='';});
           });
         }
         if(drag) drag.classList.remove('notes-floating');
