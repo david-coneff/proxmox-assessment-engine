@@ -405,6 +405,18 @@
   .dir-input{font-family:'Cascadia Code',Consolas,monospace;font-size:.85em}
   .note-input.val-warn,.param-input.val-warn{border-color:#f0a000!important;outline:none}
   .val-hint{color:#f0a000;font-size:.75em;margin-top:2px;display:block}
+  /* table of contents */
+  #bf-toc{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px}
+  #bf-toc>summary{background:var(--btn-bg);padding:6px 14px;cursor:pointer;
+    user-select:none;list-style:none;font-size:.88em;font-weight:600;color:var(--muted);
+    border-radius:var(--radius);letter-spacing:.04em;text-transform:uppercase}
+  #bf-toc>summary::-webkit-details-marker{display:none}
+  #bf-toc[open]>summary{border-radius:var(--radius) var(--radius) 0 0}
+  #bf-toc nav{padding:8px 16px 12px}
+  #bf-toc ol{margin:0;padding:0 0 0 18px;list-style:decimal}
+  #bf-toc li{margin:3px 0;font-size:.88em}
+  #bf-toc a{color:var(--accent);text-decoration:none}
+  #bf-toc a:hover{text-decoration:underline}
   .select-input{width:100%;max-width:360px;padding:3px 8px;height:30px;
     background:var(--code-bg);color:var(--text);border:1px solid var(--border);
     border-radius:var(--radius);font-family:inherit;font-size:.88em}
@@ -449,6 +461,7 @@
     <div id="bf-walkthrough-hint">📋 Walkthrough — fill in fields as you go; entries are saved in your browser. Credential fields (🔑) are exported in encrypted packages. <a href="ABOUT-DOCS.html" target="_blank">How this works ↗</a></div>
     <div id="params"><h3>Parameters</h3><p class="params-hint">Fill in values here — every command below updates live. Copy button copies the resolved command.</p><div class="param-row"><label for="p-playbook">PLAYBOOK</label><input id="p-playbook" class="param-input" type="text" data-var="PLAYBOOK" value="reconstruction/phoenix-playbook-latest.json" placeholder="reconstruction/phoenix-playbook-latest.json"></div><div class="param-row"><label for="p-state">STATE</label><input id="p-state" class="param-input" type="text" data-var="STATE" value="proxmox-bootstrap/bootstrap-state.json" placeholder="proxmox-bootstrap/bootstrap-state.json"></div><div class="param-row"><label for="p-outcome">OUTCOME</label><input id="p-outcome" class="param-input" type="text" data-var="OUTCOME" value="success" placeholder="success"></div><div class="param-row"><label for="p-report">REPORT</label><input id="p-report" class="param-input" type="text" data-var="REPORT" value="drill-report.md" placeholder="drill-report.md"></div></div>
     <div id="bf-doc-body">
+<details id="bf-toc" open><summary>Contents</summary><nav><ol><li><a href="#why-drill">Why drill?</a></li><li><a href="#pre-drill-checklist">Pre-drill checklist</a></li><li><a href="#running-the-drill">Running the drill</a></li><li><a href="#viewing-drill-results">Viewing drill results</a></li><li><a href="#after-the-drill">After the drill</a></li><li><a href="#interpreting-the-drill-report">Interpreting the drill report</a></li><li><a href="#scheduling-quarterly-drills">Scheduling quarterly drills</a></li><li><a href="#drill-history">Drill history</a></li></ol></nav></details>
 <details class="section" open><summary><h1 id="reconstruction-drill-guide">Reconstruction Drill Guide</h1></summary><div class="sec-body" style="margin-left:0px">
 <hr>
 <details class="section" open><summary><h2 id="why-drill">Why drill?</h2></summary><div class="sec-body" style="margin-left:12px">
@@ -1475,21 +1488,102 @@ for d in state.get('reconstruction_drills', []):
     function buildHtml(){
       var title=escHtml(document.title||'Notes');
       var sn=sessionNotes();
-      var snHtml=sn.trim()?'<section><h2>Quick Notes</h2><p style="white-space:pre-wrap">'+escHtml(sn.trim())+'</p></section>':'';
       var tree=getNotesTree();
-      var treeHtml=tree.length?'<section><h2>Sections</h2>'+treeToHtmlSections(tree,3)+'</section>':'';
-      var dark='background:#1a1d23;color:#cdd6f4';
+      var exportDate=escHtml(new Date().toString());
+
+      var css=[
+        ':root{--bg:#1a1d23;--bg2:#1e2128;--text:#cdd6f4;--accent:#89b4fa;--border:#313244;--muted:#7f8498;--radius:5px}',
+        '*{box-sizing:border-box}',
+        'body{background:var(--bg);color:var(--text);font-family:Segoe UI,system-ui,sans-serif;font-size:14px;line-height:1.6;margin:0;padding:0}',
+        '#bf-toolbar{background:var(--bg);border-bottom:3px solid var(--accent);padding:10px 20px 6px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:50}',
+        '#bf-toolbar h1{font-size:1em;margin:0;color:var(--accent);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+        'button{background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:3px 10px;height:28px;cursor:pointer;font-size:.85em;white-space:nowrap}',
+        'button:hover{border-color:var(--accent);color:var(--accent)}',
+        '#content{max-width:900px;margin:0 auto;padding:18px 24px}',
+        '.bf-section{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}',
+        '.bf-section-hdr{background:var(--bg2);padding:6px 12px;border-radius:var(--radius) var(--radius) 0 0;cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}',
+        '.bf-section-hdr:hover .bf-caret{color:var(--accent)}',
+        '.bf-caret{color:var(--muted);font-size:.75em;transition:transform .15s;flex-shrink:0}',
+        '.bf-section-hdr h2{margin:0;font-size:.95em;color:var(--text);font-weight:600}',
+        '.bf-section-hdr h3{margin:0;font-size:.9em;color:var(--text);font-weight:500}',
+        '.bf-section-hdr h4{margin:0;font-size:.88em;color:var(--muted);font-weight:400}',
+        '.bf-section-body{padding:10px 14px}',
+        '.bf-section.collapsed>.bf-section-body{display:none}',
+        '.bf-section.collapsed>.bf-section-hdr .bf-caret{transform:rotate(-90deg)}',
+        '.note-text{color:var(--text);white-space:pre-wrap;margin:4px 0 8px}',
+        '.note-text:empty::before{content:"(no notes)";color:var(--muted);font-style:italic}',
+        '.note-text[contenteditable=true]{border:1px dashed var(--border);border-radius:4px;padding:4px 8px;min-height:36px;outline:none}',
+        '.note-text[contenteditable=true]:focus{border-color:var(--accent)}',
+        '.quick-notes{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}',
+        '.quick-notes h2{margin:0 0 8px;font-size:.95em;color:var(--accent)}',
+        '.meta-date{color:var(--muted);font-size:.8em;margin:0 0 14px}'
+      ].join('\n');
+
+      function renderNode(node,depth){
+        var tag=depth<=1?'h2':depth<=2?'h3':'h4';
+        var body='<div class="note-text">'+escHtml(node.note||'')+'</div>';
+        var children=(node.children||[]).map(function(c){return renderNode(c,depth+1);}).join('');
+        return '<div class="bf-section">'
+          +'<div class="bf-section-hdr" onclick="this.closest(\'.bf-section\').classList.toggle(\'collapsed\')">'
+          +'<span class="bf-caret">▼</span>'
+          +'<'+tag+'>'+escHtml(node.label)+'</'+tag+'>'
+          +'</div>'
+          +'<div class="bf-section-body">'+body+children+'</div>'
+          +'</div>';
+      }
+
+      var snHtml=sn.trim()
+        ?'<div class="quick-notes"><h2>Quick Notes</h2><div class="note-text">'+escHtml(sn.trim())+'</div></div>'
+        :'';
+      var treeHtml=tree.length
+        ?tree.map(function(n){return renderNode(n,1);}).join('')
+        :'<p style="color:var(--muted)">No section notes recorded.</p>';
+
+      var editJs=[
+        'var _editOn=false;',
+        'var _editBtn=document.getElementById("bf-edit-btn");',
+        'var _dlBtn=document.getElementById("bf-dl-edited");',
+        '_editBtn.addEventListener("click",function(){',
+        '  _editOn=!_editOn;',
+        '  _editBtn.textContent=_editOn?"✓ Done":"✎ Edit";',
+        '  document.querySelectorAll(".note-text").forEach(function(el){',
+        '    el.contentEditable=_editOn?"true":"false";',
+        '  });',
+        '  _dlBtn.style.display=_editOn?"":"none";',
+        '});',
+        '_dlBtn.addEventListener("click",function(){',
+        '  var clone=document.documentElement.cloneNode(true);',
+        '  clone.querySelectorAll(".note-text").forEach(function(el){el.removeAttribute("contenteditable");});',
+        '  clone.querySelectorAll("#bf-dl-edited").forEach(function(el){el.style.display="none";});',
+        '  var blob=new Blob(["<!DOCTYPE html>\\n"+clone.outerHTML],{type:"text/html"});',
+        '  var a=document.createElement("a");a.href=URL.createObjectURL(blob);',
+        '  a.download=document.title.replace(/[^a-z0-9]+/gi,"-").toLowerCase()+"-notes-edited.html";',
+        '  a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},1000);',
+        '});',
+        'document.getElementById("bf-expand-all").addEventListener("click",function(){',
+        '  document.querySelectorAll(".bf-section.collapsed").forEach(function(s){s.classList.remove("collapsed");});',
+        '});',
+        'document.getElementById("bf-collapse-all").addEventListener("click",function(){',
+        '  document.querySelectorAll(".bf-section").forEach(function(s){s.classList.add("collapsed");});',
+        '});'
+      ].join('\n');
+
       return '<!DOCTYPE html>\n<html lang="en"><head><meta charset="UTF-8">'
         +'<title>'+title+' — Notes</title>'
-        +'<style>body{font-family:Segoe UI,system-ui,sans-serif;font-size:14px;line-height:1.6;'
-        +dark+';max-width:860px;margin:0 auto;padding:24px}'
-        +'h1,h2,h3,h4,h5,h6{color:#89b4fa}details{margin:4px 0}'
-        +'summary{cursor:pointer;user-select:none;list-style:none;padding:4px 0}'
-        +'summary::-webkit-details-marker{display:none}p{margin:6px 0}</style>'
+        +'<style>'+css+'</style>'
         +'</head><body>'
+        +'<div id="bf-toolbar">'
         +'<h1>'+title+' — Session Notes</h1>'
-        +'<p style="color:#7f8498;font-size:.85em">Exported: '+new Date().toString()+'</p>'
+        +'<button id="bf-expand-all">⊞ Expand all</button>'
+        +'<button id="bf-collapse-all">⊟ Collapse all</button>'
+        +'<button id="bf-edit-btn">✎ Edit</button>'
+        +'<button id="bf-dl-edited" style="display:none">⬇ Download edited</button>'
+        +'</div>'
+        +'<div id="content">'
+        +'<p class="meta-date">Exported: '+exportDate+'</p>'
         +snHtml+treeHtml
+        +'</div>'
+        +'<script>'+editJs+'</script>'
         +'</body></html>\n';
     }
 
@@ -1505,7 +1599,28 @@ for d in state.get('reconstruction_drills', []):
       return true;
     }
 
-    // expose full notes as MD for zip export
+    // ---- TOC link navigation: open section + smooth scroll ----
+  (function(){
+    document.querySelectorAll('#bf-toc a').forEach(function(a){
+      a.addEventListener('click',function(e){
+        e.preventDefault();
+        var id=a.getAttribute('href').slice(1);
+        var el=document.getElementById(id);
+        if(!el) return;
+        var det=el.closest('details.section');
+        if(det) det.open=true;
+        var p=det?det.parentElement:null;
+        while(p){
+          var pd=p.closest('details');
+          if(pd) pd.open=true; else break;
+          p=pd.parentElement;
+        }
+        el.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+    });
+  })();
+
+  // expose full notes as MD for zip export
     window.bfGetNotesMd = buildMd;
 
     var btnMd=document.getElementById('bf-notes-export-md');

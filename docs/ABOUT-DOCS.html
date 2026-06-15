@@ -405,6 +405,18 @@
   .dir-input{font-family:'Cascadia Code',Consolas,monospace;font-size:.85em}
   .note-input.val-warn,.param-input.val-warn{border-color:#f0a000!important;outline:none}
   .val-hint{color:#f0a000;font-size:.75em;margin-top:2px;display:block}
+  /* table of contents */
+  #bf-toc{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px}
+  #bf-toc>summary{background:var(--btn-bg);padding:6px 14px;cursor:pointer;
+    user-select:none;list-style:none;font-size:.88em;font-weight:600;color:var(--muted);
+    border-radius:var(--radius);letter-spacing:.04em;text-transform:uppercase}
+  #bf-toc>summary::-webkit-details-marker{display:none}
+  #bf-toc[open]>summary{border-radius:var(--radius) var(--radius) 0 0}
+  #bf-toc nav{padding:8px 16px 12px}
+  #bf-toc ol{margin:0;padding:0 0 0 18px;list-style:decimal}
+  #bf-toc li{margin:3px 0;font-size:.88em}
+  #bf-toc a{color:var(--accent);text-decoration:none}
+  #bf-toc a:hover{text-decoration:underline}
   .select-input{width:100%;max-width:360px;padding:3px 8px;height:30px;
     background:var(--code-bg);color:var(--text);border:1px solid var(--border);
     border-radius:var(--radius);font-family:inherit;font-size:.88em}
@@ -449,6 +461,7 @@
     <div id="bf-walkthrough-hint">📋 Walkthrough — fill in fields as you go; entries are saved in your browser. Credential fields (🔑) are exported in encrypted packages. <a href="ABOUT-DOCS.html" target="_blank">How this works ↗</a></div>
     <div id="params"><h3>Parameters</h3><p class="params-hint">Fill in values here — every command below updates live. Copy button copies the resolved command.</p><div class="param-row"><label for="p-var">VAR</label><input id="p-var" class="param-input" type="text" data-var="VAR" value="default" placeholder="default"></div></div>
     <div id="bf-doc-body">
+<details id="bf-toc" open><summary>Contents</summary><nav><ol><li><a href="#what-is-generated">What is generated</a></li><li><a href="#layout">Layout</a></li><li><a href="#session-notes-panel">Session Notes panel</a></li><li><a href="#walkthrough-fields">Walkthrough fields</a></li><li><a href="#collapsible-sections">Collapsible sections</a></li><li><a href="#export-package">Export package</a></li><li><a href="#inline-editor">Inline editor</a></li><li><a href="#attachments">Attachments</a></li><li><a href="#generating-and-updating-documentation">Generating and updating documentation</a></li><li><a href="#light-dark-theme">Light / dark theme</a></li><li><a href="#print">Print</a></li></ol></nav></details>
 <details class="section" open><summary><h1 id="about-this-documentation">About This Documentation</h1></summary><div class="sec-body" style="margin-left:0px">
 <div class="codewrap"><button class="copy-btn" type="button">Copy</button><pre><code class="lang-bash">python3 proxmox-bootstrap/regenerate_docs.py</code></pre></div>
 <hr>
@@ -465,6 +478,9 @@
 </div></details>
 <details class="section" open><summary><h2 id="walkthrough-fields">Walkthrough fields</h2></summary><div class="sec-body" style="margin-left:12px">
 <details class="subsection" open><summary class="sub-summary"><h3 id="field-types">Field types</h3></summary><div class="sec-body" style="margin-left:24px">
+</div></details>
+<details class="subsection" open><summary class="sub-summary"><h3 id="input-validation">Input validation</h3></summary><div class="sec-body" style="margin-left:24px">
+<ul><li><strong>IPv4</strong> — fields whose label contains "IP address", "LAN IP", or "WAN IP"</li><li><strong>Domain</strong> — fields whose label contains "domain"</li><li><strong>Path</strong> — all <code>@dir</code> fields (must end with <code>/</code> so sub-paths compose correctly)</li></ul>
 </div></details>
 <details class="subsection" open><summary class="sub-summary"><h3 id="live-commands-parameter-injection">Live commands (parameter injection)</h3></summary><div class="sec-body" style="margin-left:24px">
 <hr>
@@ -495,7 +511,7 @@
 <hr>
 </div></details>
 <details class="section" open><summary><h2 id="print">Print</h2></summary><div class="sec-body" style="margin-left:12px">
-<p>This page explains how broodforge's interactive HTML documentation system works. All documentation in this project is authored in Markdown and generated into self-contained HTML files using <code>proxmox-bootstrap/md_to_html.py</code>. No HTML is hand-authored — the pipeline is always <strong>Markdown source → md_to_html.py → HTML output</strong>. To regenerate all documentation after changes to the generator or source files, run: Every HTML companion page is rendered from a Markdown source file registered in <code>proxmox-bootstrap/doc-manifest.json</code>. The manifest records the source path, output path, page title, and generation flags for each document. The generator (<code>md_to_html.py</code>) is stdlib-only — no external dependencies required. The generated HTML is self-contained: all CSS, JavaScript, and structure are embedded in a single file. No external libraries or CDNs are required to view a doc. Every page shares a three-pane layout: The layout adapts: when undocked, the notes panel floats freely over the document. The notes panel persists free-form notes and structured section notes in your browser's <code>localStorage</code>, keyed by document. Notes are not sent anywhere — they live in your browser. The panel provides: Notes for walkthrough documents are included in the encrypted export package (see below). Documents marked as walkthroughs (runbooks and drills) contain structured input fields that the operator fills in while executing the procedure. These are rendered from special directives in the Markdown source. <strong><code>@field[Label]</code></strong> — single-line text input. Use for values you look up or compute during the procedure, such as an IP address, a package filename, or a verification hash. <strong><code>@field[Label|VAR=default]</code></strong> — parameter field that also registers a template variable. The value the operator types is injected into every <code>{{VAR}}</code> placeholder in command blocks throughout the document, updating them live. <strong><code>@area[Label]</code></strong> — multi-line text area. Use for observations, paste output, or longer notes. <strong><code>@credential[Label]</code></strong> — password-style input, stored in <code>sessionStorage</code> (cleared on tab close). Use for secrets the operator needs during the procedure. Marked with a lock icon and a reminder to save to KeePass. <strong><code>@credential[Label|VAR]</code></strong> — credential field that also injects into <code>{{VAR}}</code> command blocks. Lets live commands include the credential without it appearing in plain text. <strong><code>@radio[Label|Option1|Option2|...]</code></strong> — single-choice selector. Records which option the operator chose, with an optional per-option note field. <strong><code>@check[Label|Item1|Item2|...]</code></strong> — checklist. Records which items were completed, with optional per-item notes. <strong><code>@table[Label|Col1|Col2|...](Row1,Row2,...)</code></strong> — pre-populated table with editable cells. Use for timing records, wave summaries, or multi-row observations. <strong><code>@parse[Label|regex|target-field]</code></strong> — a textarea where the operator pastes terminal output. When the Extract button is clicked, the regex is applied and the captured group is applied to the named target field. <strong><code>@filename[Label|template]</code></strong> — suggested filename field. The template can include <code>{{note:field-slug}}</code> references that are resolved from other filled fields, and <code>{{STAMP}}</code> for the current timestamp. <strong><code>@dir[Label]</code></strong> — working directory field. Filled value is used as a <code>cd</code> shorthand for subsequent command blocks in the same section. Any code block in a document can contain <code>{{VAR}}</code> or <code>{{VAR=default}}</code> placeholders. When the operator fills in a field linked to <code>VAR</code>, every command block that references <code>{{VAR}}</code> updates immediately. The <strong>Copy</strong> button copies the resolved command — not the template — so the operator never copies a placeholder by mistake. The <strong>Parameters</strong> panel at the top of the page shows all declared variables in one place. Editing a value there syncs to all corresponding field inputs and command blocks. All documentation pages have collapsible <code>##</code> sections. Each section has: Subsections (<code>###</code>, <code>####</code>) are also collapsible independently within their parent section. On walkthrough pages, the <strong>⬇ Export</strong> button generates an encrypted export package containing all filled fields, session notes, and any attached files. The package is a ZIP file encrypted with AES-256-GCM using a passphrase derived from PBKDF2-SHA256 (600,000 iterations). Credential fields (marked with 🔑) are included in the encrypted package — this is intentional, as the package is meant to serve as a tamper-evident audit record. The passphrase is shown at export time. Store it in KeePass or another secure location — there is no recovery mechanism if it is lost. A previously exported package can be imported back to restore all field values and notes. The <strong>↑ Import Session</strong> button prompts for the export passphrase, decrypts, and restores. Every paragraph and heading in a document can be edited directly in the browser. Hover over any paragraph to reveal the <strong>✎</strong> button. Clicking it opens an inline textarea where the text can be revised. Edits are saved to <code>localStorage</code> and persist across page reloads. An <strong>(edited)</strong> marker appears next to modified blocks. The <strong>↺ Reset</strong> button inside the editor restores the original generated text for that block. The <strong>⬇ Download with Edits</strong> button (in the toolbar) downloads a copy of the page with all inline edits baked into the HTML — useful for creating a customized version without modifying the source Markdown. On walkthrough pages, the <strong>Attachments</strong> panel appears at the top of the document (above the main content). Drag files onto the panel or click <strong>+ Add File</strong> to attach logs, screenshots, hardware profiles, or other files. Attached files are included in the encrypted export package. All HTML documentation is generated from Markdown sources via <code>md_to_html.py</code>. The document manifest (<code>proxmox-bootstrap/doc-manifest.json</code>) lists every registered document with its source path, output path, title, and generation flags. To regenerate everything after changes to the generator or styling: To check which documents are stale without regenerating: To regenerate a single document by its manifest ID: New documents should be added to <code>doc-manifest.json</code> first, then their Markdown source created, then regenerated. Hand-authored HTML is not permitted — all HTML must be generated from a registered Markdown source. The <strong>☀ Light</strong> / <strong>☾ Dark</strong> toggle in the toolbar switches between colour themes. The preference is saved in <code>localStorage</code> and applied on all subsequent page loads. All pages have print-friendly CSS. The notes panel, toolbar, and interactive controls are hidden when printing; only the document content is shown. Use your browser's print function to produce a PDF of any page.</p>
+<p>This page explains how broodforge's interactive HTML documentation system works. All documentation in this project is authored in Markdown and generated into self-contained HTML files using <code>proxmox-bootstrap/md_to_html.py</code>. No HTML is hand-authored — the pipeline is always <strong>Markdown source → md_to_html.py → HTML output</strong>. To regenerate all documentation after changes to the generator or source files, run: Every HTML companion page is rendered from a Markdown source file registered in <code>proxmox-bootstrap/doc-manifest.json</code>. The manifest records the source path, output path, page title, and generation flags for each document. The generator (<code>md_to_html.py</code>) is stdlib-only — no external dependencies required. The generated HTML is self-contained: all CSS, JavaScript, and structure are embedded in a single file. No external libraries or CDNs are required to view a doc. Every page shares a three-pane layout: The layout adapts: when undocked, the notes panel floats freely over the document. The notes panel persists free-form notes and structured section notes in your browser's <code>localStorage</code>, keyed by document. Notes are not sent anywhere — they live in your browser. The panel provides: Notes for walkthrough documents are included in the encrypted export package (see below). Documents marked as walkthroughs (runbooks and drills) contain structured input fields that the operator fills in while executing the procedure. These are rendered from special directives in the Markdown source. <strong><code>@field[Label]</code></strong> — single-line text input. Use for values you look up or compute during the procedure, such as an IP address, a package filename, or a verification hash. <strong><code>@field[Label|VAR=default]</code></strong> — parameter field that also registers a template variable. The value the operator types is injected into every <code>{{VAR}}</code> placeholder in command blocks throughout the document, updating them live. <strong><code>@area[Label]</code></strong> — multi-line text area. Use for observations, paste output, or longer notes. <strong><code>@credential[Label]</code></strong> — password-style input, stored in <code>sessionStorage</code> (cleared on tab close). Use for secrets the operator needs during the procedure. Marked with a lock icon and a reminder to save to KeePass. <strong><code>@credential[Label|VAR]</code></strong> — credential field that also injects into <code>{{VAR}}</code> command blocks. Lets live commands include the credential without it appearing in plain text. <strong><code>@radio[Label|Option1|Option2|...]</code></strong> — single-choice selector. Records which option the operator chose, with an optional per-option note field. <strong><code>@check[Label|Item1|Item2|...]</code></strong> — checklist. Records which items were completed, with optional per-item notes. <strong><code>@table[Label|Col1|Col2|...](Row1,Row2,...)</code></strong> — pre-populated table with editable cells. Use for timing records, wave summaries, or multi-row observations. <strong><code>@parse[Label|regex|target-field]</code></strong> — a textarea where the operator pastes terminal output. When the Extract button is clicked, the regex is applied and the captured group is applied to the named target field. <strong><code>@filename[Label|template]</code></strong> — suggested filename field. The template can include <code>{{note:field-slug}}</code> references that are resolved from other filled fields, and <code>{{STAMP}}</code> for the current timestamp. <strong><code>@dir[Label]</code></strong> — working directory field. Filled value is used as a <code>cd</code> shorthand for subsequent command blocks in the same section. <strong><code>@select[Label|Option1|Option2|...]</code></strong> — dropdown selector. Use for fields with a fixed set of valid values (e.g. timezone, disk type, replication mode). The selected value is stored in session notes and persists across reloads. Fields that expect network addresses or filesystem paths are validated as the operator types. A yellow underline and inline hint appear if the value looks wrong; the hint clears automatically when the value becomes valid. Validation types applied automatically by field label: Any code block in a document can contain <code>{{VAR}}</code> or <code>{{VAR=default}}</code> placeholders. When the operator fills in a field linked to <code>VAR</code>, every command block that references <code>{{VAR}}</code> updates immediately. The <strong>Copy</strong> button copies the resolved command — not the template — so the operator never copies a placeholder by mistake. The <strong>Parameters</strong> panel at the top of the page shows all declared variables in one place. Editing a value there syncs to all corresponding field inputs and command blocks. All documentation pages have collapsible <code>##</code> sections. Each section has: Subsections (<code>###</code>, <code>####</code>) are also collapsible independently within their parent section. On walkthrough pages, the <strong>⬇ Export</strong> button generates an encrypted export package containing all filled fields, session notes, and any attached files. The package is a ZIP file encrypted with AES-256-GCM using a passphrase derived from PBKDF2-SHA256 (600,000 iterations). Credential fields (marked with 🔑) are included in the encrypted package — this is intentional, as the package is meant to serve as a tamper-evident audit record. The passphrase is shown at export time. Store it in KeePass or another secure location — there is no recovery mechanism if it is lost. A previously exported package can be imported back to restore all field values and notes. The <strong>↑ Import Session</strong> button prompts for the export passphrase, decrypts, and restores. Every paragraph and heading in a document can be edited directly in the browser. Hover over any paragraph to reveal the <strong>✎</strong> button. Clicking it opens an inline textarea where the text can be revised. Edits are saved to <code>localStorage</code> and persist across page reloads. An <strong>(edited)</strong> marker appears next to modified blocks. The <strong>↺ Reset</strong> button inside the editor restores the original generated text for that block. The <strong>⬇ Download with Edits</strong> button (in the toolbar) downloads a copy of the page with all inline edits baked into the HTML — useful for creating a customized version without modifying the source Markdown. On walkthrough pages, the <strong>Attachments</strong> panel appears at the top of the document (above the main content). Drag files onto the panel or click <strong>+ Add File</strong> to attach logs, screenshots, hardware profiles, or other files. Attached files are included in the encrypted export package. All HTML documentation is generated from Markdown sources via <code>md_to_html.py</code>. The document manifest (<code>proxmox-bootstrap/doc-manifest.json</code>) lists every registered document with its source path, output path, title, and generation flags. To regenerate everything after changes to the generator or styling: To check which documents are stale without regenerating: To regenerate a single document by its manifest ID: New documents should be added to <code>doc-manifest.json</code> first, then their Markdown source created, then regenerated. Hand-authored HTML is not permitted — all HTML must be generated from a registered Markdown source. The <strong>☀ Light</strong> / <strong>☾ Dark</strong> toggle in the toolbar switches between colour themes. The preference is saved in <code>localStorage</code> and applied on all subsequent page loads. All pages have print-friendly CSS. The notes panel, toolbar, and interactive controls are hidden when printing; only the document content is shown. Use your browser's print function to produce a PDF of any page.</p>
 </div></details>
 </div></details>
     </div>
@@ -1432,21 +1448,102 @@
     function buildHtml(){
       var title=escHtml(document.title||'Notes');
       var sn=sessionNotes();
-      var snHtml=sn.trim()?'<section><h2>Quick Notes</h2><p style="white-space:pre-wrap">'+escHtml(sn.trim())+'</p></section>':'';
       var tree=getNotesTree();
-      var treeHtml=tree.length?'<section><h2>Sections</h2>'+treeToHtmlSections(tree,3)+'</section>':'';
-      var dark='background:#1a1d23;color:#cdd6f4';
+      var exportDate=escHtml(new Date().toString());
+
+      var css=[
+        ':root{--bg:#1a1d23;--bg2:#1e2128;--text:#cdd6f4;--accent:#89b4fa;--border:#313244;--muted:#7f8498;--radius:5px}',
+        '*{box-sizing:border-box}',
+        'body{background:var(--bg);color:var(--text);font-family:Segoe UI,system-ui,sans-serif;font-size:14px;line-height:1.6;margin:0;padding:0}',
+        '#bf-toolbar{background:var(--bg);border-bottom:3px solid var(--accent);padding:10px 20px 6px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:50}',
+        '#bf-toolbar h1{font-size:1em;margin:0;color:var(--accent);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+        'button{background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:3px 10px;height:28px;cursor:pointer;font-size:.85em;white-space:nowrap}',
+        'button:hover{border-color:var(--accent);color:var(--accent)}',
+        '#content{max-width:900px;margin:0 auto;padding:18px 24px}',
+        '.bf-section{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}',
+        '.bf-section-hdr{background:var(--bg2);padding:6px 12px;border-radius:var(--radius) var(--radius) 0 0;cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}',
+        '.bf-section-hdr:hover .bf-caret{color:var(--accent)}',
+        '.bf-caret{color:var(--muted);font-size:.75em;transition:transform .15s;flex-shrink:0}',
+        '.bf-section-hdr h2{margin:0;font-size:.95em;color:var(--text);font-weight:600}',
+        '.bf-section-hdr h3{margin:0;font-size:.9em;color:var(--text);font-weight:500}',
+        '.bf-section-hdr h4{margin:0;font-size:.88em;color:var(--muted);font-weight:400}',
+        '.bf-section-body{padding:10px 14px}',
+        '.bf-section.collapsed>.bf-section-body{display:none}',
+        '.bf-section.collapsed>.bf-section-hdr .bf-caret{transform:rotate(-90deg)}',
+        '.note-text{color:var(--text);white-space:pre-wrap;margin:4px 0 8px}',
+        '.note-text:empty::before{content:"(no notes)";color:var(--muted);font-style:italic}',
+        '.note-text[contenteditable=true]{border:1px dashed var(--border);border-radius:4px;padding:4px 8px;min-height:36px;outline:none}',
+        '.note-text[contenteditable=true]:focus{border-color:var(--accent)}',
+        '.quick-notes{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}',
+        '.quick-notes h2{margin:0 0 8px;font-size:.95em;color:var(--accent)}',
+        '.meta-date{color:var(--muted);font-size:.8em;margin:0 0 14px}'
+      ].join('\n');
+
+      function renderNode(node,depth){
+        var tag=depth<=1?'h2':depth<=2?'h3':'h4';
+        var body='<div class="note-text">'+escHtml(node.note||'')+'</div>';
+        var children=(node.children||[]).map(function(c){return renderNode(c,depth+1);}).join('');
+        return '<div class="bf-section">'
+          +'<div class="bf-section-hdr" onclick="this.closest(\'.bf-section\').classList.toggle(\'collapsed\')">'
+          +'<span class="bf-caret">▼</span>'
+          +'<'+tag+'>'+escHtml(node.label)+'</'+tag+'>'
+          +'</div>'
+          +'<div class="bf-section-body">'+body+children+'</div>'
+          +'</div>';
+      }
+
+      var snHtml=sn.trim()
+        ?'<div class="quick-notes"><h2>Quick Notes</h2><div class="note-text">'+escHtml(sn.trim())+'</div></div>'
+        :'';
+      var treeHtml=tree.length
+        ?tree.map(function(n){return renderNode(n,1);}).join('')
+        :'<p style="color:var(--muted)">No section notes recorded.</p>';
+
+      var editJs=[
+        'var _editOn=false;',
+        'var _editBtn=document.getElementById("bf-edit-btn");',
+        'var _dlBtn=document.getElementById("bf-dl-edited");',
+        '_editBtn.addEventListener("click",function(){',
+        '  _editOn=!_editOn;',
+        '  _editBtn.textContent=_editOn?"✓ Done":"✎ Edit";',
+        '  document.querySelectorAll(".note-text").forEach(function(el){',
+        '    el.contentEditable=_editOn?"true":"false";',
+        '  });',
+        '  _dlBtn.style.display=_editOn?"":"none";',
+        '});',
+        '_dlBtn.addEventListener("click",function(){',
+        '  var clone=document.documentElement.cloneNode(true);',
+        '  clone.querySelectorAll(".note-text").forEach(function(el){el.removeAttribute("contenteditable");});',
+        '  clone.querySelectorAll("#bf-dl-edited").forEach(function(el){el.style.display="none";});',
+        '  var blob=new Blob(["<!DOCTYPE html>\\n"+clone.outerHTML],{type:"text/html"});',
+        '  var a=document.createElement("a");a.href=URL.createObjectURL(blob);',
+        '  a.download=document.title.replace(/[^a-z0-9]+/gi,"-").toLowerCase()+"-notes-edited.html";',
+        '  a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},1000);',
+        '});',
+        'document.getElementById("bf-expand-all").addEventListener("click",function(){',
+        '  document.querySelectorAll(".bf-section.collapsed").forEach(function(s){s.classList.remove("collapsed");});',
+        '});',
+        'document.getElementById("bf-collapse-all").addEventListener("click",function(){',
+        '  document.querySelectorAll(".bf-section").forEach(function(s){s.classList.add("collapsed");});',
+        '});'
+      ].join('\n');
+
       return '<!DOCTYPE html>\n<html lang="en"><head><meta charset="UTF-8">'
         +'<title>'+title+' — Notes</title>'
-        +'<style>body{font-family:Segoe UI,system-ui,sans-serif;font-size:14px;line-height:1.6;'
-        +dark+';max-width:860px;margin:0 auto;padding:24px}'
-        +'h1,h2,h3,h4,h5,h6{color:#89b4fa}details{margin:4px 0}'
-        +'summary{cursor:pointer;user-select:none;list-style:none;padding:4px 0}'
-        +'summary::-webkit-details-marker{display:none}p{margin:6px 0}</style>'
+        +'<style>'+css+'</style>'
         +'</head><body>'
+        +'<div id="bf-toolbar">'
         +'<h1>'+title+' — Session Notes</h1>'
-        +'<p style="color:#7f8498;font-size:.85em">Exported: '+new Date().toString()+'</p>'
+        +'<button id="bf-expand-all">⊞ Expand all</button>'
+        +'<button id="bf-collapse-all">⊟ Collapse all</button>'
+        +'<button id="bf-edit-btn">✎ Edit</button>'
+        +'<button id="bf-dl-edited" style="display:none">⬇ Download edited</button>'
+        +'</div>'
+        +'<div id="content">'
+        +'<p class="meta-date">Exported: '+exportDate+'</p>'
         +snHtml+treeHtml
+        +'</div>'
+        +'<script>'+editJs+'</script>'
         +'</body></html>\n';
     }
 
@@ -1462,7 +1559,28 @@
       return true;
     }
 
-    // expose full notes as MD for zip export
+    // ---- TOC link navigation: open section + smooth scroll ----
+  (function(){
+    document.querySelectorAll('#bf-toc a').forEach(function(a){
+      a.addEventListener('click',function(e){
+        e.preventDefault();
+        var id=a.getAttribute('href').slice(1);
+        var el=document.getElementById(id);
+        if(!el) return;
+        var det=el.closest('details.section');
+        if(det) det.open=true;
+        var p=det?det.parentElement:null;
+        while(p){
+          var pd=p.closest('details');
+          if(pd) pd.open=true; else break;
+          p=pd.parentElement;
+        }
+        el.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+    });
+  })();
+
+  // expose full notes as MD for zip export
     window.bfGetNotesMd = buildMd;
 
     var btnMd=document.getElementById('bf-notes-export-md');

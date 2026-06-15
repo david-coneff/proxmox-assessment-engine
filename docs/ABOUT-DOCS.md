@@ -99,6 +99,22 @@ for the current timestamp.
 **`@dir[Label]`** — working directory field. Filled value is used as a `cd` shorthand
 for subsequent command blocks in the same section.
 
+**`@select[Label|Option1|Option2|...]`** — dropdown selector. Use for fields with a
+fixed set of valid values (e.g. timezone, disk type, replication mode). The selected
+value is stored in session notes and persists across reloads.
+
+### Input validation
+
+Fields that expect network addresses or filesystem paths are validated as the operator
+types. A yellow underline and inline hint appear if the value looks wrong; the hint
+clears automatically when the value becomes valid.
+
+Validation types applied automatically by field label:
+
+- **IPv4** — fields whose label contains "IP address", "LAN IP", or "WAN IP"
+- **Domain** — fields whose label contains "domain"
+- **Path** — all `@dir` fields (must end with `/` so sub-paths compose correctly)
+
 ### Live commands (parameter injection)
 
 Any code block in a document can contain `{{VAR}}` or `{{VAR=default}}` placeholders.
