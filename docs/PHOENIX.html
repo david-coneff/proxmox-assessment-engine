@@ -403,6 +403,11 @@
   /* ── directory path fields ───────────────────────────────────────────────── */
   .dir-field{margin:10px 0}
   .dir-input{font-family:'Cascadia Code',Consolas,monospace;font-size:.85em}
+  .note-input.val-warn,.param-input.val-warn{border-color:#f0a000!important;outline:none}
+  .val-hint{color:#f0a000;font-size:.75em;margin-top:2px;display:block}
+  .select-input{width:100%;max-width:360px;padding:3px 8px;height:30px;
+    background:var(--code-bg);color:var(--text);border:1px solid var(--border);
+    border-radius:var(--radius);font-family:inherit;font-size:.88em}
   .dir-hint{color:var(--muted);font-size:.75em;display:block;margin-top:3px}
   /* ── clear buttons ───────────────────────────────────────────────────────── */
   #bf-clear-fields-btn{background:var(--btn-bg);color:var(--muted);
@@ -445,18 +450,21 @@
     <div id="params"><h3>Parameters</h3><p class="params-hint">Fill in values here — every command below updates live. Copy button copies the resolved command.</p><div class="param-row"><label for="p-state">STATE</label><input id="p-state" class="param-input" type="text" data-var="STATE" value="proxmox-bootstrap/bootstrap-state.json" placeholder="proxmox-bootstrap/bootstrap-state.json"></div><div class="param-row"><label for="p-hardware">HARDWARE</label><input id="p-hardware" class="param-input" type="text" data-var="HARDWARE" value="hardware-profile-replacement.json" placeholder="hardware-profile-replacement.json"></div><div class="param-row"><label for="p-playbook">PLAYBOOK</label><input id="p-playbook" class="param-input" type="text" data-var="PLAYBOOK" value="phoenix-playbook.json" placeholder="phoenix-playbook.json"></div><div class="param-row"><label for="p-kdbx">KDBX</label><input id="p-kdbx" class="param-input" type="text" data-var="KDBX" value="" placeholder=""></div><div class="param-row"><label for="p-hatchery-ip">HATCHERY_IP</label><input id="p-hatchery-ip" class="param-input" type="text" data-var="HATCHERY_IP" value="192.168.1.20" placeholder="192.168.1.20"></div><div class="param-row"><label for="p-broodforge-repo-root-path">broodforge-repo-root-path</label><input id="p-broodforge-repo-root-path" class="param-input" type="text" data-var="broodforge-repo-root-path" value="" placeholder=""></div></div>
     <div id="bf-doc-body">
 <details class="section" open><summary><h1 id="phoenix-stargate-process-operator-runbook">PHOENIX — Stargate Process Operator Runbook</h1></summary><div class="sec-body" style="margin-left:0px">
+<blockquote><strong>Mise en place</strong> — All node identity must be known before you begin: cell
+codename, node codename being restored, and access to the KeePass database
+containing its credentials. Phoenix is a recovery operation — credentials,
+service configuration, and VM identities are pre-established and must be
+recovered exactly. Do not regenerate anything; restore what was.</blockquote>
 <hr>
 <details class="section" open><summary><h2 id="before-you-begin-collect-identity-information">Before you begin — collect identity information</h2></summary><div class="sec-body" style="margin-left:12px">
 <div class="notefield"><label>Cell identifier or codename (e.g. cell-1 or flying-bat)</label><input type="text" class="note-input" data-note="cell-identifier-or-codename-e-g-cell-1-or-flying" placeholder="record here…"></div>
 <div class="notefield"><label>Node codename being restored (e.g. stargate-01)</label><input type="text" class="note-input" data-note="node-codename-being-restored-e-g-stargate-01" placeholder="record here…"></div>
-<div class="notefield cred-field" id="cred-wrap-node-master-password-keepass-database-passphrase"><label>Node master password / KeePass database passphrase <span class="cred-badge">🔑 session-only — exported in encrypted package</span></label><div class="cred-methods"><label class="cred-method-opt"><input type="checkbox" class="cred-method-cb" value="password" checked data-cred="node-master-password-keepass-database-passphrase"> Password</label><label class="cred-method-opt"><input type="checkbox" class="cred-method-cb" value="totp" data-cred="node-master-password-keepass-database-passphrase"> TOTP (authenticator app)</label></div><div class="cred-method-section" id="cred-pw-section-node-master-password-keepass-database-passphrase"><div class="cred-section-label">Password</div><div class="cred-row"><input type="password" class="note-input cred-input param-input" id="cred-node-master-password-keepass-database-passphrase" data-cred="node-master-password-keepass-database-passphrase" data-note="node-master-password-keepass-database-passphrase-cred" placeholder="enter here…" autocomplete="off"><select class="bf-suggest-select" data-suggest-for="node-master-password-keepass-database-passphrase"><option value="4word">4-word phrase</option><option value="3word-n">3-word + number</option><option value="random">random string</option></select><button type="button" class="bf-suggest-btn" data-suggest="passphrase" data-for="node-master-password-keepass-database-passphrase" title="Generate passphrase">✦ suggest</button><button type="button" class="cred-toggle" data-for="node-master-password-keepass-database-passphrase" title="Show / hide">👁</button></div><div class="cred-row cred-confirm-row" id="cred-confirm-row-node-master-password-keepass-database-passphrase"><input type="password" class="note-input cred-confirm-input" id="cred-confirm-node-master-password-keepass-database-passphrase" data-for="node-master-password-keepass-database-passphrase" placeholder="confirm — retype to verify" autocomplete="off"><span class="cred-match-indicator" id="cred-match-node-master-password-keepass-database-passphrase"></span></div></div><div class="cred-method-section" id="cred-totp-section-node-master-password-keepass-database-passphrase" style="display:none"><div class="cred-section-label">TOTP Secret</div><div class="cred-row"><input type="text" class="note-input cred-totp-input" id="cred-totp-node-master-password-keepass-database-passphrase" data-cred="node-master-password-keepass-database-passphrase-totp" data-note="node-master-password-keepass-database-passphrase-totp" placeholder="BASE32 secret — enter into authenticator app" autocomplete="off" style="font-family:monospace;letter-spacing:.04em"><select class="bf-suggest-select" data-suggest-for="node-master-password-keepass-database-passphrase-totp"><option value="totp-20">standard (160-bit)</option><option value="totp-32">high security (256-bit)</option></select><button type="button" class="bf-suggest-btn" data-suggest="totp-secret" data-for="node-master-password-keepass-database-passphrase-totp" title="Generate TOTP secret">✦ suggest</button></div><span class="cred-hint" style="margin-top:2px">Scan or enter this secret into your authenticator app (e.g. Google Authenticator, Aegis).</span></div><span class="cred-hint">⚠ Record all values in KeePass or your secure vault before closing this tab.</span></div>
+<blockquote><strong>Pre-existing credential.</strong> The KeePass master passphrase was established during
+forging — do not regenerate it. Retrieve it from your KeePass database or vault.</blockquote>
+<div class="notefield"><label>KeePass database path or vault location (for reference)</label><input type="text" class="note-input" data-note="keepass-database-path-or-vault-location-for-refe" placeholder="record here…"></div>
 <blockquote><strong>Codename convention:</strong> Cells may use numeric IDs (<code>cell-1</code>) or
 adjective-animal codenames (<code>flying-bat</code>, <code>crouching-tiger</code>). Either form
 is valid — use whatever matches your <code>bootstrap-state.json</code>.</blockquote>
-<blockquote><strong>KeePass note:</strong> The credential field above is stored in your browser session
-only — it is erased when you close this tab and is never included in the exported
-package. Use it as a scratch reference while you work, then ensure it is
-saved in your KeePass database.</blockquote>
 <hr>
 </div></details>
 <details class="section" open><summary><h2 id="working-directory">Working directory</h2></summary><div class="sec-body" style="margin-left:12px">
@@ -568,6 +576,38 @@ flux get kustomizations          # workloads reconciling</code></pre></div>
       el.addEventListener('input', function(){ try{ localStorage.setItem(k, el.value); }catch(e){} });
     })(notes[j]);
   }
+  // ---- dir ↔ param bidirectional sync (task #12) ----
+  // @dir fields (data-note) and code-block params (data-var) may share the same key.
+  // Keep them in sync so editing either one updates the other.
+  (function(){
+    document.querySelectorAll('.dir-input[data-note]').forEach(function(dir){
+      var key = dir.dataset.note;
+      var param = document.querySelector('.param-input[data-var="'+key+'"]');
+      if(!param) return;
+      // On load: unify whichever has a value
+      if(param.value && !dir.value){
+        dir.value = param.value;
+        try{ localStorage.setItem(ns+'note:'+key, param.value); }catch(e){}
+      } else if(dir.value && !param.value){
+        param.value = dir.value;
+        applyVar(key, dir.value);
+        try{ localStorage.setItem(ns+'param:'+key, dir.value); }catch(e){}
+      }
+      // dir → param live
+      dir.addEventListener('input', function(){
+        if(param.value === dir.value) return;
+        param.value = dir.value;
+        applyVar(key, dir.value);
+        try{ localStorage.setItem(ns+'param:'+key, dir.value); }catch(e){}
+      });
+      // param → dir live
+      param.addEventListener('input', function(){
+        if(dir.value === param.value) return;
+        dir.value = param.value;
+        try{ localStorage.setItem(ns+'note:'+key, param.value); }catch(e){}
+      });
+    });
+  })();
   // ---- copy buttons ----
   // Resolve a code block's text, substituting {{cred:slug}} with real session values.
   function resolveCopyText(pre){
@@ -1898,6 +1938,46 @@ flux get kustomizations          # workloads reconciling</code></pre></div>
         f.value=def;applyVar(f.dataset.var,f.value);
         try{localStorage.removeItem(ns+'param:'+f.dataset.var);}catch(e){}
       });
+  // ---- input validation (task #15) ----
+  var _IP4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+  var _IP6 = /^[0-9a-fA-F:]+$/;
+  var _DOM = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+  function _validHint(el, msg){
+    el.classList.toggle('val-warn', !!msg);
+    var wrap = el.closest('.notefield,.param-row');
+    if(!wrap) return;
+    var h = wrap.querySelector('.val-hint');
+    if(msg && !h){ h = document.createElement('span'); h.className='val-hint'; wrap.appendChild(h); }
+    if(h){ h.textContent = msg || ''; h.style.display = msg ? '' : 'none'; }
+  }
+  function _validateEl(el){
+    var v = el.dataset.validate || '';
+    var val = (el.value||'').trim();
+    if(!v || !val) return _validHint(el,'');
+    if(v==='ip4'){
+      if(!_IP4.test(val)){ _validHint(el,'Expected IPv4 format: a.b.c.d'); return; }
+      var octs=val.split('.').map(Number);
+      if(octs.some(function(o){return o>255;})){ _validHint(el,'Each octet must be 0\u2013255'); return; }
+    } else if(v==='ip6'){
+      if(!_IP6.test(val)||!val.includes(':')){ _validHint(el,'Expected IPv6 format (hex groups separated by :)'); return; }
+    } else if(v==='domain'){
+      if(!_DOM.test(val)){ _validHint(el,'Expected domain format: name.tld or sub.name.tld'); return; }
+    } else if(v==='path'){
+      if(val && !val.endsWith('/')){ _validHint(el,'Path should end with / so appended sub-paths compose correctly'); return; }
+    }
+    _validHint(el,'');
+  }
+  // Attach validation to any element with data-validate
+  document.querySelectorAll('[data-validate]').forEach(function(el){
+    el.addEventListener('input', function(){ _validateEl(el); });
+    el.addEventListener('blur', function(){ _validateEl(el); });
+  });
+  // @dir fields always validate as path (must end with /)
+  document.querySelectorAll('.dir-input').forEach(function(el){
+    el.dataset.validate = 'path';
+    el.addEventListener('input', function(){ _validateEl(el); });
+    el.addEventListener('blur', function(){ _validateEl(el); });
+  });
       document.querySelectorAll('.cred-input').forEach(function(f){
         var slug=f.dataset.cred||'';
         f.value='';try{sessionStorage.removeItem('bf:cred:'+slug);}catch(e){}

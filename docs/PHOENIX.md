@@ -7,6 +7,11 @@ It is the recovery counterpart to `FORGING.md` (first node) and `NODE-SPAWNING.m
 
 Fill in the **Parameters** panel — every command on this page updates live, and each
 **Copy** button copies the resolved command including your actual paths and values.
+> **Mise en place** — All node identity must be known before you begin: cell
+> codename, node codename being restored, and access to the KeePass database
+> containing its credentials. Phoenix is a recovery operation — credentials,
+> service configuration, and VM identities are pre-established and must be
+> recovered exactly. Do not regenerate anything; restore what was.
 
 ---
 
@@ -18,16 +23,15 @@ the phoenix package.
 
 @field[Cell identifier or codename (e.g. cell-1 or flying-bat)]
 @field[Node codename being restored (e.g. stargate-01)]
-@credential[Node master password / KeePass database passphrase]
+> **Pre-existing credential.** The KeePass master passphrase was established during
+> forging — do not regenerate it. Retrieve it from your KeePass database or vault.
+
+@field[KeePass database path or vault location (for reference)]
 
 > **Codename convention:** Cells may use numeric IDs (`cell-1`) or
 > adjective-animal codenames (`flying-bat`, `crouching-tiger`). Either form
 > is valid — use whatever matches your `bootstrap-state.json`.
 
-> **KeePass note:** The credential field above is stored in your browser session
-> only — it is erased when you close this tab and is never included in the exported
-> package. Use it as a scratch reference while you work, then ensure it is
-> saved in your KeePass database.
 
 ---
 

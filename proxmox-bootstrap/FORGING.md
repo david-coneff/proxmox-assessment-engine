@@ -8,6 +8,11 @@ forge workflow end-to-end.
 
 Fill in the **Parameters** panel — every command on this page updates live, and each
 **Copy** button copies the resolved command including your actual paths and values.
+> **Mise en place** — Gather everything before you begin. A forge commits
+> irreversible changes to bare hardware: confirm your hatchery hostname, domain,
+> IP, and planned timezone before touching Step 1. Decide your backup destination
+> type and address. Think through your KeePass master passphrase and how you will
+> store it safely. Read every step in this runbook before executing any of them.
 
 ---
 
@@ -157,8 +162,12 @@ cat forge-manifest.json
 Record the key values the planner confirmed:
 
 @radio[Network profile selected|LAN only (no Headscale)|WAN-capable (Headscale + DDNS)|LAN with future WAN upgrade planned]
-@field[Timezone configured]
-@field[Backup destination(s) configured]
+@select[Timezone configured|UTC|America/New_York|America/Chicago|America/Denver|America/Los_Angeles|America/Phoenix|America/Anchorage|Pacific/Honolulu|Europe/London|Europe/Paris|Europe/Berlin|Europe/Helsinki|Europe/Moscow|Asia/Jerusalem|Asia/Kolkata|Asia/Bangkok|Asia/Shanghai|Asia/Tokyo|Asia/Seoul|Australia/Sydney|Pacific/Auckland]
+> Record the backup type and destination address — e.g. `PBS server at 192.168.1.50`,
+> `NFS share at 192.168.1.1:/backup`, or `Rclone remote (S3 bucket name)`. This is not
+> a yes/no field — record what was actually configured.
+
+@field[Backup destination(s) configured — type and endpoint]
 
 ---
 
@@ -309,6 +318,8 @@ you will not be prompted again.
 - forge.sh suggests a readable passphrase (e.g. `Forest.amber.glide.8`)
 - Accept the suggestion, enter your own, or use KeePass's built-in generator
 - This is the single most important secret — choose carefully and record it safely
+
+@credential[KeePass master passphrase]
 
 ### Phase 03 — WAN profile only
 

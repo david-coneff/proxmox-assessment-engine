@@ -442,6 +442,11 @@ _CSS = """
   /* ── directory path fields ───────────────────────────────────────────────── */
   .dir-field{margin:10px 0}
   .dir-input{font-family:'Cascadia Code',Consolas,monospace;font-size:.85em}
+  .note-input.val-warn,.param-input.val-warn{border-color:#f0a000!important;outline:none}
+  .val-hint{color:#f0a000;font-size:.75em;margin-top:2px;display:block}
+  .select-input{width:100%;max-width:360px;padding:3px 8px;height:30px;
+    background:var(--code-bg);color:var(--text);border:1px solid var(--border);
+    border-radius:var(--radius);font-family:inherit;font-size:.88em}
   .dir-hint{color:var(--muted);font-size:.75em;display:block;margin-top:3px}
   /* ── clear buttons ───────────────────────────────────────────────────────── */
   #bf-clear-fields-btn{background:var(--btn-bg);color:var(--muted);
@@ -514,6 +519,38 @@ _JS = r"""
       el.addEventListener('input', function(){ try{ localStorage.setItem(k, el.value); }catch(e){} });
     })(notes[j]);
   }
+  // ---- dir ↔ param bidirectional sync (task #12) ----
+  // @dir fields (data-note) and code-block params (data-var) may share the same key.
+  // Keep them in sync so editing either one updates the other.
+  (function(){
+    document.querySelectorAll('.dir-input[data-note]').forEach(function(dir){
+      var key = dir.dataset.note;
+      var param = document.querySelector('.param-input[data-var="'+key+'"]');
+      if(!param) return;
+      // On load: unify whichever has a value
+      if(param.value && !dir.value){
+        dir.value = param.value;
+        try{ localStorage.setItem(ns+'note:'+key, param.value); }catch(e){}
+      } else if(dir.value && !param.value){
+        param.value = dir.value;
+        applyVar(key, dir.value);
+        try{ localStorage.setItem(ns+'param:'+key, dir.value); }catch(e){}
+      }
+      // dir → param live
+      dir.addEventListener('input', function(){
+        if(param.value === dir.value) return;
+        param.value = dir.value;
+        applyVar(key, dir.value);
+        try{ localStorage.setItem(ns+'param:'+key, dir.value); }catch(e){}
+      });
+      // param → dir live
+      param.addEventListener('input', function(){
+        if(dir.value === param.value) return;
+        dir.value = param.value;
+        try{ localStorage.setItem(ns+'note:'+key, param.value); }catch(e){}
+      });
+    });
+  })();
   // ---- copy buttons ----
   // Resolve a code block's text, substituting {{cred:slug}} with real session values.
   function resolveCopyText(pre){
@@ -1844,6 +1881,46 @@ _JS = r"""
         f.value=def;applyVar(f.dataset.var,f.value);
         try{localStorage.removeItem(ns+'param:'+f.dataset.var);}catch(e){}
       });
+  // ---- input validation (task #15) ----
+  var _IP4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+  var _IP6 = /^[0-9a-fA-F:]+$/;
+  var _DOM = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+  function _validHint(el, msg){
+    el.classList.toggle('val-warn', !!msg);
+    var wrap = el.closest('.notefield,.param-row');
+    if(!wrap) return;
+    var h = wrap.querySelector('.val-hint');
+    if(msg && !h){ h = document.createElement('span'); h.className='val-hint'; wrap.appendChild(h); }
+    if(h){ h.textContent = msg || ''; h.style.display = msg ? '' : 'none'; }
+  }
+  function _validateEl(el){
+    var v = el.dataset.validate || '';
+    var val = (el.value||'').trim();
+    if(!v || !val) return _validHint(el,'');
+    if(v==='ip4'){
+      if(!_IP4.test(val)){ _validHint(el,'Expected IPv4 format: a.b.c.d'); return; }
+      var octs=val.split('.').map(Number);
+      if(octs.some(function(o){return o>255;})){ _validHint(el,'Each octet must be 0\u2013255'); return; }
+    } else if(v==='ip6'){
+      if(!_IP6.test(val)||!val.includes(':')){ _validHint(el,'Expected IPv6 format (hex groups separated by :)'); return; }
+    } else if(v==='domain'){
+      if(!_DOM.test(val)){ _validHint(el,'Expected domain format: name.tld or sub.name.tld'); return; }
+    } else if(v==='path'){
+      if(val && !val.endsWith('/')){ _validHint(el,'Path should end with / so appended sub-paths compose correctly'); return; }
+    }
+    _validHint(el,'');
+  }
+  // Attach validation to any element with data-validate
+  document.querySelectorAll('[data-validate]').forEach(function(el){
+    el.addEventListener('input', function(){ _validateEl(el); });
+    el.addEventListener('blur', function(){ _validateEl(el); });
+  });
+  // @dir fields always validate as path (must end with /)
+  document.querySelectorAll('.dir-input').forEach(function(el){
+    el.dataset.validate = 'path';
+    el.addEventListener('input', function(){ _validateEl(el); });
+    el.addEventListener('blur', function(){ _validateEl(el); });
+  });
       document.querySelectorAll('.cred-input').forEach(function(f){
         var slug=f.dataset.cred||'';
         f.value='';try{sessionStorage.removeItem('bf:cred:'+slug);}catch(e){}
@@ -2395,6 +2472,11 @@ def _render_blocks(md: str, tpl_vars: dict, collapsible: bool = False) -> str:
                 var_name = None
                 var_default = ""
             slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:48] or "note"
+            def _detect_validate(lbl, vname=''):
+                txt = (lbl + ' ' + vname).lower()
+                if any(k in txt for k in ('lan ip','wan ip','ip address',' ip|','hatchery_ip','broodling_ip','_ip=')): return 'ip4'
+                if 'domain' in txt: return 'domain'
+                return ''
             if kind == "field":
                 if var_name:
                     # Render as a live param input (syncs with Parameters panel)
@@ -2404,14 +2486,14 @@ def _render_blocks(md: str, tpl_vars: dict, collapsible: bool = False) -> str:
                         f'<label for="p-{vslug}">{html.escape(label)}</label>'
                         f'<input id="p-{vslug}" class="param-input" type="text" '
                         f'data-var="{html.escape(var_name)}" '
-                        f'value="{html.escape(var_default)}" placeholder="{html.escape(var_default)}">'
-                        f'</div>'
++ (f'data-validate="{_detect_validate(label, var_name)}" ' if _detect_validate(label, var_name) else '')
+                        + f'value="{html.escape(var_default)}" placeholder="{html.escape(var_default)}">'
+                        + f'</div>'
                     )
                 else:
                     out.append(
                         f'<div class="notefield"><label>{html.escape(label)}</label>'
-                        f'<input type="text" class="note-input" data-note="{slug}" '
-                        f'placeholder="record here…"></div>'
+                        + (f'<input type="text" class="note-input" data-note="{slug}" data-validate="{_detect_validate(label)}" placeholder="record here…"></div>' if _detect_validate(label) else f'<input type="text" class="note-input" data-note="{slug}" placeholder="record here…"></div>')
                     )
             elif kind == "area":
                 out.append(
@@ -2495,6 +2577,24 @@ def _render_blocks(md: str, tpl_vars: dict, collapsible: bool = False) -> str:
                 f'<label>{html.escape(label)}</label>'
                 f'<input type="hidden" data-note="{slug}" class="note-input" value="">'
                 f'<div class="choice-rows">{rows}</div></div>'
+            )
+            i += 1
+            continue
+
+        # @select[Label|Opt1|Opt2|...] — dropdown (stored as note-input)
+        m = re.match(r"^@select\[(.+?)\]\s*$", stripped)
+        if m:
+            parts = [p.strip() for p in m.group(1).split("|")]
+            label, opts = parts[0], parts[1:]
+            slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:48] or "select"
+            opts_html = '<option value="">\u2014 select \u2014</option>'
+            for opt in opts:
+                opts_html += f'<option value="{html.escape(opt)}">{html.escape(opt)}</option>'
+            out.append(
+                f'<div class="notefield select-field">'
+                f'<label>{html.escape(label)}</label>'
+                f'<select class="note-input select-input" data-note="{slug}">'
+                f'{opts_html}</select></div>'
             )
             i += 1
             continue
@@ -2763,7 +2863,7 @@ def render_html(md: str, title: str, collapsible: bool = False, force_walkthroug
         )
 
     is_walkthrough = force_walkthrough or bool(tpl_vars) or bool(re.search(
-        r"(?m)^@(?:field|area|credential|radio|check|table|parse|filename|dir)\[", md))
+        r"(?m)^@(?:field|area|credential|radio|select|check|table|parse|filename|dir)\[", md))
 
     doc_slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "doc"
 

@@ -9,6 +9,11 @@ hardware → cluster member with declared services running.
 
 Fill in the **Parameters** panel — every command on this page updates live, and each
 **Copy** button copies the resolved command including your actual paths and values.
+> **Mise en place** — Confirm the broodling has Proxmox VE installed and is
+> reachable from the hatchery before starting the planner. Know its intended
+> hostname, IP address, and role (worker vs server). The KeePass master password
+> for the hatchery must be on-hand — spawn.sh will prompt for it once on the
+> broodling after the package is copied over.
 
 ---
 
@@ -231,6 +236,9 @@ Is the broodling on the same LAN as the hatchery?
 - **LAN**: generates a suggested temporary root password (`Ready.to.spawn.7` format).
   Use this password when installing Proxmox on the broodling.
   The planner holds it in memory for hardware discovery — not stored in KeePass.
+  Record it here for the duration of Proxmox installation:
+
+@credential[Temporary broodling root password — discard after Proxmox install]
 
 - **WAN**: calls `headscale authkeys generate --expiration 1h --user broodforge`.
   The auth key is embedded in the spawn package. `phase-00a` installs Tailscale
