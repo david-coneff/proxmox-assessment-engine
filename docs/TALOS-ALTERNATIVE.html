@@ -93,10 +93,10 @@
     border-radius:4px;cursor:pointer;padding:1px 6px;font-size:.82em}
   .attach-list button:hover{border-color:var(--red);color:var(--red)}
   /* doc navigation panel */
-  #bf-nav-panel{position:absolute;top:100%;left:0;width:300px;
-    background:var(--bg2);border:1px solid var(--border);border-top:none;
-    border-radius:0 0 var(--radius) var(--radius);
-    box-shadow:0 6px 18px rgba(0,0,0,.38);z-index:51;
+  #bf-nav-panel{position:fixed;width:300px;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:0 6px 18px rgba(0,0,0,.38);z-index:9999;
     display:none;padding:8px 0;max-height:70vh;overflow-y:auto}
   #bf-nav-panel.open{display:block}
   .bf-nav-group{padding:4px 0}
@@ -696,13 +696,20 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
   }
   var attachAdd=document.getElementById('bf-attach-add');
   var attachZone=document.getElementById('bf-attach-zone');
-  // toggle nav panel
+  // toggle nav panel (position:fixed, computed via getBoundingClientRect)
   var navToggle=document.getElementById('bf-nav-toggle');
   var navPanel=document.getElementById('bf-nav-panel');
   if(navToggle&&navPanel){
     navToggle.addEventListener('click',function(e){
       e.stopPropagation();
-      navPanel.classList.toggle('open');
+      if(navPanel.classList.contains('open')){
+        navPanel.classList.remove('open');
+      } else {
+        var r=navToggle.getBoundingClientRect();
+        navPanel.style.top=r.bottom+'px';
+        navPanel.style.left=r.left+'px';
+        navPanel.classList.add('open');
+      }
     });
     document.addEventListener('click',function(e){
       if(navPanel.classList.contains('open')&&!navPanel.contains(e.target)&&e.target!==navToggle){
@@ -1593,7 +1600,7 @@ python3 proxmox-bootstrap/migrate-k3s-to-ubuntu.py --node k3s-server-01</code></
         +'<p class="meta-date">Exported: '+exportDate+'</p>'
         +snHtml+treeHtml
         +'</div>'
-        +'<script>'+editJs+'</script>'
+        +'<scr'+'ipt>'+editJs+'<\/scr'+'ipt>'
         +'</body></html>\n';
     }
 
