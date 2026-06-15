@@ -186,9 +186,9 @@
   .nts-section{margin:4px 0;border:1px solid var(--border);border-radius:var(--radius);
     overflow:hidden}
   /* dim only a section's OWN header + direct body content — nested sections unaffected */
-  .nts-section.nts-dim>summary.nts-hdr{opacity:0.35}
-  .nts-section.nts-dim>.nts-body>textarea.note-area{opacity:0.35!important;border-color:transparent!important}
-  .nts-section.nts-dim>.nts-body>textarea.note-area::placeholder{opacity:0.25!important}
+  .nts-section.nts-dim>summary.nts-hdr{opacity:0.12}
+  .nts-section.nts-dim>.nts-body>textarea.note-area{opacity:0.12!important;border-color:transparent!important}
+  .nts-section.nts-dim>.nts-body>textarea.note-area::placeholder{opacity:0.08!important}
   .nts-section>summary.nts-hdr{list-style:none;cursor:pointer;user-select:none;
     display:flex;align-items:center;gap:4px;background:var(--bg3);
     padding:5px 8px;font-size:.79em}
@@ -2164,7 +2164,7 @@ On pass    → proceed to [B]</code></pre>
         /* Header toolbar always 100% — set nothing on hdr */
         /* Apply per-container opacity: non-active containers fade, active stays 100% */
         if(notesBody){
-          var fOp='0.35';
+          var fOp='0.12';
           var qn=document.getElementById('bf-session-notes');
           /* quick-notes textarea: direct opacity fine (leaf element, no children) */
           if(qn) qn.style.opacity=(qn===activeNoteContainer)?'':fOp;
