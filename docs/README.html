@@ -186,9 +186,11 @@
   .nts-section{margin:4px 0;border:1px solid var(--border);border-radius:var(--radius);
     overflow:hidden}
   /* dim only a section's OWN header + direct body content — nested sections unaffected */
-  .nts-section.nts-dim>summary.nts-hdr{opacity:0.12}
-  .nts-section.nts-dim>.nts-body>textarea.note-area{opacity:0.12!important;border-color:transparent!important}
-  .nts-section.nts-dim>.nts-body>textarea.note-area::placeholder{opacity:0.08!important}
+  .nts-section.nts-dim{border-color:transparent!important}
+  .nts-section.nts-dim>summary.nts-hdr{opacity:0!important;pointer-events:none}
+  .nts-section.nts-dim>.nts-body>textarea.note-area{opacity:0!important;border-color:transparent!important;background:transparent!important}
+  .nts-section.nts-dim>.nts-body>textarea.note-area::placeholder{opacity:0!important}
+  .nts-section.nts-dim>.nts-body>.nts-ch>button{opacity:0!important;pointer-events:none}
   .nts-section>summary.nts-hdr{list-style:none;cursor:pointer;user-select:none;
     display:flex;align-items:center;gap:4px;background:var(--bg3);
     padding:5px 8px;font-size:.79em}
@@ -2554,7 +2556,7 @@ Phase 7   Monitoring ────────────────  GATE 4: p
         /* Header toolbar always 100% — set nothing on hdr */
         /* Apply per-container opacity: non-active containers fade, active stays 100% */
         if(notesBody){
-          var fOp='0.12';
+          var fOp='0';
           var qn=document.getElementById('bf-session-notes');
           /* quick-notes textarea: direct opacity fine (leaf element, no children) */
           if(qn) qn.style.opacity=(qn===activeNoteContainer)?'':fOp;
@@ -2562,10 +2564,12 @@ Phase 7   Monitoring ────────────────  GATE 4: p
           notesBody.querySelectorAll('.nts-section').forEach(function(s){
             var dim=(s!==activeNoteContainer);
             s.classList.toggle('nts-dim',dim);
+            s.style.background=dim?'transparent':'';
+            s.style.borderColor=dim?'transparent':'';
             var hdr=s.querySelector(':scope>summary');
             if(hdr) hdr.style.opacity=dim?fOp:'';
             var ta=s.querySelector(':scope>.nts-body>textarea');
-            if(ta){ta.style.opacity=dim?fOp:'';ta.style.borderColor=dim?'transparent':'';ta.style.background=dim?'var(--bg3)':'';}
+            if(ta){ta.style.opacity=dim?fOp:'';ta.style.borderColor=dim?'transparent':'';ta.style.background=dim?'transparent':'';}
           });
         }
       }
@@ -2629,6 +2633,7 @@ Phase 7   Monitoring ────────────────  GATE 4: p
           if(qn2) qn2.style.opacity='';
           notesBody.querySelectorAll('.nts-section').forEach(function(s){
             s.classList.remove('nts-dim');
+            s.style.background=''; s.style.borderColor='';
             var hdr=s.querySelector(':scope>summary');
             if(hdr) hdr.style.opacity='';
             var ta=s.querySelector(':scope>.nts-body>textarea');
